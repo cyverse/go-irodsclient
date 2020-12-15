@@ -1,0 +1,9 @@
+host:
+  hostname: "128.196.65.131"
+  port: 1247
+user:
+  username: ""
+  password: ""
+  zone: "cyverse.k8s"
+auth_scheme: "native"
+server_dn: "serverdn"

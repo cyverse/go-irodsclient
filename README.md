@@ -1,2 +1,7 @@
 # go-irodsclient
-Go iRODS Client (PRC)
+Go iRODS Client
+
+## Testing
+```shell script
+go test -v ./...
+```
