@@ -1,57 +1,92 @@
 package util
 
 import (
-	"log"
-	"os"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
-	// DebugLogger ...
-	DebugLogger *log.Logger = log.New(os.Stderr, "DEBUG: ", log.Ldate|log.Ltime|log.Lshortfile)
-	// WarningLogger ...
-	WarningLogger *log.Logger = log.New(os.Stderr, "WARNING: ", log.Ldate|log.Ltime|log.Lshortfile)
-	// InfoLogger ...
-	InfoLogger *log.Logger = log.New(os.Stderr, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
-	// ErrorLogger ...
-	ErrorLogger *log.Logger = log.New(os.Stderr, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
+	// LogLevel is a level of log
+	logLevel int = 9
 )
+
+// SetLogLevel sets log level
+func SetLogLevel(level int) {
+	logLevel = level
+
+	if logLevel >= 8 {
+		log.SetLevel(log.DebugLevel)
+	} else if logLevel >= 5 {
+		log.SetLevel(log.InfoLevel)
+	} else if logLevel >= 3 {
+		log.SetLevel(log.WarnLevel)
+	} else if logLevel >= 1 {
+		log.SetLevel(log.ErrorLevel)
+	} else {
+		log.SetLevel(log.FatalLevel)
+	}
+}
+
+// GetLogLevel returns current log level
+func GetLogLevel() int {
+	return logLevel
+}
+
+// IsLogLevelError checks if current log level is error
+func IsLogLevelError() bool {
+	return log.GetLevel() == log.ErrorLevel
+}
+
+// IsLogLevelWarn checks if current log level is warn
+func IsLogLevelWarn() bool {
+	return log.GetLevel() == log.WarnLevel
+}
+
+// IsLogLevelInfo checks if current log level is info
+func IsLogLevelInfo() bool {
+	return log.GetLevel() >= log.InfoLevel
+}
+
+// IsLogLevelDebug checks if current log level is debug
+func IsLogLevelDebug() bool {
+	return log.GetLevel() >= log.DebugLevel
+}
 
 // LogDebug logs debug level message
 func LogDebug(message interface{}) {
-	DebugLogger.Print(message)
+	log.Debug(message)
 }
 
 // LogDebugf logs debug level message
 func LogDebugf(format string, v ...interface{}) {
-	DebugLogger.Printf(format, v...)
+	log.Debugf(format, v...)
 }
 
 // LogInfo logs info level message
 func LogInfo(message interface{}) {
-	InfoLogger.Print(message)
+	log.Info(message)
 }
 
 // LogInfof logs info level message
 func LogInfof(format string, v ...interface{}) {
-	InfoLogger.Printf(format, v...)
+	log.Infof(format, v...)
 }
 
-// LogWarning logs warning level message
-func LogWarning(message interface{}) {
-	WarningLogger.Print(message)
+// LogWarn logs warn level message
+func LogWarn(message interface{}) {
+	log.Warn(message)
 }
 
 // LogWarningf logs warning level message
 func LogWarningf(format string, v ...interface{}) {
-	WarningLogger.Printf(format, v...)
+	log.Warnf(format, v...)
 }
 
 // LogError logs error level message
 func LogError(message interface{}) {
-	ErrorLogger.Print(message)
+	log.Error(message)
 }
 
 // LogErrorf logs error level message
 func LogErrorf(format string, v ...interface{}) {
-	ErrorLogger.Printf(format, v...)
+	log.Errorf(format, v...)
 }

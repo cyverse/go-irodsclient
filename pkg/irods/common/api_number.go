@@ -1,4 +1,4 @@
-package api
+package common
 
 // APINumber is a api number type
 type APINumber int32

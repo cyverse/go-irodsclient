@@ -3,14 +3,16 @@ package types
 import (
 	"strings"
 
-	"github.com/iychoi/go-irodsclient/pkg/irods/api"
+	"github.com/iychoi/go-irodsclient/pkg/irods/common"
+
 	"gopkg.in/yaml.v2"
 )
 
 // IRODSAccount contains irods login information
 type IRODSAccount struct {
 	AuthenticationScheme    string
-	ClientServerNegotiation string
+	ClientServerNegotiation bool
+	CSNegotiationPolicy     CSNegotiation
 	Host                    string
 	Port                    int32
 	ClientUser              string
@@ -26,33 +28,35 @@ func CreateIRODSAccount(host string, port int32, user string, zone string,
 	authScheme string, password string,
 	serverDN string) (*IRODSAccount, error) {
 	return &IRODSAccount{
-		AuthenticationScheme: strings.ToLower(authScheme),
-		Host:                 host,
-		Port:                 port,
-		ClientUser:           user,
-		ClientZone:           zone,
-		ProxyUser:            user,
-		ProxyZone:            zone,
-		ServerDN:             serverDN,
-		Password:             password,
+		AuthenticationScheme:    strings.ToLower(authScheme),
+		ClientServerNegotiation: false,
+		CSNegotiationPolicy:     NEGOTIATION_REQUIRE_TCP,
+		Host:                    host,
+		Port:                    port,
+		ClientUser:              user,
+		ClientZone:              zone,
+		ProxyUser:               user,
+		ProxyZone:               zone,
+		ServerDN:                serverDN,
+		Password:                password,
 	}, nil
 }
 
 // CreateIRODSProxyAccount creates IRODSAccount for proxy access
 func CreateIRODSProxyAccount(host string, port int32, clientUser string, clientZone string,
 	proxyUser string, proxyZone string,
-	authScheme string, password string,
-	serverDN string) (*IRODSAccount, error) {
+	authScheme string, password string) (*IRODSAccount, error) {
 	return &IRODSAccount{
-		AuthenticationScheme: strings.ToLower(authScheme),
-		Host:                 host,
-		Port:                 port,
-		ClientUser:           clientUser,
-		ClientZone:           clientZone,
-		ProxyUser:            proxyUser,
-		ProxyZone:            proxyZone,
-		ServerDN:             serverDN,
-		Password:             password,
+		AuthenticationScheme:    strings.ToLower(authScheme),
+		ClientServerNegotiation: false,
+		CSNegotiationPolicy:     NEGOTIATION_REQUIRE_TCP,
+		Host:                    host,
+		Port:                    port,
+		ClientUser:              clientUser,
+		ClientZone:              clientZone,
+		ProxyUser:               proxyUser,
+		ProxyZone:               proxyZone,
+		Password:                password,
 	}, nil
 }
 
@@ -65,9 +69,19 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 		return nil, err
 	}
 
-	authScheme := api.NATIVE_AUTH_SCHEME
+	authScheme := common.NATIVE_AUTH_SCHEME
 	if val, ok := y["auth_scheme"]; ok {
 		authScheme = val.(string)
+	}
+
+	csNegotiation := false
+	if val, ok := y["cs_negotiation"]; ok {
+		csNegotiation = val.(bool)
+	}
+
+	csNegotiationPolicy := NEGOTIATION_REQUIRE_TCP
+	if val, ok := y["cs_negotiation_policy"]; ok {
+		csNegotiationPolicy = CSNegotiation(val.(string))
 	}
 
 	serverDN := ""
@@ -149,15 +163,17 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 	}
 
 	return &IRODSAccount{
-		AuthenticationScheme: strings.ToLower(authScheme),
-		Host:                 hostname,
-		Port:                 int32(port),
-		ClientUser:           clientUsername,
-		ClientZone:           clientZone,
-		ProxyUser:            proxyUsername,
-		ProxyZone:            proxyZone,
-		ServerDN:             serverDN,
-		Password:             proxyPassword,
+		AuthenticationScheme:    strings.ToLower(authScheme),
+		ClientServerNegotiation: csNegotiation,
+		CSNegotiationPolicy:     csNegotiationPolicy,
+		Host:                    hostname,
+		Port:                    int32(port),
+		ClientUser:              clientUsername,
+		ClientZone:              clientZone,
+		ProxyUser:               proxyUsername,
+		ProxyZone:               proxyZone,
+		ServerDN:                serverDN,
+		Password:                proxyPassword,
 	}, nil
 }
 

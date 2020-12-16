@@ -1,4 +1,4 @@
-package connection
+package message
 
 import (
 	"bytes"
@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/iychoi/go-irodsclient/pkg/irods/api"
-	"github.com/iychoi/go-irodsclient/pkg/irods/types"
 	"github.com/iychoi/go-irodsclient/pkg/irods/util"
 )
 
@@ -19,6 +17,7 @@ const (
 	RODS_EMPTY_TYPE   MessageType = ""
 	RODS_CONNECT_TYPE MessageType = "RODS_CONNECT"
 	RODS_VERSION_TYPE MessageType = "RODS_VERSION"
+	RODS_CS_NEG_TYPE  MessageType = "RODS_CS_NEG_T"
 )
 
 // IRODSMessage ...
@@ -36,6 +35,8 @@ func NewIRODSMessage(message interface{}) *IRODSMessage {
 	switch message.(type) {
 	case IRODSMessageStartupPack, *IRODSMessageStartupPack:
 		msgType = RODS_CONNECT_TYPE
+	case IRODSMessageCSNegotiation, *IRODSMessageCSNegotiation:
+		msgType = RODS_CS_NEG_TYPE
 	default:
 		return nil
 	}
@@ -106,6 +107,55 @@ func (message *IRODSMessage) Pack() ([]byte, error) {
 	return messageBuffer.Bytes(), nil
 }
 
+// ToString returns string representation of message
+func (message *IRODSMessage) ToString() (string, error) {
+	bodyString := ""
+	var err error
+
+	messageLen := 0
+	if message.Message != nil {
+		if b, ok := message.Message.(IRODSMessageXMLInterface); ok {
+			bodyBytes, err := b.ToXML()
+			if err != nil {
+				return "", err
+			}
+			bodyString = string(bodyBytes)
+			messageLen = len(bodyBytes)
+		} else if b, ok := message.Message.([]byte); ok {
+			bodyString = fmt.Sprintf("<BYTE_DATA, LEN=%d>", len(b))
+			messageLen = len(b)
+		} else {
+			return "", fmt.Errorf("Cannot pack unknown type - %T, %v", message.Message, message.Message)
+		}
+	}
+
+	errorLen := 0
+	if message.Error != nil {
+		errorLen = len(message.Error)
+	}
+	bsLen := 0
+	if message.Bs != nil {
+		bsLen = len(message.Bs)
+	}
+
+	header := &IRODSMessageHeader{
+		Type:       message.Type,
+		MessageLen: uint32(messageLen),
+		ErrorLen:   uint32(errorLen),
+		BsLen:      uint32(bsLen),
+		IntInfo:    message.IntInfo,
+	}
+
+	headerBytes, err := header.ToXML()
+	if err != nil {
+		return "", err
+	}
+
+	headerString := string(headerBytes)
+
+	return fmt.Sprintf("%s\n%s", headerString, bodyString), nil
+}
+
 // IRODSMessageXMLInterface ...
 type IRODSMessageXMLInterface interface {
 	ToXML() ([]byte, error)
@@ -134,86 +184,21 @@ func (header *IRODSMessageHeader) FromXML(bytes []byte) error {
 	return err
 }
 
-// IRODSMessageStartupPack stores startup message
-type IRODSMessageStartupPack struct {
-	XMLName         xml.Name `xml:"StartupPack_PI"`
-	Protocol        int      `xml:"irodsProt"`
-	ReleaseVersion  string   `xml:"relVersion"`
-	APIVersion      string   `xml:"apiVersion"`
-	ConnectionCount int      `xml:"connectCnt"`
-	ReconnectFlag   int      `xml:"reconnFlag"`
-	ProxyUser       string   `xml:"proxyUser"`
-	ProxyRcatZone   string   `xml:"proxyRcatZone"`
-	ClientUser      string   `xml:"clientUser"`
-	ClientRcatZone  string   `xml:"clientRcatZone"`
-	Option          string   `xml:"option"`
-}
-
-// NewIRODSMessageStartupPack creates a IRODSMessageStartupPack message
-func NewIRODSMessageStartupPack(account *types.IRODSAccount) *IRODSMessageStartupPack {
-	return NewIRODSMessageStartupPackWithAppName(account, "")
-}
-
-// NewIRODSMessageStartupPackWithAppName creates a IRODSMessageStartupPack message
-func NewIRODSMessageStartupPackWithAppName(account *types.IRODSAccount, applicationName string) *IRODSMessageStartupPack {
-	startupPack := &IRODSMessageStartupPack{
-		Protocol:        1,
-		ReleaseVersion:  fmt.Sprintf("rods%s", api.IRODS_REL_VERSION),
-		APIVersion:      api.IRODS_API_VERSION,
-		ConnectionCount: 0,
-		ReconnectFlag:   0,
-		ProxyUser:       account.ProxyUser,
-		ProxyRcatZone:   account.ProxyZone,
-		ClientUser:      account.ClientUser,
-		ClientRcatZone:  account.ClientZone,
-		Option:          applicationName,
-	}
-
-	return startupPack
-}
-
-// ToXML returns XML byte array
-func (pack *IRODSMessageStartupPack) ToXML() ([]byte, error) {
-	xmlBytes, err := xml.Marshal(pack)
-	return xmlBytes, err
-}
-
-// FromXML returns struct from XML
-func (pack *IRODSMessageStartupPack) FromXML(bytes []byte) error {
-	err := xml.Unmarshal(bytes, pack)
-	return err
-}
-
-// IRODSMessageVersion stores version message
-type IRODSMessageVersion struct {
-	XMLName        xml.Name `xml:"Version_PI"`
-	Status         int      `xml:"status"`
-	ReleaseVersion string   `xml:"relVersion"`
-	APIVersion     string   `xml:"apiVersion"`
-	ReconnectPort  int      `xml:"reconnPort"`
-	ReconnectAddr  string   `xml:"reconnectAddr"`
-	Cookie         int      `xml:"cookie"`
-}
-
-// ToXML returns XML byte array
-func (ver *IRODSMessageVersion) ToXML() ([]byte, error) {
-	xmlBytes, err := xml.Marshal(ver)
-	return xmlBytes, err
-}
-
-// FromXML returns struct from XML
-func (ver *IRODSMessageVersion) FromXML(bytes []byte) error {
-	err := xml.Unmarshal(bytes, ver)
-	return err
-}
-
 // WriteIRODSMessage writes data to the given socket
 func WriteIRODSMessage(socket net.Conn, message *IRODSMessage) error {
-	util.LogDebugf("Sending a message - \n%v\n", message)
-
 	packedMessage, err := message.Pack()
 	if err != nil {
 		return err
+	}
+
+	// for debug
+	if util.IsLogLevelDebug() {
+		messageStr, err := message.ToString()
+		if err != nil {
+			return err
+		}
+
+		util.LogDebugf("Sending a message - \n%v\n", messageStr)
 	}
 
 	err = util.WriteBytes(socket, packedMessage)
@@ -302,6 +287,13 @@ func ReadIRODSMessage(socket net.Conn) (*IRODSMessage, error) {
 			return nil, err
 		}
 		message.Message = messageVersion
+	case RODS_CS_NEG_TYPE:
+		messageCSNegotiation := IRODSMessageCSNegotiation{}
+		err = messageCSNegotiation.FromXML(messageBytes)
+		if err != nil {
+			return nil, err
+		}
+		message.Message = messageCSNegotiation
 	default:
 		message.Message = messageBytes
 	}
