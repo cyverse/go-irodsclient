@@ -1,7 +1,6 @@
 package connection
 
 import (
-	"fmt"
 	"io/ioutil"
 	"testing"
 	"time"
@@ -11,59 +10,54 @@ import (
 	"github.com/iychoi/go-irodsclient/pkg/irods/types"
 )
 
-func TestIRODSConnection(t *testing.T) {
+var (
+	account *types.IRODSAccount
+	timeout time.Duration
+)
 
+func init() {
 	util.SetLogLevel(9)
 
 	yaml, err := ioutil.ReadFile("../../../config/test_account.yml")
 	if err != nil {
-		t.Errorf("err - %v", err)
+		util.LogErrorf("err - %v", err)
+		panic(err)
 	}
 
-	account, err := types.CreateIRODSAccountFromYAML(yaml)
+	account, err = types.CreateIRODSAccountFromYAML(yaml)
 	if err != nil {
-		t.Errorf("err - %v", err)
+		util.LogErrorf("err - %v", err)
+		panic(err)
 	}
 
-	fmt.Printf("%v", account)
+	timeout = time.Second * 20 // 20 sec
+}
 
-	timeout := time.Second * 20 // 20 sec
+func TestIRODSConnection(t *testing.T) {
+	account.ClientServerNegotiation = false
+	util.LogDebugf("Account : %v", account)
+
 	conn := NewIRODSConnection(account, timeout, "go-irodsclient-test")
-	err = conn.Connect()
+	err := conn.Connect()
 	if err != nil {
 		t.Errorf("err - %v", err)
 	}
 
 	ver := conn.GetVersion()
-	fmt.Printf("%v", ver)
+	util.LogDebugf("Version : %v", ver)
 }
 
 func TestIRODSConnectionWithNegotiation(t *testing.T) {
-
-	util.SetLogLevel(9)
-
-	yaml, err := ioutil.ReadFile("../../../config/test_account.yml")
-	if err != nil {
-		t.Errorf("err - %v", err)
-	}
-
-	account, err := types.CreateIRODSAccountFromYAML(yaml)
-	if err != nil {
-		t.Errorf("err - %v", err)
-	}
-
 	account.ClientServerNegotiation = true
-	account.CSNegotiationPolicy = types.NEGOTIATION_USE_TCP
+	account.CSNegotiationPolicy = types.CSNegotiationRequireTCP
+	util.LogDebugf("Account : %v", account)
 
-	fmt.Printf("%v", account)
-
-	timeout := time.Second * 20 // 20 sec
 	conn := NewIRODSConnection(account, timeout, "go-irodsclient-test")
-	err = conn.Connect()
+	err := conn.Connect()
 	if err != nil {
 		t.Errorf("err - %v", err)
 	}
 
 	ver := conn.GetVersion()
-	fmt.Printf("%v", ver)
+	util.LogDebugf("Version : %v", ver)
 }

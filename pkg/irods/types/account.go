@@ -12,7 +12,7 @@ import (
 type IRODSAccount struct {
 	AuthenticationScheme    string
 	ClientServerNegotiation bool
-	CSNegotiationPolicy     CSNegotiation
+	CSNegotiationPolicy     CSNegotiationRequire
 	Host                    string
 	Port                    int32
 	ClientUser              string
@@ -30,7 +30,7 @@ func CreateIRODSAccount(host string, port int32, user string, zone string,
 	return &IRODSAccount{
 		AuthenticationScheme:    strings.ToLower(authScheme),
 		ClientServerNegotiation: false,
-		CSNegotiationPolicy:     NEGOTIATION_REQUIRE_TCP,
+		CSNegotiationPolicy:     CSNegotiationRequireTCP,
 		Host:                    host,
 		Port:                    port,
 		ClientUser:              user,
@@ -49,7 +49,7 @@ func CreateIRODSProxyAccount(host string, port int32, clientUser string, clientZ
 	return &IRODSAccount{
 		AuthenticationScheme:    strings.ToLower(authScheme),
 		ClientServerNegotiation: false,
-		CSNegotiationPolicy:     NEGOTIATION_REQUIRE_TCP,
+		CSNegotiationPolicy:     CSNegotiationRequireTCP,
 		Host:                    host,
 		Port:                    port,
 		ClientUser:              clientUser,
@@ -79,9 +79,12 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 		csNegotiation = val.(bool)
 	}
 
-	csNegotiationPolicy := NEGOTIATION_REQUIRE_TCP
+	csNegotiationPolicy := CSNegotiationRequireTCP
 	if val, ok := y["cs_negotiation_policy"]; ok {
-		csNegotiationPolicy = CSNegotiation(val.(string))
+		csNegotiationPolicy, err = GetCSNegotiationRequire(val.(string))
+		if err != nil {
+			csNegotiationPolicy = CSNegotiationRequireTCP
+		}
 	}
 
 	serverDN := ""

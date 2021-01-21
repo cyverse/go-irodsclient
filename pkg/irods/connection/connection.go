@@ -52,106 +52,127 @@ func (irodsConn *IRODSConnection) Connect() error {
 	}
 
 	irodsConn.socket = socket
-
+	var irodsVersion *types.IRODSVersion
 	if irodsConn.requiresCSNegotiation() {
 		// client-server negotiation
-		// Get client negotiation policy
-		clientPolicy := types.NEGOTIATION_REQUIRE_TCP
-		if len(irodsConn.Account.CSNegotiationPolicy) > 0 {
-			clientPolicy = irodsConn.Account.CSNegotiationPolicy
-		}
-
-		optionString := fmt.Sprintf("%s;%s", irodsConn.ApplicationName, message.REQUEST_NEGOTIATION)
-		startupMessage := message.NewIRODSMessageStartupPackWithOption(irodsConn.Account, optionString)
-
-		// Send startup pack with negotiation request
-		msgStartup := message.NewIRODSMessage(startupMessage)
-
-		err = irodsConn.Send(msgStartup)
-		if err != nil {
-			return fmt.Errorf("Could not send a message - %s", err.Error())
-		}
-
-		msgResponse, err := irodsConn.Recv()
-		if err != nil {
-			return fmt.Errorf("Could not receive a message - %s", err.Error())
-		}
-
-		var messageVersion message.IRODSMessageVersion
-
-		if msgResponse.Type == message.RODS_CS_NEG_TYPE {
-			// Server responds with its own negotiation policy
-			msgNegotiation := msgResponse
-			messageNegotiation := msgNegotiation.Message.(message.IRODSMessageCSNegotiation)
-
-			serverPolicy := types.CSNegotiation(messageNegotiation.Result)
-
-			// Perform the negotiation
-			negotiationResult, status := performCSNegotiation(clientPolicy, serverPolicy)
-
-			// Send negotiation result to server
-			negotiationResultString := fmt.Sprintf("%s=%s;", message.CS_NEG_RESULT_KW, string(negotiationResult))
-			negotiationResultMessage := message.NewIRODSMessageCSNegotiation(status, negotiationResultString)
-
-			msgNegotiationResult := message.NewIRODSMessage(negotiationResultMessage)
-			err = irodsConn.Send(msgNegotiationResult)
-			if err != nil {
-				return fmt.Errorf("Could not send a message - %s", err.Error())
-			}
-
-			// If negotiation failed we're done
-			if negotiationResult == types.NEGOTIATION_FAILURE {
-				_ = irodsConn.Disconnect()
-				return fmt.Errorf("Client-Server negotiation failed: %s, %s", string(clientPolicy), string(serverPolicy))
-			}
-
-			// Server responds with version
-			msgVersion, err := irodsConn.Recv()
-			if err != nil {
-				return fmt.Errorf("Could not receive a message - %s", err.Error())
-			}
-
-			if negotiationResult == types.NEGOTIATION_USE_SSL {
-				err := irodsConn.sslStartup()
-				if err != nil {
-					return fmt.Errorf("Could not start up SSL - %s", err.Error())
-				}
-			}
-
-			messageVersion = msgVersion.Message.(message.IRODSMessageVersion)
-		} else {
-			util.LogDebug("Negotiation did not happen. Server did not responde for the negotiation request.")
-			// Server responds with version
-			messageVersion = msgResponse.Message.(message.IRODSMessageVersion)
-		}
-
-		irodsConn.serverVersion = messageVersion.ConvertToIRODSVersion()
-		irodsConn.disconnected = false
-		return nil
+		irodsVersion, err = irodsConn.connectWithCSNegotiation()
+	} else {
+		// No client-server negotiation
+		irodsVersion, err = irodsConn.connectWithoutCSNegotiation()
 	}
 
+	if err != nil {
+		_ = irodsConn.Disconnect()
+		irodsConn.disconnected = false
+		return err
+	}
+
+	irodsConn.serverVersion = irodsVersion
+	return nil
+}
+
+func (irodsConn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, error) {
+	// Get client negotiation policy
+	clientPolicy := types.CSNegotiationRequireTCP
+	if len(irodsConn.Account.CSNegotiationPolicy) > 0 {
+		clientPolicy = irodsConn.Account.CSNegotiationPolicy
+	}
+
+	optionString := fmt.Sprintf("%s;%s", irodsConn.ApplicationName, message.REQUEST_NEGOTIATION)
+	startupMessage := message.NewIRODSMessageStartupPackWithOption(irodsConn.Account, optionString)
+
+	// Send startup pack with negotiation request
+	msgStartup := message.NewIRODSMessage(startupMessage)
+
+	err := irodsConn.Send(msgStartup)
+	if err != nil {
+		return nil, fmt.Errorf("Could not send a message - %s", err.Error())
+	}
+
+	// Server responds with version
+	msgResponse, err := irodsConn.Recv()
+	if err != nil {
+		return nil, fmt.Errorf("Could not receive a message - %s", err.Error())
+	}
+
+	var messageVersion message.IRODSMessageVersion
+
+	if msgResponse.Type == message.RODS_CS_NEG_TYPE {
+		// Server responds with its own negotiation policy
+		msgNegotiation := msgResponse
+		messageNegotiation := msgNegotiation.Message.(message.IRODSMessageCSNegotiation)
+
+		serverPolicy, err := types.GetCSNegotiationRequire(messageNegotiation.Result)
+		if err != nil {
+			return nil, fmt.Errorf("Unable to parse server policy - %s", messageNegotiation.Result)
+		}
+
+		// Perform the negotiation
+		negotiationResult, status := performCSNegotiation(clientPolicy, serverPolicy)
+
+		// Send negotiation result to server
+		negotiationResultString := fmt.Sprintf("%s=%s;", message.CS_NEG_RESULT_KW, string(negotiationResult))
+		negotiationResultMessage := message.NewIRODSMessageCSNegotiation(status, negotiationResultString)
+
+		msgNegotiationResult := message.NewIRODSMessage(negotiationResultMessage)
+		err = irodsConn.Send(msgNegotiationResult)
+		if err != nil {
+			return nil, fmt.Errorf("Could not send a message - %s", err.Error())
+		}
+
+		// If negotiation failed we're done
+		if negotiationResult == types.CSNegotiationFailure {
+			return nil, fmt.Errorf("Client-Server negotiation failed: %s, %s", string(clientPolicy), string(serverPolicy))
+		}
+
+		// Server responds with version
+		msgVersion, err := irodsConn.Recv()
+		if err != nil {
+			return nil, fmt.Errorf("Could not receive a message - %s", err.Error())
+		}
+
+		if negotiationResult == types.CSNegotiationUseSSL {
+			err := irodsConn.sslStartup()
+			if err != nil {
+				return nil, fmt.Errorf("Could not start up SSL - %s", err.Error())
+			}
+		}
+
+		messageVersion = msgVersion.Message.(message.IRODSMessageVersion)
+	} else {
+		util.LogDebug("Negotiation did not happen. Server did not responde for the negotiation request.")
+		// Server responds with version
+		messageVersion = msgResponse.Message.(message.IRODSMessageVersion)
+	}
+
+	return messageVersion.ConvertToIRODSVersion(), nil
+}
+
+func (irodsConn *IRODSConnection) connectWithoutCSNegotiation() (*types.IRODSVersion, error) {
 	// No client-server negotiation
 	// Send startup pack without negotiation request
 	optionString := irodsConn.ApplicationName
 	startupMessage := message.NewIRODSMessageStartupPackWithOption(irodsConn.Account, optionString)
 
+	// Send startup pack
 	msgStartup := message.NewIRODSMessage(startupMessage)
 
-	err = irodsConn.Send(msgStartup)
+	err := irodsConn.Send(msgStartup)
 	if err != nil {
-		return fmt.Errorf("Could not send a message - %s", err.Error())
+		return nil, fmt.Errorf("Could not send a message - %s", err.Error())
 	}
 
 	// Server responds with version
 	msgVersion, err := irodsConn.Recv()
 	if err != nil {
-		return fmt.Errorf("Could not receive a message - %s", err.Error())
+		return nil, fmt.Errorf("Could not receive a message - %s", err.Error())
 	}
 
 	messageVersion := msgVersion.Message.(message.IRODSMessageVersion)
-	irodsConn.serverVersion = messageVersion.ConvertToIRODSVersion()
+	return messageVersion.ConvertToIRODSVersion(), nil
+}
 
-	irodsConn.disconnected = false
+func (irodsConn *IRODSConnection) sslStartup() error {
 	return nil
 }
 
@@ -206,20 +227,16 @@ func (irodsConn *IRODSConnection) release(val bool) {
 
 }
 
-func (irodsConn *IRODSConnection) sslStartup() error {
-	return nil
-}
-
-func performCSNegotiation(clientRequest types.CSNegotiation, serverRequest types.CSNegotiation) (types.CSNegotiation, int) {
+func performCSNegotiation(clientRequest types.CSNegotiationRequire, serverRequest types.CSNegotiationRequire) (types.CSNegotiationPolicy, int) {
 	if clientRequest == serverRequest {
-		if types.NEGOTIATION_REQUIRE_SSL == clientRequest {
-			return types.NEGOTIATION_USE_SSL, 1
-		} else if types.NEGOTIATION_REQUIRE_TCP == clientRequest {
-			return types.NEGOTIATION_USE_TCP, 1
+		if types.CSNegotiationRequireSSL == clientRequest {
+			return types.CSNegotiationUseSSL, 1
+		} else if types.CSNegotiationRequireTCP == clientRequest {
+			return types.CSNegotiationUseTCP, 1
 		} else {
-			return types.NEGOTIATION_FAILURE, 0
+			return types.CSNegotiationFailure, 0
 		}
 	} else {
-		return types.NEGOTIATION_FAILURE, 0
+		return types.CSNegotiationFailure, 0
 	}
 }

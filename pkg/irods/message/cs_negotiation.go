@@ -24,7 +24,7 @@ type IRODSMessageCSNegotiation struct {
 // NewIRODSMessageCSNegotiation creates a IRODSMessageCSNegotiation message
 func NewIRODSMessageCSNegotiation(status int, result string) *IRODSMessageCSNegotiation {
 	negotiation := &IRODSMessageCSNegotiation{
-		Status: 0,
+		Status: status,
 		Result: result,
 	}
 
