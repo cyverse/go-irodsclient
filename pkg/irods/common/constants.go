@@ -22,12 +22,8 @@ const (
 	AUTH_PWD_KEY    string = "a_pw"
 	AUTH_TTL_KEY    string = "a_ttl"
 
-	NATIVE_AUTH_SCHEME string = "native"
-
 	GSI_AUTH_PLUGIN string = "GSI"
-	GSI_AUTH_SCHEME string = "gsi"
 	GSI_OID         string = "1.3.6.1.4.1.3536.1.1" // taken from http://j.mp/2hDeczm
 
 	PAM_AUTH_PLUGIN string = "PAM"
-	PAM_AUTH_SCHEME string = "pam"
 )

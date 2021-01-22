@@ -1,16 +1,12 @@
 package types
 
 import (
-	"strings"
-
-	"github.com/iychoi/go-irodsclient/pkg/irods/common"
-
 	"gopkg.in/yaml.v2"
 )
 
 // IRODSAccount contains irods login information
 type IRODSAccount struct {
-	AuthenticationScheme    string
+	AuthenticationScheme    AuthScheme
 	ClientServerNegotiation bool
 	CSNegotiationPolicy     CSNegotiationRequire
 	Host                    string
@@ -25,10 +21,10 @@ type IRODSAccount struct {
 
 // CreateIRODSAccount creates IRODSAccount
 func CreateIRODSAccount(host string, port int32, user string, zone string,
-	authScheme string, password string,
+	authScheme AuthScheme, password string,
 	serverDN string) (*IRODSAccount, error) {
 	return &IRODSAccount{
-		AuthenticationScheme:    strings.ToLower(authScheme),
+		AuthenticationScheme:    authScheme,
 		ClientServerNegotiation: false,
 		CSNegotiationPolicy:     CSNegotiationRequireTCP,
 		Host:                    host,
@@ -45,9 +41,9 @@ func CreateIRODSAccount(host string, port int32, user string, zone string,
 // CreateIRODSProxyAccount creates IRODSAccount for proxy access
 func CreateIRODSProxyAccount(host string, port int32, clientUser string, clientZone string,
 	proxyUser string, proxyZone string,
-	authScheme string, password string) (*IRODSAccount, error) {
+	authScheme AuthScheme, password string) (*IRODSAccount, error) {
 	return &IRODSAccount{
-		AuthenticationScheme:    strings.ToLower(authScheme),
+		AuthenticationScheme:    authScheme,
 		ClientServerNegotiation: false,
 		CSNegotiationPolicy:     CSNegotiationRequireTCP,
 		Host:                    host,
@@ -69,9 +65,12 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 		return nil, err
 	}
 
-	authScheme := common.NATIVE_AUTH_SCHEME
+	authScheme := AuthSchemeNative
 	if val, ok := y["auth_scheme"]; ok {
-		authScheme = val.(string)
+		authScheme, err = GetAuthScheme(val.(string))
+		if err != nil {
+			authScheme = AuthSchemeNative
+		}
 	}
 
 	csNegotiation := false
@@ -166,7 +165,7 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 	}
 
 	return &IRODSAccount{
-		AuthenticationScheme:    strings.ToLower(authScheme),
+		AuthenticationScheme:    authScheme,
 		ClientServerNegotiation: csNegotiation,
 		CSNegotiationPolicy:     csNegotiationPolicy,
 		Host:                    hostname,

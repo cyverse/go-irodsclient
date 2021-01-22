@@ -173,6 +173,7 @@ func (irodsConn *IRODSConnection) connectWithoutCSNegotiation() (*types.IRODSVer
 }
 
 func (irodsConn *IRODSConnection) sslStartup() error {
+
 	return nil
 }
 
