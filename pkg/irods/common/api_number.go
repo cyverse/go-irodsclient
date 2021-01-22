@@ -1,7 +1,7 @@
 package common
 
 // APINumber is a api number type
-type APINumber int32
+type APINumber int
 
 // api numbers
 const (

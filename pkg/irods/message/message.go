@@ -14,10 +14,11 @@ import (
 type MessageType string
 
 const (
-	RODS_EMPTY_TYPE   MessageType = ""
-	RODS_CONNECT_TYPE MessageType = "RODS_CONNECT"
-	RODS_VERSION_TYPE MessageType = "RODS_VERSION"
-	RODS_CS_NEG_TYPE  MessageType = "RODS_CS_NEG_T"
+	RODS_EMPTY_TYPE             MessageType = ""
+	RODS_SSL_SHARED_SECRET_TYPE MessageType = "SHARED_SECRET"
+	RODS_CONNECT_TYPE           MessageType = "RODS_CONNECT"
+	RODS_VERSION_TYPE           MessageType = "RODS_VERSION"
+	RODS_CS_NEG_TYPE            MessageType = "RODS_CS_NEG_T"
 )
 
 // IRODSMessage ...
@@ -48,6 +49,33 @@ func NewIRODSMessage(message interface{}) *IRODSMessage {
 		Bs:      nil,
 		IntInfo: 0,
 	}
+}
+
+// PackHeader header into bytes
+func PackHeader(messageType MessageType, messageLen uint32, errorLen uint32, bsLen uint32, intInfo int32) ([]byte, error) {
+	messageBuffer := new(bytes.Buffer)
+
+	header := &IRODSMessageHeader{
+		Type:       messageType,
+		MessageLen: messageLen,
+		ErrorLen:   errorLen,
+		BsLen:      bsLen,
+		IntInfo:    intInfo,
+	}
+
+	headerBytes, err := header.ToXML()
+	if err != nil {
+		return nil, err
+	}
+
+	// pack length - Big Endian
+	headerLenBuffer := make([]byte, 4)
+	binary.BigEndian.PutUint32(headerLenBuffer, uint32(len(headerBytes)))
+
+	messageBuffer.Write(headerLenBuffer)
+	messageBuffer.Write(headerBytes)
+
+	return messageBuffer.Bytes(), nil
 }
 
 // Pack serializes message into bytes
@@ -81,24 +109,8 @@ func (message *IRODSMessage) Pack() ([]byte, error) {
 		bsLen = len(message.Bs)
 	}
 
-	header := &IRODSMessageHeader{
-		Type:       message.Type,
-		MessageLen: uint32(messageLen),
-		ErrorLen:   uint32(errorLen),
-		BsLen:      uint32(bsLen),
-		IntInfo:    message.IntInfo,
-	}
+	headerBytes, err := PackHeader(message.Type, uint32(messageLen), uint32(errorLen), uint32(bsLen), message.IntInfo)
 
-	headerBytes, err := header.ToXML()
-	if err != nil {
-		return nil, err
-	}
-
-	// pack length - Big Endian
-	headerLenBuffer := make([]byte, 4)
-	binary.BigEndian.PutUint32(headerLenBuffer, uint32(len(headerBytes)))
-
-	messageBuffer.Write(headerLenBuffer)
 	messageBuffer.Write(headerBytes)
 	messageBuffer.Write(bodyBytes)
 	messageBuffer.Write(message.Error)
@@ -182,6 +194,47 @@ func (header *IRODSMessageHeader) ToXML() ([]byte, error) {
 func (header *IRODSMessageHeader) FromXML(bytes []byte) error {
 	err := xml.Unmarshal(bytes, header)
 	return err
+}
+
+// WriteIRODSHeaderOnlyMessage writes data to the given socket
+func WriteIRODSHeaderOnlyMessage(socket net.Conn, messageType MessageType, messageLen uint32, errorLen uint32, bsLen uint32, intInfo int32) error {
+	packedMessage, err := PackHeader(messageType, messageLen, errorLen, bsLen, intInfo)
+	if err != nil {
+		return err
+	}
+
+	// for debug
+	util.LogDebugf("Sending a header only message - %s, %d, %d, %d, %d", messageType, messageLen, errorLen, bsLen, intInfo)
+
+	err = util.WriteBytes(socket, packedMessage)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// WriteIRODSDataMessage writes data to the given socket
+func WriteIRODSDataMessage(socket net.Conn, messageType MessageType, body []byte) error {
+	packedMessage, err := PackHeader(messageType, uint32(len(body)), 0, 0, 0)
+	if err != nil {
+		return err
+	}
+
+	// for debug
+	util.LogDebugf("Sending a data message - %s, %d", messageType, len(body))
+
+	err = util.WriteBytes(socket, packedMessage)
+	if err != nil {
+		return err
+	}
+
+	err = util.WriteBytes(socket, body)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // WriteIRODSMessage writes data to the given socket

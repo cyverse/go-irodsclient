@@ -1,6 +1,9 @@
 package connection
 
 import (
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net"
 	"time"
@@ -55,9 +58,11 @@ func (irodsConn *IRODSConnection) Connect() error {
 	var irodsVersion *types.IRODSVersion
 	if irodsConn.requiresCSNegotiation() {
 		// client-server negotiation
+		util.LogInfo("Connect with CS Negotiation")
 		irodsVersion, err = irodsConn.connectWithCSNegotiation()
 	} else {
 		// No client-server negotiation
+		util.LogInfo("Connect without CS Negotiation")
 		irodsVersion, err = irodsConn.connectWithoutCSNegotiation()
 	}
 
@@ -173,12 +178,99 @@ func (irodsConn *IRODSConnection) connectWithoutCSNegotiation() (*types.IRODSVer
 }
 
 func (irodsConn *IRODSConnection) sslStartup() error {
+	util.LogInfo("Start up SSL")
+
+	if irodsConn.Account.SSLConfiguration == nil {
+		return fmt.Errorf("SSL Configuration is not set")
+	}
+
+	irodsSSLConfig := irodsConn.Account.SSLConfiguration
+
+	// TODO: Test this
+	caCertPool := x509.NewCertPool()
+	caCert, err := irodsSSLConfig.ReadCACert()
+	if err == nil {
+		caCertPool.AppendCertsFromPEM(caCert)
+	}
+
+	sslConf := &tls.Config{
+		RootCAs: caCertPool,
+	}
+
+	// Create a side connection using the existing socket
+	sslSocket := tls.Client(irodsConn.socket, sslConf)
+
+	err = sslSocket.Handshake()
+	if err != nil {
+		return fmt.Errorf("SSL Handshake error - %s", err.Error())
+	}
+
+	// from now on use ssl socket
+	irodsConn.socket = sslSocket
+
+	// Generate a key (shared secret)
+	encryptionKey := make([]byte, irodsSSLConfig.EncryptionKeySize)
+	_, err = rand.Read(encryptionKey)
+	if err != nil {
+		return fmt.Errorf("Could not generate a shared secret - %s", err.Error())
+	}
+
+	// Send header-only message with client side encryption settings
+	err = irodsConn.SendHeaderOnly(message.MessageType(irodsSSLConfig.EncryptionAlgorithm),
+		uint32(irodsSSLConfig.EncryptionKeySize), uint32(irodsSSLConfig.SaltSize),
+		uint32(irodsSSLConfig.HashRounds), 0)
+	if err != nil {
+		return fmt.Errorf("Could not send client side encryption settings - %s", err.Error())
+	}
+
+	// Send shared secret
+	err = irodsConn.SendData(message.RODS_SSL_SHARED_SECRET_TYPE, encryptionKey)
+	if err != nil {
+		return fmt.Errorf("Could not send shared secret - %s", err.Error())
+	}
 
 	return nil
 }
 
 // Disconnect disconnects
 func (irodsConn *IRODSConnection) Disconnect() error {
+	return nil
+}
+
+// SendHeaderOnly sends a head-only message
+func (irodsConn *IRODSConnection) SendHeaderOnly(messageType message.MessageType, messageLen uint32, errorLen uint32, bsLen uint32, intInfo int32) error {
+	if irodsConn.Timeout > 0 {
+		irodsConn.socket.SetWriteDeadline(time.Now().Add(irodsConn.Timeout))
+	}
+
+	err := message.WriteIRODSHeaderOnlyMessage(irodsConn.socket, messageType, messageLen, errorLen, bsLen, intInfo)
+	if err != nil {
+		util.LogError("Unable to send a header only message. " +
+			"Connection to remote host may have closed. " +
+			"Releasing connection from pool.")
+		irodsConn.release(true)
+		return fmt.Errorf("Unable to send a header only message - %s", err.Error())
+	}
+
+	return nil
+}
+
+// SendData sends a data message
+func (irodsConn *IRODSConnection) SendData(messageType message.MessageType, body []byte) error {
+	// use sslSocket
+	if irodsConn.Timeout > 0 {
+		irodsConn.socket.SetWriteDeadline(time.Now().Add(irodsConn.Timeout))
+	}
+
+	err := message.WriteIRODSDataMessage(irodsConn.socket, messageType, body)
+	if err != nil {
+		util.LogError("Unable to send a data message. " +
+			"Connection to remote host may have closed. " +
+			"Releasing connection from pool.")
+		irodsConn.release(true)
+		return fmt.Errorf("Unable to send a data message - %s", err.Error())
+	}
+
 	return nil
 }
 

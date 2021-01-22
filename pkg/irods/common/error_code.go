@@ -3,7 +3,7 @@ package common
 import "fmt"
 
 // ErrorCode is an error code type
-type ErrorCode int32
+type ErrorCode int
 
 // error codes
 const (

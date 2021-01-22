@@ -35,7 +35,7 @@ func init() {
 
 func TestIRODSConnection(t *testing.T) {
 	account.ClientServerNegotiation = false
-	util.LogDebugf("Account : %v", account)
+	util.LogDebugf("Account : %v", account.MaskSensitiveData())
 
 	conn := NewIRODSConnection(account, timeout, "go-irodsclient-test")
 	err := conn.Connect()
@@ -50,7 +50,7 @@ func TestIRODSConnection(t *testing.T) {
 func TestIRODSConnectionWithNegotiation(t *testing.T) {
 	account.ClientServerNegotiation = true
 	account.CSNegotiationPolicy = types.CSNegotiationRequireTCP
-	util.LogDebugf("Account : %v", account)
+	util.LogDebugf("Account : %v", account.MaskSensitiveData())
 
 	conn := NewIRODSConnection(account, timeout, "go-irodsclient-test")
 	err := conn.Connect()

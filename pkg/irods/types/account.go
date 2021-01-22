@@ -1,6 +1,8 @@
 package types
 
 import (
+	"fmt"
+
 	"gopkg.in/yaml.v2"
 )
 
@@ -10,17 +12,18 @@ type IRODSAccount struct {
 	ClientServerNegotiation bool
 	CSNegotiationPolicy     CSNegotiationRequire
 	Host                    string
-	Port                    int32
+	Port                    int
 	ClientUser              string
 	ClientZone              string
 	ProxyUser               string
 	ProxyZone               string
 	ServerDN                string
 	Password                string
+	SSLConfiguration        *IRODSSSLConfig
 }
 
 // CreateIRODSAccount creates IRODSAccount
-func CreateIRODSAccount(host string, port int32, user string, zone string,
+func CreateIRODSAccount(host string, port int, user string, zone string,
 	authScheme AuthScheme, password string,
 	serverDN string) (*IRODSAccount, error) {
 	return &IRODSAccount{
@@ -35,11 +38,12 @@ func CreateIRODSAccount(host string, port int32, user string, zone string,
 		ProxyZone:               zone,
 		ServerDN:                serverDN,
 		Password:                password,
+		SSLConfiguration:        nil,
 	}, nil
 }
 
 // CreateIRODSProxyAccount creates IRODSAccount for proxy access
-func CreateIRODSProxyAccount(host string, port int32, clientUser string, clientZone string,
+func CreateIRODSProxyAccount(host string, port int, clientUser string, clientZone string,
 	proxyUser string, proxyZone string,
 	authScheme AuthScheme, password string) (*IRODSAccount, error) {
 	return &IRODSAccount{
@@ -53,6 +57,7 @@ func CreateIRODSProxyAccount(host string, port int32, clientUser string, clientZ
 		ProxyUser:               proxyUser,
 		ProxyZone:               proxyZone,
 		Password:                password,
+		SSLConfiguration:        nil,
 	}, nil
 }
 
@@ -62,7 +67,7 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 
 	err := yaml.Unmarshal(yamlBytes, &y)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("YAML Unmarshal Error - %s", err.Error())
 	}
 
 	authScheme := AuthSchemeNative
@@ -164,19 +169,66 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 		clientZone = proxyZone
 	}
 
+	// SSL Configuration
+	hasSSLConfig := false
+	sslConfig := make(map[interface{}]interface{})
+	if val, ok := y["ssl"]; ok {
+		sslConfig = val.(map[interface{}]interface{})
+		hasSSLConfig = true
+	}
+
+	caCert := ""
+	if val, ok := sslConfig["ca_cert_file"]; ok {
+		caCert = val.(string)
+	}
+
+	keySize := 0
+	if val, ok := sslConfig["key_size"]; ok {
+		keySize = val.(int)
+	}
+
+	algorithm := ""
+	if val, ok := sslConfig["algorithm"]; ok {
+		algorithm = val.(string)
+	}
+
+	saltSize := 0
+	if val, ok := sslConfig["salt_size"]; ok {
+		saltSize = val.(int)
+	}
+
+	hashRounds := 0
+	if val, ok := sslConfig["hash_rounds"]; ok {
+		hashRounds = val.(int)
+	}
+
+	var irodsSSLConfig *IRODSSSLConfig = nil
+	if hasSSLConfig {
+		irodsSSLConfig, err = CreateIRODSSSLConfig(caCert, keySize, algorithm, saltSize, hashRounds)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &IRODSAccount{
 		AuthenticationScheme:    authScheme,
 		ClientServerNegotiation: csNegotiation,
 		CSNegotiationPolicy:     csNegotiationPolicy,
 		Host:                    hostname,
-		Port:                    int32(port),
+		Port:                    port,
 		ClientUser:              clientUsername,
 		ClientZone:              clientZone,
 		ProxyUser:               proxyUsername,
 		ProxyZone:               proxyZone,
 		ServerDN:                serverDN,
 		Password:                proxyPassword,
+		SSLConfiguration:        irodsSSLConfig,
 	}, nil
+}
+
+// SetSSLConfiguration sets SSL Configuration
+func (account *IRODSAccount) SetSSLConfiguration(sslConf *IRODSSSLConfig) {
+	account.SSLConfiguration = sslConf
 }
 
 // UseProxyAccess returns whether it uses proxy access or not
@@ -185,4 +237,12 @@ func (account *IRODSAccount) UseProxyAccess() bool {
 		return true
 	}
 	return false
+}
+
+// MaskSensitiveData returns IRODSAccount object with sensitive data masked
+func (account *IRODSAccount) MaskSensitiveData() *IRODSAccount {
+	maskedAccount := *account
+	maskedAccount.Password = "<password masked>"
+
+	return &maskedAccount
 }
