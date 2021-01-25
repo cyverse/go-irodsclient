@@ -12,14 +12,14 @@ import (
 type IRODSMessageStartupPack struct {
 	XMLName         xml.Name `xml:"StartupPack_PI"`
 	Protocol        int      `xml:"irodsProt"`
-	ReleaseVersion  string   `xml:"relVersion"`
-	APIVersion      string   `xml:"apiVersion"`
-	ConnectionCount int      `xml:"connectCnt"`
 	ReconnectFlag   int      `xml:"reconnFlag"`
+	ConnectionCount int      `xml:"connectCnt"`
 	ProxyUser       string   `xml:"proxyUser"`
 	ProxyRcatZone   string   `xml:"proxyRcatZone"`
 	ClientUser      string   `xml:"clientUser"`
 	ClientRcatZone  string   `xml:"clientRcatZone"`
+	ReleaseVersion  string   `xml:"relVersion"`
+	APIVersion      string   `xml:"apiVersion"`
 	Option          string   `xml:"option"`
 }
 
@@ -35,12 +35,12 @@ func NewIRODSMessageStartupPackWithOption(account *types.IRODSAccount, option st
 		ReleaseVersion:  fmt.Sprintf("rods%s", common.IRODS_REL_VERSION),
 		APIVersion:      common.IRODS_API_VERSION,
 		ConnectionCount: 0,
-		ReconnectFlag:   0,
-		ProxyUser:       account.ProxyUser,
-		ProxyRcatZone:   account.ProxyZone,
-		ClientUser:      account.ClientUser,
-		ClientRcatZone:  account.ClientZone,
-		Option:          option,
+		//ReconnectFlag:   0,
+		ProxyUser:      account.ProxyUser,
+		ProxyRcatZone:  account.ProxyZone,
+		ClientUser:     account.ClientUser,
+		ClientRcatZone: account.ClientZone,
+		Option:         option,
 	}
 
 	return startupPack
