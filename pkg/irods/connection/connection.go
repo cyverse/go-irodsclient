@@ -69,7 +69,7 @@ func (conn *IRODSConnection) Connect() error {
 	}
 
 	if err != nil {
-		_ = conn.Disconnect()
+		_ = conn.disconnectNow()
 		return err
 	}
 
@@ -87,7 +87,7 @@ func (conn *IRODSConnection) Connect() error {
 	}
 
 	if err != nil {
-		_ = conn.Disconnect()
+		_ = conn.disconnectNow()
 		return err
 	}
 
@@ -353,9 +353,27 @@ func (conn *IRODSConnection) loginPAM() error {
 }
 
 // Disconnect disconnects
-func (conn *IRODSConnection) Disconnect() error {
+func (conn *IRODSConnection) disconnectNow() error {
 	conn.disconnected = true
-	return conn.socket.Close()
+	err := conn.socket.Close()
+	conn.socket = nil
+	return err
+}
+
+// Disconnect disconnects
+func (conn *IRODSConnection) Disconnect() error {
+	disconnect := message.NewIRODSMessageDisconnect()
+	disconnectMessage, err := disconnect.GetMessage()
+	if err != nil {
+		return fmt.Errorf("Could not make a disconnect request message - %s", err.Error())
+	}
+
+	err = conn.SendMessage(disconnectMessage)
+	if err != nil {
+		return fmt.Errorf("Could not send a disconnect request message - %s", err.Error())
+	}
+
+	return conn.disconnectNow()
 }
 
 // Send sends data
