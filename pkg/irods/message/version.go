@@ -2,6 +2,7 @@ package message
 
 import (
 	"encoding/xml"
+	"fmt"
 
 	"github.com/iychoi/go-irodsclient/pkg/irods/common"
 	"github.com/iychoi/go-irodsclient/pkg/irods/types"
@@ -53,8 +54,12 @@ func (msg *IRODSMessageVersion) GetVersion() *types.IRODSVersion {
 	}
 }
 
-// FromMessageBody returns struct from IRODSMessageBody
-func (msg *IRODSMessageVersion) FromMessageBody(messageBody *IRODSMessageBody) error {
-	err := msg.FromBytes(messageBody.Message)
+// FromMessage returns struct from IRODSMessage
+func (msg *IRODSMessageVersion) FromMessage(msgIn *IRODSMessage) error {
+	if msgIn.Body == nil {
+		return fmt.Errorf("Cannot create a struct from an empty body")
+	}
+
+	err := msg.FromBytes(msgIn.Body.Message)
 	return err
 }

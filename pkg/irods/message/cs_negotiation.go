@@ -53,24 +53,38 @@ func (msg *IRODSMessageCSNegotiation) CheckError() error {
 	return nil
 }
 
-// GetMessageBody builds a message body
-func (msg *IRODSMessageCSNegotiation) GetMessageBody() (*IRODSMessageBody, error) {
+// GetMessage builds a message
+func (msg *IRODSMessageCSNegotiation) GetMessage() (*IRODSMessage, error) {
 	bytes, err := msg.GetBytes()
 	if err != nil {
 		return nil, err
 	}
 
-	return &IRODSMessageBody{
+	msgBody := IRODSMessageBody{
 		Type:    RODS_MESSAGE_CS_NEG_TYPE,
 		Message: bytes,
 		Error:   nil,
 		Bs:      nil,
 		IntInfo: 0,
+	}
+
+	msgHeader, err := msgBody.BuildHeader()
+	if err != nil {
+		return nil, err
+	}
+
+	return &IRODSMessage{
+		Header: msgHeader,
+		Body:   &msgBody,
 	}, nil
 }
 
-// FromMessageBody returns struct from IRODSMessageBody
-func (msg *IRODSMessageCSNegotiation) FromMessageBody(messageBody *IRODSMessageBody) error {
-	err := msg.FromBytes(messageBody.Message)
+// FromMessage returns struct from IRODSMessage
+func (msg *IRODSMessageCSNegotiation) FromMessage(msgIn *IRODSMessage) error {
+	if msgIn.Body == nil {
+		return fmt.Errorf("Cannot create a struct from an empty body")
+	}
+
+	err := msg.FromBytes(msgIn.Body.Message)
 	return err
 }

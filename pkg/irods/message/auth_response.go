@@ -9,12 +9,12 @@ import (
 // IRODSMessageAuthResponse stores auth response
 type IRODSMessageAuthResponse struct {
 	XMLName  xml.Name `xml:"authResponseInp_PI"`
-	Response []byte   `xml:"response"`
+	Response string   `xml:"response"`
 	Username string   `xml:"username"`
 }
 
 // NewIRODSMessageAuthResponse creates a IRODSMessageAuthResponse message
-func NewIRODSMessageAuthResponse(response []byte, username string) *IRODSMessageAuthResponse {
+func NewIRODSMessageAuthResponse(response string, username string) *IRODSMessageAuthResponse {
 	return &IRODSMessageAuthResponse{
 		Response: response,
 		Username: username,
@@ -33,18 +33,28 @@ func (msg *IRODSMessageAuthResponse) FromBytes(bytes []byte) error {
 	return err
 }
 
-// GetMessageBody builds a message body
-func (msg *IRODSMessageAuthResponse) GetMessageBody() (*IRODSMessageBody, error) {
+// GetMessage builds a message
+func (msg *IRODSMessageAuthResponse) GetMessage() (*IRODSMessage, error) {
 	bytes, err := msg.GetBytes()
 	if err != nil {
 		return nil, err
 	}
 
-	return &IRODSMessageBody{
+	msgBody := IRODSMessageBody{
 		Type:    RODS_MESSAGE_API_REQ_TYPE,
 		Message: bytes,
 		Error:   nil,
 		Bs:      nil,
 		IntInfo: int32(common.AUTH_RESPONSE_AN),
+	}
+
+	msgHeader, err := msgBody.BuildHeader()
+	if err != nil {
+		return nil, err
+	}
+
+	return &IRODSMessage{
+		Header: msgHeader,
+		Body:   &msgBody,
 	}, nil
 }

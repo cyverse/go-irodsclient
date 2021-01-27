@@ -10,7 +10,8 @@ import (
 
 const (
 	RODS_MESSAGE_CONNECT_TYPE MessageType = "RODS_CONNECT"
-	REQUEST_NEGOTIATION       string      = "request_server_negotiation"
+
+	RequestNegotiationOptionString string = "request_server_negotiation"
 )
 
 // IRODSMessageStartupPack stores startup message
@@ -33,7 +34,7 @@ func NewIRODSMessageStartupPack(account *types.IRODSAccount, option string, requ
 	optionString := fmt.Sprintf("%s", option)
 	if requireNegotiation {
 		// append a flag
-		optionString = fmt.Sprintf("%s;%s", optionString, REQUEST_NEGOTIATION)
+		optionString = fmt.Sprintf("%s;%s", optionString, RequestNegotiationOptionString)
 	}
 
 	return &IRODSMessageStartupPack{
@@ -62,18 +63,28 @@ func (msg *IRODSMessageStartupPack) FromBytes(bytes []byte) error {
 	return err
 }
 
-// GetMessageBody builds a message body
-func (msg *IRODSMessageStartupPack) GetMessageBody() (*IRODSMessageBody, error) {
+// GetMessage builds a message
+func (msg *IRODSMessageStartupPack) GetMessage() (*IRODSMessage, error) {
 	bytes, err := msg.GetBytes()
 	if err != nil {
 		return nil, err
 	}
 
-	return &IRODSMessageBody{
+	msgBody := IRODSMessageBody{
 		Type:    RODS_MESSAGE_CONNECT_TYPE,
 		Message: bytes,
 		Error:   nil,
 		Bs:      nil,
 		IntInfo: 0,
+	}
+
+	msgHeader, err := msgBody.BuildHeader()
+	if err != nil {
+		return nil, err
+	}
+
+	return &IRODSMessage{
+		Header: msgHeader,
+		Body:   &msgBody,
 	}, nil
 }

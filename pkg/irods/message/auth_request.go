@@ -14,13 +14,18 @@ func NewIRODSMessageAuthRequest() *IRODSMessageAuthRequest {
 	return &IRODSMessageAuthRequest{}
 }
 
-// GetMessageHeader builds a message header
-func (msg *IRODSMessageAuthRequest) GetMessageHeader() (*IRODSMessageHeader, error) {
-	return &IRODSMessageHeader{
+// GetMessage builds a message
+func (msg *IRODSMessageAuthRequest) GetMessage() (*IRODSMessage, error) {
+	msgHeader := IRODSMessageHeader{
 		Type:       RODS_MESSAGE_API_REQ_TYPE,
 		MessageLen: 0,
 		ErrorLen:   0,
 		BsLen:      0,
 		IntInfo:    int32(common.AUTH_REQUEST_AN),
+	}
+
+	return &IRODSMessage{
+		Header: &msgHeader,
+		Body:   nil,
 	}, nil
 }

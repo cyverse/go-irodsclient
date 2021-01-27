@@ -1,6 +1,10 @@
 package message
 
-import "github.com/iychoi/go-irodsclient/pkg/irods/common"
+import (
+	"fmt"
+
+	"github.com/iychoi/go-irodsclient/pkg/irods/common"
+)
 
 // IRODSMessageAuthResult stores authentication result
 type IRODSMessageAuthResult struct {
@@ -16,8 +20,12 @@ func (msg *IRODSMessageAuthResult) CheckError() error {
 	return nil
 }
 
-// FromMessageBody returns struct from IRODSMessageBody
-func (msg *IRODSMessageAuthResult) FromMessageBody(messageBody *IRODSMessageBody) error {
-	msg.Result = int(messageBody.IntInfo)
+// FromMessage returns struct from IRODSMessage
+func (msg *IRODSMessageAuthResult) FromMessage(msgIn *IRODSMessage) error {
+	if msgIn.Body == nil {
+		return fmt.Errorf("Cannot create a struct from an empty body")
+	}
+
+	msg.Result = int(msgIn.Body.IntInfo)
 	return nil
 }

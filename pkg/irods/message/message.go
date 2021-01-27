@@ -9,10 +9,6 @@ import (
 // MessageType ...
 type MessageType string
 
-const (
-	RODS_API_REPLY_TYPE MessageType = "RODS_API_REPLY"
-)
-
 // IRODSMessageHeader ...
 type IRODSMessageHeader struct {
 	XMLName    xml.Name    `xml:"MsgHeader_PI"`
@@ -30,6 +26,12 @@ type IRODSMessageBody struct {
 	Error   []byte
 	Bs      []byte
 	IntInfo int32
+}
+
+// IRODSMessage ...
+type IRODSMessage struct {
+	Header *IRODSMessageHeader
+	Body   *IRODSMessageBody
 }
 
 // IRODSMessageSerializationInterface ...
@@ -95,4 +97,26 @@ func (body *IRODSMessageBody) FromBytes(header *IRODSMessageHeader, bytes []byte
 	body.Bs = bytes[offset : offset+int(header.BsLen)]
 
 	return nil
+}
+
+// BuildHeader returns IRODSMessageHeader
+func (body *IRODSMessageBody) BuildHeader() (*IRODSMessageHeader, error) {
+	messageLen := 0
+	errorLen := 0
+	bsLen := 0
+
+	if body.Message != nil {
+		messageLen = len(body.Message)
+	}
+
+	if body.Error != nil {
+		errorLen = len(body.Error)
+	}
+
+	if body.Bs != nil {
+		bsLen = len(body.Bs)
+	}
+
+	h := MakeIRODSMessageHeader(body.Type, uint32(messageLen), uint32(errorLen), uint32(bsLen), body.IntInfo)
+	return h, nil
 }

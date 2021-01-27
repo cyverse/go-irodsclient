@@ -2,17 +2,15 @@ package connection
 
 import (
 	"bytes"
-	"crypto/md5"
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/binary"
 	"fmt"
 	"net"
 	"time"
 
-	"github.com/iychoi/go-irodsclient/pkg/irods/common"
+	"github.com/iychoi/go-irodsclient/pkg/irods/auth"
 	"github.com/iychoi/go-irodsclient/pkg/irods/message"
 	"github.com/iychoi/go-irodsclient/pkg/irods/types"
 	"github.com/iychoi/go-irodsclient/pkg/irods/util"
@@ -105,132 +103,124 @@ func (conn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, er
 
 	// Send a startup message
 	util.LogInfo("Start up a new connection")
-	startupMessage := message.NewIRODSMessageStartupPack(conn.Account, conn.ApplicationName, true)
-	startupMessageBody, err := startupMessage.GetMessageBody()
+	startup := message.NewIRODSMessageStartupPack(conn.Account, conn.ApplicationName, true)
+	startupMessage, err := startup.GetMessage()
 	if err != nil {
 		return nil, fmt.Errorf("Could not make a startup message - %s", err.Error())
 	}
 
-	err = conn.SendMessage(nil, startupMessageBody)
+	err = conn.SendMessage(startupMessage)
 	if err != nil {
 		return nil, fmt.Errorf("Could not send a startup message - %s", err.Error())
 	}
 
 	// Server responds with negotiation response
-	_, negotiationMessageBody, err := conn.ReadMessage()
+	negotiationMessage, err := conn.ReadMessage()
 	if err != nil {
 		return nil, fmt.Errorf("Could not receive a negotiation message - %s", err.Error())
 	}
 
-	if negotiationMessageBody == nil {
+	if negotiationMessage.Body == nil {
 		return nil, fmt.Errorf("Could not receive a negotiation message body")
 	}
 
-	if negotiationMessageBody.Type == message.RODS_MESSAGE_VERSION_TYPE {
+	if negotiationMessage.Body.Type == message.RODS_MESSAGE_VERSION_TYPE {
 		// this happens when an error occur
 		// Server responds with version
-		versionMessage := message.IRODSMessageVersion{}
-		err = versionMessage.FromMessageBody(negotiationMessageBody)
+		version := message.IRODSMessageVersion{}
+		err = version.FromMessage(negotiationMessage)
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a negotiation message body")
+			return nil, fmt.Errorf("Could not receive a negotiation message - %s", err.Error())
 		}
 
-		return versionMessage.GetVersion(), nil
-	} else if negotiationMessageBody.Type == message.RODS_MESSAGE_CS_NEG_TYPE {
+		return version.GetVersion(), nil
+	} else if negotiationMessage.Body.Type == message.RODS_MESSAGE_CS_NEG_TYPE {
 		// Server responds with its own negotiation policy
 		util.LogInfo("Start up CS Negotiation")
-		negotiationMessage := message.IRODSMessageCSNegotiation{}
-		err = negotiationMessage.FromMessageBody(negotiationMessageBody)
+		negotiation := message.IRODSMessageCSNegotiation{}
+		err = negotiation.FromMessage(negotiationMessage)
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a negotiation message body")
+			return nil, fmt.Errorf("Could not receive a negotiation message - %s", err.Error())
 		}
 
-		serverPolicy, err := types.GetCSNegotiationRequire(negotiationMessage.Result)
+		serverPolicy, err := types.GetCSNegotiationRequire(negotiation.Result)
 		if err != nil {
-			return nil, fmt.Errorf("Unable to parse server policy - %s", negotiationMessage.Result)
+			return nil, fmt.Errorf("Unable to parse server policy - %s", err.Error())
 		}
 
 		// Perform the negotiation
-		negotiationResult, status := types.PerformCSNegotiation(clientPolicy, serverPolicy)
+		policyResult, status := types.PerformCSNegotiation(clientPolicy, serverPolicy)
 
 		// If negotiation failed we're done
-		if negotiationResult == types.CSNegotiationFailure {
+		if policyResult == types.CSNegotiationFailure {
 			return nil, fmt.Errorf("Client-Server negotiation failed: %s, %s", string(clientPolicy), string(serverPolicy))
 		}
 
 		// Send negotiation result to server
-		negotiationResultMessage := message.NewIRODSMessageCSNegotiation(status, negotiationResult)
-		negotiationResultMessageBody, err := negotiationResultMessage.GetMessageBody()
+		negotiationResult := message.NewIRODSMessageCSNegotiation(status, policyResult)
+		negotiationResultMessage, err := negotiationResult.GetMessage()
 		if err != nil {
 			return nil, fmt.Errorf("Could not make a negotiation result message - %s", err.Error())
 		}
 
-		err = conn.SendMessage(nil, negotiationResultMessageBody)
+		err = conn.SendMessage(negotiationResultMessage)
 		if err != nil {
 			return nil, fmt.Errorf("Could not send a negotiation result message - %s", err.Error())
 		}
 
 		// Server responds with version
-		_, versionMessageBody, err := conn.ReadMessage()
+		versionMessage, err := conn.ReadMessage()
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a version message - %s", err.Error())
 		}
 
-		if versionMessageBody == nil {
-			return nil, fmt.Errorf("Could not receive a version message body")
-		}
-
-		versionMessage := message.IRODSMessageVersion{}
-		err = versionMessage.FromMessageBody(versionMessageBody)
+		version := message.IRODSMessageVersion{}
+		err = version.FromMessage(versionMessage)
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a version message body")
+			return nil, fmt.Errorf("Could not receive a version message - %s", err.Error())
 		}
 
-		if negotiationResult == types.CSNegotiationUseSSL {
+		if policyResult == types.CSNegotiationUseSSL {
 			err := conn.sslStartup()
 			if err != nil {
 				return nil, fmt.Errorf("Could not start up SSL - %s", err.Error())
 			}
 		}
 
-		return versionMessage.GetVersion(), nil
+		return version.GetVersion(), nil
 	}
 
-	return nil, fmt.Errorf("Unknown response message - %s", negotiationMessageBody.Type)
+	return nil, fmt.Errorf("Unknown response message - %s", negotiationMessage.Body.Type)
 }
 
 func (conn *IRODSConnection) connectWithoutCSNegotiation() (*types.IRODSVersion, error) {
 	// No client-server negotiation
 	// Send a startup message
 	util.LogInfo("Start up a new connection")
-	startupMessage := message.NewIRODSMessageStartupPack(conn.Account, conn.ApplicationName, false)
-	startupMessageBody, err := startupMessage.GetMessageBody()
+	startup := message.NewIRODSMessageStartupPack(conn.Account, conn.ApplicationName, false)
+	startupMessage, err := startup.GetMessage()
 	if err != nil {
 		return nil, fmt.Errorf("Could not make a startup message - %s", err.Error())
 	}
 
-	err = conn.SendMessage(nil, startupMessageBody)
+	err = conn.SendMessage(startupMessage)
 	if err != nil {
 		return nil, fmt.Errorf("Could not send a startup message - %s", err.Error())
 	}
 
 	// Server responds with version
-	_, versionMessageBody, err := conn.ReadMessage()
+	versionMessage, err := conn.ReadMessage()
 	if err != nil {
 		return nil, fmt.Errorf("Could not receive a version message - %s", err.Error())
 	}
 
-	if versionMessageBody == nil {
-		return nil, fmt.Errorf("Could not receive a version message body")
-	}
-
-	versionMessage := message.IRODSMessageVersion{}
-	err = versionMessage.FromMessageBody(versionMessageBody)
+	version := message.IRODSMessageVersion{}
+	err = version.FromMessage(versionMessage)
 	if err != nil {
-		return nil, fmt.Errorf("Could not receive a version message body")
+		return nil, fmt.Errorf("Could not receive a version message - %s", err.Error())
 	}
 
-	return versionMessage.GetVersion(), nil
+	return version.GetVersion(), nil
 }
 
 func (conn *IRODSConnection) sslStartup() error {
@@ -270,25 +260,25 @@ func (conn *IRODSConnection) sslStartup() error {
 	}
 
 	// Send a ssl setting
-	sslSettingMessage := message.NewIRODSMessageSSLSettings(irodsSSLConfig.EncryptionAlgorithm, irodsSSLConfig.EncryptionKeySize, irodsSSLConfig.SaltSize, irodsSSLConfig.HashRounds)
-	sslSettingMessageHeader, err := sslSettingMessage.GetMessageHeader()
+	sslSetting := message.NewIRODSMessageSSLSettings(irodsSSLConfig.EncryptionAlgorithm, irodsSSLConfig.EncryptionKeySize, irodsSSLConfig.SaltSize, irodsSSLConfig.HashRounds)
+	sslSettingMessage, err := sslSetting.GetMessage()
 	if err != nil {
 		return fmt.Errorf("Could not make a ssl setting message - %s", err.Error())
 	}
 
-	err = conn.SendMessage(sslSettingMessageHeader, nil)
+	err = conn.SendMessage(sslSettingMessage)
 	if err != nil {
 		return fmt.Errorf("Could not send a ssl setting message - %s", err.Error())
 	}
 
 	// Send a shared secret
-	sslSharedSecretMessage := message.NewIRODSMessageSSLSharedSecret(encryptionKey)
-	sslSharedSecretMessageBody, err := sslSharedSecretMessage.GetMessageBody()
+	sslSharedSecret := message.NewIRODSMessageSSLSharedSecret(encryptionKey)
+	sslSharedSecretMessage, err := sslSharedSecret.GetMessage()
 	if err != nil {
 		return fmt.Errorf("Could not make a ssl shared secret message - %s", err.Error())
 	}
 
-	err = conn.SendMessage(nil, sslSharedSecretMessageBody)
+	err = conn.SendMessage(sslSharedSecretMessage)
 	if err != nil {
 		return fmt.Errorf("Could not send a ssl shared secret message - %s", err.Error())
 	}
@@ -300,74 +290,57 @@ func (conn *IRODSConnection) loginNative() error {
 	util.LogInfo("Logging in using native authentication method")
 
 	// authenticate
-	authRequestMessage := message.NewIRODSMessageAuthRequest()
-	authRequestMessageHeader, err := authRequestMessage.GetMessageHeader()
+	authRequest := message.NewIRODSMessageAuthRequest()
+	authRequestMessage, err := authRequest.GetMessage()
 	if err != nil {
 		return fmt.Errorf("Could not make a login request message - %s", err.Error())
 	}
 
-	err = conn.SendMessage(authRequestMessageHeader, nil)
+	err = conn.SendMessage(authRequestMessage)
 	if err != nil {
 		return fmt.Errorf("Could not send a login request message - %s", err.Error())
 	}
 
 	// challenge
-	_, authChallengeMessageBody, err := conn.ReadMessage()
+	authChallengeMessage, err := conn.ReadMessage()
 	if err != nil {
 		return fmt.Errorf("Could not receive an authentication challenge message - %s", err.Error())
 	}
 
-	authChallengeMessage := message.IRODSMessageAuthChallenge{}
-	err = authChallengeMessage.FromMessageBody(authChallengeMessageBody)
+	authChallenge := message.IRODSMessageAuthChallenge{}
+	err = authChallenge.FromMessage(authChallengeMessage)
 	if err != nil {
 		return fmt.Errorf("Could not receive an authentication challenge message body")
 	}
 
-	challenge, err := base64.StdEncoding.DecodeString(authChallengeMessage.Challenge)
+	encodedPassword, err := auth.GenerateAuthResponse(authChallenge.Challenge, conn.Account.Password)
 	if err != nil {
-		return fmt.Errorf("Could not decode an authentication challenge")
+		return fmt.Errorf("Could not generate an authentication response - %s", err.Error())
 	}
 
-	paddedPassword := make([]byte, common.MAX_PASSWORD_LENGTH, common.MAX_PASSWORD_LENGTH)
-	copy(paddedPassword, []byte(conn.Account.Password))
-
-	m := md5.New()
-	m.Write(challenge[:64])
-	m.Write(paddedPassword)
-	encodedPassword := m.Sum(nil)
-
-	// replace 0x00 to 0x01
-	for idx := 0; idx < len(encodedPassword); idx++ {
-		if encodedPassword[idx] == 0 {
-			encodedPassword[idx] = 1
-		}
-	}
-
-	b64 := base64.StdEncoding.EncodeToString(encodedPassword[:16])
-
-	authResponseMessage := message.NewIRODSMessageAuthResponse([]byte(b64), conn.Account.ProxyUser)
-	authResponseMessageBody, err := authResponseMessage.GetMessageBody()
+	authResponse := message.NewIRODSMessageAuthResponse(encodedPassword, conn.Account.ProxyUser)
+	authResponseMessage, err := authResponse.GetMessage()
 	if err != nil {
 		return fmt.Errorf("Could not make a login response message - %s", err.Error())
 	}
 
-	err = conn.SendMessage(nil, authResponseMessageBody)
+	err = conn.SendMessage(authResponseMessage)
 	if err != nil {
 		return fmt.Errorf("Could not send a login response message - %s", err.Error())
 	}
 
-	_, authResultMessageBody, err := conn.ReadMessage()
+	authResultMessage, err := conn.ReadMessage()
 	if err != nil {
 		return fmt.Errorf("Could not receive a login result message - %s", err.Error())
 	}
 
-	authResultMessage := message.IRODSMessageAuthResult{}
-	err = authResultMessage.FromMessageBody(authResultMessageBody)
+	authResult := message.IRODSMessageAuthResult{}
+	err = authResult.FromMessage(authResultMessage)
 	if err != nil {
 		return fmt.Errorf("Could not receive a login result message body - %s", err.Error())
 	}
 
-	err = authResultMessage.CheckError()
+	err = authResult.CheckError()
 	return err
 }
 
@@ -421,10 +394,10 @@ func (conn *IRODSConnection) Recv(buffer []byte, size int) (int, error) {
 }
 
 // SendMessage makes the message into bytes
-func (conn *IRODSConnection) SendMessage(header *message.IRODSMessageHeader, body *message.IRODSMessageBody) error {
+func (conn *IRODSConnection) SendMessage(msg *message.IRODSMessage) error {
 	messageBuffer := new(bytes.Buffer)
 
-	if header == nil && body == nil {
+	if msg.Header == nil && msg.Body == nil {
 		return fmt.Errorf("Header and Body cannot be nil")
 	}
 
@@ -435,21 +408,21 @@ func (conn *IRODSConnection) SendMessage(header *message.IRODSMessageHeader, bod
 	errorLen := 0
 	bsLen := 0
 
-	if body != nil {
-		if body.Message != nil {
-			messageLen = len(body.Message)
+	if msg.Body != nil {
+		if msg.Body.Message != nil {
+			messageLen = len(msg.Body.Message)
 		}
 
-		if body.Error != nil {
-			errorLen = len(body.Error)
+		if msg.Body.Error != nil {
+			errorLen = len(msg.Body.Error)
 		}
 
-		if body.Bs != nil {
-			bsLen = len(body.Bs)
+		if msg.Body.Bs != nil {
+			bsLen = len(msg.Body.Bs)
 		}
 
-		if header == nil {
-			h := message.MakeIRODSMessageHeader(body.Type, uint32(messageLen), uint32(errorLen), uint32(bsLen), body.IntInfo)
+		if msg.Header == nil {
+			h := message.MakeIRODSMessageHeader(msg.Body.Type, uint32(messageLen), uint32(errorLen), uint32(bsLen), msg.Body.IntInfo)
 			headerBytes, err = h.GetBytes()
 			if err != nil {
 				return err
@@ -457,8 +430,8 @@ func (conn *IRODSConnection) SendMessage(header *message.IRODSMessageHeader, bod
 		}
 	}
 
-	if header != nil {
-		headerBytes, err = header.GetBytes()
+	if msg.Header != nil {
+		headerBytes, err = msg.Header.GetBytes()
 		if err != nil {
 			return err
 		}
@@ -472,8 +445,8 @@ func (conn *IRODSConnection) SendMessage(header *message.IRODSMessageHeader, bod
 	messageBuffer.Write(headerLenBuffer)
 	messageBuffer.Write(headerBytes)
 
-	if body != nil {
-		bodyBytes, err := body.GetBytes()
+	if msg.Body != nil {
+		bodyBytes, err := msg.Body.GetBytes()
 		if err != nil {
 			return err
 		}
@@ -488,8 +461,8 @@ func (conn *IRODSConnection) SendMessage(header *message.IRODSMessageHeader, bod
 	return nil
 }
 
-// ReadMessageHeader reads data from the given connection and returns iRODSMessageHeader
-func (conn *IRODSConnection) ReadMessageHeader() (*message.IRODSMessageHeader, error) {
+// readMessageHeader reads data from the given connection and returns iRODSMessageHeader
+func (conn *IRODSConnection) readMessageHeader() (*message.IRODSMessageHeader, error) {
 	// read header size
 	headerLenBuffer := make([]byte, 4)
 	readLen, err := conn.Recv(headerLenBuffer, 4)
@@ -525,10 +498,10 @@ func (conn *IRODSConnection) ReadMessageHeader() (*message.IRODSMessageHeader, e
 }
 
 // ReadMessage reads data from the given socket and returns IRODSMessage
-func (conn *IRODSConnection) ReadMessage() (*message.IRODSMessageHeader, *message.IRODSMessageBody, error) {
-	header, err := conn.ReadMessageHeader()
+func (conn *IRODSConnection) ReadMessage() (*message.IRODSMessage, error) {
+	header, err := conn.readMessageHeader()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	// read body
@@ -537,22 +510,25 @@ func (conn *IRODSConnection) ReadMessage() (*message.IRODSMessageHeader, *messag
 
 	readLen, err := conn.Recv(bodyBuffer, int(bodyLen))
 	if err != nil {
-		return nil, nil, fmt.Errorf("Could not read body - %s", err.Error())
+		return nil, fmt.Errorf("Could not read body - %s", err.Error())
 	}
 	if readLen != int(bodyLen) {
-		return nil, nil, fmt.Errorf("Could not read body fully - %d requested but %d read", bodyLen, readLen)
+		return nil, fmt.Errorf("Could not read body fully - %d requested but %d read", bodyLen, readLen)
 	}
 
 	body := message.IRODSMessageBody{}
 	err = body.FromBytes(header, bodyBuffer)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	body.Type = header.Type
 	body.IntInfo = header.IntInfo
 
-	return header, &body, nil
+	return &message.IRODSMessage{
+		Header: header,
+		Body:   &body,
+	}, nil
 }
 
 func (conn *IRODSConnection) release(val bool) {

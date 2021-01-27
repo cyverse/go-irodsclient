@@ -16,13 +16,23 @@ func NewIRODSMessageSSLSharedSecret(sharedSecret []byte) *IRODSMessageSSLSharedS
 	}
 }
 
-// GetMessageBody builds a message body
-func (msg *IRODSMessageSSLSharedSecret) GetMessageBody() (*IRODSMessageBody, error) {
-	return &IRODSMessageBody{
+// GetMessage builds a message
+func (msg *IRODSMessageSSLSharedSecret) GetMessage() (*IRODSMessage, error) {
+	msgBody := IRODSMessageBody{
 		Type:    RODS_MESSAGE_SSL_SHARED_SECRET_TYPE,
 		Message: msg.SharedSecret,
 		Error:   nil,
 		Bs:      nil,
 		IntInfo: 0,
+	}
+
+	msgHeader, err := msgBody.BuildHeader()
+	if err != nil {
+		return nil, err
+	}
+
+	return &IRODSMessage{
+		Header: msgHeader,
+		Body:   &msgBody,
 	}, nil
 }

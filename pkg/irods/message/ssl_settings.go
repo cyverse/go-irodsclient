@@ -18,13 +18,18 @@ func NewIRODSMessageSSLSettings(algorithm string, keySize int, saltSize int, has
 	}
 }
 
-// GetMessageHeader builds a message header
-func (msg *IRODSMessageSSLSettings) GetMessageHeader() (*IRODSMessageHeader, error) {
-	return &IRODSMessageHeader{
+// GetMessage builds a message
+func (msg *IRODSMessageSSLSettings) GetMessage() (*IRODSMessage, error) {
+	msgHeader := IRODSMessageHeader{
 		Type:       MessageType(msg.EncryptionAlgorithm),
 		MessageLen: msg.EncryptionKeySize,
 		ErrorLen:   msg.SaltSize,
 		BsLen:      msg.HashRounds,
 		IntInfo:    0,
+	}
+
+	return &IRODSMessage{
+		Header: &msgHeader,
+		Body:   nil,
 	}, nil
 }
