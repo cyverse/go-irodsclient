@@ -453,6 +453,11 @@ const (
 )
 
 // MakeIRODSError creates an error from error code
-func MakeIRODSError(code ErrorCode, message string) error {
-	return fmt.Errorf("iRODS Error %d - %s", code, message)
+func MakeIRODSError(code ErrorCode) error {
+	return fmt.Errorf("iRODS Error - %v", code)
+}
+
+// MakeIRODSErrorFromString creates an error from error code and message
+func MakeIRODSErrorFromString(code ErrorCode, message string) error {
+	return fmt.Errorf("iRODS Error - %v: %s", code, message)
 }

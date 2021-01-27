@@ -1,31 +1,19 @@
 package util
 
 import (
-	"bytes"
 	"fmt"
 	"net"
 )
 
-// ReadBytesInLen reads data from socket in a particular size
-func ReadBytesInLen(socket net.Conn, size int) ([]byte, error) {
-	messageBuffer := new(bytes.Buffer)
+// ReadBytes reads data from socket in a particular size
+func ReadBytes(socket net.Conn, buffer []byte, size int) (int, error) {
 	sizeLeft := size
 	actualRead := 0
 
-	buffer := make([]byte, size)
 	for sizeLeft > 0 {
-		sizeRead, err := socket.Read(buffer[actualRead:])
+		sizeRead, err := socket.Read(buffer[actualRead:size])
 		if err != nil {
-			return nil, err
-		}
-
-		sizeWritten, err := messageBuffer.Write(buffer[actualRead : actualRead+sizeRead])
-		if err != nil {
-			return nil, err
-		}
-
-		if sizeWritten != sizeRead {
-			return nil, fmt.Errorf("Could not write data into a buffer")
+			return actualRead, err
 		}
 
 		sizeLeft -= sizeRead
@@ -33,19 +21,19 @@ func ReadBytesInLen(socket net.Conn, size int) ([]byte, error) {
 	}
 
 	if sizeLeft < 0 {
-		return nil, fmt.Errorf("Read more bytes than requested - %d requested, but %d read", size, actualRead)
+		return actualRead, fmt.Errorf("Read more bytes than requested - %d requested, but %d read", size, actualRead)
 	}
 
-	return messageBuffer.Bytes(), nil
+	return actualRead, nil
 }
 
 // WriteBytes writes data to socket
-func WriteBytes(socket net.Conn, buffer []byte) error {
+func WriteBytes(socket net.Conn, buffer []byte, size int) error {
 	sizeLeft := len(buffer)
 	actualWrite := 0
 
 	for sizeLeft > 0 {
-		sizeWrite, err := socket.Write(buffer[actualWrite:])
+		sizeWrite, err := socket.Write(buffer[actualWrite:size])
 		if err != nil {
 			return err
 		}
