@@ -1,13 +1,13 @@
-package connection
+package query
 
 import (
 	"io/ioutil"
 	"testing"
 	"time"
 
-	"github.com/iychoi/go-irodsclient/pkg/irods/util"
-
+	"github.com/iychoi/go-irodsclient/pkg/irods/connection"
 	"github.com/iychoi/go-irodsclient/pkg/irods/types"
+	"github.com/iychoi/go-irodsclient/pkg/irods/util"
 )
 
 var (
@@ -33,33 +33,22 @@ func init() {
 	timeout = time.Second * 20 // 20 sec
 }
 
-func TestIRODSConnection(t *testing.T) {
+func TestIRODSCollection(t *testing.T) {
 	account.ClientServerNegotiation = false
 	util.LogDebugf("Account : %v", account.MaskSensitiveData())
 
-	conn := NewIRODSConnection(account, timeout, "go-irodsclient-test")
+	conn := connection.NewIRODSConnection(account, timeout, "go-irodsclient-test")
 	err := conn.Connect()
 	if err != nil {
 		t.Errorf("err - %v", err)
 		panic(err)
 	}
 
-	ver := conn.GetVersion()
-	util.LogDebugf("Version : %v", ver)
-}
-
-func TestIRODSConnectionWithNegotiation(t *testing.T) {
-	account.ClientServerNegotiation = true
-	account.CSNegotiationPolicy = types.CSNegotiationRequireTCP
-	util.LogDebugf("Account : %v", account.MaskSensitiveData())
-
-	conn := NewIRODSConnection(account, timeout, "go-irodsclient-test")
-	err := conn.Connect()
+	collection, err := GetCollection(conn, "/cyverse.k8s/home/iychoi")
 	if err != nil {
 		t.Errorf("err - %v", err)
 		panic(err)
 	}
 
-	ver := conn.GetVersion()
-	util.LogDebugf("Version : %v", ver)
+	util.LogDebugf("Query : %s", collection.ToString())
 }

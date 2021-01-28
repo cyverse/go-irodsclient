@@ -7,7 +7,9 @@ const (
 	IRODS_API_VERSION string = "d"
 
 	// Magic Numbers
-	MAX_PASSWORD_LENGTH        int = 50
+	MAX_PASSWORD_LENGTH int = 50
+	MAX_QUERY_ROWS      int = 500
+
 	MAX_SQL_ATTR               int = 50
 	MAX_PATH_ALLOWED           int = 1024
 	MAX_NAME_LEN               int = MAX_PATH_ALLOWED + 64
