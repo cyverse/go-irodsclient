@@ -39,8 +39,8 @@ func NewIRODSMessageStartupPack(account *types.IRODSAccount, option string, requ
 
 	return &IRODSMessageStartupPack{
 		Protocol:        1,
-		ReleaseVersion:  fmt.Sprintf("rods%s", common.IRODS_REL_VERSION),
-		APIVersion:      common.IRODS_API_VERSION,
+		ReleaseVersion:  fmt.Sprintf("rods%s", common.IRODSVersionRelease),
+		APIVersion:      common.IRODSVersionAPI,
 		ConnectionCount: 0,
 		ReconnectFlag:   0,
 		ProxyUser:       account.ProxyUser,

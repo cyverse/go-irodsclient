@@ -13,7 +13,7 @@ import (
 
 // GetCollection returns a collection for the path
 func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSCollection, error) {
-	query := message.NewIRODSMessageQuery(common.MAX_QUERY_ROWS, 0, 0, 0)
+	query := message.NewIRODSMessageQuery(common.MaxQueryRows, 0, 0, 0)
 	query.AddSelect(common.ICAT_COLUMN_COLL_ID, 1)
 	query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
 
@@ -83,7 +83,7 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 
 // GetCollectionMeta returns a colleciton metadata for the path
 func GetCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types.IRODSMeta, error) {
-	query := message.NewIRODSMessageQuery(common.MAX_QUERY_ROWS, 0, 0, 0)
+	query := message.NewIRODSMessageQuery(common.MaxQueryRows, 0, 0, 0)
 	query.AddSelect(common.ICAT_COLUMN_META_COLL_ATTR_ID, 1)
 	query.AddSelect(common.ICAT_COLUMN_META_COLL_ATTR_NAME, 1)
 	query.AddSelect(common.ICAT_COLUMN_META_COLL_ATTR_VALUE, 1)
@@ -167,7 +167,7 @@ func GetCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types.
 
 // ListSubCollections lists subcollections in the given collection
 func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types.IRODSCollection, error) {
-	query := message.NewIRODSMessageQuery(common.MAX_QUERY_ROWS, 0, 0, 0)
+	query := message.NewIRODSMessageQuery(common.MaxQueryRows, 0, 0, 0)
 	query.AddSelect(common.ICAT_COLUMN_COLL_ID, 1)
 	query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
 

@@ -8,6 +8,11 @@ import (
 	"github.com/iychoi/go-irodsclient/pkg/irods/common"
 )
 
+const (
+	challengeLen    int = 64
+	authResponseLen int = 16
+)
+
 // GenerateAuthResponse returns auth response
 func GenerateAuthResponse(challenge string, password string) (string, error) {
 	challengeBytes, err := base64.StdEncoding.DecodeString(challenge)
@@ -15,11 +20,11 @@ func GenerateAuthResponse(challenge string, password string) (string, error) {
 		return "", fmt.Errorf("Could not decode an authentication challenge")
 	}
 
-	paddedPassword := make([]byte, common.MAX_PASSWORD_LENGTH, common.MAX_PASSWORD_LENGTH)
+	paddedPassword := make([]byte, common.MaxPasswordLength, common.MaxPasswordLength)
 	copy(paddedPassword, []byte(password))
 
 	m := md5.New()
-	m.Write(challengeBytes[:64])
+	m.Write(challengeBytes[:challengeLen])
 	m.Write(paddedPassword)
 	encodedPassword := m.Sum(nil)
 
@@ -30,6 +35,6 @@ func GenerateAuthResponse(challenge string, password string) (string, error) {
 		}
 	}
 
-	b64encodedPassword := base64.StdEncoding.EncodeToString(encodedPassword[:16])
+	b64encodedPassword := base64.StdEncoding.EncodeToString(encodedPassword[:authResponseLen])
 	return b64encodedPassword, nil
 }
