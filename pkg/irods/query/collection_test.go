@@ -33,7 +33,7 @@ func init() {
 	timeout = time.Second * 20 // 20 sec
 }
 
-func TestIRODSCollection(t *testing.T) {
+func TestGetIRODSCollection(t *testing.T) {
 	account.ClientServerNegotiation = false
 	util.LogDebugf("Account : %v", account.MaskSensitiveData())
 
@@ -51,4 +51,30 @@ func TestIRODSCollection(t *testing.T) {
 	}
 
 	util.LogDebugf("Query : %s", collection.ToString())
+}
+
+func TestListIRODSCollection(t *testing.T) {
+	account.ClientServerNegotiation = false
+	util.LogDebugf("Account : %v", account.MaskSensitiveData())
+
+	conn := connection.NewIRODSConnection(account, timeout, "go-irodsclient-test")
+	err := conn.Connect()
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	collections, err := ListSubCollections(conn, "/cyverse.k8s/home")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	if len(collections) == 0 {
+		util.LogDebug("There is no sub collections")
+	} else {
+		for _, collection := range collections {
+			util.LogDebugf("Collection : %s", collection.ToString())
+		}
+	}
 }
