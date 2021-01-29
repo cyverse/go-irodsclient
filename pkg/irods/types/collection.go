@@ -9,8 +9,6 @@ type IRODSCollection struct {
 	Path string
 	// Name has only the name part of the path
 	Name string
-	// Meta has internal information
-	Meta *IRODSMetaCollection
 }
 
 // ToString stringifies the object

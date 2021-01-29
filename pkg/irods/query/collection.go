@@ -78,8 +78,91 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 		ID:   collectionID,
 		Path: collectionPath,
 		Name: util.GetIRODSPathFileName(collectionPath),
-		Meta: nil,
 	}, nil
+}
+
+// GetCollectionMeta returns a colleciton metadata for the path
+func GetCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types.IRODSMeta, error) {
+	query := message.NewIRODSMessageQuery(common.MAX_QUERY_ROWS, 0, 0, 0)
+	query.AddSelect(common.ICAT_COLUMN_META_COLL_ATTR_ID, 1)
+	query.AddSelect(common.ICAT_COLUMN_META_COLL_ATTR_NAME, 1)
+	query.AddSelect(common.ICAT_COLUMN_META_COLL_ATTR_VALUE, 1)
+	query.AddSelect(common.ICAT_COLUMN_META_COLL_ATTR_UNITS, 1)
+
+	condVal := fmt.Sprintf("= '%s'", path)
+	query.AddCondition(common.ICAT_COLUMN_COLL_NAME, condVal)
+
+	queryMessage, err := query.GetMessage()
+	if err != nil {
+		return nil, fmt.Errorf("Could not make a collection metadata query message - %s", err.Error())
+	}
+
+	err = conn.SendMessage(queryMessage)
+	if err != nil {
+		return nil, fmt.Errorf("Could not send a collection metadata query message - %s", err.Error())
+	}
+
+	// Server responds with results
+	queryResultMessage, err := conn.ReadMessage()
+	if err != nil {
+		return nil, fmt.Errorf("Could not receive a collection metadata query result message - %s", err.Error())
+	}
+
+	queryResult := message.IRODSMessageQueryResult{}
+	err = queryResult.FromMessage(queryResultMessage)
+	if err != nil {
+		return nil, fmt.Errorf("Could not receive a collection metadata query result message - %s", err.Error())
+	}
+
+	metas := make([]*types.IRODSMeta, queryResult.RowCount, queryResult.RowCount)
+	if queryResult.RowCount == 0 {
+		return metas, nil
+	}
+
+	if queryResult.AttributeCount > len(queryResult.SQLResult) {
+		return nil, fmt.Errorf("Could not receive collection metadata attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+	}
+
+	for attr := 0; attr < queryResult.AttributeCount; attr++ {
+		sqlResult := queryResult.SQLResult[attr]
+		if len(sqlResult.Values) != queryResult.RowCount {
+			return nil, fmt.Errorf("Could not receive collection metadata rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+		}
+
+		for row := 0; row < queryResult.RowCount; row++ {
+			value := sqlResult.Values[row]
+
+			if metas[row] == nil {
+				// create a new
+				metas[row] = &types.IRODSMeta{
+					AVUID: -1,
+					Name:  "",
+					Value: "",
+					Units: "",
+				}
+			}
+
+			switch sqlResult.AttributeIndex {
+			case int(common.ICAT_COLUMN_META_COLL_ATTR_ID):
+				avuID, err := strconv.Atoi(value)
+				if err != nil {
+					return nil, fmt.Errorf("Could not parse collection metadata id - %s", value)
+				}
+				metas[row].AVUID = avuID
+			case int(common.ICAT_COLUMN_META_COLL_ATTR_NAME):
+				metas[row].Name = value
+			case int(common.ICAT_COLUMN_META_COLL_ATTR_VALUE):
+				metas[row].Value = value
+			case int(common.ICAT_COLUMN_META_COLL_ATTR_UNITS):
+				metas[row].Units = value
+			default:
+				// ignore
+			}
+		}
+
+		metas = append(metas)
+	}
+	return metas, nil
 }
 
 // ListSubCollections lists subcollections in the given collection
@@ -137,7 +220,6 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 					ID:   -1,
 					Path: "",
 					Name: "",
-					Meta: nil,
 				}
 			}
 

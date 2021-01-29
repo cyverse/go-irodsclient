@@ -4,7 +4,7 @@ import "fmt"
 
 // IRODSMeta contains irods metadata
 type IRODSMeta struct {
-	AVUID string
+	AVUID int
 	Name  string
 	Value string
 	Units string

@@ -78,3 +78,29 @@ func TestListIRODSCollection(t *testing.T) {
 		}
 	}
 }
+
+func TestGetIRODSCollectionMeta(t *testing.T) {
+	account.ClientServerNegotiation = false
+	util.LogDebugf("Account : %v", account.MaskSensitiveData())
+
+	conn := connection.NewIRODSConnection(account, timeout, "go-irodsclient-test")
+	err := conn.Connect()
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	metas, err := GetCollectionMeta(conn, "/cyverse.k8s/home/iyhoi")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	if len(metas) == 0 {
+		util.LogDebug("There is no metadata")
+	} else {
+		for _, meta := range metas {
+			util.LogDebugf("Collection Meta : %s", meta.ToString())
+		}
+	}
+}
