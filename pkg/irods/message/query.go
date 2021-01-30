@@ -48,8 +48,8 @@ func (msg *IRODSMessageQuery) AddCondition(key common.ICATColumnNumber, val stri
 }
 
 // AddKeyVal adds a key-value pair
-func (msg *IRODSMessageQuery) AddKeyVal(key string, val string) {
-	msg.KeyVals.Add(key, val)
+func (msg *IRODSMessageQuery) AddKeyVal(key common.KeyWord, val string) {
+	msg.KeyVals.Add(string(key), val)
 }
 
 // GetBytes returns byte array

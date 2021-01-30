@@ -44,16 +44,16 @@ func TestGetIRODSCollection(t *testing.T) {
 		panic(err)
 	}
 
-	collection, err := GetCollection(conn, "/cyverse.k8s/home/iychoi")
+	collection, err := GetCollection(conn, "/iplant/home/iychoi")
 	if err != nil {
 		t.Errorf("err - %v", err)
 		panic(err)
 	}
 
-	util.LogDebugf("Query : %s", collection.ToString())
+	util.LogDebugf("Collection : %v", collection)
 }
 
-func TestListIRODSCollection(t *testing.T) {
+func TestListIRODSCollections(t *testing.T) {
 	account.ClientServerNegotiation = false
 	util.LogDebugf("Account : %v", account.MaskSensitiveData())
 
@@ -64,7 +64,7 @@ func TestListIRODSCollection(t *testing.T) {
 		panic(err)
 	}
 
-	collections, err := ListSubCollections(conn, "/cyverse.k8s/home")
+	collections, err := ListSubCollections(conn, "/iplant/home/iychoi")
 	if err != nil {
 		t.Errorf("err - %v", err)
 		panic(err)
@@ -74,7 +74,7 @@ func TestListIRODSCollection(t *testing.T) {
 		util.LogDebug("There is no sub collections")
 	} else {
 		for _, collection := range collections {
-			util.LogDebugf("Collection : %s", collection.ToString())
+			util.LogDebugf("Collection : %v", collection)
 		}
 	}
 }
@@ -90,7 +90,7 @@ func TestGetIRODSCollectionMeta(t *testing.T) {
 		panic(err)
 	}
 
-	metas, err := GetCollectionMeta(conn, "/cyverse.k8s/home/iyhoi")
+	metas, err := GetCollectionMeta(conn, "/iplant/home/iyhoi")
 	if err != nil {
 		t.Errorf("err - %v", err)
 		panic(err)
@@ -100,7 +100,66 @@ func TestGetIRODSCollectionMeta(t *testing.T) {
 		util.LogDebug("There is no metadata")
 	} else {
 		for _, meta := range metas {
-			util.LogDebugf("Collection Meta : %s", meta.ToString())
+			util.LogDebugf("Collection Meta : %v", meta)
+		}
+	}
+}
+
+func TestListIRODSDataObjects(t *testing.T) {
+	account.ClientServerNegotiation = false
+	util.LogDebugf("Account : %v", account.MaskSensitiveData())
+
+	conn := connection.NewIRODSConnection(account, timeout, "go-irodsclient-test")
+	err := conn.Connect()
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	collection, err := GetCollection(conn, "/iplant/home/iychoi")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	util.LogDebugf("Collection: %v", collection)
+
+	dataobjects, err := ListDataObjects(conn, "/iplant/home/iychoi")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	for _, dataobject := range dataobjects {
+		util.LogDebugf("DataObject : %v", dataobject)
+		for _, replica := range dataobject.Replicas {
+			util.LogDebugf("Replica : %v", replica)
+		}
+	}
+}
+
+func TestGetIRODSDataObjectMeta(t *testing.T) {
+	account.ClientServerNegotiation = false
+	util.LogDebugf("Account : %v", account.MaskSensitiveData())
+
+	conn := connection.NewIRODSConnection(account, timeout, "go-irodsclient-test")
+	err := conn.Connect()
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	metas, err := GetDataObjectMeta(conn, "/iplant/home/iyhoi/bench.tmp")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	if len(metas) == 0 {
+		util.LogDebug("There is no metadata")
+	} else {
+		for _, meta := range metas {
+			util.LogDebugf("Data Object Meta : %v", meta)
 		}
 	}
 }
