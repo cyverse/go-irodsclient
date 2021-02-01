@@ -31,7 +31,7 @@ func setup() {
 		panic(err)
 	}
 
-	timeout = time.Second * 20 // 20 sec
+	timeout = time.Second * 200 // 200 sec
 
 	account.ClientServerNegotiation = false
 	util.LogDebugf("Account : %v", account.MaskSensitiveData())
@@ -67,6 +67,26 @@ func TestListIRODSCollections(t *testing.T) {
 	setup()
 
 	collections, err := ListSubCollections(conn, "/iplant/home/iychoi")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	if len(collections) == 0 {
+		util.LogDebug("There is no sub collections")
+	} else {
+		for _, collection := range collections {
+			util.LogDebugf("Collection : %v", collection)
+		}
+	}
+
+	shutdown()
+}
+
+func TestListManyIRODSCollections(t *testing.T) {
+	setup()
+
+	collections, err := ListSubCollections(conn, "/iplant/home")
 	if err != nil {
 		t.Errorf("err - %v", err)
 		panic(err)

@@ -18,134 +18,148 @@ func ListDataObjects(conn *connection.IRODSConnection, path string) ([]*types.IR
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	// data object
-	query := message.NewIRODSMessageQuery(common.MaxQueryRows, 0, 0, 0)
-	query.AddSelect(common.ICAT_COLUMN_D_DATA_ID, 1)
-	query.AddSelect(common.ICAT_COLUMN_DATA_NAME, 1)
-	query.AddSelect(common.ICAT_COLUMN_DATA_SIZE, 1)
+	dataObjects := []*types.IRODSDataObject{}
 
-	// replica
-	query.AddSelect(common.ICAT_COLUMN_DATA_REPL_NUM, 1)
-	query.AddSelect(common.ICAT_COLUMN_D_DATA_CHECKSUM, 1)
-	query.AddSelect(common.ICAT_COLUMN_D_DATA_STATUS, 1)
-	query.AddSelect(common.ICAT_COLUMN_D_RESC_NAME, 1)
-	query.AddSelect(common.ICAT_COLUMN_D_DATA_PATH, 1)
-	query.AddSelect(common.ICAT_COLUMN_D_RESC_HIER, 1)
-	query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
-	query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
+	continueQuery := true
+	continueIndex := 0
+	for continueQuery {
+		// data object
+		query := message.NewIRODSMessageQuery(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddSelect(common.ICAT_COLUMN_D_DATA_ID, 1)
+		query.AddSelect(common.ICAT_COLUMN_DATA_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_DATA_SIZE, 1)
 
-	pathCondVal := fmt.Sprintf("= '%s'", path)
-	query.AddCondition(common.ICAT_COLUMN_COLL_NAME, pathCondVal)
+		// replica
+		query.AddSelect(common.ICAT_COLUMN_DATA_REPL_NUM, 1)
+		query.AddSelect(common.ICAT_COLUMN_D_DATA_CHECKSUM, 1)
+		query.AddSelect(common.ICAT_COLUMN_D_DATA_STATUS, 1)
+		query.AddSelect(common.ICAT_COLUMN_D_RESC_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_D_DATA_PATH, 1)
+		query.AddSelect(common.ICAT_COLUMN_D_RESC_HIER, 1)
+		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
+		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
-	queryMessage, err := query.GetMessage()
-	if err != nil {
-		return nil, fmt.Errorf("Could not make a data object query message - %s", err.Error())
-	}
+		pathCondVal := fmt.Sprintf("= '%s'", path)
+		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, pathCondVal)
 
-	err = conn.SendMessage(queryMessage)
-	if err != nil {
-		return nil, fmt.Errorf("Could not send a data object query message - %s", err.Error())
-	}
-
-	// Server responds with results
-	queryResultMessage, err := conn.ReadMessage()
-	if err != nil {
-		return nil, fmt.Errorf("Could not receive a data object query result message - %s", err.Error())
-	}
-
-	queryResult := message.IRODSMessageQueryResult{}
-	err = queryResult.FromMessage(queryResultMessage)
-	if err != nil {
-		return nil, fmt.Errorf("Could not receive a data object query result message - %s", err.Error())
-	}
-
-	dataObjects := make([]*types.IRODSDataObject, queryResult.RowCount, queryResult.RowCount)
-	if queryResult.RowCount == 0 {
-		return nil, fmt.Errorf("Could not receive a data object - received %d rows", queryResult.RowCount)
-	}
-
-	if queryResult.AttributeCount > len(queryResult.SQLResult) {
-		return nil, fmt.Errorf("Could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
-	}
-
-	for attr := 0; attr < queryResult.AttributeCount; attr++ {
-		sqlResult := queryResult.SQLResult[attr]
-		if len(sqlResult.Values) != queryResult.RowCount {
-			return nil, fmt.Errorf("Could not receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+		queryMessage, err := query.GetMessage()
+		if err != nil {
+			return nil, fmt.Errorf("Could not make a data object query message - %s", err.Error())
 		}
 
-		for row := 0; row < queryResult.RowCount; row++ {
-			value := sqlResult.Values[row]
+		err = conn.SendMessage(queryMessage)
+		if err != nil {
+			return nil, fmt.Errorf("Could not send a data object query message - %s", err.Error())
+		}
 
-			if dataObjects[row] == nil {
-				// create a new
-				replica := &types.IRODSReplica{
-					Number:            -1,
-					CheckSum:          "",
-					Status:            "",
-					ResourceName:      "",
-					Path:              "",
-					ResourceHierarchy: "",
-					CreateTime:        time.Time{},
-					ModifyTime:        time.Time{},
-				}
+		// Server responds with results
+		queryResultMessage, err := conn.ReadMessage()
+		if err != nil {
+			return nil, fmt.Errorf("Could not receive a data object query result message - %s", err.Error())
+		}
 
-				dataObjects[row] = &types.IRODSDataObject{
-					ID:       -1,
-					Path:     "",
-					Name:     "",
-					Size:     0,
-					Replicas: []*types.IRODSReplica{replica},
-				}
+		queryResult := message.IRODSMessageQueryResult{}
+		err = queryResult.FromMessage(queryResultMessage)
+		if err != nil {
+			return nil, fmt.Errorf("Could not receive a data object query result message - %s", err.Error())
+		}
+
+		if queryResult.RowCount == 0 {
+			break
+		}
+
+		if queryResult.AttributeCount > len(queryResult.SQLResult) {
+			return nil, fmt.Errorf("Could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+		}
+
+		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount, queryResult.RowCount)
+
+		for attr := 0; attr < queryResult.AttributeCount; attr++ {
+			sqlResult := queryResult.SQLResult[attr]
+			if len(sqlResult.Values) != queryResult.RowCount {
+				return nil, fmt.Errorf("Could not receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
-			switch sqlResult.AttributeIndex {
-			case int(common.ICAT_COLUMN_D_DATA_ID):
-				objID, err := strconv.ParseInt(value, 10, 64)
-				if err != nil {
-					return nil, fmt.Errorf("Could not parse data object id - %s", value)
+			for row := 0; row < queryResult.RowCount; row++ {
+				value := sqlResult.Values[row]
+
+				if pagenatedDataObjects[row] == nil {
+					// create a new
+					replica := &types.IRODSReplica{
+						Number:            -1,
+						CheckSum:          "",
+						Status:            "",
+						ResourceName:      "",
+						Path:              "",
+						ResourceHierarchy: "",
+						CreateTime:        time.Time{},
+						ModifyTime:        time.Time{},
+					}
+
+					pagenatedDataObjects[row] = &types.IRODSDataObject{
+						ID:       -1,
+						Path:     "",
+						Name:     "",
+						Size:     0,
+						Replicas: []*types.IRODSReplica{replica},
+					}
 				}
-				dataObjects[row].ID = objID
-			case int(common.ICAT_COLUMN_DATA_NAME):
-				dataObjects[row].Path = util.MakeIRODSPath(path, value)
-				dataObjects[row].Name = value
-			case int(common.ICAT_COLUMN_DATA_SIZE):
-				objSize, err := strconv.ParseInt(value, 10, 64)
-				if err != nil {
-					return nil, fmt.Errorf("Could not parse data object size - %s", value)
+
+				switch sqlResult.AttributeIndex {
+				case int(common.ICAT_COLUMN_D_DATA_ID):
+					objID, err := strconv.ParseInt(value, 10, 64)
+					if err != nil {
+						return nil, fmt.Errorf("Could not parse data object id - %s", value)
+					}
+					pagenatedDataObjects[row].ID = objID
+				case int(common.ICAT_COLUMN_DATA_NAME):
+					pagenatedDataObjects[row].Path = util.MakeIRODSPath(path, value)
+					pagenatedDataObjects[row].Name = value
+				case int(common.ICAT_COLUMN_DATA_SIZE):
+					objSize, err := strconv.ParseInt(value, 10, 64)
+					if err != nil {
+						return nil, fmt.Errorf("Could not parse data object size - %s", value)
+					}
+					pagenatedDataObjects[row].Size = objSize
+				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
+					repNum, err := strconv.ParseInt(value, 10, 64)
+					if err != nil {
+						return nil, fmt.Errorf("Could not parse data object replica number - %s", value)
+					}
+					pagenatedDataObjects[row].Replicas[0].Number = repNum
+				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
+					pagenatedDataObjects[row].Replicas[0].CheckSum = value
+				case int(common.ICAT_COLUMN_D_DATA_STATUS):
+					pagenatedDataObjects[row].Replicas[0].Status = value
+				case int(common.ICAT_COLUMN_D_RESC_NAME):
+					pagenatedDataObjects[row].Replicas[0].ResourceName = value
+				case int(common.ICAT_COLUMN_D_DATA_PATH):
+					pagenatedDataObjects[row].Replicas[0].Path = value
+				case int(common.ICAT_COLUMN_D_RESC_HIER):
+					pagenatedDataObjects[row].Replicas[0].ResourceHierarchy = value
+				case int(common.ICAT_COLUMN_D_CREATE_TIME):
+					cT, err := util.GetIRODSDateTime(value)
+					if err != nil {
+						return nil, fmt.Errorf("Could not parse create time - %s", value)
+					}
+					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
+				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
+					mT, err := util.GetIRODSDateTime(value)
+					if err != nil {
+						return nil, fmt.Errorf("Could not parse modify time - %s", value)
+					}
+					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
+				default:
+					// ignore
 				}
-				dataObjects[row].Size = objSize
-			case int(common.ICAT_COLUMN_DATA_REPL_NUM):
-				repNum, err := strconv.ParseInt(value, 10, 64)
-				if err != nil {
-					return nil, fmt.Errorf("Could not parse data object replica number - %s", value)
-				}
-				dataObjects[row].Replicas[0].Number = repNum
-			case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
-				dataObjects[row].Replicas[0].CheckSum = value
-			case int(common.ICAT_COLUMN_D_DATA_STATUS):
-				dataObjects[row].Replicas[0].Status = value
-			case int(common.ICAT_COLUMN_D_RESC_NAME):
-				dataObjects[row].Replicas[0].ResourceName = value
-			case int(common.ICAT_COLUMN_D_DATA_PATH):
-				dataObjects[row].Replicas[0].Path = value
-			case int(common.ICAT_COLUMN_D_RESC_HIER):
-				dataObjects[row].Replicas[0].ResourceHierarchy = value
-			case int(common.ICAT_COLUMN_D_CREATE_TIME):
-				cT, err := util.GetIRODSDateTime(value)
-				if err != nil {
-					return nil, fmt.Errorf("Could not parse create time - %s", value)
-				}
-				dataObjects[row].Replicas[0].CreateTime = cT
-			case int(common.ICAT_COLUMN_D_MODIFY_TIME):
-				mT, err := util.GetIRODSDateTime(value)
-				if err != nil {
-					return nil, fmt.Errorf("Could not parse modify time - %s", value)
-				}
-				dataObjects[row].Replicas[0].ModifyTime = mT
-			default:
-				// ignore
 			}
+		}
+
+		dataObjects = append(dataObjects, pagenatedDataObjects...)
+
+		continueIndex = queryResult.ContinueIndex
+		if continueIndex == 0 {
+			continueQuery = false
 		}
 	}
 
@@ -177,87 +191,100 @@ func GetDataObjectMeta(conn *connection.IRODSConnection, path string) ([]*types.
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	query := message.NewIRODSMessageQuery(common.MaxQueryRows, 0, 0, 0)
-	query.AddSelect(common.ICAT_COLUMN_META_DATA_ATTR_ID, 1)
-	query.AddSelect(common.ICAT_COLUMN_META_DATA_ATTR_NAME, 1)
-	query.AddSelect(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, 1)
-	query.AddSelect(common.ICAT_COLUMN_META_DATA_ATTR_UNITS, 1)
+	metas := []*types.IRODSMeta{}
 
-	pathCondVal := fmt.Sprintf("= '%s'", path)
-	query.AddCondition(common.ICAT_COLUMN_COLL_NAME, pathCondVal)
+	continueQuery := true
+	continueIndex := 0
+	for continueQuery {
+		query := message.NewIRODSMessageQuery(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddSelect(common.ICAT_COLUMN_META_DATA_ATTR_ID, 1)
+		query.AddSelect(common.ICAT_COLUMN_META_DATA_ATTR_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, 1)
+		query.AddSelect(common.ICAT_COLUMN_META_DATA_ATTR_UNITS, 1)
 
-	nameCondVal := fmt.Sprintf("= '%s'", path)
-	query.AddCondition(common.ICAT_COLUMN_DATA_NAME, nameCondVal)
+		pathCondVal := fmt.Sprintf("= '%s'", path)
+		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, pathCondVal)
 
-	queryMessage, err := query.GetMessage()
-	if err != nil {
-		return nil, fmt.Errorf("Could not make a data object metadata query message - %s", err.Error())
-	}
+		nameCondVal := fmt.Sprintf("= '%s'", path)
+		query.AddCondition(common.ICAT_COLUMN_DATA_NAME, nameCondVal)
 
-	err = conn.SendMessage(queryMessage)
-	if err != nil {
-		return nil, fmt.Errorf("Could not send a data object metadata query message - %s", err.Error())
-	}
-
-	// Server responds with results
-	queryResultMessage, err := conn.ReadMessage()
-	if err != nil {
-		return nil, fmt.Errorf("Could not receive a data object metadata query result message - %s", err.Error())
-	}
-
-	queryResult := message.IRODSMessageQueryResult{}
-	err = queryResult.FromMessage(queryResultMessage)
-	if err != nil {
-		return nil, fmt.Errorf("Could not receive a data object metadata query result message - %s", err.Error())
-	}
-
-	metas := make([]*types.IRODSMeta, queryResult.RowCount, queryResult.RowCount)
-	if queryResult.RowCount == 0 {
-		return metas, nil
-	}
-
-	if queryResult.AttributeCount > len(queryResult.SQLResult) {
-		return nil, fmt.Errorf("Could not receive data object metadata attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
-	}
-
-	for attr := 0; attr < queryResult.AttributeCount; attr++ {
-		sqlResult := queryResult.SQLResult[attr]
-		if len(sqlResult.Values) != queryResult.RowCount {
-			return nil, fmt.Errorf("Could not receive data object metadata rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+		queryMessage, err := query.GetMessage()
+		if err != nil {
+			return nil, fmt.Errorf("Could not make a data object metadata query message - %s", err.Error())
 		}
 
-		for row := 0; row < queryResult.RowCount; row++ {
-			value := sqlResult.Values[row]
+		err = conn.SendMessage(queryMessage)
+		if err != nil {
+			return nil, fmt.Errorf("Could not send a data object metadata query message - %s", err.Error())
+		}
 
-			if metas[row] == nil {
-				// create a new
-				metas[row] = &types.IRODSMeta{
-					AVUID: -1,
-					Name:  "",
-					Value: "",
-					Units: "",
+		// Server responds with results
+		queryResultMessage, err := conn.ReadMessage()
+		if err != nil {
+			return nil, fmt.Errorf("Could not receive a data object metadata query result message - %s", err.Error())
+		}
+
+		queryResult := message.IRODSMessageQueryResult{}
+		err = queryResult.FromMessage(queryResultMessage)
+		if err != nil {
+			return nil, fmt.Errorf("Could not receive a data object metadata query result message - %s", err.Error())
+		}
+
+		if queryResult.RowCount == 0 {
+			break
+		}
+
+		if queryResult.AttributeCount > len(queryResult.SQLResult) {
+			return nil, fmt.Errorf("Could not receive data object metadata attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+		}
+
+		pagenatedMetas := make([]*types.IRODSMeta, queryResult.RowCount, queryResult.RowCount)
+
+		for attr := 0; attr < queryResult.AttributeCount; attr++ {
+			sqlResult := queryResult.SQLResult[attr]
+			if len(sqlResult.Values) != queryResult.RowCount {
+				return nil, fmt.Errorf("Could not receive data object metadata rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+			}
+
+			for row := 0; row < queryResult.RowCount; row++ {
+				value := sqlResult.Values[row]
+
+				if pagenatedMetas[row] == nil {
+					// create a new
+					pagenatedMetas[row] = &types.IRODSMeta{
+						AVUID: -1,
+						Name:  "",
+						Value: "",
+						Units: "",
+					}
+				}
+
+				switch sqlResult.AttributeIndex {
+				case int(common.ICAT_COLUMN_META_DATA_ATTR_ID):
+					avuID, err := strconv.ParseInt(value, 10, 64)
+					if err != nil {
+						return nil, fmt.Errorf("Could not parse data object metadata id - %s", value)
+					}
+					pagenatedMetas[row].AVUID = avuID
+				case int(common.ICAT_COLUMN_META_DATA_ATTR_NAME):
+					pagenatedMetas[row].Name = value
+				case int(common.ICAT_COLUMN_META_DATA_ATTR_VALUE):
+					pagenatedMetas[row].Value = value
+				case int(common.ICAT_COLUMN_META_DATA_ATTR_UNITS):
+					pagenatedMetas[row].Units = value
+				default:
+					// ignore
 				}
 			}
 
-			switch sqlResult.AttributeIndex {
-			case int(common.ICAT_COLUMN_META_DATA_ATTR_ID):
-				avuID, err := strconv.ParseInt(value, 10, 64)
-				if err != nil {
-					return nil, fmt.Errorf("Could not parse data object metadata id - %s", value)
-				}
-				metas[row].AVUID = avuID
-			case int(common.ICAT_COLUMN_META_DATA_ATTR_NAME):
-				metas[row].Name = value
-			case int(common.ICAT_COLUMN_META_DATA_ATTR_VALUE):
-				metas[row].Value = value
-			case int(common.ICAT_COLUMN_META_DATA_ATTR_UNITS):
-				metas[row].Units = value
-			default:
-				// ignore
+			metas = append(metas, pagenatedMetas...)
+
+			continueIndex = queryResult.ContinueIndex
+			if continueIndex == 0 {
+				continueQuery = false
 			}
 		}
-
-		metas = append(metas)
 	}
+
 	return metas, nil
 }

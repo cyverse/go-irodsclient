@@ -10,8 +10,8 @@ import (
 type IRODSMessageQuery struct {
 	XMLName           xml.Name             `xml:"GenQueryInp_PI"`
 	MaxRows           int                  `xml:"maxRows"`
-	ContinueIndex     int                  `xml:"continueInx"`
-	PartialStartIndex int                  `xml:"partialStartIndex"`
+	ContinueIndex     int                  `xml:"continueInx"`       // 1 for continueing, 0 for end
+	PartialStartIndex int                  `xml:"partialStartIndex"` // unknown
 	Options           int                  `xml:"options"`
 	KeyVals           IRODSMessageSSKeyVal `xml:"KeyValPair_PI"`
 	Selects           IRODSMessageIIKeyVal `xml:"InxIvalPair_PI"`
