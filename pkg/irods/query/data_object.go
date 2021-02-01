@@ -14,6 +14,10 @@ import (
 
 // ListDataObjects lists data objects in the given collection
 func ListDataObjects(conn *connection.IRODSConnection, path string) ([]*types.IRODSDataObject, error) {
+	if conn == nil || !conn.IsConnected() {
+		return nil, fmt.Errorf("connection is nil or disconnected")
+	}
+
 	// data object
 	query := message.NewIRODSMessageQuery(common.MaxQueryRows, 0, 0, 0)
 	query.AddSelect(common.ICAT_COLUMN_D_DATA_ID, 1)
@@ -169,6 +173,10 @@ func ListDataObjects(conn *connection.IRODSConnection, path string) ([]*types.IR
 
 // GetDataObjectMeta returns a data object metadata for the path
 func GetDataObjectMeta(conn *connection.IRODSConnection, path string) ([]*types.IRODSMeta, error) {
+	if conn == nil || !conn.IsConnected() {
+		return nil, fmt.Errorf("connection is nil or disconnected")
+	}
+
 	query := message.NewIRODSMessageQuery(common.MaxQueryRows, 0, 0, 0)
 	query.AddSelect(common.ICAT_COLUMN_META_DATA_ATTR_ID, 1)
 	query.AddSelect(common.ICAT_COLUMN_META_DATA_ATTR_NAME, 1)

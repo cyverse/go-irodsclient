@@ -13,9 +13,10 @@ import (
 var (
 	account *types.IRODSAccount
 	timeout time.Duration
+	conn    *connection.IRODSConnection
 )
 
-func init() {
+func setup() {
 	util.SetLogLevel(9)
 
 	yaml, err := ioutil.ReadFile("../../../config/test_account.yml")
@@ -31,18 +32,25 @@ func init() {
 	}
 
 	timeout = time.Second * 20 // 20 sec
-}
 
-func TestGetIRODSCollection(t *testing.T) {
 	account.ClientServerNegotiation = false
 	util.LogDebugf("Account : %v", account.MaskSensitiveData())
 
-	conn := connection.NewIRODSConnection(account, timeout, "go-irodsclient-test")
-	err := conn.Connect()
+	conn = connection.NewIRODSConnection(account, timeout, "go-irodsclient-test")
+	err = conn.Connect()
 	if err != nil {
-		t.Errorf("err - %v", err)
+		util.LogErrorf("err - %v", err)
 		panic(err)
 	}
+}
+
+func shutdown() {
+	conn.Disconnect()
+	conn = nil
+}
+
+func TestGetIRODSCollection(t *testing.T) {
+	setup()
 
 	collection, err := GetCollection(conn, "/iplant/home/iychoi")
 	if err != nil {
@@ -51,18 +59,12 @@ func TestGetIRODSCollection(t *testing.T) {
 	}
 
 	util.LogDebugf("Collection : %v", collection)
+
+	shutdown()
 }
 
 func TestListIRODSCollections(t *testing.T) {
-	account.ClientServerNegotiation = false
-	util.LogDebugf("Account : %v", account.MaskSensitiveData())
-
-	conn := connection.NewIRODSConnection(account, timeout, "go-irodsclient-test")
-	err := conn.Connect()
-	if err != nil {
-		t.Errorf("err - %v", err)
-		panic(err)
-	}
+	setup()
 
 	collections, err := ListSubCollections(conn, "/iplant/home/iychoi")
 	if err != nil {
@@ -77,18 +79,12 @@ func TestListIRODSCollections(t *testing.T) {
 			util.LogDebugf("Collection : %v", collection)
 		}
 	}
+
+	shutdown()
 }
 
 func TestGetIRODSCollectionMeta(t *testing.T) {
-	account.ClientServerNegotiation = false
-	util.LogDebugf("Account : %v", account.MaskSensitiveData())
-
-	conn := connection.NewIRODSConnection(account, timeout, "go-irodsclient-test")
-	err := conn.Connect()
-	if err != nil {
-		t.Errorf("err - %v", err)
-		panic(err)
-	}
+	setup()
 
 	metas, err := GetCollectionMeta(conn, "/iplant/home/iyhoi")
 	if err != nil {
@@ -103,18 +99,12 @@ func TestGetIRODSCollectionMeta(t *testing.T) {
 			util.LogDebugf("Collection Meta : %v", meta)
 		}
 	}
+
+	shutdown()
 }
 
 func TestListIRODSDataObjects(t *testing.T) {
-	account.ClientServerNegotiation = false
-	util.LogDebugf("Account : %v", account.MaskSensitiveData())
-
-	conn := connection.NewIRODSConnection(account, timeout, "go-irodsclient-test")
-	err := conn.Connect()
-	if err != nil {
-		t.Errorf("err - %v", err)
-		panic(err)
-	}
+	setup()
 
 	collection, err := GetCollection(conn, "/iplant/home/iychoi")
 	if err != nil {
@@ -136,18 +126,12 @@ func TestListIRODSDataObjects(t *testing.T) {
 			util.LogDebugf("Replica : %v", replica)
 		}
 	}
+
+	shutdown()
 }
 
 func TestGetIRODSDataObjectMeta(t *testing.T) {
-	account.ClientServerNegotiation = false
-	util.LogDebugf("Account : %v", account.MaskSensitiveData())
-
-	conn := connection.NewIRODSConnection(account, timeout, "go-irodsclient-test")
-	err := conn.Connect()
-	if err != nil {
-		t.Errorf("err - %v", err)
-		panic(err)
-	}
+	setup()
 
 	metas, err := GetDataObjectMeta(conn, "/iplant/home/iyhoi/bench.tmp")
 	if err != nil {
@@ -162,4 +146,6 @@ func TestGetIRODSDataObjectMeta(t *testing.T) {
 			util.LogDebugf("Data Object Meta : %v", meta)
 		}
 	}
+
+	shutdown()
 }

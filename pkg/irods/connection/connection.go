@@ -23,7 +23,7 @@ type IRODSConnection struct {
 	ApplicationName string
 
 	// internal
-	disconnected  bool
+	connected     bool
 	socket        net.Conn
 	serverVersion *types.IRODSVersion
 }
@@ -46,9 +46,14 @@ func (conn *IRODSConnection) requiresCSNegotiation() bool {
 	return conn.Account.ClientServerNegotiation
 }
 
+// IsConnected returns if the connection is live
+func (conn *IRODSConnection) IsConnected() bool {
+	return conn.connected
+}
+
 // Connect connects to iRODS
 func (conn *IRODSConnection) Connect() error {
-	conn.disconnected = true
+	conn.connected = false
 
 	server := fmt.Sprintf("%s:%d", conn.Account.Host, conn.Account.Port)
 	socket, err := net.Dial("tcp", server)
@@ -90,6 +95,8 @@ func (conn *IRODSConnection) Connect() error {
 		_ = conn.disconnectNow()
 		return err
 	}
+
+	conn.connected = true
 
 	return nil
 }
@@ -354,7 +361,7 @@ func (conn *IRODSConnection) loginPAM() error {
 
 // Disconnect disconnects
 func (conn *IRODSConnection) disconnectNow() error {
-	conn.disconnected = true
+	conn.connected = false
 	err := conn.socket.Close()
 	conn.socket = nil
 	return err
@@ -362,6 +369,7 @@ func (conn *IRODSConnection) disconnectNow() error {
 
 // Disconnect disconnects
 func (conn *IRODSConnection) Disconnect() error {
+	util.LogInfo("Disconnecting")
 	disconnect := message.NewIRODSMessageDisconnect()
 	disconnectMessage, err := disconnect.GetMessage()
 	if err != nil {
