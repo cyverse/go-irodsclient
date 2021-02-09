@@ -248,3 +248,15 @@ func TestGetIRODSDataObjectMeta(t *testing.T) {
 
 	shutdown()
 }
+
+func TestCreateIRODSCollection(t *testing.T) {
+	setup()
+
+	err := CreateCollection(conn, "/iplant/home/iychoi/test123", true)
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	shutdown()
+}

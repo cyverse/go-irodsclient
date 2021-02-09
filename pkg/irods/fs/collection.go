@@ -353,3 +353,40 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 
 	return collections, nil
 }
+
+// CreateCollection creates a collection for the path
+func CreateCollection(conn *connection.IRODSConnection, path string, recurse bool) error {
+	if conn == nil || !conn.IsConnected() {
+		return fmt.Errorf("connection is nil or disconnected")
+	}
+
+	request := message.NewIRODSMessageMkcolRequest(path, 0, 0)
+	if recurse {
+		request.SetRecurse()
+	}
+
+	requestMessage, err := request.GetMessage()
+	if err != nil {
+		return fmt.Errorf("Could not make a collection creation request message - %v", err)
+	}
+
+	err = conn.SendMessage(requestMessage)
+	if err != nil {
+		return fmt.Errorf("Could not send a collection creation request message - %v", err)
+	}
+
+	// Server responds with results
+	responseMessage, err := conn.ReadMessage()
+	if err != nil {
+		return fmt.Errorf("Could not receive a collection creation response message - %v", err)
+	}
+
+	response := message.IRODSMessageMkcolResponse{}
+	err = response.FromMessage(responseMessage)
+	if err != nil {
+		return fmt.Errorf("Could not receive a collection creation response message - %v", err)
+	}
+
+	err = response.CheckError()
+	return err
+}

@@ -30,7 +30,7 @@ func TestIRODSQueryKeyVal(t *testing.T) {
 	query.Selects.Add(503, 1)
 	query.Selects.Add(504, 1)
 
-	query.Conditions.Add(501, "= '/cyverse.k8s/home/iychoi'")
+	query.Conditions.Add(501, "= '/iplant/home/iychoi'")
 	queryBytes, err := query.GetBytes()
 	if err != nil {
 		util.LogErrorf("err - %v", err)

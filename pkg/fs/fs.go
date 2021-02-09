@@ -1,4 +1,4 @@
-package filesystem
+package fs
 
 import (
 	"fmt"
@@ -47,6 +47,7 @@ func (fs *FileSystem) List(path string) ([]*FSEntry, error) {
 			ID:         collection.ID,
 			Type:       FSDirectoryEntry,
 			Name:       collection.Name,
+			Owner:      collection.Owner,
 			Size:       0,
 			CreateTime: collection.CreateTime,
 			ModifyTime: collection.ModifyTime,
@@ -57,7 +58,7 @@ func (fs *FileSystem) List(path string) ([]*FSEntry, error) {
 		fsEntries = append(fsEntries, &fsEntry)
 	}
 
-	dataobjects, err := query.ListDataObjects(fs.Connection, currentCollection)
+	dataobjects, err := query.ListDataObjectsMasterReplica(fs.Connection, currentCollection)
 	if err != nil {
 		return nil, fmt.Errorf("Could not list data objects - %v", err)
 	}
@@ -73,6 +74,7 @@ func (fs *FileSystem) List(path string) ([]*FSEntry, error) {
 			ID:         dataobject.ID,
 			Type:       FSFileEntry,
 			Name:       dataobject.Name,
+			Owner:      replica.Owner,
 			Size:       dataobject.Size,
 			CreateTime: replica.CreateTime,
 			ModifyTime: replica.ModifyTime,

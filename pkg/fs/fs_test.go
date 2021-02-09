@@ -1,4 +1,4 @@
-package filesystem
+package fs
 
 import (
 	"io/ioutil"
@@ -20,7 +20,7 @@ var (
 func setup() {
 	util.SetLogLevel(9)
 
-	yaml, err := ioutil.ReadFile("../../../config/test_account.yml")
+	yaml, err := ioutil.ReadFile("../../config/test_account.yml")
 	if err != nil {
 		util.LogErrorf("err - %v", err)
 		panic(err)
