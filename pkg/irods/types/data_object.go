@@ -6,7 +6,8 @@ import (
 
 // IRODSDataObject contains irods data object information
 type IRODSDataObject struct {
-	ID int64
+	ID           int64
+	CollectionID int64
 	// Path has an absolute path to the data object
 	Path string
 	// Name has only the name part of the path

@@ -482,11 +482,12 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 					}
 
 					pagenatedDataObjects[row] = &types.IRODSDataObject{
-						ID:       -1,
-						Path:     "",
-						Name:     "",
-						Size:     0,
-						Replicas: []*types.IRODSReplica{replica},
+						ID:           -1,
+						CollectionID: collection.ID,
+						Path:         "",
+						Name:         "",
+						Size:         0,
+						Replicas:     []*types.IRODSReplica{replica},
 					}
 				}
 
