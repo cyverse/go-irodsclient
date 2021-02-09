@@ -12,6 +12,31 @@ import (
 	"github.com/iychoi/go-irodsclient/pkg/irods/util"
 )
 
+/*
+Table "public.r_coll_main"
+Column      |          Type           | Collation | Nullable |        Default
+------------------+-------------------------+-----------+----------+------------------------
+coll_id          | bigint                  |           | not null |
+parent_coll_name | character varying(2700) |           | not null |
+coll_name        | character varying(2700) |           | not null |
+coll_owner_name  | character varying(250)  |           | not null |
+coll_owner_zone  | character varying(250)  |           | not null |
+coll_map_id      | bigint                  |           |          | 0
+coll_inheritance | character varying(1000) |           |          |
+coll_type        | character varying(250)  |           |          | '0'::character varying
+coll_info1       | character varying(2700) |           |          | '0'::character varying
+coll_info2       | character varying(2700) |           |          | '0'::character varying
+coll_expiry_ts   | character varying(32)   |           |          |
+r_comment        | character varying(1000) |           |          |
+create_ts        | character varying(32)   |           |          |
+modify_ts        | character varying(32)   |           |          |
+Indexes:
+"idx_coll_main2" UNIQUE, btree (parent_coll_name, coll_name)
+"idx_coll_main3" UNIQUE, btree (coll_name)
+"idx_coll_main1" btree (coll_id)
+"idx_coll_main_parent_coll_name" btree (parent_coll_name)
+*/
+
 // GetCollection returns a collection for the path
 func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSCollection, error) {
 	if conn == nil || !conn.IsConnected() {
@@ -21,6 +46,7 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 	query := message.NewIRODSMessageQuery(common.MaxQueryRows, 0, 0, 0)
 	query.AddSelect(common.ICAT_COLUMN_COLL_ID, 1)
 	query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
+	query.AddSelect(common.ICAT_COLUMN_COLL_OWNER_NAME, 1)
 	query.AddSelect(common.ICAT_COLUMN_COLL_CREATE_TIME, 1)
 	query.AddSelect(common.ICAT_COLUMN_COLL_MODIFY_TIME, 1)
 
@@ -59,6 +85,7 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 
 	var collectionID int64 = -1
 	collectionPath := ""
+	collectionOwner := ""
 	createTime := time.Time{}
 	modifyTime := time.Time{}
 	for idx := 0; idx < queryResult.AttributeCount; idx++ {
@@ -78,6 +105,8 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 			collectionID = cID
 		case int(common.ICAT_COLUMN_COLL_NAME):
 			collectionPath = value
+		case int(common.ICAT_COLUMN_COLL_OWNER_NAME):
+			collectionOwner = value
 		case int(common.ICAT_COLUMN_COLL_CREATE_TIME):
 			cT, err := util.GetIRODSDateTime(value)
 			if err != nil {
@@ -95,10 +124,15 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 		}
 	}
 
+	if collectionID == -1 {
+		return nil, fmt.Errorf("Could not find matching collection - %s", path)
+	}
+
 	return &types.IRODSCollection{
 		ID:         collectionID,
 		Path:       collectionPath,
 		Name:       util.GetIRODSPathFileName(collectionPath),
+		Owner:      collectionOwner,
 		CreateTime: createTime,
 		ModifyTime: modifyTime,
 	}, nil
@@ -219,6 +253,7 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 		query := message.NewIRODSMessageQuery(common.MaxQueryRows, continueIndex, 0, 0)
 		query.AddSelect(common.ICAT_COLUMN_COLL_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_COLL_OWNER_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_MODIFY_TIME, 1)
 
@@ -272,6 +307,7 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 						ID:         -1,
 						Path:       "",
 						Name:       "",
+						Owner:      "",
 						CreateTime: time.Time{},
 						ModifyTime: time.Time{},
 					}
@@ -287,6 +323,8 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 				case int(common.ICAT_COLUMN_COLL_NAME):
 					pagenatedCollections[row].Path = value
 					pagenatedCollections[row].Name = util.GetIRODSPathFileName(value)
+				case int(common.ICAT_COLUMN_COLL_OWNER_NAME):
+					pagenatedCollections[row].Owner = value
 				case int(common.ICAT_COLUMN_COLL_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {

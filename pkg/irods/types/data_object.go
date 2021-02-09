@@ -11,6 +11,7 @@ type IRODSDataObject struct {
 	Path string
 	// Name has only the name part of the path
 	Name string
+	// Size has the file size
 	Size int64
 	// Attributes has attributes
 	//Attributes string

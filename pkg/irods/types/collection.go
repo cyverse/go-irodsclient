@@ -12,6 +12,8 @@ type IRODSCollection struct {
 	Path string
 	// Name has only the name part of the path
 	Name string
+	// Owner has the owner's name
+	Owner string
 	// CreateTime has creation time
 	CreateTime time.Time
 	// ModifyTime has last modified time

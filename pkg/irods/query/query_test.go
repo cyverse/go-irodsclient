@@ -134,7 +134,7 @@ func TestListIRODSDataObjects(t *testing.T) {
 
 	util.LogDebugf("Collection: %v", collection)
 
-	dataobjects, err := ListDataObjects(conn, "/iplant/home/iychoi")
+	dataobjects, err := ListDataObjects(conn, collection)
 	if err != nil {
 		t.Errorf("err - %v", err)
 		panic(err)
@@ -150,10 +150,89 @@ func TestListIRODSDataObjects(t *testing.T) {
 	shutdown()
 }
 
+func TestListIRODSDataObjectsMasterReplica(t *testing.T) {
+	setup()
+
+	collection, err := GetCollection(conn, "/iplant/home/iychoi")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	util.LogDebugf("Collection: %v", collection)
+
+	dataobjects, err := ListDataObjectsMasterReplica(conn, collection)
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	for _, dataobject := range dataobjects {
+		util.LogDebugf("DataObject : %v", dataobject)
+		for _, replica := range dataobject.Replicas {
+			util.LogDebugf("Replica : %v", replica)
+		}
+	}
+
+	shutdown()
+}
+
+func TestGetIRODSDataObject(t *testing.T) {
+	setup()
+
+	collection, err := GetCollection(conn, "/iplant/home/iychoi")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	dataobject, err := GetDataObject(conn, collection, "bench.tmp")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	util.LogDebugf("DataObject : %v", dataobject)
+	for _, replica := range dataobject.Replicas {
+		util.LogDebugf("Replica : %v", replica)
+	}
+
+	shutdown()
+}
+
+func TestGetIRODSDataObjectMasterReplica(t *testing.T) {
+	setup()
+
+	collection, err := GetCollection(conn, "/iplant/home/iychoi")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	dataobject, err := GetDataObjectMasterReplica(conn, collection, "bench.tmp")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	util.LogDebugf("DataObject : %v", dataobject)
+	for _, replica := range dataobject.Replicas {
+		util.LogDebugf("Replica : %v", replica)
+	}
+
+	shutdown()
+}
+
 func TestGetIRODSDataObjectMeta(t *testing.T) {
 	setup()
 
-	metas, err := GetDataObjectMeta(conn, "/iplant/home/iyhoi/bench.tmp")
+	collection, err := GetCollection(conn, "/iplant/home/iychoi")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	metas, err := GetDataObjectMeta(conn, collection, "bench.tmp")
 	if err != nil {
 		t.Errorf("err - %v", err)
 		panic(err)

@@ -9,6 +9,10 @@ import (
 type IRODSReplica struct {
 	Number int64
 
+	// Owner has the owner's name
+	Owner string
+
+	// CheckSum has the checksum of the file
 	CheckSum     string
 	Status       string
 	ResourceName string
