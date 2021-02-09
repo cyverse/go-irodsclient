@@ -20,18 +20,26 @@ func NewFileSystem(conn *connection.IRODSConnection) *FileSystem {
 	}
 }
 
+func (fs *FileSystem) getCollection(path string) (*types.IRODSCollection, error) {
+	collection, err := query.GetCollection(fs.Connection, path)
+	if err != nil {
+		return nil, fmt.Errorf("Could not get a collection - %v", err)
+	}
+	return collection, nil
+}
+
 // List lists all file system entries under the given path
 func (fs *FileSystem) List(path string) ([]*FSEntry, error) {
 	fsEntries := []*FSEntry{}
 
-	currentCollection, err := query.GetCollection(fs.Connection, path)
+	currentCollection, err := fs.getCollection(path)
 	if err != nil {
-		return nil, fmt.Errorf("Could not get a collection - %s", err.Error())
+		return nil, fmt.Errorf("Could not get a collection - %v", err)
 	}
 
 	collections, err := query.ListSubCollections(fs.Connection, currentCollection.Path)
 	if err != nil {
-		return nil, fmt.Errorf("Could not list subcollections - %s", err.Error())
+		return nil, fmt.Errorf("Could not list subcollections - %v", err)
 	}
 
 	for _, collection := range collections {
@@ -51,7 +59,7 @@ func (fs *FileSystem) List(path string) ([]*FSEntry, error) {
 
 	dataobjects, err := query.ListDataObjects(fs.Connection, currentCollection)
 	if err != nil {
-		return nil, fmt.Errorf("Could not list data objects - %s", err.Error())
+		return nil, fmt.Errorf("Could not list data objects - %v", err)
 	}
 
 	for _, dataobject := range dataobjects {
@@ -84,7 +92,7 @@ func (fs *FileSystem) ListByCollection(collection *types.IRODSCollection) ([]*FS
 
 	collections, err := query.ListSubCollections(fs.Connection, collection.Path)
 	if err != nil {
-		return nil, fmt.Errorf("Could not list subcollections - %s", err.Error())
+		return nil, fmt.Errorf("Could not list subcollections - %v", err)
 	}
 
 	for _, collection := range collections {
@@ -104,7 +112,7 @@ func (fs *FileSystem) ListByCollection(collection *types.IRODSCollection) ([]*FS
 
 	dataobjects, err := query.ListDataObjects(fs.Connection, collection)
 	if err != nil {
-		return nil, fmt.Errorf("Could not list data objects - %s", err.Error())
+		return nil, fmt.Errorf("Could not list data objects - %v", err)
 	}
 
 	for _, dataobject := range dataobjects {

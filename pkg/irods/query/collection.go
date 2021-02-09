@@ -55,24 +55,24 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 
 	queryMessage, err := query.GetMessage()
 	if err != nil {
-		return nil, fmt.Errorf("Could not make a collection query message - %s", err.Error())
+		return nil, fmt.Errorf("Could not make a collection query message - %v", err)
 	}
 
 	err = conn.SendMessage(queryMessage)
 	if err != nil {
-		return nil, fmt.Errorf("Could not send a collection query message - %s", err.Error())
+		return nil, fmt.Errorf("Could not send a collection query message - %v", err)
 	}
 
 	// Server responds with results
 	queryResultMessage, err := conn.ReadMessage()
 	if err != nil {
-		return nil, fmt.Errorf("Could not receive a collection query result message - %s", err.Error())
+		return nil, fmt.Errorf("Could not receive a collection query result message - %v", err)
 	}
 
 	queryResult := message.IRODSMessageQueryResult{}
 	err = queryResult.FromMessage(queryResultMessage)
 	if err != nil {
-		return nil, fmt.Errorf("Could not receive a collection query result message - %s", err.Error())
+		return nil, fmt.Errorf("Could not receive a collection query result message - %v", err)
 	}
 
 	if queryResult.RowCount != 1 {
@@ -160,24 +160,24 @@ func GetCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types.
 
 		queryMessage, err := query.GetMessage()
 		if err != nil {
-			return nil, fmt.Errorf("Could not make a collection metadata query message - %s", err.Error())
+			return nil, fmt.Errorf("Could not make a collection metadata query message - %v", err)
 		}
 
 		err = conn.SendMessage(queryMessage)
 		if err != nil {
-			return nil, fmt.Errorf("Could not send a collection metadata query message - %s", err.Error())
+			return nil, fmt.Errorf("Could not send a collection metadata query message - %v", err)
 		}
 
 		// Server responds with results
 		queryResultMessage, err := conn.ReadMessage()
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a collection metadata query result message - %s", err.Error())
+			return nil, fmt.Errorf("Could not receive a collection metadata query result message - %v", err)
 		}
 
 		queryResult := message.IRODSMessageQueryResult{}
 		err = queryResult.FromMessage(queryResultMessage)
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a collection metadata query result message - %s", err.Error())
+			return nil, fmt.Errorf("Could not receive a collection metadata query result message - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -262,24 +262,24 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 
 		queryMessage, err := query.GetMessage()
 		if err != nil {
-			return nil, fmt.Errorf("Could not make a collection query message - %s", err.Error())
+			return nil, fmt.Errorf("Could not make a collection query message - %v", err)
 		}
 
 		err = conn.SendMessage(queryMessage)
 		if err != nil {
-			return nil, fmt.Errorf("Could not send a collection query message - %s", err.Error())
+			return nil, fmt.Errorf("Could not send a collection query message - %v", err)
 		}
 
 		// Server responds with results
 		queryResultMessage, err := conn.ReadMessage()
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a collection query result message - %s", err.Error())
+			return nil, fmt.Errorf("Could not receive a collection query result message - %v", err)
 		}
 
 		queryResult := message.IRODSMessageQueryResult{}
 		err = queryResult.FromMessage(queryResultMessage)
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a collection query result message - %s", err.Error())
+			return nil, fmt.Errorf("Could not receive a collection query result message - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {

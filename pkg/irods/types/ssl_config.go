@@ -31,7 +31,7 @@ func (config *IRODSSSLConfig) ReadCACert() ([]byte, error) {
 	if len(config.CACertificateFile) > 0 {
 		caCert, err := ioutil.ReadFile(config.CACertificateFile)
 		if err != nil {
-			return nil, fmt.Errorf("File Read Error - %s", err.Error())
+			return nil, fmt.Errorf("File Read Error - %v", err)
 		}
 		return caCert, nil
 	}

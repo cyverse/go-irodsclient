@@ -58,7 +58,7 @@ func (conn *IRODSConnection) Connect() error {
 	server := fmt.Sprintf("%s:%d", conn.Account.Host, conn.Account.Port)
 	socket, err := net.Dial("tcp", server)
 	if err != nil {
-		return fmt.Errorf("Could not connect to specified host and port (%s:%d) - %s", conn.Account.Host, conn.Account.Port, err.Error())
+		return fmt.Errorf("Could not connect to specified host and port (%s:%d) - %v", conn.Account.Host, conn.Account.Port, err)
 	}
 
 	conn.socket = socket
@@ -113,18 +113,18 @@ func (conn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, er
 	startup := message.NewIRODSMessageStartupPack(conn.Account, conn.ApplicationName, true)
 	startupMessage, err := startup.GetMessage()
 	if err != nil {
-		return nil, fmt.Errorf("Could not make a startup message - %s", err.Error())
+		return nil, fmt.Errorf("Could not make a startup message - %v", err)
 	}
 
 	err = conn.SendMessage(startupMessage)
 	if err != nil {
-		return nil, fmt.Errorf("Could not send a startup message - %s", err.Error())
+		return nil, fmt.Errorf("Could not send a startup message - %v", err)
 	}
 
 	// Server responds with negotiation response
 	negotiationMessage, err := conn.ReadMessage()
 	if err != nil {
-		return nil, fmt.Errorf("Could not receive a negotiation message - %s", err.Error())
+		return nil, fmt.Errorf("Could not receive a negotiation message - %v", err)
 	}
 
 	if negotiationMessage.Body == nil {
@@ -137,7 +137,7 @@ func (conn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, er
 		version := message.IRODSMessageVersion{}
 		err = version.FromMessage(negotiationMessage)
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a negotiation message - %s", err.Error())
+			return nil, fmt.Errorf("Could not receive a negotiation message - %v", err)
 		}
 
 		return version.GetVersion(), nil
@@ -147,12 +147,12 @@ func (conn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, er
 		negotiation := message.IRODSMessageCSNegotiation{}
 		err = negotiation.FromMessage(negotiationMessage)
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a negotiation message - %s", err.Error())
+			return nil, fmt.Errorf("Could not receive a negotiation message - %v", err)
 		}
 
 		serverPolicy, err := types.GetCSNegotiationRequire(negotiation.Result)
 		if err != nil {
-			return nil, fmt.Errorf("Unable to parse server policy - %s", err.Error())
+			return nil, fmt.Errorf("Unable to parse server policy - %v", err)
 		}
 
 		// Perform the negotiation
@@ -167,30 +167,30 @@ func (conn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, er
 		negotiationResult := message.NewIRODSMessageCSNegotiation(status, policyResult)
 		negotiationResultMessage, err := negotiationResult.GetMessage()
 		if err != nil {
-			return nil, fmt.Errorf("Could not make a negotiation result message - %s", err.Error())
+			return nil, fmt.Errorf("Could not make a negotiation result message - %v", err)
 		}
 
 		err = conn.SendMessage(negotiationResultMessage)
 		if err != nil {
-			return nil, fmt.Errorf("Could not send a negotiation result message - %s", err.Error())
+			return nil, fmt.Errorf("Could not send a negotiation result message - %v", err)
 		}
 
 		// Server responds with version
 		versionMessage, err := conn.ReadMessage()
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a version message - %s", err.Error())
+			return nil, fmt.Errorf("Could not receive a version message - %v", err)
 		}
 
 		version := message.IRODSMessageVersion{}
 		err = version.FromMessage(versionMessage)
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a version message - %s", err.Error())
+			return nil, fmt.Errorf("Could not receive a version message - %v", err)
 		}
 
 		if policyResult == types.CSNegotiationUseSSL {
 			err := conn.sslStartup()
 			if err != nil {
-				return nil, fmt.Errorf("Could not start up SSL - %s", err.Error())
+				return nil, fmt.Errorf("Could not start up SSL - %v", err)
 			}
 		}
 
@@ -207,24 +207,24 @@ func (conn *IRODSConnection) connectWithoutCSNegotiation() (*types.IRODSVersion,
 	startup := message.NewIRODSMessageStartupPack(conn.Account, conn.ApplicationName, false)
 	startupMessage, err := startup.GetMessage()
 	if err != nil {
-		return nil, fmt.Errorf("Could not make a startup message - %s", err.Error())
+		return nil, fmt.Errorf("Could not make a startup message - %v", err)
 	}
 
 	err = conn.SendMessage(startupMessage)
 	if err != nil {
-		return nil, fmt.Errorf("Could not send a startup message - %s", err.Error())
+		return nil, fmt.Errorf("Could not send a startup message - %v", err)
 	}
 
 	// Server responds with version
 	versionMessage, err := conn.ReadMessage()
 	if err != nil {
-		return nil, fmt.Errorf("Could not receive a version message - %s", err.Error())
+		return nil, fmt.Errorf("Could not receive a version message - %v", err)
 	}
 
 	version := message.IRODSMessageVersion{}
 	err = version.FromMessage(versionMessage)
 	if err != nil {
-		return nil, fmt.Errorf("Could not receive a version message - %s", err.Error())
+		return nil, fmt.Errorf("Could not receive a version message - %v", err)
 	}
 
 	return version.GetVersion(), nil
@@ -253,7 +253,7 @@ func (conn *IRODSConnection) sslStartup() error {
 
 	err = sslSocket.Handshake()
 	if err != nil {
-		return fmt.Errorf("SSL Handshake error - %s", err.Error())
+		return fmt.Errorf("SSL Handshake error - %v", err)
 	}
 
 	// from now on use ssl socket
@@ -263,31 +263,31 @@ func (conn *IRODSConnection) sslStartup() error {
 	encryptionKey := make([]byte, irodsSSLConfig.EncryptionKeySize)
 	_, err = rand.Read(encryptionKey)
 	if err != nil {
-		return fmt.Errorf("Could not generate a shared secret - %s", err.Error())
+		return fmt.Errorf("Could not generate a shared secret - %v", err)
 	}
 
 	// Send a ssl setting
 	sslSetting := message.NewIRODSMessageSSLSettings(irodsSSLConfig.EncryptionAlgorithm, irodsSSLConfig.EncryptionKeySize, irodsSSLConfig.SaltSize, irodsSSLConfig.HashRounds)
 	sslSettingMessage, err := sslSetting.GetMessage()
 	if err != nil {
-		return fmt.Errorf("Could not make a ssl setting message - %s", err.Error())
+		return fmt.Errorf("Could not make a ssl setting message - %v", err)
 	}
 
 	err = conn.SendMessage(sslSettingMessage)
 	if err != nil {
-		return fmt.Errorf("Could not send a ssl setting message - %s", err.Error())
+		return fmt.Errorf("Could not send a ssl setting message - %v", err)
 	}
 
 	// Send a shared secret
 	sslSharedSecret := message.NewIRODSMessageSSLSharedSecret(encryptionKey)
 	sslSharedSecretMessage, err := sslSharedSecret.GetMessage()
 	if err != nil {
-		return fmt.Errorf("Could not make a ssl shared secret message - %s", err.Error())
+		return fmt.Errorf("Could not make a ssl shared secret message - %v", err)
 	}
 
 	err = conn.SendMessage(sslSharedSecretMessage)
 	if err != nil {
-		return fmt.Errorf("Could not send a ssl shared secret message - %s", err.Error())
+		return fmt.Errorf("Could not send a ssl shared secret message - %v", err)
 	}
 
 	return nil
@@ -300,18 +300,18 @@ func (conn *IRODSConnection) loginNative() error {
 	authRequest := message.NewIRODSMessageAuthRequest()
 	authRequestMessage, err := authRequest.GetMessage()
 	if err != nil {
-		return fmt.Errorf("Could not make a login request message - %s", err.Error())
+		return fmt.Errorf("Could not make a login request message - %v", err)
 	}
 
 	err = conn.SendMessage(authRequestMessage)
 	if err != nil {
-		return fmt.Errorf("Could not send a login request message - %s", err.Error())
+		return fmt.Errorf("Could not send a login request message - %v", err)
 	}
 
 	// challenge
 	authChallengeMessage, err := conn.ReadMessage()
 	if err != nil {
-		return fmt.Errorf("Could not receive an authentication challenge message - %s", err.Error())
+		return fmt.Errorf("Could not receive an authentication challenge message - %v", err)
 	}
 
 	authChallenge := message.IRODSMessageAuthChallenge{}
@@ -322,29 +322,29 @@ func (conn *IRODSConnection) loginNative() error {
 
 	encodedPassword, err := auth.GenerateAuthResponse(authChallenge.Challenge, conn.Account.Password)
 	if err != nil {
-		return fmt.Errorf("Could not generate an authentication response - %s", err.Error())
+		return fmt.Errorf("Could not generate an authentication response - %v", err)
 	}
 
 	authResponse := message.NewIRODSMessageAuthResponse(encodedPassword, conn.Account.ProxyUser)
 	authResponseMessage, err := authResponse.GetMessage()
 	if err != nil {
-		return fmt.Errorf("Could not make a login response message - %s", err.Error())
+		return fmt.Errorf("Could not make a login response message - %v", err)
 	}
 
 	err = conn.SendMessage(authResponseMessage)
 	if err != nil {
-		return fmt.Errorf("Could not send a login response message - %s", err.Error())
+		return fmt.Errorf("Could not send a login response message - %v", err)
 	}
 
 	authResultMessage, err := conn.ReadMessage()
 	if err != nil {
-		return fmt.Errorf("Could not receive a login result message - %s", err.Error())
+		return fmt.Errorf("Could not receive a login result message - %v", err)
 	}
 
 	authResult := message.IRODSMessageAuthResult{}
 	err = authResult.FromMessage(authResultMessage)
 	if err != nil {
-		return fmt.Errorf("Could not receive a login result message body - %s", err.Error())
+		return fmt.Errorf("Could not receive a login result message body - %v", err)
 	}
 
 	err = authResult.CheckError()
@@ -373,12 +373,12 @@ func (conn *IRODSConnection) Disconnect() error {
 	disconnect := message.NewIRODSMessageDisconnect()
 	disconnectMessage, err := disconnect.GetMessage()
 	if err != nil {
-		return fmt.Errorf("Could not make a disconnect request message - %s", err.Error())
+		return fmt.Errorf("Could not make a disconnect request message - %v", err)
 	}
 
 	err = conn.SendMessage(disconnectMessage)
 	if err != nil {
-		return fmt.Errorf("Could not send a disconnect request message - %s", err.Error())
+		return fmt.Errorf("Could not send a disconnect request message - %v", err)
 	}
 
 	return conn.disconnectNow()
@@ -397,7 +397,7 @@ func (conn *IRODSConnection) Send(buffer []byte, size int) error {
 			"Connection to remote host may have closed. " +
 			"Releasing connection from pool.")
 		conn.release(true)
-		return fmt.Errorf("Unable to send data - %s", err.Error())
+		return fmt.Errorf("Unable to send data - %v", err)
 	}
 	return nil
 }
@@ -414,7 +414,7 @@ func (conn *IRODSConnection) Recv(buffer []byte, size int) (int, error) {
 			"Connection to remote host may have closed. " +
 			"Releasing connection from pool.")
 		conn.release(true)
-		return readLen, fmt.Errorf("Unable to receive data - %s", err.Error())
+		return readLen, fmt.Errorf("Unable to receive data - %v", err)
 	}
 	return readLen, nil
 }
@@ -496,7 +496,7 @@ func (conn *IRODSConnection) readMessageHeader() (*message.IRODSMessageHeader, e
 		return nil, fmt.Errorf("Could not read header size")
 	}
 	if err != nil {
-		return nil, fmt.Errorf("Could not read header size - %s", err.Error())
+		return nil, fmt.Errorf("Could not read header size - %v", err)
 	}
 
 	headerSize := binary.BigEndian.Uint32(headerLenBuffer)
@@ -508,7 +508,7 @@ func (conn *IRODSConnection) readMessageHeader() (*message.IRODSMessageHeader, e
 	headerBuffer := make([]byte, headerSize)
 	readLen, err = conn.Recv(headerBuffer, int(headerSize))
 	if err != nil {
-		return nil, fmt.Errorf("Could not read header - %s", err.Error())
+		return nil, fmt.Errorf("Could not read header - %v", err)
 	}
 	if readLen != int(headerSize) {
 		return nil, fmt.Errorf("Could not read header fully - %d requested but %d read", headerSize, readLen)
@@ -536,7 +536,7 @@ func (conn *IRODSConnection) ReadMessage() (*message.IRODSMessage, error) {
 
 	readLen, err := conn.Recv(bodyBuffer, int(bodyLen))
 	if err != nil {
-		return nil, fmt.Errorf("Could not read body - %s", err.Error())
+		return nil, fmt.Errorf("Could not read body - %v", err)
 	}
 	if readLen != int(bodyLen) {
 		return nil, fmt.Errorf("Could not read body fully - %d requested but %d read", bodyLen, readLen)

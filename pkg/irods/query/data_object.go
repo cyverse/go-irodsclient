@@ -82,24 +82,24 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 
 		queryMessage, err := query.GetMessage()
 		if err != nil {
-			return nil, fmt.Errorf("Could not make a data object query message - %s", err.Error())
+			return nil, fmt.Errorf("Could not make a data object query message - %v", err)
 		}
 
 		err = conn.SendMessage(queryMessage)
 		if err != nil {
-			return nil, fmt.Errorf("Could not send a data object query message - %s", err.Error())
+			return nil, fmt.Errorf("Could not send a data object query message - %v", err)
 		}
 
 		// Server responds with results
 		queryResultMessage, err := conn.ReadMessage()
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object query result message - %s", err.Error())
+			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
 		}
 
 		queryResult := message.IRODSMessageQueryResult{}
 		err = queryResult.FromMessage(queryResultMessage)
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object query result message - %s", err.Error())
+			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -266,24 +266,24 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 
 		queryMessage, err := query.GetMessage()
 		if err != nil {
-			return nil, fmt.Errorf("Could not make a data object query message - %s", err.Error())
+			return nil, fmt.Errorf("Could not make a data object query message - %v", err)
 		}
 
 		err = conn.SendMessage(queryMessage)
 		if err != nil {
-			return nil, fmt.Errorf("Could not send a data object query message - %s", err.Error())
+			return nil, fmt.Errorf("Could not send a data object query message - %v", err)
 		}
 
 		// Server responds with results
 		queryResultMessage, err := conn.ReadMessage()
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object query result message - %s", err.Error())
+			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
 		}
 
 		queryResult := message.IRODSMessageQueryResult{}
 		err = queryResult.FromMessage(queryResultMessage)
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object query result message - %s", err.Error())
+			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -428,24 +428,24 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 
 		queryMessage, err := query.GetMessage()
 		if err != nil {
-			return nil, fmt.Errorf("Could not make a data object query message - %s", err.Error())
+			return nil, fmt.Errorf("Could not make a data object query message - %v", err)
 		}
 
 		err = conn.SendMessage(queryMessage)
 		if err != nil {
-			return nil, fmt.Errorf("Could not send a data object query message - %s", err.Error())
+			return nil, fmt.Errorf("Could not send a data object query message - %v", err)
 		}
 
 		// Server responds with results
 		queryResultMessage, err := conn.ReadMessage()
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object query result message - %s", err.Error())
+			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
 		}
 
 		queryResult := message.IRODSMessageQueryResult{}
 		err = queryResult.FromMessage(queryResultMessage)
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object query result message - %s", err.Error())
+			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -607,24 +607,24 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 
 		queryMessage, err := query.GetMessage()
 		if err != nil {
-			return nil, fmt.Errorf("Could not make a data object query message - %s", err.Error())
+			return nil, fmt.Errorf("Could not make a data object query message - %v", err)
 		}
 
 		err = conn.SendMessage(queryMessage)
 		if err != nil {
-			return nil, fmt.Errorf("Could not send a data object query message - %s", err.Error())
+			return nil, fmt.Errorf("Could not send a data object query message - %v", err)
 		}
 
 		// Server responds with results
 		queryResultMessage, err := conn.ReadMessage()
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object query result message - %s", err.Error())
+			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
 		}
 
 		queryResult := message.IRODSMessageQueryResult{}
 		err = queryResult.FromMessage(queryResultMessage)
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object query result message - %s", err.Error())
+			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -756,24 +756,24 @@ func GetDataObjectMeta(conn *connection.IRODSConnection, collection *types.IRODS
 
 		queryMessage, err := query.GetMessage()
 		if err != nil {
-			return nil, fmt.Errorf("Could not make a data object metadata query message - %s", err.Error())
+			return nil, fmt.Errorf("Could not make a data object metadata query message - %v", err)
 		}
 
 		err = conn.SendMessage(queryMessage)
 		if err != nil {
-			return nil, fmt.Errorf("Could not send a data object metadata query message - %s", err.Error())
+			return nil, fmt.Errorf("Could not send a data object metadata query message - %v", err)
 		}
 
 		// Server responds with results
 		queryResultMessage, err := conn.ReadMessage()
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object metadata query result message - %s", err.Error())
+			return nil, fmt.Errorf("Could not receive a data object metadata query result message - %v", err)
 		}
 
 		queryResult := message.IRODSMessageQueryResult{}
 		err = queryResult.FromMessage(queryResultMessage)
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object metadata query result message - %s", err.Error())
+			return nil, fmt.Errorf("Could not receive a data object metadata query result message - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {

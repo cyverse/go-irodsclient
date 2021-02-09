@@ -67,7 +67,7 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 
 	err := yaml.Unmarshal(yamlBytes, &y)
 	if err != nil {
-		return nil, fmt.Errorf("YAML Unmarshal Error - %s", err.Error())
+		return nil, fmt.Errorf("YAML Unmarshal Error - %v", err)
 	}
 
 	authScheme := AuthSchemeNative
