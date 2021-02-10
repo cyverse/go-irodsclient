@@ -293,3 +293,65 @@ func TestCreateDeleteIRODSCollection(t *testing.T) {
 
 	shutdown()
 }
+
+func TestCreateMoveDeleteIRODSCollection(t *testing.T) {
+	setup()
+
+	err := CreateCollection(conn, "/iplant/home/iychoi/test123", true)
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	collection, err := GetCollection(conn, "/iplant/home/iychoi/test123")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	if collection.ID <= 0 {
+		t.Errorf("err - cannot create a collection")
+		panic(err)
+	}
+
+	err = MoveCollection(conn, "/iplant/home/iychoi/test123", "/iplant/home/iychoi/test456")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	collection, err = GetCollection(conn, "/iplant/home/iychoi/test456")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	if collection.ID <= 0 {
+		t.Errorf("err - cannot move a collection")
+		panic(err)
+	}
+
+	err = DeleteCollection(conn, "/iplant/home/iychoi/test456", true, false)
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	collection, err = GetCollection(conn, "/iplant/home/iychoi/test456")
+	deleted := false
+	if err != nil {
+		if _, ok := err.(*types.FileNotFoundError); ok {
+			// Okay!
+			util.LogDebugf("Deleted collection")
+			deleted = true
+		}
+	}
+
+	if !deleted {
+		// error must occur
+		t.Errorf("err - cannot delete a collection")
+		panic(err)
+	}
+
+	shutdown()
+}

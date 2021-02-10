@@ -443,3 +443,36 @@ func DeleteCollection(conn *connection.IRODSConnection, path string, recurse boo
 
 	return nil
 }
+
+// MoveCollection moves a collection for the path to another path
+func MoveCollection(conn *connection.IRODSConnection, srcPath string, destPath string) error {
+	if conn == nil || !conn.IsConnected() {
+		return fmt.Errorf("connection is nil or disconnected")
+	}
+
+	request := message.NewIRODSMessageMvcolRequest(srcPath, destPath)
+	requestMessage, err := request.GetMessage()
+	if err != nil {
+		return fmt.Errorf("Could not make a collection move request message - %v", err)
+	}
+
+	err = conn.SendMessage(requestMessage)
+	if err != nil {
+		return fmt.Errorf("Could not send a collection move request message - %v", err)
+	}
+
+	// Server responds with results
+	responseMessage, err := conn.ReadMessage()
+	if err != nil {
+		return fmt.Errorf("Could not receive a collection move response message - %v", err)
+	}
+
+	response := message.IRODSMessageMvcolResponse{}
+	err = response.FromMessage(responseMessage)
+	if err != nil {
+		return fmt.Errorf("Could not receive a collection move response message - %v", err)
+	}
+
+	err = response.CheckError()
+	return err
+}
