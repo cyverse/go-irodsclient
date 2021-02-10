@@ -2,8 +2,8 @@ package message
 
 import "encoding/xml"
 
-// IRODSMessageFileOpenRequest ...
-type IRODSMessageFileOpenRequest struct {
+// IRODSMessageDataObjectRequest ...
+type IRODSMessageDataObjectRequest struct {
 	XMLName       xml.Name             `xml:"DataObjInp_PI"`
 	Path          string               `xml:"objPath"`
 	CreateMode    int                  `xml:"createMode"`

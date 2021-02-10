@@ -355,3 +355,60 @@ func TestCreateMoveDeleteIRODSCollection(t *testing.T) {
 
 	shutdown()
 }
+
+func TestCreateDeleteIRODSDataObject(t *testing.T) {
+	setup()
+
+	handle, err := CreateDataObject(conn, "/iplant/home/iychoi/testobj123", "", true)
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	err = CloseDataObject(conn, handle)
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	collection, err := GetCollection(conn, "/iplant/home/iychoi")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	obj, err := GetDataObject(conn, collection, "testobj123")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	if obj.ID <= 0 {
+		t.Errorf("err - cannot create a data object")
+		panic(err)
+	}
+
+	err = DeleteDataObject(conn, "/iplant/home/iychoi/testobj123", true)
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	obj, err = GetDataObject(conn, collection, "testobj123")
+	deleted := false
+	if err != nil {
+		if _, ok := err.(*types.FileNotFoundError); ok {
+			// Okay!
+			util.LogDebugf("Deleted data object")
+			deleted = true
+		}
+	}
+
+	if !deleted {
+		// error must occur
+		t.Errorf("err - cannot delete a data object")
+		panic(err)
+	}
+
+	shutdown()
+}

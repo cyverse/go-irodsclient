@@ -834,3 +834,208 @@ func GetDataObjectMeta(conn *connection.IRODSConnection, collection *types.IRODS
 
 	return metas, nil
 }
+
+// DeleteDataObject deletes a data object for the path
+func DeleteDataObject(conn *connection.IRODSConnection, path string, force bool) error {
+	if conn == nil || !conn.IsConnected() {
+		return fmt.Errorf("connection is nil or disconnected")
+	}
+
+	request := message.NewIRODSMessageRmobjRequest(path, force)
+	requestMessage, err := request.GetMessage()
+	if err != nil {
+		return fmt.Errorf("Could not make a data object deletion request message - %v", err)
+	}
+
+	err = conn.SendMessage(requestMessage)
+	if err != nil {
+		return fmt.Errorf("Could not send a data object deletion request message - %v", err)
+	}
+
+	// Server responds with results
+	responseMessage, err := conn.ReadMessage()
+	if err != nil {
+		return fmt.Errorf("Could not receive a data object deletion response message - %v", err)
+	}
+
+	response := message.IRODSMessageRmobjResponse{}
+	err = response.FromMessage(responseMessage)
+	if err != nil {
+		return fmt.Errorf("Could not receive a data object deletion response message - %v", err)
+	}
+
+	err = response.CheckError()
+	return err
+}
+
+// MoveDataObject moves a data object for the path to another path
+func MoveDataObject(conn *connection.IRODSConnection, srcPath string, destPath string) error {
+	if conn == nil || !conn.IsConnected() {
+		return fmt.Errorf("connection is nil or disconnected")
+	}
+
+	request := message.NewIRODSMessageMvobjRequest(srcPath, destPath)
+	requestMessage, err := request.GetMessage()
+	if err != nil {
+		return fmt.Errorf("Could not make a data object move request message - %v", err)
+	}
+
+	err = conn.SendMessage(requestMessage)
+	if err != nil {
+		return fmt.Errorf("Could not send a data object move request message - %v", err)
+	}
+
+	// Server responds with results
+	responseMessage, err := conn.ReadMessage()
+	if err != nil {
+		return fmt.Errorf("Could not receive a data object move response message - %v", err)
+	}
+
+	response := message.IRODSMessageMvobjResponse{}
+	err = response.FromMessage(responseMessage)
+	if err != nil {
+		return fmt.Errorf("Could not receive a data object move response message - %v", err)
+	}
+
+	err = response.CheckError()
+	return err
+}
+
+// CopyDataObject creates a copy of a data object for the path
+func CopyDataObject(conn *connection.IRODSConnection, srcPath string, destPath string) error {
+	if conn == nil || !conn.IsConnected() {
+		return fmt.Errorf("connection is nil or disconnected")
+	}
+
+	request := message.NewIRODSMessageCpobjRequest(srcPath, destPath)
+	requestMessage, err := request.GetMessage()
+	if err != nil {
+		return fmt.Errorf("Could not make a data object copy request message - %v", err)
+	}
+
+	err = conn.SendMessage(requestMessage)
+	if err != nil {
+		return fmt.Errorf("Could not send a data object copy request message - %v", err)
+	}
+
+	// Server responds with results
+	responseMessage, err := conn.ReadMessage()
+	if err != nil {
+		return fmt.Errorf("Could not receive a data object copy response message - %v", err)
+	}
+
+	response := message.IRODSMessageCpobjResponse{}
+	err = response.FromMessage(responseMessage)
+	if err != nil {
+		return fmt.Errorf("Could not receive a data object copy response message - %v", err)
+	}
+
+	err = response.CheckError()
+	return err
+}
+
+// TruncateDataObject truncates a data object for the path to the given size
+func TruncateDataObject(conn *connection.IRODSConnection, path string, size int64) error {
+	if conn == nil || !conn.IsConnected() {
+		return fmt.Errorf("connection is nil or disconnected")
+	}
+
+	request := message.NewIRODSMessageTruncobjRequest(path, size)
+	requestMessage, err := request.GetMessage()
+	if err != nil {
+		return fmt.Errorf("Could not make a data object truncation request message - %v", err)
+	}
+
+	err = conn.SendMessage(requestMessage)
+	if err != nil {
+		return fmt.Errorf("Could not send a data object truncation request message - %v", err)
+	}
+
+	// Server responds with results
+	responseMessage, err := conn.ReadMessage()
+	if err != nil {
+		return fmt.Errorf("Could not receive a data object truncation response message - %v", err)
+	}
+
+	response := message.IRODSMessageTruncobjResponse{}
+	err = response.FromMessage(responseMessage)
+	if err != nil {
+		return fmt.Errorf("Could not receive a data object truncation response message - %v", err)
+	}
+
+	err = response.CheckError()
+	return err
+}
+
+// CreateDataObject creates a data object for the path, returns a file handle
+func CreateDataObject(conn *connection.IRODSConnection, path string, resource string, force bool) (*types.IRODSFileHandle, error) {
+	if conn == nil || !conn.IsConnected() {
+		return nil, fmt.Errorf("connection is nil or disconnected")
+	}
+
+	request := message.NewIRODSMessageCreateobjRequest(path, resource, force)
+	requestMessage, err := request.GetMessage()
+	if err != nil {
+		return nil, fmt.Errorf("Could not make a data object creation request message - %v", err)
+	}
+
+	err = conn.SendMessage(requestMessage)
+	if err != nil {
+		return nil, fmt.Errorf("Could not send a data object creation request message - %v", err)
+	}
+
+	// Server responds with results
+	responseMessage, err := conn.ReadMessage()
+	if err != nil {
+		return nil, fmt.Errorf("Could not receive a data object creation response message - %v", err)
+	}
+
+	response := message.IRODSMessageCreateobjResponse{}
+	err = response.FromMessage(responseMessage)
+	if err != nil {
+		return nil, fmt.Errorf("Could not receive a data object creation response message - %v", err)
+	}
+
+	err = response.CheckError()
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.IRODSFileHandle{
+		FileDescriptor: response.GetFileDescriptor(),
+		Path:           path,
+		Resource:       resource,
+	}, nil
+}
+
+// CloseDataObject closes a file handle of a data object
+func CloseDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHandle) error {
+	if conn == nil || !conn.IsConnected() {
+		return fmt.Errorf("connection is nil or disconnected")
+	}
+
+	request := message.NewIRODSMessageCloseobjRequest(handle.FileDescriptor)
+	requestMessage, err := request.GetMessage()
+	if err != nil {
+		return fmt.Errorf("Could not make a data object close request message - %v", err)
+	}
+
+	err = conn.SendMessage(requestMessage)
+	if err != nil {
+		return fmt.Errorf("Could not send a data object close request message - %v", err)
+	}
+
+	// Server responds with results
+	responseMessage, err := conn.ReadMessage()
+	if err != nil {
+		return fmt.Errorf("Could not receive a data object close response message - %v", err)
+	}
+
+	response := message.IRODSMessageCloseobjResponse{}
+	err = response.FromMessage(responseMessage)
+	if err != nil {
+		return fmt.Errorf("Could not receive a data object close response message - %v", err)
+	}
+
+	return response.CheckError()
+}

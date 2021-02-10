@@ -6,15 +6,15 @@ import (
 	"github.com/iychoi/go-irodsclient/pkg/irods/common"
 )
 
-// IRODSMessageMvcolRequest stores collection move request
-type IRODSMessageMvcolRequest struct {
+// IRODSMessageCpobjRequest stores data object copy request
+type IRODSMessageCpobjRequest struct {
 	XMLName xml.Name `xml:"DataObjCopyInp_PI"`
 	Paths   []IRODSMessageDataObjectRequest
 }
 
-// NewIRODSMessageMvcolRequest creates a IRODSMessageMvcolRequest message
-func NewIRODSMessageMvcolRequest(srcPath string, destPath string) *IRODSMessageMvcolRequest {
-	return &IRODSMessageMvcolRequest{
+// NewIRODSMessageCpobjRequest creates a IRODSMessageCpobjRequest message
+func NewIRODSMessageCpobjRequest(srcPath string, destPath string) *IRODSMessageCpobjRequest {
+	return &IRODSMessageCpobjRequest{
 		Paths: []IRODSMessageDataObjectRequest{
 			{
 				Path:          srcPath,
@@ -23,7 +23,7 @@ func NewIRODSMessageMvcolRequest(srcPath string, destPath string) *IRODSMessageM
 				Offset:        0,
 				Size:          0,
 				Threads:       0,
-				OperationType: int(common.OPER_TYPE_RENAME_COLL),
+				OperationType: int(common.OPER_TYPE_COPY_DATA_OBJ_SRC),
 				KeyVals: IRODSMessageSSKeyVal{
 					Length: 0,
 				},
@@ -35,7 +35,7 @@ func NewIRODSMessageMvcolRequest(srcPath string, destPath string) *IRODSMessageM
 				Offset:        0,
 				Size:          0,
 				Threads:       0,
-				OperationType: int(common.OPER_TYPE_RENAME_COLL),
+				OperationType: int(common.OPER_TYPE_COPY_DATA_OBJ_DEST),
 				KeyVals: IRODSMessageSSKeyVal{
 					Length: 0,
 				},
@@ -45,19 +45,19 @@ func NewIRODSMessageMvcolRequest(srcPath string, destPath string) *IRODSMessageM
 }
 
 // GetBytes returns byte array
-func (msg *IRODSMessageMvcolRequest) GetBytes() ([]byte, error) {
+func (msg *IRODSMessageCpobjRequest) GetBytes() ([]byte, error) {
 	xmlBytes, err := xml.Marshal(msg)
 	return xmlBytes, err
 }
 
 // FromBytes returns struct from bytes
-func (msg *IRODSMessageMvcolRequest) FromBytes(bytes []byte) error {
+func (msg *IRODSMessageCpobjRequest) FromBytes(bytes []byte) error {
 	err := xml.Unmarshal(bytes, msg)
 	return err
 }
 
 // GetMessage builds a message
-func (msg *IRODSMessageMvcolRequest) GetMessage() (*IRODSMessage, error) {
+func (msg *IRODSMessageCpobjRequest) GetMessage() (*IRODSMessage, error) {
 	bytes, err := msg.GetBytes()
 	if err != nil {
 		return nil, err
@@ -68,7 +68,7 @@ func (msg *IRODSMessageMvcolRequest) GetMessage() (*IRODSMessage, error) {
 		Message: bytes,
 		Error:   nil,
 		Bs:      nil,
-		IntInfo: int32(common.DATA_OBJ_RENAME_AN),
+		IntInfo: int32(common.DATA_OBJ_COPY_AN),
 	}
 
 	msgHeader, err := msgBody.BuildHeader()
