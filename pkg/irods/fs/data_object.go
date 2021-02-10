@@ -224,7 +224,7 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 	}
 
 	if len(mergedDataObjects) == 0 {
-		return nil, fmt.Errorf("Could not find matching data object - %s, %s", collection.Path, filename)
+		return nil, types.NewFileNotFoundErrorf("Could not find a data object")
 	}
 
 	return mergedDataObjects[0], nil
@@ -389,7 +389,7 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 	}
 
 	if len(dataObjects) == 0 {
-		return nil, fmt.Errorf("Could not find matching data object - %s, %s", collection.Path, filename)
+		return nil, types.NewFileNotFoundErrorf("Could not find a data object")
 	}
 
 	return dataObjects[0], nil

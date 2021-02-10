@@ -1,6 +1,7 @@
 package query
 
 import (
+	"encoding/binary"
 	"fmt"
 	"strconv"
 	"time"
@@ -76,7 +77,8 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 	}
 
 	if queryResult.RowCount != 1 {
-		return nil, fmt.Errorf("Could not receive a collection - received %d rows", queryResult.RowCount)
+		// file not found
+		return nil, types.NewFileNotFoundErrorf("Could not find a collection")
 	}
 
 	if queryResult.AttributeCount > len(queryResult.SQLResult) {
@@ -125,7 +127,7 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 	}
 
 	if collectionID == -1 {
-		return nil, fmt.Errorf("Could not find matching collection - %s", path)
+		return nil, types.NewFileNotFoundErrorf("Could not find a collection")
 	}
 
 	return &types.IRODSCollection{
@@ -360,11 +362,7 @@ func CreateCollection(conn *connection.IRODSConnection, path string, recurse boo
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
-	request := message.NewIRODSMessageMkcolRequest(path, 0, 0)
-	if recurse {
-		request.SetRecurse()
-	}
-
+	request := message.NewIRODSMessageMkcolRequest(path, recurse)
 	requestMessage, err := request.GetMessage()
 	if err != nil {
 		return fmt.Errorf("Could not make a collection creation request message - %v", err)
@@ -389,4 +387,59 @@ func CreateCollection(conn *connection.IRODSConnection, path string, recurse boo
 
 	err = response.CheckError()
 	return err
+}
+
+// DeleteCollection deletes a collection for the path
+func DeleteCollection(conn *connection.IRODSConnection, path string, recurse bool, force bool) error {
+	if conn == nil || !conn.IsConnected() {
+		return fmt.Errorf("connection is nil or disconnected")
+	}
+
+	request := message.NewIRODSMessageRmcolRequest(path, recurse, force)
+	requestMessage, err := request.GetMessage()
+	if err != nil {
+		return fmt.Errorf("Could not make a collection deletion request message - %v", err)
+	}
+
+	err = conn.SendMessage(requestMessage)
+	if err != nil {
+		return fmt.Errorf("Could not send a collection deletion request message - %v", err)
+	}
+
+	// Server responds with results
+	responseMessage, err := conn.ReadMessage()
+	if err != nil {
+		return fmt.Errorf("Could not receive a collection deletion response message - %v", err)
+	}
+
+	response := message.IRODSMessageRmcolResponse{}
+	err = response.FromMessage(responseMessage)
+	if err != nil {
+		return fmt.Errorf("Could not receive a collection deletion response message - %v", err)
+	}
+
+	err = response.CheckError()
+	if err != nil {
+		return err
+	}
+
+	for response.Result == int(common.SYS_SVR_TO_CLI_COLL_STAT) {
+		// pack length - Big Endian
+		replyBuffer := make([]byte, 4)
+		binary.BigEndian.PutUint32(replyBuffer, uint32(common.SYS_CLI_TO_SVR_COLL_STAT_REPLY))
+
+		err = conn.Send(replyBuffer, 4)
+		if err != nil {
+			return fmt.Errorf("Could not reply to a collection deletion response message - %v", err)
+		}
+
+		responseMessageReply, err := conn.ReadMessage()
+		if err != nil {
+			return fmt.Errorf("Could not receive a collection deletion response message - %v", err)
+		}
+
+		response.FromMessage(responseMessageReply)
+	}
+
+	return nil
 }
