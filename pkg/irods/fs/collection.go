@@ -1,4 +1,4 @@
-package query
+package fs
 
 import (
 	"encoding/binary"
