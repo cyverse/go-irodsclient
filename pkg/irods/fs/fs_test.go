@@ -1,6 +1,7 @@
 package query
 
 import (
+	"fmt"
 	"io/ioutil"
 	"testing"
 	"time"
@@ -407,6 +408,79 @@ func TestCreateDeleteIRODSDataObject(t *testing.T) {
 	if !deleted {
 		// error must occur
 		t.Errorf("err - cannot delete a data object")
+		panic(err)
+	}
+
+	shutdown()
+}
+
+func TestReadWriteIRODSDataObject(t *testing.T) {
+	setup()
+
+	collection, err := GetCollection(conn, "/iplant/home/iychoi")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	handle, err := CreateDataObject(conn, "/iplant/home/iychoi/testobjwrite123", "", true)
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	data := "Hello World"
+	err = WriteDataObject(conn, handle, []byte(data))
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	err = CloseDataObject(conn, handle)
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	obj, err := GetDataObject(conn, collection, "testobjwrite123")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	if obj.ID <= 0 {
+		t.Errorf("err - cannot create a data object")
+		panic(err)
+	}
+
+	handle, err = OpenDataObject(conn, "/iplant/home/iychoi/testobjwrite123", "", "r")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	datarecv, err := ReadDataObject(conn, handle, len(data))
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	fmt.Printf("Wrote: %s\n", data)
+	fmt.Printf("Read: %s\n", datarecv)
+
+	if data != string(datarecv) {
+		t.Error("data does not match")
+	}
+
+	err = CloseDataObject(conn, handle)
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	err = DeleteDataObject(conn, "/iplant/home/iychoi/testobjwrite123", true)
+	if err != nil {
+		t.Errorf("err - %v", err)
 		panic(err)
 	}
 

@@ -1004,8 +1004,169 @@ func CreateDataObject(conn *connection.IRODSConnection, path string, resource st
 	return &types.IRODSFileHandle{
 		FileDescriptor: response.GetFileDescriptor(),
 		Path:           path,
-		Resource:       resource,
 	}, nil
+}
+
+// OpenDataObject opens a data object for the path, returns a file handle
+func OpenDataObject(conn *connection.IRODSConnection, path string, resource string, mode string) (*types.IRODSFileHandle, error) {
+	if conn == nil || !conn.IsConnected() {
+		return nil, fmt.Errorf("connection is nil or disconnected")
+	}
+
+	request := message.NewIRODSMessageOpenobjRequest(path, resource, types.FileOpenMode(mode))
+	requestMessage, err := request.GetMessage()
+	if err != nil {
+		return nil, fmt.Errorf("Could not make a data object open request message - %v", err)
+	}
+
+	err = conn.SendMessage(requestMessage)
+	if err != nil {
+		return nil, fmt.Errorf("Could not send a data object open request message - %v", err)
+	}
+
+	// Server responds with results
+	responseMessage, err := conn.ReadMessage()
+	if err != nil {
+		return nil, fmt.Errorf("Could not receive a data object open response message - %v", err)
+	}
+
+	response := message.IRODSMessageOpenobjResponse{}
+	err = response.FromMessage(responseMessage)
+	if err != nil {
+		return nil, fmt.Errorf("Could not receive a data object open response message - %v", err)
+	}
+
+	err = response.CheckError()
+	if err != nil {
+		return nil, err
+	}
+
+	handle := &types.IRODSFileHandle{
+		FileDescriptor: response.GetFileDescriptor(),
+		Path:           path,
+	}
+
+	// handle seek
+	_, seekToEnd := types.GetFileOpenFlagSeekToEnd(types.FileOpenMode(mode))
+	if seekToEnd {
+		_, err = SeekDataObject(conn, handle, 0, types.SeekEnd)
+		if err != nil {
+			return handle, fmt.Errorf("Could not seek a data object - %v", err)
+		}
+	}
+
+	return handle, nil
+}
+
+// SeekDataObject moves file pointer of a data object, returns offset
+func SeekDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHandle, offset int64, whence types.Whence) (int64, error) {
+	if conn == nil || !conn.IsConnected() {
+		return -1, fmt.Errorf("connection is nil or disconnected")
+	}
+
+	request := message.NewIRODSMessageSeekobjRequest(handle.FileDescriptor, offset, whence)
+	requestMessage, err := request.GetMessage()
+	if err != nil {
+		return -1, fmt.Errorf("Could not make a data object seek request message - %v", err)
+	}
+
+	err = conn.SendMessage(requestMessage)
+	if err != nil {
+		return -1, fmt.Errorf("Could not send a data object seek request message - %v", err)
+	}
+
+	// Server responds with results
+	responseMessage, err := conn.ReadMessage()
+	if err != nil {
+		return -1, fmt.Errorf("Could not receive a data object seek response message - %v", err)
+	}
+
+	response := message.IRODSMessageSeekobjResponse{}
+	err = response.FromMessage(responseMessage)
+	if err != nil {
+		return -1, fmt.Errorf("Could not receive a data object seek response message - %v", err)
+	}
+
+	err = response.CheckError()
+	if err != nil {
+		return -1, err
+	}
+
+	return response.Offset, nil
+}
+
+// ReadDataObject reads data from a data object
+func ReadDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHandle, length int) ([]byte, error) {
+	if conn == nil || !conn.IsConnected() {
+		return nil, fmt.Errorf("connection is nil or disconnected")
+	}
+
+	request := message.NewIRODSMessageReadobjRequest(handle.FileDescriptor, length)
+	requestMessage, err := request.GetMessage()
+	if err != nil {
+		return nil, fmt.Errorf("Could not make a data object read request message - %v", err)
+	}
+
+	err = conn.SendMessage(requestMessage)
+	if err != nil {
+		return nil, fmt.Errorf("Could not send a data object read request message - %v", err)
+	}
+
+	// Server responds with results
+	responseMessage, err := conn.ReadMessage()
+	if err != nil {
+		return nil, fmt.Errorf("Could not receive a data object read response message - %v", err)
+	}
+
+	response := message.IRODSMessageReadobjResponse{}
+	err = response.FromMessage(responseMessage)
+	if err != nil {
+		return nil, fmt.Errorf("Could not receive a data object read response message - %v", err)
+	}
+
+	err = response.CheckError()
+	if err != nil {
+		return nil, err
+	}
+
+	return response.Data, nil
+}
+
+// WriteDataObject writes data to a data object
+func WriteDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHandle, data []byte) error {
+	if conn == nil || !conn.IsConnected() {
+		return fmt.Errorf("connection is nil or disconnected")
+	}
+
+	request := message.NewIRODSMessageWriteobjRequest(handle.FileDescriptor, data)
+	requestMessage, err := request.GetMessage()
+	if err != nil {
+		return fmt.Errorf("Could not make a data object write request message - %v", err)
+	}
+
+	err = conn.SendMessage(requestMessage)
+	if err != nil {
+		return fmt.Errorf("Could not send a data object write request message - %v", err)
+	}
+
+	// Server responds with results
+	responseMessage, err := conn.ReadMessage()
+	if err != nil {
+		return fmt.Errorf("Could not receive a data object write response message - %v", err)
+	}
+
+	response := message.IRODSMessageWriteobjResponse{}
+	err = response.FromMessage(responseMessage)
+	if err != nil {
+		return fmt.Errorf("Could not receive a data object write response message - %v", err)
+	}
+
+	err = response.CheckError()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // CloseDataObject closes a file handle of a data object
