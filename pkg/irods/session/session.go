@@ -33,10 +33,8 @@ func NewIRODSSession(account *types.IRODSAccount, operationTimeout time.Duration
 	initCap := 1
 	maxIdle := 1
 	if connectionMax >= 15 {
-		initCap = 5
 		maxIdle = 10
 	} else if connectionMax >= 5 {
-		initCap = 1
 		maxIdle = 4
 	}
 
@@ -70,7 +68,7 @@ func NewIRODSSessionWithDefault(account *types.IRODSAccount, applicationName str
 	}
 
 	poolConfig := pool.Config{
-		InitialCap:  5,
+		InitialCap:  1,
 		MaxIdle:     10,
 		MaxCap:      sess.ConnectionMax,
 		Factory:     sess.connOpen,
@@ -84,7 +82,7 @@ func NewIRODSSessionWithDefault(account *types.IRODSAccount, applicationName str
 		log.Panic(err)
 	}
 
-	sess.ConnectionPool = &p
+	sess.ConnectionPool = p
 	return &sess
 }
 
