@@ -8,4 +8,6 @@ const (
 	FORCE_FLAG_KW     KeyWord = "forceFlag"
 	DEST_RESC_NAME_KW KeyWord = "destRescName"
 	DATA_TYPE_KW      KeyWord = "dataType"
+	OPR_TYPE_KW       KeyWord = "oprType"
+	UPDATE_REPL_KW    KeyWord = "updateRepl"
 )

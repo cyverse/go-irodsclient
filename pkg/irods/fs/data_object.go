@@ -967,6 +967,44 @@ func TruncateDataObject(conn *connection.IRODSConnection, path string, size int6
 	return err
 }
 
+// ReplicateDataObject replicates a data object for the path to the given reousrce
+func ReplicateDataObject(conn *connection.IRODSConnection, path string, resource string, update bool) error {
+	if conn == nil || !conn.IsConnected() {
+		return fmt.Errorf("connection is nil or disconnected")
+	}
+
+	request := message.NewIRODSMessageReplobjRequest(path, resource)
+
+	if update {
+		request.AddKeyVal(common.UPDATE_REPL_KW, "")
+	}
+
+	requestMessage, err := request.GetMessage()
+	if err != nil {
+		return fmt.Errorf("Could not make a data object replication request message - %v", err)
+	}
+
+	err = conn.SendMessage(requestMessage)
+	if err != nil {
+		return fmt.Errorf("Could not send a data object replication request message - %v", err)
+	}
+
+	// Server responds with results
+	responseMessage, err := conn.ReadMessage()
+	if err != nil {
+		return fmt.Errorf("Could not receive a data object replication response message - %v", err)
+	}
+
+	response := message.IRODSMessageReplobjResponse{}
+	err = response.FromMessage(responseMessage)
+	if err != nil {
+		return fmt.Errorf("Could not receive a data object replication response message - %v", err)
+	}
+
+	err = response.CheckError()
+	return err
+}
+
 // CreateDataObject creates a data object for the path, returns a file handle
 func CreateDataObject(conn *connection.IRODSConnection, path string, resource string, force bool) (*types.IRODSFileHandle, error) {
 	if conn == nil || !conn.IsConnected() {
@@ -1009,6 +1047,57 @@ func CreateDataObject(conn *connection.IRODSConnection, path string, resource st
 
 // OpenDataObject opens a data object for the path, returns a file handle
 func OpenDataObject(conn *connection.IRODSConnection, path string, resource string, mode string) (*types.IRODSFileHandle, error) {
+	if conn == nil || !conn.IsConnected() {
+		return nil, fmt.Errorf("connection is nil or disconnected")
+	}
+
+	request := message.NewIRODSMessageOpenobjRequest(path, resource, types.FileOpenMode(mode))
+	requestMessage, err := request.GetMessage()
+	if err != nil {
+		return nil, fmt.Errorf("Could not make a data object open request message - %v", err)
+	}
+
+	err = conn.SendMessage(requestMessage)
+	if err != nil {
+		return nil, fmt.Errorf("Could not send a data object open request message - %v", err)
+	}
+
+	// Server responds with results
+	responseMessage, err := conn.ReadMessage()
+	if err != nil {
+		return nil, fmt.Errorf("Could not receive a data object open response message - %v", err)
+	}
+
+	response := message.IRODSMessageOpenobjResponse{}
+	err = response.FromMessage(responseMessage)
+	if err != nil {
+		return nil, fmt.Errorf("Could not receive a data object open response message - %v", err)
+	}
+
+	err = response.CheckError()
+	if err != nil {
+		return nil, err
+	}
+
+	handle := &types.IRODSFileHandle{
+		FileDescriptor: response.GetFileDescriptor(),
+		Path:           path,
+	}
+
+	// handle seek
+	_, seekToEnd := types.GetFileOpenFlagSeekToEnd(types.FileOpenMode(mode))
+	if seekToEnd {
+		_, err = SeekDataObject(conn, handle, 0, types.SeekEnd)
+		if err != nil {
+			return handle, fmt.Errorf("Could not seek a data object - %v", err)
+		}
+	}
+
+	return handle, nil
+}
+
+// OpenDataObjectWithOperation opens a data object for the path, returns a file handle
+func OpenDataObjectWithOperation(conn *connection.IRODSConnection, path string, resource string, mode string, oper common.OperationType) (*types.IRODSFileHandle, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}

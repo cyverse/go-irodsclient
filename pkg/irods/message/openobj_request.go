@@ -34,6 +34,30 @@ func NewIRODSMessageOpenobjRequest(path string, resource string, mode types.File
 	return request
 }
 
+// NewIRODSMessageOpenobjRequestWithOperation ...
+func NewIRODSMessageOpenobjRequestWithOperation(path string, resource string, mode types.FileOpenMode, oper common.OperationType) *IRODSMessageOpenobjRequest {
+	flags, _ := types.GetFileOpenFlagSeekToEnd(mode)
+
+	request := &IRODSMessageOpenobjRequest{
+		Path:          path,
+		CreateMode:    0,
+		OpenFlags:     flags,
+		Offset:        0,
+		Size:          -1,
+		Threads:       0,
+		OperationType: int(oper),
+		KeyVals: IRODSMessageSSKeyVal{
+			Length: 0,
+		},
+	}
+
+	if len(resource) > 0 {
+		request.KeyVals.Add(string(common.DEST_RESC_NAME_KW), resource)
+	}
+
+	return request
+}
+
 // AddKeyVal adds a key-value pair
 func (msg *IRODSMessageOpenobjRequest) AddKeyVal(key common.KeyWord, val string) {
 	msg.KeyVals.Add(string(key), val)
