@@ -9,8 +9,8 @@ import (
 	"github.com/iychoi/go-irodsclient/pkg/irods/connection"
 )
 
-// PutDataObject put a data object at the local path to the iRODS path
-func PutDataObject(conn *connection.IRODSConnection, localPath string, irodsPath string, resource string, replicate bool) error {
+// UploadDataObject put a data object at the local path to the iRODS path
+func UploadDataObject(conn *connection.IRODSConnection, localPath string, irodsPath string, resource string, replicate bool) error {
 	if conn == nil || !conn.IsConnected() {
 		return fmt.Errorf("connection is nil or disconnected")
 	}

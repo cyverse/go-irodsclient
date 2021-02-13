@@ -1046,37 +1046,37 @@ func CreateDataObject(conn *connection.IRODSConnection, path string, resource st
 }
 
 // OpenDataObject opens a data object for the path, returns a file handle
-func OpenDataObject(conn *connection.IRODSConnection, path string, resource string, mode string) (*types.IRODSFileHandle, error) {
+func OpenDataObject(conn *connection.IRODSConnection, path string, resource string, mode string) (*types.IRODSFileHandle, int64, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, fmt.Errorf("connection is nil or disconnected")
+		return nil, -1, fmt.Errorf("connection is nil or disconnected")
 	}
 
 	request := message.NewIRODSMessageOpenobjRequest(path, resource, types.FileOpenMode(mode))
 	requestMessage, err := request.GetMessage()
 	if err != nil {
-		return nil, fmt.Errorf("Could not make a data object open request message - %v", err)
+		return nil, -1, fmt.Errorf("Could not make a data object open request message - %v", err)
 	}
 
 	err = conn.SendMessage(requestMessage)
 	if err != nil {
-		return nil, fmt.Errorf("Could not send a data object open request message - %v", err)
+		return nil, -1, fmt.Errorf("Could not send a data object open request message - %v", err)
 	}
 
 	// Server responds with results
 	responseMessage, err := conn.ReadMessage()
 	if err != nil {
-		return nil, fmt.Errorf("Could not receive a data object open response message - %v", err)
+		return nil, -1, fmt.Errorf("Could not receive a data object open response message - %v", err)
 	}
 
 	response := message.IRODSMessageOpenobjResponse{}
 	err = response.FromMessage(responseMessage)
 	if err != nil {
-		return nil, fmt.Errorf("Could not receive a data object open response message - %v", err)
+		return nil, -1, fmt.Errorf("Could not receive a data object open response message - %v", err)
 	}
 
 	err = response.CheckError()
 	if err != nil {
-		return nil, err
+		return nil, -1, err
 	}
 
 	handle := &types.IRODSFileHandle{
@@ -1086,14 +1086,15 @@ func OpenDataObject(conn *connection.IRODSConnection, path string, resource stri
 
 	// handle seek
 	_, seekToEnd := types.GetFileOpenFlagSeekToEnd(types.FileOpenMode(mode))
+	var offset int64 = 0
 	if seekToEnd {
-		_, err = SeekDataObject(conn, handle, 0, types.SeekEnd)
+		offset, err = SeekDataObject(conn, handle, 0, types.SeekEnd)
 		if err != nil {
-			return handle, fmt.Errorf("Could not seek a data object - %v", err)
+			return handle, -1, fmt.Errorf("Could not seek a data object - %v", err)
 		}
 	}
 
-	return handle, nil
+	return handle, offset, nil
 }
 
 // OpenDataObjectWithOperation opens a data object for the path, returns a file handle
