@@ -11,8 +11,9 @@ import (
 )
 
 var (
-	account *types.IRODSAccount
-	timeout time.Duration
+	account       *types.IRODSAccount
+	timeout       time.Duration
+	sessionConfig *IRODSSessionConfig
 )
 
 func setup() {
@@ -34,6 +35,8 @@ func setup() {
 
 	account.ClientServerNegotiation = false
 	util.LogDebugf("Account : %v", account.MaskSensitiveData())
+
+	sessionConfig = NewIRODSSessionConfigWithDefault("go-irodsclient-test")
 }
 
 func shutdown() {
@@ -42,7 +45,7 @@ func shutdown() {
 func TestSession(t *testing.T) {
 	setup()
 
-	sess := NewIRODSSessionWithDefault(account, "go-irodsclient-test")
+	sess := NewIRODSSession(account, sessionConfig)
 
 	// first
 	conn, err := sess.AcquireConnection()

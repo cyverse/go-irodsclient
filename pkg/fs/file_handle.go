@@ -3,6 +3,7 @@ package fs
 import (
 	"fmt"
 
+	"github.com/iychoi/go-irodsclient/pkg/irods/connection"
 	irods_fs "github.com/iychoi/go-irodsclient/pkg/irods/fs"
 	"github.com/iychoi/go-irodsclient/pkg/irods/types"
 )
@@ -10,6 +11,7 @@ import (
 // FileHandle ...
 type FileHandle struct {
 	FileSystem  *FileSystem
+	Connection  *connection.IRODSConnection
 	IRODSHandle *types.IRODSFileHandle
 	Entry       *FSEntry
 	Offset      int64
@@ -23,12 +25,13 @@ func (handle *FileHandle) GetOffset() int64 {
 
 // Close closes the file
 func (handle *FileHandle) Close() error {
-	return irods_fs.CloseDataObject(handle.FileSystem.Connection, handle.IRODSHandle)
+	defer handle.FileSystem.Session.ReturnConnection(handle.Connection)
+	return irods_fs.CloseDataObject(handle.Connection, handle.IRODSHandle)
 }
 
 // Seek moves file pointer
 func (handle *FileHandle) Seek(offset int64, whence types.Whence) (int64, error) {
-	newOffset, err := irods_fs.SeekDataObject(handle.FileSystem.Connection, handle.IRODSHandle, offset, whence)
+	newOffset, err := irods_fs.SeekDataObject(handle.Connection, handle.IRODSHandle, offset, whence)
 	if err != nil {
 		return newOffset, err
 	}
@@ -39,7 +42,7 @@ func (handle *FileHandle) Seek(offset int64, whence types.Whence) (int64, error)
 
 // Read reads the file
 func (handle *FileHandle) Read(length int) ([]byte, error) {
-	bytes, err := irods_fs.ReadDataObject(handle.FileSystem.Connection, handle.IRODSHandle, length)
+	bytes, err := irods_fs.ReadDataObject(handle.Connection, handle.IRODSHandle, length)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +53,7 @@ func (handle *FileHandle) Read(length int) ([]byte, error) {
 
 // Write writes the file
 func (handle *FileHandle) Write(data []byte) error {
-	err := irods_fs.WriteDataObject(handle.FileSystem.Connection, handle.IRODSHandle, data)
+	err := irods_fs.WriteDataObject(handle.Connection, handle.IRODSHandle, data)
 	if err != nil {
 		return err
 	}

@@ -3,17 +3,13 @@ package fs
 import (
 	"io/ioutil"
 	"testing"
-	"time"
 
-	"github.com/iychoi/go-irodsclient/pkg/irods/connection"
 	"github.com/iychoi/go-irodsclient/pkg/irods/types"
 	"github.com/iychoi/go-irodsclient/pkg/irods/util"
 )
 
 var (
 	account *types.IRODSAccount
-	timeout time.Duration
-	conn    *connection.IRODSConnection
 	fs      *FileSystem
 )
 
@@ -32,24 +28,14 @@ func setup() {
 		panic(err)
 	}
 
-	timeout = time.Second * 200 // 200 sec
-
 	account.ClientServerNegotiation = false
 	util.LogDebugf("Account : %v", account.MaskSensitiveData())
 
-	conn = connection.NewIRODSConnection(account, timeout, "go-irodsclient-test")
-	err = conn.Connect()
-	if err != nil {
-		util.LogErrorf("err - %v", err)
-		panic(err)
-	}
-
-	fs = NewFileSystem(conn)
+	fs = NewFileSystemWithDefault(account, "go-irodsclient-test")
 }
 
 func shutdown() {
-	conn.Disconnect()
-	conn = nil
+	fs.Release()
 }
 
 func TestListEntries(t *testing.T) {

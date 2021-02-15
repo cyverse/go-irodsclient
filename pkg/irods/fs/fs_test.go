@@ -279,7 +279,7 @@ func TestCreateDeleteIRODSCollection(t *testing.T) {
 	collection, err = GetCollection(conn, "/iplant/home/iychoi/test123")
 	deleted := false
 	if err != nil {
-		if _, ok := err.(*types.FileNotFoundError); ok {
+		if types.IsFileNotFoundError(err) {
 			// Okay!
 			util.LogDebugf("Deleted collection")
 			deleted = true
@@ -341,7 +341,7 @@ func TestCreateMoveDeleteIRODSCollection(t *testing.T) {
 	collection, err = GetCollection(conn, "/iplant/home/iychoi/test456")
 	deleted := false
 	if err != nil {
-		if _, ok := err.(*types.FileNotFoundError); ok {
+		if types.IsFileNotFoundError(err) {
 			// Okay!
 			util.LogDebugf("Deleted collection")
 			deleted = true
@@ -398,7 +398,7 @@ func TestCreateDeleteIRODSDataObject(t *testing.T) {
 	obj, err = GetDataObject(conn, collection, "testobj123")
 	deleted := false
 	if err != nil {
-		if _, ok := err.(*types.FileNotFoundError); ok {
+		if types.IsFileNotFoundError(err) {
 			// Okay!
 			util.LogDebugf("Deleted data object")
 			deleted = true
@@ -453,7 +453,7 @@ func TestReadWriteIRODSDataObject(t *testing.T) {
 		panic(err)
 	}
 
-	handle, err = OpenDataObject(conn, "/iplant/home/iychoi/testobjwrite123", "", "r")
+	handle, _, err = OpenDataObject(conn, "/iplant/home/iychoi/testobjwrite123", "", "r")
 	if err != nil {
 		t.Errorf("err - %v", err)
 		panic(err)

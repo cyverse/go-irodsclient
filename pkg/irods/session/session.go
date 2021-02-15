@@ -2,7 +2,6 @@ package session
 
 import (
 	"log"
-	"time"
 
 	"github.com/iychoi/go-irodsclient/pkg/irods/connection"
 	"github.com/iychoi/go-irodsclient/pkg/irods/types"
@@ -12,68 +11,25 @@ import (
 
 // IRODSSession manages connections to iRODS
 type IRODSSession struct {
-	Account          *types.IRODSAccount
-	OperationTimeout time.Duration
-	IdleTimeout      time.Duration
-	ApplicationName  string
-	ConnectionMax    int
-	ConnectionPool   pool.Pool
+	Account        *types.IRODSAccount
+	Config         *IRODSSessionConfig
+	ConnectionPool pool.Pool
 }
 
 // NewIRODSSession create a IRODSSession
-func NewIRODSSession(account *types.IRODSAccount, operationTimeout time.Duration, idleTimeout time.Duration, connectionMax int, applicationName string) *IRODSSession {
+func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) *IRODSSession {
 	sess := IRODSSession{
-		Account:          account,
-		OperationTimeout: operationTimeout,
-		IdleTimeout:      idleTimeout,
-		ApplicationName:  applicationName,
-		ConnectionMax:    connectionMax,
-	}
-
-	initCap := 1
-	maxIdle := 1
-	if connectionMax >= 15 {
-		maxIdle = 10
-	} else if connectionMax >= 5 {
-		maxIdle = 4
+		Account: account,
+		Config:  config,
 	}
 
 	poolConfig := pool.Config{
-		InitialCap:  initCap,
-		MaxIdle:     maxIdle,
-		MaxCap:      sess.ConnectionMax,
+		InitialCap:  config.ConnectionInitNumber,
+		MaxIdle:     config.ConnectionMaxIdle,
+		MaxCap:      config.ConnectionMax,
 		Factory:     sess.connOpen,
 		Close:       sess.connClose,
-		IdleTimeout: sess.IdleTimeout,
-	}
-
-	p, err := pool.NewChannelPool(&poolConfig)
-	if err != nil {
-		util.LogErrorf("Cannot create a new connection pool - %v", err)
-		log.Panic(err)
-	}
-
-	sess.ConnectionPool = p
-	return &sess
-}
-
-// NewIRODSSessionWithDefault create a IRODSSession with a default settings
-func NewIRODSSessionWithDefault(account *types.IRODSAccount, applicationName string) *IRODSSession {
-	sess := IRODSSession{
-		Account:          account,
-		OperationTimeout: 5 * time.Minute,
-		IdleTimeout:      5 * time.Minute,
-		ApplicationName:  applicationName,
-		ConnectionMax:    20,
-	}
-
-	poolConfig := pool.Config{
-		InitialCap:  1,
-		MaxIdle:     10,
-		MaxCap:      sess.ConnectionMax,
-		Factory:     sess.connOpen,
-		Close:       sess.connClose,
-		IdleTimeout: sess.IdleTimeout,
+		IdleTimeout: config.IdleTimeout,
 	}
 
 	p, err := pool.NewChannelPool(&poolConfig)
@@ -88,7 +44,7 @@ func NewIRODSSessionWithDefault(account *types.IRODSAccount, applicationName str
 
 func (sess *IRODSSession) connOpen() (interface{}, error) {
 	// create a conenction
-	conn := connection.NewIRODSConnection(sess.Account, sess.OperationTimeout, sess.ApplicationName)
+	conn := connection.NewIRODSConnection(sess.Account, sess.Config.OperationTimeout, sess.Config.ApplicationName)
 	err := conn.Connect()
 	if err != nil {
 		util.LogErrorf("Could not connect - %v", err)

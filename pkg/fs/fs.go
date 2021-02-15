@@ -5,27 +5,58 @@ import (
 	"os"
 	"time"
 
-	"github.com/iychoi/go-irodsclient/pkg/irods/connection"
 	irods_fs "github.com/iychoi/go-irodsclient/pkg/irods/fs"
+	"github.com/iychoi/go-irodsclient/pkg/irods/session"
 	"github.com/iychoi/go-irodsclient/pkg/irods/types"
 	"github.com/iychoi/go-irodsclient/pkg/irods/util"
 )
 
 // FileSystem provides a file-system like interface
 type FileSystem struct {
-	Connection *connection.IRODSConnection // TODO: Change this to connection pool
+	Account *types.IRODSAccount
+	Config  *FileSystemConfig
+	Session *session.IRODSSession
 }
 
 // NewFileSystem creates a new FileSystem
-func NewFileSystem(conn *connection.IRODSConnection) *FileSystem {
+func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) *FileSystem {
+	sessConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax)
+	sess := session.NewIRODSSession(account, sessConfig)
+
 	return &FileSystem{
-		Connection: conn,
+		Account: account,
+		Config:  config,
+		Session: sess,
 	}
+}
+
+// NewFileSystemWithDefault ...
+func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName string) *FileSystem {
+	config := NewFileSystemConfigWithDefault(applicationName)
+	sessConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax)
+	sess := session.NewIRODSSession(account, sessConfig)
+
+	return &FileSystem{
+		Config:  config,
+		Session: sess,
+	}
+}
+
+// Release ...
+func (fs *FileSystem) Release() {
+	fs.Session.Release()
 }
 
 func (fs *FileSystem) getCollection(path string) (*types.IRODSCollection, error) {
 	// TODO: Add cache here
-	collection, err := irods_fs.GetCollection(fs.Connection, path)
+
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	collection, err := irods_fs.GetCollection(conn, path)
 	if err != nil {
 		return nil, err
 	}
@@ -34,12 +65,19 @@ func (fs *FileSystem) getCollection(path string) (*types.IRODSCollection, error)
 
 func (fs *FileSystem) getDataObject(path string) (*types.IRODSDataObject, error) {
 	// TODO: Add cache here
+
 	collection, err := fs.getCollection(util.GetIRODSPathDirname(path))
 	if err != nil {
 		return nil, err
 	}
 
-	dataobject, err := irods_fs.GetDataObjectMasterReplica(fs.Connection, collection, util.GetIRODSPathFileName(path))
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	dataobject, err := irods_fs.GetDataObjectMasterReplica(conn, collection, util.GetIRODSPathFileName(path))
 	if err != nil {
 		return nil, err
 	}
@@ -50,9 +88,7 @@ func (fs *FileSystem) getDataObject(path string) (*types.IRODSDataObject, error)
 func (fs *FileSystem) Stat(path string) (*FSEntry, error) {
 	dirStat, err := fs.StatDir(path)
 	if err != nil {
-		if _, ok := err.(*types.FileNotFoundError); ok {
-			// fall
-		} else {
+		if !types.IsFileNotFoundError(err) {
 			return nil, err
 		}
 	} else {
@@ -61,9 +97,7 @@ func (fs *FileSystem) Stat(path string) (*FSEntry, error) {
 
 	fileStat, err := fs.StatFile(path)
 	if err != nil {
-		if _, ok := err.(*types.FileNotFoundError); ok {
-			// fall
-		} else {
+		if !types.IsFileNotFoundError(err) {
 			return nil, err
 		}
 	} else {
@@ -169,7 +203,13 @@ func (fs *FileSystem) List(path string) ([]*FSEntry, error) {
 		return nil, err
 	}
 
-	collections, err := irods_fs.ListSubCollections(fs.Connection, collection.Path)
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	collections, err := irods_fs.ListSubCollections(conn, collection.Path)
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +230,7 @@ func (fs *FileSystem) List(path string) ([]*FSEntry, error) {
 		fsEntries = append(fsEntries, &fsEntry)
 	}
 
-	dataobjects, err := irods_fs.ListDataObjectsMasterReplica(fs.Connection, collection)
+	dataobjects, err := irods_fs.ListDataObjectsMasterReplica(conn, collection)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +262,13 @@ func (fs *FileSystem) List(path string) ([]*FSEntry, error) {
 
 // RemoveDir deletes a directory
 func (fs *FileSystem) RemoveDir(path string, recurse bool, force bool) error {
-	err := irods_fs.DeleteCollection(fs.Connection, path, recurse, force)
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	err = irods_fs.DeleteCollection(conn, path, recurse, force)
 	if err != nil {
 		return err
 	}
@@ -234,7 +280,13 @@ func (fs *FileSystem) RemoveDir(path string, recurse bool, force bool) error {
 
 // RemoveFile deletes a file
 func (fs *FileSystem) RemoveFile(path string, force bool) error {
-	err := irods_fs.DeleteDataObject(fs.Connection, path, force)
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	err = irods_fs.DeleteDataObject(conn, path, force)
 	if err != nil {
 		return err
 	}
@@ -258,7 +310,13 @@ func (fs *FileSystem) RenameDir(srcPath string, destPath string) error {
 
 // RenameDirToDir renames a dir
 func (fs *FileSystem) RenameDirToDir(srcPath string, destPath string) error {
-	err := irods_fs.MoveCollection(fs.Connection, srcPath, destPath)
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	err = irods_fs.MoveCollection(conn, srcPath, destPath)
 	if err != nil {
 		return err
 	}
@@ -288,7 +346,13 @@ func (fs *FileSystem) RenameFile(srcPath string, destPath string) error {
 
 // RenameFileToFile renames a file
 func (fs *FileSystem) RenameFileToFile(srcPath string, destPath string) error {
-	err := irods_fs.MoveDataObject(fs.Connection, srcPath, destPath)
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	err = irods_fs.MoveDataObject(conn, srcPath, destPath)
 	if err != nil {
 		return err
 	}
@@ -306,7 +370,13 @@ func (fs *FileSystem) RenameFileToFile(srcPath string, destPath string) error {
 
 // MakeDir creates a directory
 func (fs *FileSystem) MakeDir(path string, recurse bool) error {
-	err := irods_fs.CreateCollection(fs.Connection, path, recurse)
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	err = irods_fs.CreateCollection(conn, path, recurse)
 	if err != nil {
 		return err
 	}
@@ -330,7 +400,13 @@ func (fs *FileSystem) CopyFile(srcPath string, destPath string) error {
 
 // CopyFileToFile copies a file
 func (fs *FileSystem) CopyFileToFile(srcPath string, destPath string) error {
-	err := irods_fs.CopyDataObject(fs.Connection, srcPath, destPath)
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	err = irods_fs.CopyDataObject(conn, srcPath, destPath)
 	if err != nil {
 		return err
 	}
@@ -341,7 +417,13 @@ func (fs *FileSystem) CopyFileToFile(srcPath string, destPath string) error {
 
 // TruncateFile truncates a file
 func (fs *FileSystem) TruncateFile(path string, size int64) error {
-	err := irods_fs.TruncateDataObject(fs.Connection, path, size)
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	err = irods_fs.TruncateDataObject(conn, path, size)
 	if err != nil {
 		return err
 	}
@@ -352,7 +434,13 @@ func (fs *FileSystem) TruncateFile(path string, size int64) error {
 
 // ReplicateFile replicates a file
 func (fs *FileSystem) ReplicateFile(path string, resource string, update bool) error {
-	return irods_fs.ReplicateDataObject(fs.Connection, path, resource, update)
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	return irods_fs.ReplicateDataObject(conn, path, resource, update)
 }
 
 // DownloadFile downloads a file to local
@@ -375,7 +463,13 @@ func (fs *FileSystem) DownloadFile(irodsPath string, localPath string) error {
 		}
 	}
 
-	return irods_fs.DownloadDataObject(fs.Connection, irodsPath, localFilePath)
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	return irods_fs.DownloadDataObject(conn, irodsPath, localFilePath)
 }
 
 // UploadFile uploads a local file to irods
@@ -398,10 +492,7 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 
 	entry, err := fs.Stat(irodsPath)
 	if err != nil {
-		if _, ok := err.(*types.FileNotFoundError); ok {
-			// file not found
-			// skip
-		} else {
+		if !types.IsFileNotFoundError(err) {
 			return err
 		}
 	} else {
@@ -416,7 +507,13 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 		}
 	}
 
-	err = irods_fs.UploadDataObject(fs.Connection, localPath, irodsFilePath, resource, replicate)
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	err = irods_fs.UploadDataObject(conn, localPath, irodsFilePath, resource, replicate)
 	if err != nil {
 		return err
 	}
@@ -427,8 +524,14 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 
 // OpenFile opens an existing file for read/write
 func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*FileHandle, error) {
-	handle, offset, err := irods_fs.OpenDataObject(fs.Connection, path, resource, mode)
+	conn, err := fs.Session.AcquireConnection()
 	if err != nil {
+		return nil, err
+	}
+
+	handle, offset, err := irods_fs.OpenDataObject(conn, path, resource, mode)
+	if err != nil {
+		fs.Session.ReturnConnection(conn)
 		return nil, err
 	}
 
@@ -450,7 +553,7 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 			ID:         0,
 			Type:       FSFileEntry,
 			Name:       util.GetIRODSPathFileName(path),
-			Owner:      fs.Connection.Account.ClientUser,
+			Owner:      fs.Account.ClientUser,
 			Size:       0,
 			CreateTime: time.Now(),
 			ModifyTime: time.Now(),
@@ -459,8 +562,10 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 		}
 	}
 
+	// do not return connection here
 	return &FileHandle{
 		FileSystem:  fs,
+		Connection:  conn,
 		IRODSHandle: handle,
 		Entry:       entry,
 		Offset:      offset,
@@ -470,16 +575,23 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 
 // CreateFile opens a new file for write
 func (fs *FileSystem) CreateFile(path string, resource string) (*FileHandle, error) {
-	handle, err := irods_fs.CreateDataObject(fs.Connection, path, resource, true)
+	conn, err := fs.Session.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
 
+	handle, err := irods_fs.CreateDataObject(conn, path, resource, true)
+	if err != nil {
+		fs.Session.ReturnConnection(conn)
+		return nil, err
+	}
+
+	// do not return connection here
 	entry := &FSEntry{
 		ID:         0,
 		Type:       FSFileEntry,
 		Name:       util.GetIRODSPathFileName(path),
-		Owner:      fs.Connection.Account.ClientUser,
+		Owner:      fs.Account.ClientUser,
 		Size:       0,
 		CreateTime: time.Now(),
 		ModifyTime: time.Now(),
@@ -489,6 +601,7 @@ func (fs *FileSystem) CreateFile(path string, resource string) (*FileHandle, err
 
 	return &FileHandle{
 		FileSystem:  fs,
+		Connection:  conn,
 		IRODSHandle: handle,
 		Entry:       entry,
 		Offset:      0,

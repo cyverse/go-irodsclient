@@ -68,7 +68,7 @@ func DownloadDataObject(conn *connection.IRODSConnection, irodsPath string, loca
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
-	handle, err := OpenDataObject(conn, irodsPath, "", "r")
+	handle, _, err := OpenDataObject(conn, irodsPath, "", "r")
 	if err != nil {
 		return err
 	}

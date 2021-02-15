@@ -26,3 +26,12 @@ func NewFileNotFoundErrorf(format string, v ...interface{}) *FileNotFoundError {
 func (e *FileNotFoundError) Error() string {
 	return e.message
 }
+
+// IsFileNotFoundError evaluates if the given error is FileNotFoundError
+func IsFileNotFoundError(err error) bool {
+	if _, ok := err.(*FileNotFoundError); ok {
+		return true
+	} else {
+		return false
+	}
+}
