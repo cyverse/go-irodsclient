@@ -22,8 +22,8 @@ func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration) *File
 	dirCache := gocache.New(cacheTimeout, cleanup)
 
 	return &FileSystemCache{
-		CacheTimeout:   3 * time.Minute,
-		CleanupTimeout: 5 * time.Minute,
+		CacheTimeout:   cacheTimeout,
+		CleanupTimeout: cleanup,
 		EntryCache:     entryCache,
 		DirCache:       dirCache,
 	}
@@ -35,10 +35,13 @@ func shouldHaveInfiniteCacheTTL(path string) bool {
 		return false
 	}
 
+	root := "/"
 	zoneRoot := fmt.Sprintf("/%s", zone)
 	home := fmt.Sprintf("/%s/home", zone)
 
 	switch path {
+	case root:
+		return true
 	case zoneRoot:
 		return true
 	case home:

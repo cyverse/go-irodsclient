@@ -405,10 +405,7 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 	}
 
 	var entry *FSEntry = nil
-	if types.FileOpenMode(mode) == types.FileOpenModeReadOnly ||
-		types.FileOpenMode(mode) == types.FileOpenModeReadWrite ||
-		types.FileOpenMode(mode) == types.FileOpenModeAppend ||
-		types.FileOpenMode(mode) == types.FileOpenModeReadAppend {
+	if types.IsFileOpenFlagOpeningExisting(types.FileOpenMode(mode)) {
 		// file may exists
 		entryExisting, err := fs.StatFile(path)
 		if err == nil {
@@ -484,6 +481,11 @@ func (fs *FileSystem) CreateFile(path string, resource string) (*FileHandle, err
 func (fs *FileSystem) ClearCache() {
 	fs.Cache.ClearEntryCache()
 	fs.Cache.ClearDirCache()
+}
+
+// InvalidateCache invalidates cache with the given path
+func (fs *FileSystem) InvalidateCache(path string) {
+	fs.invalidateCachePath(path)
 }
 
 func (fs *FileSystem) getCollection(path string) (*FSEntry, error) {
@@ -672,6 +674,7 @@ func (fs *FileSystem) getDataObject(path string) (*FSEntry, error) {
 	return nil, types.NewFileNotFoundErrorf("Could not find a data object")
 }
 
+// InvalidateCachePath invalidates cache with the given path
 func (fs *FileSystem) invalidateCachePath(path string) {
 	fs.Cache.RemoveEntryCache(path)
 	fs.Cache.RemoveDirCache(path)
@@ -681,6 +684,8 @@ func (fs *FileSystem) removeCachePath(path string) {
 	// if path is directory, recursively
 	entry := fs.Cache.GetEntryCache(path)
 	if entry != nil {
+		fs.Cache.RemoveEntryCache(path)
+
 		if entry.Type == FSDirectoryEntry {
 			dirEntries := fs.Cache.GetDirCache(path)
 			if dirEntries != nil {
@@ -691,9 +696,7 @@ func (fs *FileSystem) removeCachePath(path string) {
 				fs.Cache.RemoveDirCache(path)
 			}
 		}
-		fs.Cache.RemoveEntryCache(path)
-	}
 
-	fs.Cache.RemoveDirCache(path)
-	fs.Cache.RemoveDirCache(util.GetIRODSPathDirname(path))
+		fs.Cache.RemoveDirCache(util.GetIRODSPathDirname(path))
+	}
 }

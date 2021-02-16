@@ -24,15 +24,23 @@ func (handle *FileHandle) GetOffset() int64 {
 	return handle.Offset
 }
 
+// IsReadMode returns true if file is opened with read mode
+func (handle *FileHandle) IsReadMode() bool {
+	return types.IsFileOpenFlagRead(handle.OpenMode)
+}
+
+// IsWriteMode returns true if file is opened with write mode
+func (handle *FileHandle) IsWriteMode() bool {
+	return types.IsFileOpenFlagWrite(handle.OpenMode)
+}
+
 // Close closes the file
 func (handle *FileHandle) Close() error {
 	defer handle.FileSystem.Session.ReturnConnection(handle.Connection)
 
-	if handle.OpenMode == types.FileOpenModeWriteOnly ||
-		handle.OpenMode == types.FileOpenModeWriteTruncate ||
-		handle.OpenMode == types.FileOpenModeAppend ||
-		handle.OpenMode == types.FileOpenModeReadAppend {
-		defer handle.FileSystem.invalidateCachePath(util.GetIRODSPathDirname(handle.Entry.Path))
+	if handle.IsWriteMode() {
+		handle.FileSystem.invalidateCachePath(handle.Entry.Path)
+		handle.FileSystem.invalidateCachePath(util.GetIRODSPathDirname(handle.Entry.Path))
 	}
 
 	return irods_fs.CloseDataObject(handle.Connection, handle.IRODSHandle)
@@ -51,6 +59,10 @@ func (handle *FileHandle) Seek(offset int64, whence types.Whence) (int64, error)
 
 // Read reads the file
 func (handle *FileHandle) Read(length int) ([]byte, error) {
+	if !handle.IsReadMode() {
+		return nil, fmt.Errorf("File is opened with %s mode", handle.OpenMode)
+	}
+
 	bytes, err := irods_fs.ReadDataObject(handle.Connection, handle.IRODSHandle, length)
 	if err != nil {
 		return nil, err
@@ -62,6 +74,10 @@ func (handle *FileHandle) Read(length int) ([]byte, error) {
 
 // Write writes the file
 func (handle *FileHandle) Write(data []byte) error {
+	if !handle.IsWriteMode() {
+		return fmt.Errorf("File is opened with %s mode", handle.OpenMode)
+	}
+
 	err := irods_fs.WriteDataObject(handle.Connection, handle.IRODSHandle, data)
 	if err != nil {
 		return err

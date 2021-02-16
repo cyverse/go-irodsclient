@@ -4,7 +4,7 @@ go 1.14
 
 require (
 	github.com/kr/pretty v0.1.0 // indirect
-	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
+	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/silenceper/pool v1.0.0
 	github.com/sirupsen/logrus v1.7.0
 	github.com/stretchr/testify v1.4.0 // indirect
