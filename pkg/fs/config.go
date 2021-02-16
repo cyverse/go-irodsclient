@@ -9,16 +9,18 @@ type FileSystemConfig struct {
 	ConnectionIdleTimeout time.Duration
 	ConnectionMax         int
 	CacheTimeout          time.Duration
+	CacheCleanupTime      time.Duration
 }
 
 // NewFileSystemConfig create a FileSystemConfig
-func NewFileSystemConfig(applicationName string, operationTimeout time.Duration, connectionIdleTimeout time.Duration, connectionMax int, cacheTimeout time.Duration) *FileSystemConfig {
+func NewFileSystemConfig(applicationName string, operationTimeout time.Duration, connectionIdleTimeout time.Duration, connectionMax int, cacheTimeout time.Duration, cacheCleanupTime time.Duration) *FileSystemConfig {
 	return &FileSystemConfig{
 		ApplicationName:       applicationName,
 		OperationTimeout:      operationTimeout,
 		ConnectionIdleTimeout: connectionIdleTimeout,
 		ConnectionMax:         connectionMax,
 		CacheTimeout:          cacheTimeout,
+		CacheCleanupTime:      cacheCleanupTime,
 	}
 }
 
@@ -30,5 +32,6 @@ func NewFileSystemConfigWithDefault(applicationName string) *FileSystemConfig {
 		ConnectionIdleTimeout: 5 * time.Minute,
 		ConnectionMax:         20,
 		CacheTimeout:          5 * time.Minute,
+		CacheCleanupTime:      5 * time.Minute,
 	}
 }

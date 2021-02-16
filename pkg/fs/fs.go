@@ -23,11 +23,13 @@ type FileSystem struct {
 func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) *FileSystem {
 	sessConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax)
 	sess := session.NewIRODSSession(account, sessConfig)
+	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime)
 
 	return &FileSystem{
 		Account: account,
 		Config:  config,
 		Session: sess,
+		Cache:   cache,
 	}
 }
 
@@ -36,10 +38,13 @@ func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName strin
 	config := NewFileSystemConfigWithDefault(applicationName)
 	sessConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax)
 	sess := session.NewIRODSSession(account, sessConfig)
+	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime)
 
 	return &FileSystem{
+		Account: account,
 		Config:  config,
 		Session: sess,
+		Cache:   cache,
 	}
 }
 

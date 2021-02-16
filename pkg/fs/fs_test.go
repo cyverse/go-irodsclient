@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"fmt"
 	"io/ioutil"
 	"testing"
 
@@ -53,6 +54,54 @@ func TestListEntries(t *testing.T) {
 		for _, entry := range entries {
 			util.LogDebugf("Entry : %v", entry)
 		}
+	}
+
+	shutdown()
+}
+
+func TestReadWrite(t *testing.T) {
+	setup()
+
+	text := "HELLO WORLD!"
+
+	handle, err := fs.CreateFile("/iplant/home/iychoi/testnewfile.txt", "")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	handle.Write([]byte(text))
+
+	handle.Close()
+
+	if !fs.Exists("/iplant/home/iychoi/testnewfile.txt") {
+		t.Error("Cannot find the file created")
+		panic(fmt.Errorf("Cannot find the file created"))
+	}
+
+	newHandle, err := fs.OpenFile("/iplant/home/iychoi/testnewfile.txt", "", "r")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	readData, err := newHandle.Read(1024)
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+	newHandle.Close()
+
+	if string(readData) != text {
+		t.Errorf("Wrong data read - %s", string(readData))
+		panic(fmt.Errorf("Wrong data read - %s", string(readData)))
+	}
+
+	fs.RemoveFile("/iplant/home/iychoi/testnewfile.txt", true)
+
+	if fs.Exists("/iplant/home/iychoi/testnewfile.txt") {
+		t.Error("Cannot remove the file created")
+		panic(fmt.Errorf("Cannot remove the file created"))
 	}
 
 	shutdown()
