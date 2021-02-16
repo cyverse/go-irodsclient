@@ -17,6 +17,7 @@ type FSEntry struct {
 	ID         int64
 	Type       FSEntryType
 	Name       string
+	Path       string
 	Owner      string
 	Size       int64
 	CreateTime time.Time
@@ -28,5 +29,5 @@ type FSEntry struct {
 
 // ToString stringifies the object
 func (entry *FSEntry) ToString() string {
-	return fmt.Sprintf("<FSEntry %d %s %s %s %d %s %s>", entry.ID, entry.Type, entry.Name, entry.Owner, entry.Size, entry.CreateTime, entry.ModifyTime)
+	return fmt.Sprintf("<FSEntry %d %s %s %s %d %s %s>", entry.ID, entry.Type, entry.Path, entry.Owner, entry.Size, entry.CreateTime, entry.ModifyTime)
 }

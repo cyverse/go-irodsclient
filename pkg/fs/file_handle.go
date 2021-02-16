@@ -6,6 +6,7 @@ import (
 	"github.com/iychoi/go-irodsclient/pkg/irods/connection"
 	irods_fs "github.com/iychoi/go-irodsclient/pkg/irods/fs"
 	"github.com/iychoi/go-irodsclient/pkg/irods/types"
+	"github.com/iychoi/go-irodsclient/pkg/irods/util"
 )
 
 // FileHandle ...
@@ -26,6 +27,14 @@ func (handle *FileHandle) GetOffset() int64 {
 // Close closes the file
 func (handle *FileHandle) Close() error {
 	defer handle.FileSystem.Session.ReturnConnection(handle.Connection)
+
+	if handle.OpenMode == types.FileOpenModeWriteOnly ||
+		handle.OpenMode == types.FileOpenModeWriteTruncate ||
+		handle.OpenMode == types.FileOpenModeAppend ||
+		handle.OpenMode == types.FileOpenModeReadAppend {
+		defer handle.FileSystem.invalidateCachePath(util.GetIRODSPathDirname(handle.Entry.Path))
+	}
+
 	return irods_fs.CloseDataObject(handle.Connection, handle.IRODSHandle)
 }
 
