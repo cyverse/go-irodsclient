@@ -79,12 +79,16 @@ func (fs *FileSystem) Stat(path string) (*FSEntry, error) {
 
 // StatDir returns status of a directory
 func (fs *FileSystem) StatDir(path string) (*FSEntry, error) {
-	return fs.getCollection(path)
+	irodsPath := util.GetCorrectIRODSPath(path)
+
+	return fs.getCollection(irodsPath)
 }
 
 // StatFile returns status of a file
 func (fs *FileSystem) StatFile(path string) (*FSEntry, error) {
-	return fs.getDataObject(path)
+	irodsPath := util.GetCorrectIRODSPath(path)
+
+	return fs.getDataObject(irodsPath)
 }
 
 // Exists checks file/directory existance
@@ -125,7 +129,9 @@ func (fs *FileSystem) ExistsFile(path string) bool {
 
 // List lists all file system entries under the given path
 func (fs *FileSystem) List(path string) ([]*FSEntry, error) {
-	collection, err := fs.getCollection(path)
+	irodsPath := util.GetCorrectIRODSPath(path)
+
+	collection, err := fs.getCollection(irodsPath)
 	if err != nil {
 		return nil, err
 	}
@@ -135,70 +141,80 @@ func (fs *FileSystem) List(path string) ([]*FSEntry, error) {
 
 // RemoveDir deletes a directory
 func (fs *FileSystem) RemoveDir(path string, recurse bool, force bool) error {
+	irodsPath := util.GetCorrectIRODSPath(path)
+
 	conn, err := fs.Session.AcquireConnection()
 	if err != nil {
 		return err
 	}
 	defer fs.Session.ReturnConnection(conn)
 
-	err = irods_fs.DeleteCollection(conn, path, recurse, force)
+	err = irods_fs.DeleteCollection(conn, irodsPath, recurse, force)
 	if err != nil {
 		return err
 	}
 
-	fs.removeCachePath(path)
+	fs.removeCachePath(irodsPath)
 	return nil
 }
 
 // RemoveFile deletes a file
 func (fs *FileSystem) RemoveFile(path string, force bool) error {
+	irodsPath := util.GetCorrectIRODSPath(path)
+
 	conn, err := fs.Session.AcquireConnection()
 	if err != nil {
 		return err
 	}
 	defer fs.Session.ReturnConnection(conn)
 
-	err = irods_fs.DeleteDataObject(conn, path, force)
+	err = irods_fs.DeleteDataObject(conn, irodsPath, force)
 	if err != nil {
 		return err
 	}
 
-	fs.removeCachePath(path)
+	fs.removeCachePath(irodsPath)
 	return nil
 }
 
 // RenameDir renames a dir
 func (fs *FileSystem) RenameDir(srcPath string, destPath string) error {
-	destDirPath := destPath
-	if fs.ExistsDir(destPath) {
+	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
+	irodsDestPath := util.GetCorrectIRODSPath(destPath)
+
+	destDirPath := irodsDestPath
+	if fs.ExistsDir(irodsDestPath) {
 		// make full file name for dest
-		srcFileName := util.GetIRODSPathFileName(srcPath)
-		destDirPath = util.MakeIRODSPath(destPath, srcFileName)
+		srcFileName := util.GetIRODSPathFileName(irodsSrcPath)
+		destDirPath = util.MakeIRODSPath(irodsDestPath, srcFileName)
 	}
 
-	return fs.RenameDirToDir(srcPath, destDirPath)
+	return fs.RenameDirToDir(irodsSrcPath, destDirPath)
 }
 
 // RenameDirToDir renames a dir
 func (fs *FileSystem) RenameDirToDir(srcPath string, destPath string) error {
+	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
+	irodsDestPath := util.GetCorrectIRODSPath(destPath)
+
 	conn, err := fs.Session.AcquireConnection()
 	if err != nil {
 		return err
 	}
 	defer fs.Session.ReturnConnection(conn)
 
-	err = irods_fs.MoveCollection(conn, srcPath, destPath)
+	err = irods_fs.MoveCollection(conn, irodsSrcPath, irodsDestPath)
 	if err != nil {
 		return err
 	}
 
-	if util.GetIRODSPathDirname(srcPath) == util.GetIRODSPathDirname(destPath) {
+	if util.GetIRODSPathDirname(irodsSrcPath) == util.GetIRODSPathDirname(irodsDestPath) {
 		// from the same dir
-		fs.invalidateCachePath(util.GetIRODSPathDirname(srcPath))
+		fs.invalidateCachePath(util.GetIRODSPathDirname(irodsSrcPath))
 
 	} else {
-		fs.removeCachePath(srcPath)
-		fs.invalidateCachePath(util.GetIRODSPathDirname(destPath))
+		fs.removeCachePath(irodsSrcPath)
+		fs.invalidateCachePath(util.GetIRODSPathDirname(irodsDestPath))
 	}
 
 	return nil
@@ -206,35 +222,41 @@ func (fs *FileSystem) RenameDirToDir(srcPath string, destPath string) error {
 
 // RenameFile renames a file
 func (fs *FileSystem) RenameFile(srcPath string, destPath string) error {
-	destFilePath := destPath
-	if fs.ExistsDir(destPath) {
+	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
+	irodsDestPath := util.GetCorrectIRODSPath(destPath)
+
+	destFilePath := irodsDestPath
+	if fs.ExistsDir(irodsDestPath) {
 		// make full file name for dest
-		srcFileName := util.GetIRODSPathFileName(srcPath)
-		destFilePath = util.MakeIRODSPath(destPath, srcFileName)
+		srcFileName := util.GetIRODSPathFileName(irodsSrcPath)
+		destFilePath = util.MakeIRODSPath(irodsDestPath, srcFileName)
 	}
 
-	return fs.RenameFileToFile(srcPath, destFilePath)
+	return fs.RenameFileToFile(irodsSrcPath, destFilePath)
 }
 
 // RenameFileToFile renames a file
 func (fs *FileSystem) RenameFileToFile(srcPath string, destPath string) error {
+	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
+	irodsDestPath := util.GetCorrectIRODSPath(destPath)
+
 	conn, err := fs.Session.AcquireConnection()
 	if err != nil {
 		return err
 	}
 	defer fs.Session.ReturnConnection(conn)
 
-	err = irods_fs.MoveDataObject(conn, srcPath, destPath)
+	err = irods_fs.MoveDataObject(conn, irodsSrcPath, irodsDestPath)
 	if err != nil {
 		return err
 	}
 
-	if util.GetIRODSPathDirname(srcPath) == util.GetIRODSPathDirname(destPath) {
+	if util.GetIRODSPathDirname(irodsSrcPath) == util.GetIRODSPathDirname(irodsDestPath) {
 		// from the same dir
-		fs.invalidateCachePath(util.GetIRODSPathDirname(srcPath))
+		fs.invalidateCachePath(util.GetIRODSPathDirname(irodsSrcPath))
 	} else {
-		fs.removeCachePath(srcPath)
-		fs.invalidateCachePath(util.GetIRODSPathDirname(destPath))
+		fs.removeCachePath(irodsSrcPath)
+		fs.invalidateCachePath(util.GetIRODSPathDirname(irodsDestPath))
 	}
 
 	return nil
@@ -242,98 +264,117 @@ func (fs *FileSystem) RenameFileToFile(srcPath string, destPath string) error {
 
 // MakeDir creates a directory
 func (fs *FileSystem) MakeDir(path string, recurse bool) error {
+	irodsPath := util.GetCorrectIRODSPath(path)
+
 	conn, err := fs.Session.AcquireConnection()
 	if err != nil {
 		return err
 	}
 	defer fs.Session.ReturnConnection(conn)
 
-	err = irods_fs.CreateCollection(conn, path, recurse)
+	err = irods_fs.CreateCollection(conn, irodsPath, recurse)
 	if err != nil {
 		return err
 	}
 
-	fs.invalidateCachePath(util.GetIRODSPathDirname(path))
+	fs.invalidateCachePath(util.GetIRODSPathDirname(irodsPath))
 
 	return nil
 }
 
 // CopyFile copies a file
 func (fs *FileSystem) CopyFile(srcPath string, destPath string) error {
-	destFilePath := destPath
-	if fs.ExistsDir(destPath) {
+	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
+	irodsDestPath := util.GetCorrectIRODSPath(destPath)
+
+	destFilePath := irodsDestPath
+	if fs.ExistsDir(irodsDestPath) {
 		// make full file name for dest
-		srcFileName := util.GetIRODSPathFileName(srcPath)
-		destFilePath = util.MakeIRODSPath(destPath, srcFileName)
+		srcFileName := util.GetIRODSPathFileName(irodsSrcPath)
+		destFilePath = util.MakeIRODSPath(irodsDestPath, srcFileName)
 	}
 
-	return fs.CopyFileToFile(srcPath, destFilePath)
+	return fs.CopyFileToFile(irodsSrcPath, destFilePath)
 }
 
 // CopyFileToFile copies a file
 func (fs *FileSystem) CopyFileToFile(srcPath string, destPath string) error {
+	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
+	irodsDestPath := util.GetCorrectIRODSPath(destPath)
+
 	conn, err := fs.Session.AcquireConnection()
 	if err != nil {
 		return err
 	}
 	defer fs.Session.ReturnConnection(conn)
 
-	err = irods_fs.CopyDataObject(conn, srcPath, destPath)
+	err = irods_fs.CopyDataObject(conn, irodsSrcPath, irodsDestPath)
 	if err != nil {
 		return err
 	}
 
-	fs.invalidateCachePath(util.GetIRODSPathDirname(destPath))
+	fs.invalidateCachePath(util.GetIRODSPathDirname(irodsDestPath))
 
 	return nil
 }
 
 // TruncateFile truncates a file
 func (fs *FileSystem) TruncateFile(path string, size int64) error {
+	irodsPath := util.GetCorrectIRODSPath(path)
+
+	if size < 0 {
+		size = 0
+	}
+
 	conn, err := fs.Session.AcquireConnection()
 	if err != nil {
 		return err
 	}
 	defer fs.Session.ReturnConnection(conn)
 
-	err = irods_fs.TruncateDataObject(conn, path, size)
+	err = irods_fs.TruncateDataObject(conn, irodsPath, size)
 	if err != nil {
 		return err
 	}
 
-	fs.invalidateCachePath(util.GetIRODSPathDirname(path))
+	fs.invalidateCachePath(util.GetIRODSPathDirname(irodsPath))
 
 	return nil
 }
 
 // ReplicateFile replicates a file
 func (fs *FileSystem) ReplicateFile(path string, resource string, update bool) error {
+	irodsPath := util.GetCorrectIRODSPath(path)
+
 	conn, err := fs.Session.AcquireConnection()
 	if err != nil {
 		return err
 	}
 	defer fs.Session.ReturnConnection(conn)
 
-	return irods_fs.ReplicateDataObject(conn, path, resource, update)
+	return irods_fs.ReplicateDataObject(conn, irodsPath, resource, update)
 }
 
 // DownloadFile downloads a file to local
 func (fs *FileSystem) DownloadFile(irodsPath string, localPath string) error {
-	localFilePath := localPath
-	stat, err := os.Stat(localPath)
+	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
+	localDestPath := util.GetCorrectIRODSPath(localPath)
+
+	localFilePath := localDestPath
+	stat, err := os.Stat(localDestPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// file not exists, it's a file
-			localFilePath = localPath
+			localFilePath = localDestPath
 		} else {
 			return err
 		}
 	} else {
 		if stat.IsDir() {
-			irodsFileName := util.GetIRODSPathFileName(irodsPath)
-			localFilePath = util.MakeIRODSPath(localPath, irodsFileName)
+			irodsFileName := util.GetIRODSPathFileName(irodsSrcPath)
+			localFilePath = util.MakeIRODSPath(localDestPath, irodsFileName)
 		} else {
-			return fmt.Errorf("File %s already exists", localPath)
+			return fmt.Errorf("File %s already exists", localDestPath)
 		}
 	}
 
@@ -343,14 +384,17 @@ func (fs *FileSystem) DownloadFile(irodsPath string, localPath string) error {
 	}
 	defer fs.Session.ReturnConnection(conn)
 
-	return irods_fs.DownloadDataObject(conn, irodsPath, localFilePath)
+	return irods_fs.DownloadDataObject(conn, irodsSrcPath, localFilePath)
 }
 
 // UploadFile uploads a local file to irods
 func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource string, replicate bool) error {
-	irodsFilePath := irodsPath
+	localSrcPath := util.GetCorrectIRODSPath(localPath)
+	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
-	stat, err := os.Stat(localPath)
+	irodsFilePath := irodsDestPath
+
+	stat, err := os.Stat(localSrcPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// file not exists
@@ -363,7 +407,7 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 		return types.NewFileNotFoundError("The local file is a directory")
 	}
 
-	entry, err := fs.Stat(irodsPath)
+	entry, err := fs.Stat(irodsDestPath)
 	if err != nil {
 		if !types.IsFileNotFoundError(err) {
 			return err
@@ -373,8 +417,8 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 		case FSFileEntry:
 			// do nothing
 		case FSDirectoryEntry:
-			localFileName := util.GetIRODSPathFileName(localPath)
-			irodsFilePath = util.MakeIRODSPath(irodsPath, localFileName)
+			localFileName := util.GetIRODSPathFileName(localSrcPath)
+			irodsFilePath = util.MakeIRODSPath(irodsDestPath, localFileName)
 		default:
 			return fmt.Errorf("Unknown entry type %s", entry.Type)
 		}
@@ -386,7 +430,7 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 	}
 	defer fs.Session.ReturnConnection(conn)
 
-	err = irods_fs.UploadDataObject(conn, localPath, irodsFilePath, resource, replicate)
+	err = irods_fs.UploadDataObject(conn, localSrcPath, irodsFilePath, resource, replicate)
 	if err != nil {
 		return err
 	}
@@ -398,12 +442,14 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 
 // OpenFile opens an existing file for read/write
 func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*FileHandle, error) {
+	irodsPath := util.GetCorrectIRODSPath(path)
+
 	conn, err := fs.Session.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
 
-	handle, offset, err := irods_fs.OpenDataObject(conn, path, resource, mode)
+	handle, offset, err := irods_fs.OpenDataObject(conn, irodsPath, resource, mode)
 	if err != nil {
 		fs.Session.ReturnConnection(conn)
 		return nil, err
@@ -412,7 +458,7 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 	var entry *FSEntry = nil
 	if types.IsFileOpenFlagOpeningExisting(types.FileOpenMode(mode)) {
 		// file may exists
-		entryExisting, err := fs.StatFile(path)
+		entryExisting, err := fs.StatFile(irodsPath)
 		if err == nil {
 			entry = entryExisting
 		}
@@ -423,8 +469,8 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 		entry = &FSEntry{
 			ID:         0,
 			Type:       FSFileEntry,
-			Name:       util.GetIRODSPathFileName(path),
-			Path:       path,
+			Name:       util.GetIRODSPathFileName(irodsPath),
+			Path:       irodsPath,
 			Owner:      fs.Account.ClientUser,
 			Size:       0,
 			CreateTime: time.Now(),
@@ -447,12 +493,14 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 
 // CreateFile opens a new file for write
 func (fs *FileSystem) CreateFile(path string, resource string) (*FileHandle, error) {
+	irodsPath := util.GetCorrectIRODSPath(path)
+
 	conn, err := fs.Session.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
 
-	handle, err := irods_fs.CreateDataObject(conn, path, resource, true)
+	handle, err := irods_fs.CreateDataObject(conn, irodsPath, resource, true)
 	if err != nil {
 		fs.Session.ReturnConnection(conn)
 		return nil, err
@@ -462,8 +510,8 @@ func (fs *FileSystem) CreateFile(path string, resource string) (*FileHandle, err
 	entry := &FSEntry{
 		ID:         0,
 		Type:       FSFileEntry,
-		Name:       util.GetIRODSPathFileName(path),
-		Path:       path,
+		Name:       util.GetIRODSPathFileName(irodsPath),
+		Path:       irodsPath,
 		Owner:      fs.Account.ClientUser,
 		Size:       0,
 		CreateTime: time.Now(),
@@ -490,7 +538,9 @@ func (fs *FileSystem) ClearCache() {
 
 // InvalidateCache invalidates cache with the given path
 func (fs *FileSystem) InvalidateCache(path string) {
-	fs.invalidateCachePath(path)
+	irodsPath := util.GetCorrectIRODSPath(path)
+
+	fs.invalidateCachePath(irodsPath)
 }
 
 func (fs *FileSystem) getCollection(path string) (*FSEntry, error) {

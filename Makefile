@@ -17,3 +17,10 @@ GOPATH=$(shell go env GOPATH)
 .PHONY: test
 test:
 	go test ./...
+
+.PHONY: examples
+examples:
+	CGO_ENABLED=0 GOOS=linux go build -ldflags ${LDFLAGS} -o ./examples/list_dir/list_dir ./examples/list_dir/list_dir.go
+	CGO_ENABLED=0 GOOS=linux go build -ldflags ${LDFLAGS} -o ./examples/upload/upload ./examples/upload/upload.go
+	CGO_ENABLED=0 GOOS=linux go build -ldflags ${LDFLAGS} -o ./examples/download/download ./examples/download/download.go
+	CGO_ENABLED=0 GOOS=linux go build -ldflags ${LDFLAGS} -o ./examples/delete_file/delete_file ./examples/delete_file/delete_file.go

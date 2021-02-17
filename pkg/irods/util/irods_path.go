@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -16,33 +17,47 @@ func MakeIRODSPath(collectionPath string, dataobjectName string) string {
 }
 
 // SplitIRODSPath splits the path into dir and file
-func SplitIRODSPath(path string) (string, string) {
-	return filepath.Split(path)
+func SplitIRODSPath(p string) (string, string) {
+	return filepath.Split(p)
 }
 
 // GetIRODSPathDirname returns the dir of the path
-func GetIRODSPathDirname(path string) string {
-	return filepath.Dir(path)
+func GetIRODSPathDirname(p string) string {
+	return filepath.Dir(p)
 }
 
 // GetIRODSPathFileName returns the filename of the path
-func GetIRODSPathFileName(path string) string {
-	return filepath.Base(path)
+func GetIRODSPathFileName(p string) string {
+	return filepath.Base(p)
 }
 
 // GetIRODSZone returns the zone of the path
-func GetIRODSZone(path string) (string, error) {
-	if len(path) < 1 {
-		return "", fmt.Errorf("Cannot extract Zone from path - %s", path)
+func GetIRODSZone(p string) (string, error) {
+	if len(p) < 1 {
+		return "", fmt.Errorf("Cannot extract Zone from path - %s", p)
 	}
 
-	if path[0] != '/' {
-		return "", fmt.Errorf("Cannot extract Zone from path - %s", path)
+	if p[0] != '/' {
+		return "", fmt.Errorf("Cannot extract Zone from path - %s", p)
 	}
 
-	parts := strings.Split(path[1:], "/")
+	parts := strings.Split(p[1:], "/")
 	if len(parts) >= 1 {
 		return parts[0], nil
 	}
-	return "", fmt.Errorf("Cannot extract Zone from path - %s", path)
+	return "", fmt.Errorf("Cannot extract Zone from path - %s", p)
+}
+
+// GetCorrectIRODSPath corrects the path
+func GetCorrectIRODSPath(p string) string {
+	if p == "" || p == "/" {
+		return "/"
+	}
+
+	newPath := path.Clean(p)
+	if !strings.HasPrefix(newPath, "/") {
+		newPath = fmt.Sprintf("/%s", newPath)
+		newPath = path.Clean(newPath)
+	}
+	return newPath
 }
