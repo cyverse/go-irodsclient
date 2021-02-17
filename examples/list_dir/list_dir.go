@@ -6,9 +6,9 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/iychoi/go-irodsclient/pkg/fs"
-	"github.com/iychoi/go-irodsclient/pkg/irods/types"
-	"github.com/iychoi/go-irodsclient/pkg/irods/util"
+	"github.com/iychoi/go-irodsclient/fs"
+	"github.com/iychoi/go-irodsclient/irods/types"
+	"github.com/iychoi/go-irodsclient/irods/util"
 )
 
 func main() {

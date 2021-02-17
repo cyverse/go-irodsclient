@@ -1,6 +1,15 @@
 # go-irodsclient
 Go iRODS Client implemented in pure Golang
 
+## Import package
+```go
+import (
+    "github.com/iychoi/go-irodsclient/fs"
+    "github.com/iychoi/go-irodsclient/irods/types"
+	"github.com/iychoi/go-irodsclient/irods/util"
+)
+```
+
 ## Account Configuration YAML
 ```yaml
 host:
@@ -28,7 +37,7 @@ if err != nil {
 }
 ```
 
-## FileSystem Object Creation
+## FileSystem Interface
 Creating a file system object with default configurations.
 ```go
 appName := "delete_file"
@@ -50,6 +59,16 @@ if !filesystem.ExistsFile("/iplant/home/iychoi/test") {
     fmt.Printf("Could not delete file\n")
 }
 ```
+
+Downloading a file.
+```go
+err = filesystem.DownloadFile("/iplant/home/iychoi/test", "/opt")
+if err != nil {
+    util.LogErrorf("err - %v", err)
+    panic(err)
+}
+```
+
 
 More examples can be found in `/examples` directory.
 
