@@ -1,10 +1,57 @@
 # go-irodsclient
 Go iRODS Client implemented in pure Golang
 
-## Testing
-```shell script
-go test -v ./...
+## Account Configuration YAML
+```yaml
+host:
+  hostname: "data.cyverse.org"
+  port: 1247
+user:
+  username: "USERNAME"
+  password: "PASSWORD"
+  zone: "iplant"
+auth_scheme: "native"
 ```
+
+Loading a YAML file.
+```go
+yaml, err := ioutil.ReadFile("account.yml")
+if err != nil {
+    util.LogErrorf("err - %v", err)
+    panic(err)
+}
+
+account, err := types.CreateIRODSAccountFromYAML(yaml)
+if err != nil {
+    util.LogErrorf("err - %v", err)
+    panic(err)
+}
+```
+
+## FileSystem Object Creation
+Creating a file system object with default configurations.
+```go
+appName := "delete_file"
+filesystem := fs.NewFileSystemWithDefault(account, appName)
+defer filesystem.Release()
+```
+
+Deleting a file and double check the file existance.
+```go
+err = filesystem.RemoveFile("/iplant/home/iychoi/test", true) // do it forcefully
+if err != nil {
+    util.LogErrorf("err - %v", err)
+    panic(err)
+}
+
+if !filesystem.ExistsFile("/iplant/home/iychoi/test") {
+    fmt.Printf("Successfully deleted file\n")
+} else {
+    fmt.Printf("Could not delete file\n")
+}
+```
+
+More examples can be found in `/examples` directory.
 
 ## License
 

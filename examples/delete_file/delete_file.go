@@ -46,6 +46,10 @@ func main() {
 	defer filesystem.Release()
 
 	err = filesystem.RemoveFile(inputPath, true)
+	if err != nil {
+		util.LogErrorf("err - %v", err)
+		panic(err)
+	}
 
 	if !filesystem.ExistsFile(inputPath) {
 		fmt.Printf("Successfully deleted file %s\n", inputPath)
