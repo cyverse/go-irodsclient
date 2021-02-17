@@ -6,7 +6,7 @@ Go iRODS Client implemented in pure Golang
 import (
     "github.com/cyverse/go-irodsclient/fs"
     "github.com/cyverse/go-irodsclient/irods/types"
-	"github.com/cyverse/go-irodsclient/irods/util"
+    "github.com/cyverse/go-irodsclient/irods/util"
 )
 ```
 
