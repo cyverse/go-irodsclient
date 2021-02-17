@@ -14,13 +14,11 @@ GOPATH=$(shell go env GOPATH)
 #	mkdir -p bin
 #	CGO_ENABLED=0 GOOS=linux go build -ldflags ${LDFLAGS} -o bin/go-irodsclient ./cmd/
 
-.PHONY: test
-test:
-	go test ./...
-
 .PHONY: examples
 examples:
 	CGO_ENABLED=0 GOOS=linux go build -ldflags ${LDFLAGS} -o ./examples/list_dir/list_dir.out ./examples/list_dir/list_dir.go
 	CGO_ENABLED=0 GOOS=linux go build -ldflags ${LDFLAGS} -o ./examples/upload/upload.out ./examples/upload/upload.go
 	CGO_ENABLED=0 GOOS=linux go build -ldflags ${LDFLAGS} -o ./examples/download/download.out ./examples/download/download.go
 	CGO_ENABLED=0 GOOS=linux go build -ldflags ${LDFLAGS} -o ./examples/delete_file/delete_file.out ./examples/delete_file/delete_file.go
+	CGO_ENABLED=0 GOOS=linux go build -ldflags ${LDFLAGS} -o ./examples/delete_dir/delete_dir.out ./examples/delete_dir/delete_dir.go
+	CGO_ENABLED=0 GOOS=linux go build -ldflags ${LDFLAGS} -o ./examples/make_dir/make_dir.out ./examples/make_dir/make_dir.go
