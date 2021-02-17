@@ -5,10 +5,10 @@ import (
 	"os"
 	"time"
 
-	irods_fs "github.com/iychoi/go-irodsclient/irods/fs"
-	"github.com/iychoi/go-irodsclient/irods/session"
-	"github.com/iychoi/go-irodsclient/irods/types"
-	"github.com/iychoi/go-irodsclient/irods/util"
+	irods_fs "github.com/cyverse/go-irodsclient/irods/fs"
+	"github.com/cyverse/go-irodsclient/irods/session"
+	"github.com/cyverse/go-irodsclient/irods/types"
+	"github.com/cyverse/go-irodsclient/irods/util"
 )
 
 // FileSystem provides a file-system like interface

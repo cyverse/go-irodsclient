@@ -3,7 +3,7 @@ package message
 import (
 	"testing"
 
-	"github.com/iychoi/go-irodsclient/irods/util"
+	"github.com/cyverse/go-irodsclient/irods/util"
 )
 
 func init() {

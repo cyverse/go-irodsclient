@@ -1,4 +1,4 @@
-module github.com/iychoi/go-irodsclient
+module github.com/cyverse/go-irodsclient
 
 go 1.14
 

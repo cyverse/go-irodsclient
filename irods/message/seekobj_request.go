@@ -3,8 +3,8 @@ package message
 import (
 	"encoding/xml"
 
-	"github.com/iychoi/go-irodsclient/irods/common"
-	"github.com/iychoi/go-irodsclient/irods/types"
+	"github.com/cyverse/go-irodsclient/irods/common"
+	"github.com/cyverse/go-irodsclient/irods/types"
 )
 
 // IRODSMessageSeekobjRequest stores data object seek request

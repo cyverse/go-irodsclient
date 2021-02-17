@@ -1,6 +1,6 @@
 package types
 
-import "github.com/iychoi/go-irodsclient/irods/util"
+import "github.com/cyverse/go-irodsclient/irods/util"
 
 // Whence ...
 type Whence int

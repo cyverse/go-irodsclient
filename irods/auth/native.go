@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/iychoi/go-irodsclient/irods/common"
+	"github.com/cyverse/go-irodsclient/irods/common"
 )
 
 const (

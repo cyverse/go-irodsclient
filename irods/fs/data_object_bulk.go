@@ -5,8 +5,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/iychoi/go-irodsclient/irods/common"
-	"github.com/iychoi/go-irodsclient/irods/connection"
+	"github.com/cyverse/go-irodsclient/irods/common"
+	"github.com/cyverse/go-irodsclient/irods/connection"
 )
 
 // UploadDataObject put a data object at the local path to the iRODS path

@@ -3,7 +3,7 @@ package message
 import (
 	"encoding/xml"
 
-	"github.com/iychoi/go-irodsclient/irods/common"
+	"github.com/cyverse/go-irodsclient/irods/common"
 )
 
 // IRODSMessageCloseobjRequest stores data object close request

@@ -7,9 +7,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/iychoi/go-irodsclient/fs"
-	"github.com/iychoi/go-irodsclient/irods/types"
-	"github.com/iychoi/go-irodsclient/irods/util"
+	"github.com/cyverse/go-irodsclient/fs"
+	"github.com/cyverse/go-irodsclient/irods/types"
+	"github.com/cyverse/go-irodsclient/irods/util"
 )
 
 func main() {

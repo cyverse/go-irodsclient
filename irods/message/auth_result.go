@@ -3,7 +3,7 @@ package message
 import (
 	"fmt"
 
-	"github.com/iychoi/go-irodsclient/irods/common"
+	"github.com/cyverse/go-irodsclient/irods/common"
 )
 
 // IRODSMessageAuthResult stores authentication result

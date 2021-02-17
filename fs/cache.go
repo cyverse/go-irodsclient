@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/iychoi/go-irodsclient/irods/util"
+	"github.com/cyverse/go-irodsclient/irods/util"
 	gocache "github.com/patrickmn/go-cache"
 )
 

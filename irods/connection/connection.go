@@ -10,10 +10,10 @@ import (
 	"net"
 	"time"
 
-	"github.com/iychoi/go-irodsclient/irods/auth"
-	"github.com/iychoi/go-irodsclient/irods/message"
-	"github.com/iychoi/go-irodsclient/irods/types"
-	"github.com/iychoi/go-irodsclient/irods/util"
+	"github.com/cyverse/go-irodsclient/irods/auth"
+	"github.com/cyverse/go-irodsclient/irods/message"
+	"github.com/cyverse/go-irodsclient/irods/types"
+	"github.com/cyverse/go-irodsclient/irods/util"
 )
 
 // IRODSConnection connects to iRODS

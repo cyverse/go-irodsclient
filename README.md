@@ -4,9 +4,9 @@ Go iRODS Client implemented in pure Golang
 ## Import package
 ```go
 import (
-    "github.com/iychoi/go-irodsclient/fs"
-    "github.com/iychoi/go-irodsclient/irods/types"
-	"github.com/iychoi/go-irodsclient/irods/util"
+    "github.com/cyverse/go-irodsclient/fs"
+    "github.com/cyverse/go-irodsclient/irods/types"
+	"github.com/cyverse/go-irodsclient/irods/util"
 )
 ```
 

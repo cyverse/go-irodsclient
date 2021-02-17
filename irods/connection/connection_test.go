@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/iychoi/go-irodsclient/irods/util"
+	"github.com/cyverse/go-irodsclient/irods/util"
 
-	"github.com/iychoi/go-irodsclient/irods/types"
+	"github.com/cyverse/go-irodsclient/irods/types"
 )
 
 var (

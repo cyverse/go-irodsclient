@@ -3,7 +3,7 @@ package message
 import (
 	"fmt"
 
-	"github.com/iychoi/go-irodsclient/irods/common"
+	"github.com/cyverse/go-irodsclient/irods/common"
 )
 
 // IRODSMessageTruncobjResponse stores data object truncation response

@@ -5,11 +5,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/iychoi/go-irodsclient/irods/common"
-	"github.com/iychoi/go-irodsclient/irods/connection"
-	"github.com/iychoi/go-irodsclient/irods/message"
-	"github.com/iychoi/go-irodsclient/irods/types"
-	"github.com/iychoi/go-irodsclient/irods/util"
+	"github.com/cyverse/go-irodsclient/irods/common"
+	"github.com/cyverse/go-irodsclient/irods/connection"
+	"github.com/cyverse/go-irodsclient/irods/message"
+	"github.com/cyverse/go-irodsclient/irods/types"
+	"github.com/cyverse/go-irodsclient/irods/util"
 )
 
 /*
