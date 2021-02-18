@@ -456,7 +456,7 @@ const (
 	PAM_AUTH_PASSWORD_INVALID_TTL            ErrorCode = -994000
 )
 
-func initErrorCodeDescriptionTable() {
+func init() {
 	errorCodeDescriptionTable[SYS_SOCK_OPEN_ERR] = "SYS_SOCK_OPEN_ERR"
 	errorCodeDescriptionTable[SYS_SOCK_BIND_ERR] = "SYS_SOCK_BIND_ERR"
 	errorCodeDescriptionTable[SYS_SOCK_ACCEPT_ERR] = "SYS_SOCK_ACCEPT_ERR"
@@ -904,11 +904,11 @@ func initErrorCodeDescriptionTable() {
 
 // GetIRODSErrorString returns string representation of error code
 func GetIRODSErrorString(code ErrorCode) string {
-	if len(errorCodeDescriptionTable) == 0 {
-		initErrorCodeDescriptionTable()
+	errorString, ok := errorCodeDescriptionTable[code]
+	if ok {
+		return errorString
 	}
-
-	return errorCodeDescriptionTable[code]
+	return fmt.Sprintf("ErrorCode: %d", int(code))
 }
 
 // MakeIRODSError creates an error from error code
