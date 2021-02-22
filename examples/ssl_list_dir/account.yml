@@ -1,0 +1,16 @@
+host:
+  hostname: "ssldata.cyverse.org"
+  port: 1247
+user:
+  username: ""
+  password: ""
+  zone: "iplant"
+auth_scheme: "pam"
+cs_negotiation: true
+cs_negotiation_policy: "CS_NEG_REQUIRE"
+ssl:
+  ca_cert_file: "/etc/ssl/certs/ca-bundle.crt"
+  key_size: 32
+  algorithm: "AES-256-CBC"
+  salt_size: 8
+  hash_rounds: 16

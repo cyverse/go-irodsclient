@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -23,9 +24,10 @@ type IRODSConnection struct {
 	ApplicationName string
 
 	// internal
-	connected     bool
-	socket        net.Conn
-	serverVersion *types.IRODSVersion
+	connected         bool
+	socket            net.Conn
+	serverVersion     *types.IRODSVersion
+	generatedPassword string
 }
 
 // NewIRODSConnection create a IRODSConnection
@@ -82,7 +84,7 @@ func (conn *IRODSConnection) Connect() error {
 
 	switch conn.Account.AuthenticationScheme {
 	case types.AuthSchemeNative:
-		err = conn.loginNative()
+		err = conn.loginNative(conn.Account.Password)
 	case types.AuthSchemeGSI:
 		err = conn.loginGSI()
 	case types.AuthSchemePAM:
@@ -246,6 +248,7 @@ func (conn *IRODSConnection) sslStartup() error {
 
 	sslConf := &tls.Config{
 		RootCAs: caCertPool,
+		ServerName: conn.Account.Host,
 	}
 
 	// Create a side connection using the existing socket
@@ -293,7 +296,7 @@ func (conn *IRODSConnection) sslStartup() error {
 	return nil
 }
 
-func (conn *IRODSConnection) loginNative() error {
+func (conn *IRODSConnection) loginNative(password string) error {
 	util.LogInfo("Logging in using native authentication method")
 
 	// authenticate
@@ -320,7 +323,7 @@ func (conn *IRODSConnection) loginNative() error {
 		return fmt.Errorf("Could not receive an authentication challenge message body")
 	}
 
-	encodedPassword, err := auth.GenerateAuthResponse(authChallenge.Challenge, conn.Account.Password)
+	encodedPassword, err := auth.GenerateAuthResponse(authChallenge.Challenge, password)
 	if err != nil {
 		return fmt.Errorf("Could not generate an authentication response - %v", err)
 	}
@@ -355,8 +358,52 @@ func (conn *IRODSConnection) loginGSI() error {
 	return nil
 }
 
+var ErrNoSSL = errors.New("connection should be using SSL")
+
 func (conn *IRODSConnection) loginPAM() error {
-	return nil
+	util.LogInfo("Logging in using pam authentication method")
+
+	// Check whether ssl has already started, if not, start ssl.
+	if _, ok := conn.socket.(*tls.Conn); !ok {
+		return ErrNoSSL
+	}
+
+	// TODO: actually expose this field in e.g. yaml
+	ttl := conn.Account.PamTTL
+
+	if ttl <= 0 {
+		ttl = 1
+	}
+
+	// authenticate
+	pamAuthRequest := message.NewIRODSMessagePamAuthRequest(conn.Account.ClientUser, conn.Account.Password, ttl)
+	pamAuthRequestMessage, err := pamAuthRequest.GetMessage()
+	if err != nil {
+		return fmt.Errorf("Could not make a pam login request message - %v", err)
+	}
+
+	err = conn.SendMessage(pamAuthRequestMessage)
+	if err != nil {
+		return fmt.Errorf("Could not send a pam login request message - %v", err)
+	}
+
+	// response
+	pamAuthResponseMessage, err := conn.ReadMessage()
+	if err != nil {
+		return fmt.Errorf("Could not receive an authentication challenge message - %v", err)
+	}
+
+	pamAuthResponse := message.IRODSMessagePamAuthResponse{}
+	err = pamAuthResponse.FromMessage(pamAuthResponseMessage)
+	if err != nil {
+		return fmt.Errorf("Could not receive an authentication challenge message body")
+	}
+
+	// save irods generated password for possible future use
+	conn.generatedPassword = pamAuthResponse.GeneratedPassword
+
+	// retry native auth with generated password
+	return conn.loginNative(conn.generatedPassword)
 }
 
 // Disconnect disconnects
