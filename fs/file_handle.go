@@ -84,6 +84,12 @@ func (handle *FileHandle) Write(data []byte) error {
 	}
 
 	handle.Offset += int64(len(data))
+
+	// update
+	if handle.Entry.Size < handle.Offset+int64(len(data)) {
+		handle.Entry.Size = handle.Offset + int64(len(data))
+	}
+
 	return nil
 }
 
