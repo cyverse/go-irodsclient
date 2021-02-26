@@ -6,6 +6,10 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+const (
+	PamTTLDefault int = 1
+)
+
 // IRODSAccount contains irods login information
 type IRODSAccount struct {
 	AuthenticationScheme    AuthScheme
@@ -39,6 +43,7 @@ func CreateIRODSAccount(host string, port int, user string, zone string,
 		ProxyZone:               zone,
 		ServerDN:                serverDN,
 		Password:                password,
+		PamTTL:                  PamTTLDefault,
 		SSLConfiguration:        nil,
 	}, nil
 }
@@ -58,6 +63,7 @@ func CreateIRODSProxyAccount(host string, port int, clientUser string, clientZon
 		ProxyUser:               proxyUser,
 		ProxyZone:               proxyZone,
 		Password:                password,
+		PamTTL:                  PamTTLDefault,
 		SSLConfiguration:        nil,
 	}, nil
 }
@@ -170,6 +176,19 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 		clientZone = proxyZone
 	}
 
+	// PAM Configuration
+	hasPAMConfig := false
+	pamConfig := make(map[interface{}]interface{})
+	if val, ok := y["pam"]; ok {
+		pamConfig = val.(map[interface{}]interface{})
+		hasPAMConfig = true
+	}
+
+	pamTTL := 0
+	if val, ok := pamConfig["ttl"]; ok {
+		pamTTL = val.(int)
+	}
+
 	// SSL Configuration
 	hasSSLConfig := false
 	sslConfig := make(map[interface{}]interface{})
@@ -223,6 +242,7 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 		ProxyZone:               proxyZone,
 		ServerDN:                serverDN,
 		Password:                proxyPassword,
+		PamTTL:                  pamTTL,
 		SSLConfiguration:        irodsSSLConfig,
 	}, nil
 }

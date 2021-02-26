@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -247,7 +246,7 @@ func (conn *IRODSConnection) sslStartup() error {
 	}
 
 	sslConf := &tls.Config{
-		RootCAs: caCertPool,
+		RootCAs:    caCertPool,
 		ServerName: conn.Account.Host,
 	}
 
@@ -358,19 +357,15 @@ func (conn *IRODSConnection) loginGSI() error {
 	return nil
 }
 
-var ErrNoSSL = errors.New("connection should be using SSL")
-
 func (conn *IRODSConnection) loginPAM() error {
 	util.LogInfo("Logging in using pam authentication method")
 
 	// Check whether ssl has already started, if not, start ssl.
 	if _, ok := conn.socket.(*tls.Conn); !ok {
-		return ErrNoSSL
+		return fmt.Errorf("connection should be using SSL")
 	}
 
-	// TODO: actually expose this field in e.g. yaml
 	ttl := conn.Account.PamTTL
-
 	if ttl <= 0 {
 		ttl = 1
 	}
