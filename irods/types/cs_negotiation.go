@@ -69,9 +69,9 @@ func GetCSNegotiationPolicy(policy string) (CSNegotiationPolicy, error) {
 func PerformCSNegotiation(clientRequest CSNegotiationRequire, serverRequest CSNegotiationRequire) (CSNegotiationPolicy, int) {
 	if serverRequest == CSNegotiationDontCare {
 		if clientRequest == CSNegotiationDontCare {
-			return CSNegotiationUseSSL, 1
+			return CSNegotiationUseTCP, 1
 		}
-		return CSNegotiationUseTCP, 1
+		return CSNegotiationUseSSL, 1
 	}
 
 	if clientRequest == serverRequest {

@@ -19,6 +19,7 @@ type IRODSAccount struct {
 	ProxyZone               string
 	ServerDN                string
 	Password                string
+	PamTTL                  int
 	SSLConfiguration        *IRODSSSLConfig
 }
 
