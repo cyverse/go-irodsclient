@@ -822,13 +822,13 @@ func GetDataObjectMeta(conn *connection.IRODSConnection, collection *types.IRODS
 					// ignore
 				}
 			}
+		}
 
-			metas = append(metas, pagenatedMetas...)
+		metas = append(metas, pagenatedMetas...)
 
-			continueIndex = queryResult.ContinueIndex
-			if continueIndex == 0 {
-				continueQuery = false
-			}
+		continueIndex = queryResult.ContinueIndex
+		if continueIndex == 0 {
+			continueQuery = false
 		}
 	}
 
@@ -1289,4 +1289,79 @@ func CloseDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHa
 	}
 
 	return response.CheckError()
+}
+
+// AddDataObjectMeta sets metadata of a data object for the path to the given key values.
+// metadata.AVUID is ignored
+func AddDataObjectMeta(conn *connection.IRODSConnection, path string, metadata *types.IRODSMeta) error {
+	if conn == nil || !conn.IsConnected() {
+		return fmt.Errorf("connection is nil or disconnected")
+	}
+
+	request := message.NewIRODSMessageAddMetadataRequest(types.IRODSDataObjectMetaItemType, path, metadata)
+	requestMessage, err := request.GetMessage()
+	if err != nil {
+		return fmt.Errorf("Could not make a metadata modification request message - %v", err)
+	}
+
+	err = conn.SendMessage(requestMessage)
+	if err != nil {
+		return fmt.Errorf("Could not send a metadata modification request message - %v", err)
+	}
+
+	// Server responds with results
+	responseMessage, err := conn.ReadMessage()
+	if err != nil {
+		return fmt.Errorf("Could not receive a metadata modification response message - %v", err)
+	}
+
+	response := message.IRODSMessageModMetaResponse{}
+	err = response.FromMessage(responseMessage)
+	if err != nil {
+		return fmt.Errorf("Could not receive a metadata modification response message - %v", err)
+	}
+
+	err = response.CheckError()
+	return err
+}
+
+// DeleteDataObjectMeta sets metadata of a data object for the path to the given key values.
+// The metadata AVU is selected on basis of AVUID if it is supplied, otherwise on basis of Name, Value and Units.
+func DeleteDataObjectMeta(conn *connection.IRODSConnection, path string, metadata *types.IRODSMeta) error {
+	if conn == nil || !conn.IsConnected() {
+		return fmt.Errorf("connection is nil or disconnected")
+	}
+
+	var request *message.IRODSMessageModMetaRequest
+
+	if metadata.AVUID != 0 {
+		request = message.NewIRODSMessageRemoveMetadataByIDRequest(types.IRODSDataObjectMetaItemType, path, metadata.AVUID)
+	} else {
+		request = message.NewIRODSMessageRemoveMetadataRequest(types.IRODSDataObjectMetaItemType, path, metadata)
+	}
+
+	requestMessage, err := request.GetMessage()
+	if err != nil {
+		return fmt.Errorf("Could not make a metadata modification request message - %v", err)
+	}
+
+	err = conn.SendMessage(requestMessage)
+	if err != nil {
+		return fmt.Errorf("Could not send a metadata modification request message - %v", err)
+	}
+
+	// Server responds with results
+	responseMessage, err := conn.ReadMessage()
+	if err != nil {
+		return fmt.Errorf("Could not receive a metadata modification response message - %v", err)
+	}
+
+	response := message.IRODSMessageModMetaResponse{}
+	err = response.FromMessage(responseMessage)
+	if err != nil {
+		return fmt.Errorf("Could not receive a metadata modification response message - %v", err)
+	}
+
+	err = response.CheckError()
+	return err
 }
