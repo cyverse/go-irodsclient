@@ -177,11 +177,9 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 	}
 
 	// PAM Configuration
-	hasPAMConfig := false
 	pamConfig := make(map[interface{}]interface{})
 	if val, ok := y["pam"]; ok {
 		pamConfig = val.(map[interface{}]interface{})
-		hasPAMConfig = true
 	}
 
 	pamTTL := 0
