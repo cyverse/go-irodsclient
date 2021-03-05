@@ -1203,7 +1203,7 @@ func OpenDataObjectWithOperation(conn *connection.IRODSConnection, path string, 
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	request := message.NewIRODSMessageOpenobjRequest(path, resource, types.FileOpenMode(mode))
+	request := message.NewIRODSMessageOpenobjRequestWithOperation(path, resource, types.FileOpenMode(mode), oper)
 	requestMessage, err := request.GetMessage()
 	if err != nil {
 		return nil, fmt.Errorf("Could not make a data object open request message - %v", err)
