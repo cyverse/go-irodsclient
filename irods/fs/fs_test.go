@@ -20,7 +20,7 @@ var (
 func setup() {
 	util.SetLogLevel(9)
 
-	yaml, err := ioutil.ReadFile("../../../config/test_account.yml")
+	yaml, err := ioutil.ReadFile("../../config/test_account.yml")
 	if err != nil {
 		util.LogErrorf("err - %v", err)
 		panic(err)
@@ -118,6 +118,26 @@ func TestGetIRODSCollectionMeta(t *testing.T) {
 	} else {
 		for _, meta := range metas {
 			util.LogDebugf("Collection Meta : %v", meta)
+		}
+	}
+
+	shutdown()
+}
+
+func TestGetIRODSCollectionAccess(t *testing.T) {
+	setup()
+
+	accesses, err := GetCollectionAccess(conn, "/iplant/home/iychoi")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	if len(accesses) == 0 {
+		util.LogDebug("There is no accesses")
+	} else {
+		for _, access := range accesses {
+			util.LogDebugf("Collection Access : %v", access)
 		}
 	}
 
@@ -244,6 +264,32 @@ func TestGetIRODSDataObjectMeta(t *testing.T) {
 	} else {
 		for _, meta := range metas {
 			util.LogDebugf("Data Object Meta : %v", meta)
+		}
+	}
+
+	shutdown()
+}
+
+func TestGetIRODSDataObjectAccess(t *testing.T) {
+	setup()
+
+	collection, err := GetCollection(conn, "/iplant/home/iychoi")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	accesses, err := GetDataObjectAccess(conn, collection, "bench.tmp")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	if len(accesses) == 0 {
+		util.LogDebug("There is no accesses")
+	} else {
+		for _, access := range accesses {
+			util.LogDebugf("Data Object Access : %v", access)
 		}
 	}
 

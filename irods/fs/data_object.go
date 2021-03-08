@@ -835,6 +835,106 @@ func GetDataObjectMeta(conn *connection.IRODSConnection, collection *types.IRODS
 	return metas, nil
 }
 
+// GetDataObjectAccess returns data object accesses for the path
+func GetDataObjectAccess(conn *connection.IRODSConnection, collection *types.IRODSCollection, filename string) ([]*types.IRODSAccess, error) {
+	if conn == nil || !conn.IsConnected() {
+		return nil, fmt.Errorf("connection is nil or disconnected")
+	}
+
+	accesses := []*types.IRODSAccess{}
+
+	continueQuery := true
+	continueIndex := 0
+	for continueQuery {
+		query := message.NewIRODSMessageQuery(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddSelect(common.ICAT_COLUMN_DATA_ACCESS_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_USER_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_USER_ZONE, 1)
+		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
+
+		collidCondVal := fmt.Sprintf("= '%d'", collection.ID)
+		query.AddCondition(common.ICAT_COLUMN_D_COLL_ID, collidCondVal)
+		nameCondVal := fmt.Sprintf("= '%s'", filename)
+		query.AddCondition(common.ICAT_COLUMN_DATA_NAME, nameCondVal)
+
+		queryMessage, err := query.GetMessage()
+		if err != nil {
+			return nil, fmt.Errorf("Could not make a data object access query message - %v", err)
+		}
+
+		err = conn.SendMessage(queryMessage)
+		if err != nil {
+			return nil, fmt.Errorf("Could not send a data object access query message - %v", err)
+		}
+
+		// Server responds with results
+		queryResultMessage, err := conn.ReadMessage()
+		if err != nil {
+			return nil, fmt.Errorf("Could not receive a data object access query result message - %v", err)
+		}
+
+		queryResult := message.IRODSMessageQueryResult{}
+		err = queryResult.FromMessage(queryResultMessage)
+		if err != nil {
+			return nil, fmt.Errorf("Could not receive a data object access query result message - %v", err)
+		}
+
+		if queryResult.RowCount == 0 {
+			break
+		}
+
+		if queryResult.AttributeCount > len(queryResult.SQLResult) {
+			return nil, fmt.Errorf("Could not receive data object access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+		}
+
+		pagenatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount, queryResult.RowCount)
+
+		for attr := 0; attr < queryResult.AttributeCount; attr++ {
+			sqlResult := queryResult.SQLResult[attr]
+			if len(sqlResult.Values) != queryResult.RowCount {
+				return nil, fmt.Errorf("Could not receive data object access rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+			}
+
+			for row := 0; row < queryResult.RowCount; row++ {
+				value := sqlResult.Values[row]
+
+				if pagenatedAccesses[row] == nil {
+					// create a new
+					pagenatedAccesses[row] = &types.IRODSAccess{
+						Path:        util.MakeIRODSPath(collection.Path, filename),
+						UserName:    "",
+						UserZone:    "",
+						AccessLevel: types.IRODSAccessLevelNone,
+						UserType:    types.IRODSAccessUserRodsUser,
+					}
+				}
+
+				switch sqlResult.AttributeIndex {
+				case int(common.ICAT_COLUMN_DATA_ACCESS_NAME):
+					pagenatedAccesses[row].AccessLevel = types.IRODSAccessLevelType(value)
+				case int(common.ICAT_COLUMN_USER_TYPE):
+					pagenatedAccesses[row].UserType = types.IRODSAccessUserType(value)
+				case int(common.ICAT_COLUMN_USER_NAME):
+					pagenatedAccesses[row].UserName = value
+				case int(common.ICAT_COLUMN_USER_ZONE):
+					pagenatedAccesses[row].UserZone = value
+				default:
+					// ignore
+				}
+			}
+		}
+
+		accesses = append(accesses, pagenatedAccesses...)
+
+		continueIndex = queryResult.ContinueIndex
+		if continueIndex == 0 {
+			continueQuery = false
+		}
+	}
+
+	return accesses, nil
+}
+
 // DeleteDataObject deletes a data object for the path
 func DeleteDataObject(conn *connection.IRODSConnection, path string, force bool) error {
 	if conn == nil || !conn.IsConnected() {
