@@ -140,8 +140,8 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 	}, nil
 }
 
-// GetCollectionMeta returns a colleciton metadata for the path
-func GetCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types.IRODSMeta, error) {
+// ListCollectionMeta returns a colleciton metadata for the path
+func ListCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types.IRODSMeta, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
@@ -241,8 +241,8 @@ func GetCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types.
 	return metas, nil
 }
 
-// GetCollectionAccess returns collection accesses for the path
-func GetCollectionAccess(conn *connection.IRODSConnection, path string) ([]*types.IRODSAccess, error) {
+// ListCollectionAccess returns collection accesses for the path
+func ListCollectionAccess(conn *connection.IRODSConnection, path string) ([]*types.IRODSAccess, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
@@ -309,7 +309,7 @@ func GetCollectionAccess(conn *connection.IRODSConnection, path string) ([]*type
 						UserName:    "",
 						UserZone:    "",
 						AccessLevel: types.IRODSAccessLevelNone,
-						UserType:    types.IRODSAccessUserRodsUser,
+						UserType:    types.IRODSUserRodsUser,
 					}
 				}
 
@@ -317,7 +317,7 @@ func GetCollectionAccess(conn *connection.IRODSConnection, path string) ([]*type
 				case int(common.ICAT_COLUMN_COLL_ACCESS_NAME):
 					pagenatedAccesses[row].AccessLevel = types.IRODSAccessLevelType(value)
 				case int(common.ICAT_COLUMN_USER_TYPE):
-					pagenatedAccesses[row].UserType = types.IRODSAccessUserType(value)
+					pagenatedAccesses[row].UserType = types.IRODSUserType(value)
 				case int(common.ICAT_COLUMN_USER_NAME):
 					pagenatedAccesses[row].UserName = value
 				case int(common.ICAT_COLUMN_USER_ZONE):

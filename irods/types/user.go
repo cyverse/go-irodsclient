@@ -2,26 +2,24 @@ package types
 
 import "fmt"
 
+type IRODSUserType string
+
+const (
+	IRODSUserRodsGroup  IRODSUserType = "rodsgroup"
+	IRODSUserRodsUser   IRODSUserType = "rodsuser"
+	IRODSUserRodsAdmin  IRODSUserType = "rodsadmin"
+	IRODSUserGroupAdmin IRODSUserType = "groupadmin"
+)
+
 // IRODSUser contains irods user information
 type IRODSUser struct {
-	ID   string
+	ID   int64
 	Name string
-	Type string
 	Zone string
+	Type IRODSUserType
 }
 
 // ToString stringifies the object
 func (user *IRODSUser) ToString() string {
-	return fmt.Sprintf("<IRODSUser %s %s %s %s>", user.ID, user.Name, user.Type, user.Zone)
-}
-
-// IRODSUserGroup contains irods user group information
-type IRODSUserGroup struct {
-	ID   string
-	Name string
-}
-
-// ToString stringifies the object
-func (group *IRODSUserGroup) ToString() string {
-	return fmt.Sprintf("<IRODSUserGroup %s %s>", group.ID, group.Name)
+	return fmt.Sprintf("<IRODSUser %d %s %s %s>", user.ID, user.Name, user.Zone, string(user.Type))
 }

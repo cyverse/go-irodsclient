@@ -732,8 +732,8 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 	return dataObjects, nil
 }
 
-// GetDataObjectMeta returns a data object metadata for the path
-func GetDataObjectMeta(conn *connection.IRODSConnection, collection *types.IRODSCollection, filename string) ([]*types.IRODSMeta, error) {
+// ListDataObjectMeta returns a data object metadata for the path
+func ListDataObjectMeta(conn *connection.IRODSConnection, collection *types.IRODSCollection, filename string) ([]*types.IRODSMeta, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
@@ -835,8 +835,8 @@ func GetDataObjectMeta(conn *connection.IRODSConnection, collection *types.IRODS
 	return metas, nil
 }
 
-// GetDataObjectAccess returns data object accesses for the path
-func GetDataObjectAccess(conn *connection.IRODSConnection, collection *types.IRODSCollection, filename string) ([]*types.IRODSAccess, error) {
+// ListDataObjectAccess returns data object accesses for the path
+func ListDataObjectAccess(conn *connection.IRODSConnection, collection *types.IRODSCollection, filename string) ([]*types.IRODSAccess, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
@@ -905,7 +905,7 @@ func GetDataObjectAccess(conn *connection.IRODSConnection, collection *types.IRO
 						UserName:    "",
 						UserZone:    "",
 						AccessLevel: types.IRODSAccessLevelNone,
-						UserType:    types.IRODSAccessUserRodsUser,
+						UserType:    types.IRODSUserRodsUser,
 					}
 				}
 
@@ -913,7 +913,7 @@ func GetDataObjectAccess(conn *connection.IRODSConnection, collection *types.IRO
 				case int(common.ICAT_COLUMN_DATA_ACCESS_NAME):
 					pagenatedAccesses[row].AccessLevel = types.IRODSAccessLevelType(value)
 				case int(common.ICAT_COLUMN_USER_TYPE):
-					pagenatedAccesses[row].UserType = types.IRODSAccessUserType(value)
+					pagenatedAccesses[row].UserType = types.IRODSUserType(value)
 				case int(common.ICAT_COLUMN_USER_NAME):
 					pagenatedAccesses[row].UserName = value
 				case int(common.ICAT_COLUMN_USER_ZONE):

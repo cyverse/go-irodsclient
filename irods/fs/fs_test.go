@@ -104,10 +104,10 @@ func TestListManyIRODSCollections(t *testing.T) {
 	shutdown()
 }
 
-func TestGetIRODSCollectionMeta(t *testing.T) {
+func TestListIRODSCollectionMeta(t *testing.T) {
 	setup()
 
-	metas, err := GetCollectionMeta(conn, "/iplant/home/iyhoi")
+	metas, err := ListCollectionMeta(conn, "/iplant/home/iyhoi")
 	if err != nil {
 		t.Errorf("err - %v", err)
 		panic(err)
@@ -124,10 +124,10 @@ func TestGetIRODSCollectionMeta(t *testing.T) {
 	shutdown()
 }
 
-func TestGetIRODSCollectionAccess(t *testing.T) {
+func TestListIRODSCollectionAccess(t *testing.T) {
 	setup()
 
-	accesses, err := GetCollectionAccess(conn, "/iplant/home/iychoi")
+	accesses, err := ListCollectionAccess(conn, "/iplant/home/iychoi")
 	if err != nil {
 		t.Errorf("err - %v", err)
 		panic(err)
@@ -244,7 +244,7 @@ func TestGetIRODSDataObjectMasterReplica(t *testing.T) {
 	shutdown()
 }
 
-func TestGetIRODSDataObjectMeta(t *testing.T) {
+func TestListIRODSDataObjectMeta(t *testing.T) {
 	setup()
 
 	collection, err := GetCollection(conn, "/iplant/home/iychoi")
@@ -253,7 +253,7 @@ func TestGetIRODSDataObjectMeta(t *testing.T) {
 		panic(err)
 	}
 
-	metas, err := GetDataObjectMeta(conn, collection, "bench.tmp")
+	metas, err := ListDataObjectMeta(conn, collection, "bench.tmp")
 	if err != nil {
 		t.Errorf("err - %v", err)
 		panic(err)
@@ -270,7 +270,7 @@ func TestGetIRODSDataObjectMeta(t *testing.T) {
 	shutdown()
 }
 
-func TestGetIRODSDataObjectAccess(t *testing.T) {
+func TestListIRODSDataObjectAccess(t *testing.T) {
 	setup()
 
 	collection, err := GetCollection(conn, "/iplant/home/iychoi")
@@ -279,7 +279,7 @@ func TestGetIRODSDataObjectAccess(t *testing.T) {
 		panic(err)
 	}
 
-	accesses, err := GetDataObjectAccess(conn, collection, "bench.tmp")
+	accesses, err := ListDataObjectAccess(conn, collection, "bench.tmp")
 	if err != nil {
 		t.Errorf("err - %v", err)
 		panic(err)
@@ -528,6 +528,26 @@ func TestReadWriteIRODSDataObject(t *testing.T) {
 	if err != nil {
 		t.Errorf("err - %v", err)
 		panic(err)
+	}
+
+	shutdown()
+}
+
+func TestListIRODSGroupUsers(t *testing.T) {
+	setup()
+
+	users, err := ListGroupUsers(conn, "rodsadmin")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	if len(users) == 0 {
+		util.LogDebug("There is no users in the group")
+	} else {
+		for _, user := range users {
+			util.LogDebugf("User : %v", user)
+		}
 	}
 
 	shutdown()

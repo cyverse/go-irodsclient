@@ -2,15 +2,6 @@ package types
 
 import "fmt"
 
-type IRODSAccessUserType string
-
-const (
-	IRODSAccessUserRodsGroup  IRODSAccessUserType = "rodsgroup"
-	IRODSAccessUserRodsUser   IRODSAccessUserType = "rodsuser"
-	IRODSAccessUserRodsAdmin  IRODSAccessUserType = "rodsadmin"
-	IRODSAccessUserGroupAdmin IRODSAccessUserType = "groupadmin"
-)
-
 type IRODSAccessLevelType string
 
 const (
@@ -25,7 +16,7 @@ type IRODSAccess struct {
 	Path        string
 	UserName    string
 	UserZone    string
-	UserType    IRODSAccessUserType
+	UserType    IRODSUserType
 	AccessLevel IRODSAccessLevelType
 }
 
