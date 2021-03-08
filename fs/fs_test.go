@@ -17,7 +17,7 @@ var (
 func setup() {
 	util.SetLogLevel(9)
 
-	yaml, err := ioutil.ReadFile("../../config/test_account.yml")
+	yaml, err := ioutil.ReadFile("../config/test_account.yml")
 	if err != nil {
 		util.LogErrorf("err - %v", err)
 		panic(err)
@@ -53,6 +53,26 @@ func TestListEntries(t *testing.T) {
 	} else {
 		for _, entry := range entries {
 			util.LogDebugf("Entry : %v", entry)
+		}
+	}
+
+	shutdown()
+}
+
+func TestListACLs(t *testing.T) {
+	setup()
+
+	acls, err := fs.ListACLsWithGroupUsers("/iplant/home/iychoi/bench.tmp")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	if len(acls) == 0 {
+		util.LogDebug("There is no acls")
+	} else {
+		for _, acl := range acls {
+			util.LogDebugf("ACL : %v", acl)
 		}
 	}
 

@@ -4,28 +4,32 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
 	gocache "github.com/patrickmn/go-cache"
 )
 
 // FileSystemCache ...
 type FileSystemCache struct {
-	CacheTimeout   time.Duration
-	CleanupTimeout time.Duration
-	EntryCache     *gocache.Cache
-	DirCache       *gocache.Cache
+	CacheTimeout    time.Duration
+	CleanupTimeout  time.Duration
+	EntryCache      *gocache.Cache
+	DirCache        *gocache.Cache
+	GroupUsersCache *gocache.Cache
 }
 
 // NewFileSystemCache creates a new FileSystemCache
 func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration) *FileSystemCache {
 	entryCache := gocache.New(cacheTimeout, cleanup)
 	dirCache := gocache.New(cacheTimeout, cleanup)
+	groupUsersCache := gocache.New(cacheTimeout, cleanup)
 
 	return &FileSystemCache{
-		CacheTimeout:   cacheTimeout,
-		CleanupTimeout: cleanup,
-		EntryCache:     entryCache,
-		DirCache:       dirCache,
+		CacheTimeout:    cacheTimeout,
+		CleanupTimeout:  cleanup,
+		EntryCache:      entryCache,
+		DirCache:        dirCache,
+		GroupUsersCache: groupUsersCache,
 	}
 }
 
@@ -109,4 +113,25 @@ func (cache *FileSystemCache) GetDirCache(path string) []string {
 // ClearDirCache ...
 func (cache *FileSystemCache) ClearDirCache() {
 	cache.DirCache.Flush()
+}
+
+// AddGroupUsersCache ...
+func (cache *FileSystemCache) AddGroupUsersCache(group string, users []types.IRODSUser) {
+	cache.GroupUsersCache.Set(group, users, 0)
+}
+
+// RemoveGroupUsersCache ...
+func (cache *FileSystemCache) RemoveGroupUsersCache(group string) {
+	cache.GroupUsersCache.Delete(group)
+}
+
+// GetGroupUsersCache ...
+func (cache *FileSystemCache) GetGroupUsersCache(group string) []types.IRODSUser {
+	users, exist := cache.GroupUsersCache.Get(group)
+	if exist {
+		if irodsUsers, ok := users.([]types.IRODSUser); ok {
+			return irodsUsers
+		}
+	}
+	return nil
 }

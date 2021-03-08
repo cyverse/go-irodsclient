@@ -53,6 +53,43 @@ func (fs *FileSystem) Release() {
 	fs.Session.Release()
 }
 
+func (fs *FileSystem) ListGroupUsers(group string) ([]*types.IRODSUser, error) {
+	// check cache first
+	cachedUsers := fs.Cache.GetGroupUsersCache(group)
+	if cachedUsers != nil {
+		// convert it to pointer arrays
+		userArray := []*types.IRODSUser{}
+		for _, cu := range cachedUsers {
+			userArray = append(userArray, &cu)
+		}
+
+		return userArray, nil
+	}
+
+	// otherwise, retrieve it and add it to cache
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	users, err := irods_fs.ListGroupUsers(conn, group)
+	if err != nil {
+		return nil, err
+	}
+
+	// cache it
+	// convert it to arrays
+	userArray := []types.IRODSUser{}
+	for _, u := range users {
+		userArray = append(userArray, *u)
+	}
+
+	fs.Cache.AddGroupUsersCache(group, userArray)
+
+	return users, nil
+}
+
 // Stat returns file status
 func (fs *FileSystem) Stat(path string) (*FSEntry, error) {
 	dirStat, err := fs.StatDir(path)
@@ -125,6 +162,199 @@ func (fs *FileSystem) ExistsFile(path string) bool {
 		return true
 	}
 	return false
+}
+
+// ListACLs returns ACLs
+func (fs *FileSystem) ListACLs(path string) ([]*types.IRODSAccess, error) {
+	stat, err := fs.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+
+	if stat.Type == FSDirectoryEntry {
+		return fs.ListDirACLs(path)
+	} else if stat.Type == FSFileEntry {
+		return fs.ListFileACLs(path)
+	} else {
+		return nil, fmt.Errorf("Unknown type - %s", stat.Type)
+	}
+}
+
+// ListACLsWithGroupUsers returns ACLs
+func (fs *FileSystem) ListACLsWithGroupUsers(path string) ([]*types.IRODSAccess, error) {
+	stat, err := fs.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+
+	accesses := []*types.IRODSAccess{}
+	if stat.Type == FSDirectoryEntry {
+		accessList, err := fs.ListDirACLsWithGroupUsers(path)
+		if err != nil {
+			return nil, err
+		}
+
+		accesses = append(accesses, accessList...)
+	} else if stat.Type == FSFileEntry {
+		accessList, err := fs.ListFileACLsWithGroupUsers(path)
+		if err != nil {
+			return nil, err
+		}
+
+		accesses = append(accesses, accessList...)
+	} else {
+		return nil, fmt.Errorf("Unknown type - %s", stat.Type)
+	}
+
+	return accesses, nil
+}
+
+// ListDirACLs returns ACLs of a directory
+func (fs *FileSystem) ListDirACLs(path string) ([]*types.IRODSAccess, error) {
+	irodsPath := util.GetCorrectIRODSPath(path)
+
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	accesses, err := irods_fs.ListCollectionAccess(conn, irodsPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return accesses, nil
+}
+
+// ListDirACLsWithGroupUsers returns ACLs of a directory
+func (fs *FileSystem) ListDirACLsWithGroupUsers(path string) ([]*types.IRODSAccess, error) {
+	irodsPath := util.GetCorrectIRODSPath(path)
+
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	accesses, err := irods_fs.ListCollectionAccess(conn, irodsPath)
+	if err != nil {
+		return nil, err
+	}
+
+	newAccesses := []*types.IRODSAccess{}
+	newAccessesMap := map[string]*types.IRODSAccess{}
+
+	for _, access := range accesses {
+		if access.UserType == types.IRODSUserRodsGroup {
+			// retrieve all users in the group
+			users, err := fs.ListGroupUsers(access.UserName)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, user := range users {
+				userAccess := &types.IRODSAccess{
+					Path:        access.Path,
+					UserName:    user.Name,
+					UserZone:    user.Zone,
+					UserType:    user.Type,
+					AccessLevel: access.AccessLevel,
+				}
+
+				// remove duplicates
+				newAccessesMap[fmt.Sprintf("%s||%s", user.Name, access.AccessLevel)] = userAccess
+			}
+		} else {
+			newAccessesMap[fmt.Sprintf("%s||%s", access.UserName, access.AccessLevel)] = access
+		}
+	}
+
+	// convert map to array
+	for _, access := range newAccessesMap {
+		newAccesses = append(newAccesses, access)
+	}
+
+	return newAccesses, nil
+}
+
+// ListFileACLs returns ACLs of a file
+func (fs *FileSystem) ListFileACLs(path string) ([]*types.IRODSAccess, error) {
+	irodsPath := util.GetCorrectIRODSPath(path)
+
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	collection, err := fs.getCollection(util.GetIRODSPathDirname(irodsPath))
+	if err != nil {
+		return nil, err
+	}
+
+	accesses, err := irods_fs.ListDataObjectAccess(conn, collection.Internal.(*types.IRODSCollection), util.GetIRODSPathFileName(irodsPath))
+	if err != nil {
+		return nil, err
+	}
+
+	return accesses, nil
+}
+
+// ListFileACLsWithGroupUsers returns ACLs of a file
+func (fs *FileSystem) ListFileACLsWithGroupUsers(path string) ([]*types.IRODSAccess, error) {
+	irodsPath := util.GetCorrectIRODSPath(path)
+
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	collection, err := fs.getCollection(util.GetIRODSPathDirname(irodsPath))
+	if err != nil {
+		return nil, err
+	}
+
+	accesses, err := irods_fs.ListDataObjectAccess(conn, collection.Internal.(*types.IRODSCollection), util.GetIRODSPathFileName(irodsPath))
+	if err != nil {
+		return nil, err
+	}
+
+	newAccesses := []*types.IRODSAccess{}
+	newAccessesMap := map[string]*types.IRODSAccess{}
+
+	for _, access := range accesses {
+		if access.UserType == types.IRODSUserRodsGroup {
+			// retrieve all users in the group
+			users, err := fs.ListGroupUsers(access.UserName)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, user := range users {
+				userAccess := &types.IRODSAccess{
+					Path:        access.Path,
+					UserName:    user.Name,
+					UserZone:    user.Zone,
+					UserType:    user.Type,
+					AccessLevel: access.AccessLevel,
+				}
+
+				// remove duplicates
+				newAccessesMap[fmt.Sprintf("%s||%s", user.Name, access.AccessLevel)] = userAccess
+			}
+		} else {
+			newAccessesMap[fmt.Sprintf("%s||%s", access.UserName, access.AccessLevel)] = access
+		}
+	}
+
+	// convert map to array
+	for _, access := range newAccessesMap {
+		newAccesses = append(newAccesses, access)
+	}
+
+	return newAccesses, nil
 }
 
 // List lists all file system entries under the given path
