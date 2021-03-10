@@ -1068,7 +1068,7 @@ func TruncateDataObject(conn *connection.IRODSConnection, path string, size int6
 }
 
 // ReplicateDataObject replicates a data object for the path to the given reousrce
-func ReplicateDataObject(conn *connection.IRODSConnection, path string, resource string, update bool) error {
+func ReplicateDataObject(conn *connection.IRODSConnection, path string, resource string, update bool, adminFlag bool) error {
 	if conn == nil || !conn.IsConnected() {
 		return fmt.Errorf("connection is nil or disconnected")
 	}
@@ -1077,6 +1077,10 @@ func ReplicateDataObject(conn *connection.IRODSConnection, path string, resource
 
 	if update {
 		request.AddKeyVal(common.UPDATE_REPL_KW, "")
+	}
+
+	if adminFlag {
+		request.AddKeyVal(common.ADMIN_KW, "")
 	}
 
 	requestMessage, err := request.GetMessage()
@@ -1106,12 +1110,16 @@ func ReplicateDataObject(conn *connection.IRODSConnection, path string, resource
 }
 
 // TrimDataObject trims replicas for a data object
-func TrimDataObject(conn *connection.IRODSConnection, path string, resource string, minCopies int, minAgeMinutes int) error {
+func TrimDataObject(conn *connection.IRODSConnection, path string, resource string, minCopies int, minAgeMinutes int, adminFlag bool) error {
 	if conn == nil || !conn.IsConnected() {
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
 	request := message.NewIRODSMessageTrimobjRequest(path, resource, minCopies, minAgeMinutes)
+
+	if adminFlag {
+		request.AddKeyVal(common.ADMIN_KW, "")
+	}
 
 	requestMessage, err := request.GetMessage()
 	if err != nil {

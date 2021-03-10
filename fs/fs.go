@@ -582,7 +582,7 @@ func (fs *FileSystem) ReplicateFile(path string, resource string, update bool) e
 	}
 	defer fs.Session.ReturnConnection(conn)
 
-	return irods_fs.ReplicateDataObject(conn, irodsPath, resource, update)
+	return irods_fs.ReplicateDataObject(conn, irodsPath, resource, update, false)
 }
 
 // DownloadFile downloads a file to local

@@ -52,7 +52,7 @@ func UploadDataObject(conn *connection.IRODSConnection, localPath string, irodsP
 	var replErr error
 	// replicate
 	if replicate {
-		err = ReplicateDataObject(conn, irodsPath, "", true)
+		err = ReplicateDataObject(conn, irodsPath, "", true, false)
 		replErr = err
 	}
 

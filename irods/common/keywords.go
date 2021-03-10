@@ -13,4 +13,5 @@ const (
 	RESC_NAME_KW      KeyWord = "rescName"
 	COPIES_KW         KeyWord = "copies"
 	AGE_KW            KeyWord = "age"
+	ADMIN_KW          KeyWord = "irodsAdmin"
 )
