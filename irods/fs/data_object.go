@@ -1105,6 +1105,40 @@ func ReplicateDataObject(conn *connection.IRODSConnection, path string, resource
 	return err
 }
 
+// TrimDataObject trims replicas for a data object
+func TrimDataObject(conn *connection.IRODSConnection, path string, resource string, minCopies int, minAgeMinutes int) error {
+	if conn == nil || !conn.IsConnected() {
+		return fmt.Errorf("connection is nil or disconnected")
+	}
+
+	request := message.NewIRODSMessageTrimobjRequest(path, resource, minCopies, minAgeMinutes)
+
+	requestMessage, err := request.GetMessage()
+	if err != nil {
+		return fmt.Errorf("Could not make a data object trim request message - %v", err)
+	}
+
+	err = conn.SendMessage(requestMessage)
+	if err != nil {
+		return fmt.Errorf("Could not send a data object trim request message - %v", err)
+	}
+
+	// Server responds with results
+	responseMessage, err := conn.ReadMessage()
+	if err != nil {
+		return fmt.Errorf("Could not receive a data object trim response message - %v", err)
+	}
+
+	response := message.IRODSMessageTrimobjResponse{}
+	err = response.FromMessage(responseMessage)
+	if err != nil {
+		return fmt.Errorf("Could not receive a data object trim response message - %v", err)
+	}
+
+	err = response.CheckError()
+	return err
+}
+
 // CreateDataObject creates a data object for the path, returns a file handle
 func CreateDataObject(conn *connection.IRODSConnection, path string, resource string, force bool) (*types.IRODSFileHandle, error) {
 	if conn == nil || !conn.IsConnected() {
