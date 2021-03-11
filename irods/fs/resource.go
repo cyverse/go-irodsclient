@@ -18,8 +18,8 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	// resource
-	query := message.NewIRODSMessageQuery(1, 0, 0, 0)
+	// query with AUTO_CLOSE option
+	query := message.NewIRODSMessageQuery(1, 0, 0, 0x100)
 	query.AddSelect(common.ICAT_COLUMN_R_RESC_ID, 1)
 	query.AddSelect(common.ICAT_COLUMN_R_RESC_NAME, 1)
 	query.AddSelect(common.ICAT_COLUMN_R_ZONE_NAME, 1)
@@ -54,6 +54,10 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 	err = queryResult.FromMessage(queryResultMessage)
 	if err != nil {
 		return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
+	}
+
+	if queryResult.ContinueIndex != 0 {
+		util.LogDebugf("resource query for %s would have continued, more than one result found\n", name)
 	}
 
 	if queryResult.RowCount == 0 {
