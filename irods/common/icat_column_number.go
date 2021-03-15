@@ -83,4 +83,24 @@ const (
 	// Group
 	ICAT_COLUMN_COLL_USER_GROUP_ID   ICATColumnNumber = 900
 	ICAT_COLUMN_COLL_USER_GROUP_NAME ICATColumnNumber = 901
+	
+    // Resource
+	ICAT_COLUMN_R_RESC_ID             ICATColumnNumber = 301
+	ICAT_COLUMN_R_RESC_NAME           ICATColumnNumber = 302
+	ICAT_COLUMN_R_ZONE_NAME           ICATColumnNumber = 303
+	ICAT_COLUMN_R_TYPE_NAME           ICATColumnNumber = 304
+	ICAT_COLUMN_R_CLASS_NAME          ICATColumnNumber = 305
+	ICAT_COLUMN_R_LOC                 ICATColumnNumber = 306
+	ICAT_COLUMN_R_VAULT_PATH          ICATColumnNumber = 307
+	ICAT_COLUMN_R_FREE_SPACE          ICATColumnNumber = 308
+	ICAT_COLUMN_R_RESC_INFO           ICATColumnNumber = 309
+	ICAT_COLUMN_R_RESC_COMMENT        ICATColumnNumber = 310
+	ICAT_COLUMN_R_CREATE_TIME         ICATColumnNumber = 311
+	ICAT_COLUMN_R_MODIFY_TIME         ICATColumnNumber = 312
+	ICAT_COLUMN_R_RESC_STATUS         ICATColumnNumber = 313
+	ICAT_COLUMN_R_FREE_SPACE_TIME     ICATColumnNumber = 314
+	ICAT_COLUMN_R_RESC_CHILDREN       ICATColumnNumber = 315
+	ICAT_COLUMN_R_RESC_CONTEXT        ICATColumnNumber = 316
+	ICAT_COLUMN_R_RESC_PARENT         ICATColumnNumber = 317
+	ICAT_COLUMN_R_RESC_PARENT_CONTEXT ICATColumnNumber = 318
 )
