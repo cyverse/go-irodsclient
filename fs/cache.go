@@ -15,6 +15,7 @@ type FileSystemCache struct {
 	CleanupTimeout  time.Duration
 	EntryCache      *gocache.Cache
 	DirCache        *gocache.Cache
+	MetadataCache   *gocache.Cache
 	GroupUsersCache *gocache.Cache
 }
 
@@ -22,6 +23,7 @@ type FileSystemCache struct {
 func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration) *FileSystemCache {
 	entryCache := gocache.New(cacheTimeout, cleanup)
 	dirCache := gocache.New(cacheTimeout, cleanup)
+	metadataCache := gocache.New(cacheTimeout, cleanup)
 	groupUsersCache := gocache.New(cacheTimeout, cleanup)
 
 	return &FileSystemCache{
@@ -29,6 +31,7 @@ func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration) *File
 		CleanupTimeout:  cleanup,
 		EntryCache:      entryCache,
 		DirCache:        dirCache,
+		MetadataCache:   metadataCache,
 		GroupUsersCache: groupUsersCache,
 	}
 }
@@ -113,6 +116,37 @@ func (cache *FileSystemCache) GetDirCache(path string) []string {
 // ClearDirCache ...
 func (cache *FileSystemCache) ClearDirCache() {
 	cache.DirCache.Flush()
+}
+
+// AddMetadataCache ...
+func (cache *FileSystemCache) AddMetadataCache(path string, metas []*types.IRODSMeta) {
+	if shouldHaveInfiniteCacheTTL(path) {
+		cache.MetadataCache.Set(path, metas, -1)
+	}
+
+	// default
+	cache.MetadataCache.Set(path, metas, 0)
+}
+
+// RemoveMetadataCache ...
+func (cache *FileSystemCache) RemoveMetadataCache(path string) {
+	cache.MetadataCache.Delete(path)
+}
+
+// GetMetadataCache ...
+func (cache *FileSystemCache) GetMetadataCache(path string) []*types.IRODSMeta {
+	data, exist := cache.MetadataCache.Get(path)
+	if exist {
+		if metas, ok := data.([]*types.IRODSMeta); ok {
+			return metas
+		}
+	}
+	return nil
+}
+
+// ClearMetadataCache ...
+func (cache *FileSystemCache) ClearMetadataCache() {
+	cache.MetadataCache.Flush()
 }
 
 // AddGroupUsersCache ...

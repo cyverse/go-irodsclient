@@ -959,6 +959,106 @@ func (fs *FileSystem) getDataObject(path string) (*FSEntry, error) {
 	return nil, types.NewFileNotFoundErrorf("Could not find a data object")
 }
 
+func (fs *FileSystem) ListMetadata(path string) ([]*types.IRODSMeta, error) {
+	// check cache first
+	cachedEntry := fs.Cache.GetMetadataCache(path)
+	if cachedEntry != nil {
+		return cachedEntry, nil
+	}
+
+	irodsCorrectPath := util.GetCorrectIRODSPath(path)
+
+	// otherwise, retrieve it and add it to cache
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	var metadataobjects []*types.IRODSMeta
+
+	if fs.ExistsDir(irodsCorrectPath) {
+		metadataobjects, err = irods_fs.ListCollectionMeta(conn, irodsCorrectPath)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		collection, err := fs.getCollection(util.GetIRODSPathDirname(path))
+		if err != nil {
+			return nil, err
+		}
+		metadataobjects, err = irods_fs.ListDataObjectMeta(conn, collection.Internal.(*types.IRODSCollection), util.GetIRODSPathFileName(irodsCorrectPath))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// cache it
+	fs.Cache.AddMetadataCache(irodsCorrectPath, metadataobjects)
+
+	return metadataobjects, nil
+}
+
+func (fs *FileSystem) AddMetadata(irodsPath string, attName string, attValue string, attUnits string) error {
+	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
+
+	metadata := &types.IRODSMeta{
+		Name:  attName,
+		Value: attValue,
+		Units: attUnits,
+	}
+
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	if fs.ExistsDir(irodsCorrectPath) {
+		err = irods_fs.AddCollectionMeta(conn, irodsCorrectPath, metadata)
+		if err != nil {
+			return err
+		}
+	} else {
+		err = irods_fs.AddDataObjectMeta(conn, irodsCorrectPath, metadata)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (fs *FileSystem) DeleteMetadata(irodsPath string, attName string, attValue string, attUnits string) error {
+	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
+
+	metadata := &types.IRODSMeta{
+		Name:  attName,
+		Value: attValue,
+		Units: attUnits,
+	}
+
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	if fs.ExistsDir(irodsCorrectPath) {
+		err = irods_fs.DeleteCollectionMeta(conn, irodsCorrectPath, metadata)
+		if err != nil {
+			return err
+		}
+	} else {
+		err = irods_fs.DeleteDataObjectMeta(conn, irodsCorrectPath, metadata)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // InvalidateCachePath invalidates cache with the given path
 func (fs *FileSystem) invalidateCachePath(path string) {
 	fs.Cache.RemoveEntryCache(path)
