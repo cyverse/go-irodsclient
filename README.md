@@ -41,7 +41,10 @@ if err != nil {
 Creating a file system object with default configurations.
 ```go
 appName := "delete_file"
-filesystem := fs.NewFileSystemWithDefault(account, appName)
+filesystem, err := fs.NewFileSystemWithDefault(account, appName)
+if err != nil {
+    panic(err)
+}
 defer filesystem.Release()
 ```
 
