@@ -44,7 +44,12 @@ func main() {
 
 	// Create a file system
 	appName := "download"
-	filesystem := fs.NewFileSystemWithDefault(account, appName)
+	filesystem, err := fs.NewFileSystemWithDefault(account, appName)
+	if err != nil {
+		util.LogErrorf("err - %v", err)
+		panic(err)
+	}
+
 	defer filesystem.Release()
 
 	// convert dest path into absolute path

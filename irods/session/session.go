@@ -1,8 +1,6 @@
 package session
 
 import (
-	"log"
-
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
@@ -17,7 +15,7 @@ type IRODSSession struct {
 }
 
 // NewIRODSSession create a IRODSSession
-func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) *IRODSSession {
+func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*IRODSSession, error) {
 	sess := IRODSSession{
 		Account: account,
 		Config:  config,
@@ -35,11 +33,11 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) *I
 	p, err := pool.NewChannelPool(&poolConfig)
 	if err != nil {
 		util.LogErrorf("Cannot create a new connection pool - %v", err)
-		log.Panic(err)
+		return nil, err
 	}
 
 	sess.ConnectionPool = p
-	return &sess
+	return &sess, nil
 }
 
 func (sess *IRODSSession) connOpen() (interface{}, error) {

@@ -32,7 +32,11 @@ func setup() {
 	account.ClientServerNegotiation = false
 	util.LogDebugf("Account : %v", account.MaskSensitiveData())
 
-	fs = NewFileSystemWithDefault(account, "go-irodsclient-test")
+	fs, err = NewFileSystemWithDefault(account, "go-irodsclient-test")
+	if err != nil {
+		util.LogErrorf("err - %v", err)
+		panic(err)
+	}
 }
 
 func shutdown() {

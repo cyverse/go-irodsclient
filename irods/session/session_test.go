@@ -45,7 +45,11 @@ func shutdown() {
 func TestSession(t *testing.T) {
 	setup()
 
-	sess := NewIRODSSession(account, sessionConfig)
+	sess, err := NewIRODSSession(account, sessionConfig)
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
 
 	// first
 	conn, err := sess.AcquireConnection()

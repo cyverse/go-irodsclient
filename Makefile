@@ -1,5 +1,5 @@
 PKG=github.com/cyverse/go-irodsclient
-VERSION=v0.2.1
+VERSION=v0.4.0
 GIT_COMMIT?=$(shell git rev-parse HEAD)
 BUILD_DATE?=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 LDFLAGS?="-X ${PKG}/client.clientVersion=${VERSION} -X ${PKG}/client.gitCommit=${GIT_COMMIT} -X ${PKG}/client.buildDate=${BUILD_DATE}"

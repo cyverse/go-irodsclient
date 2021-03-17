@@ -45,7 +45,12 @@ func main() {
 
 	// Create a file system
 	appName := "delete_dir"
-	filesystem := fs.NewFileSystemWithDefault(account, appName)
+	filesystem, err := fs.NewFileSystemWithDefault(account, appName)
+	if err != nil {
+		util.LogErrorf("err - %v", err)
+		panic(err)
+	}
+
 	defer filesystem.Release()
 
 	err = filesystem.RemoveDir(inputPath, recurse, true)

@@ -42,7 +42,12 @@ func main() {
 
 	// Create a file system
 	appName := "list_dir"
-	filesystem := fs.NewFileSystemWithDefault(account, appName)
+	filesystem, err := fs.NewFileSystemWithDefault(account, appName)
+	if err != nil {
+		util.LogErrorf("err - %v", err)
+		panic(err)
+	}
+
 	defer filesystem.Release()
 
 	entries, err := filesystem.List(inputPath)

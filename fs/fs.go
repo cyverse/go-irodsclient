@@ -20,9 +20,13 @@ type FileSystem struct {
 }
 
 // NewFileSystem creates a new FileSystem
-func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) *FileSystem {
+func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*FileSystem, error) {
 	sessConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax)
-	sess := session.NewIRODSSession(account, sessConfig)
+	sess, err := session.NewIRODSSession(account, sessConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime)
 
 	return &FileSystem{
@@ -30,14 +34,18 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) *FileS
 		Config:  config,
 		Session: sess,
 		Cache:   cache,
-	}
+	}, nil
 }
 
 // NewFileSystemWithDefault ...
-func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName string) *FileSystem {
+func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName string) (*FileSystem, error) {
 	config := NewFileSystemConfigWithDefault(applicationName)
 	sessConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax)
-	sess := session.NewIRODSSession(account, sessConfig)
+	sess, err := session.NewIRODSSession(account, sessConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime)
 
 	return &FileSystem{
@@ -45,7 +53,7 @@ func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName strin
 		Config:  config,
 		Session: sess,
 		Cache:   cache,
-	}
+	}, nil
 }
 
 // Release ...
