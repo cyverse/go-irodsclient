@@ -784,7 +784,7 @@ func (fs *FileSystem) InvalidateCache(path string) {
 func (fs *FileSystem) getCollection(path string) (*FSEntry, error) {
 	// check cache first
 	cachedEntry := fs.Cache.GetEntryCache(path)
-	if cachedEntry != nil {
+	if cachedEntry != nil && cachedEntry.Type == FSDirectoryEntry {
 		return cachedEntry, nil
 	}
 
@@ -923,7 +923,7 @@ func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*FSEntry
 func (fs *FileSystem) getDataObject(path string) (*FSEntry, error) {
 	// check cache first
 	cachedEntry := fs.Cache.GetEntryCache(path)
-	if cachedEntry != nil {
+	if cachedEntry != nil && cachedEntry.Type == FSFileEntry {
 		return cachedEntry, nil
 	}
 
