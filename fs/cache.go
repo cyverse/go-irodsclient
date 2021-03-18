@@ -150,7 +150,7 @@ func (cache *FileSystemCache) ClearMetadataCache() {
 }
 
 // AddGroupUsersCache ...
-func (cache *FileSystemCache) AddGroupUsersCache(group string, users []types.IRODSUser) {
+func (cache *FileSystemCache) AddGroupUsersCache(group string, users []*types.IRODSUser) {
 	cache.GroupUsersCache.Set(group, users, 0)
 }
 
@@ -160,10 +160,10 @@ func (cache *FileSystemCache) RemoveGroupUsersCache(group string) {
 }
 
 // GetGroupUsersCache ...
-func (cache *FileSystemCache) GetGroupUsersCache(group string) []types.IRODSUser {
+func (cache *FileSystemCache) GetGroupUsersCache(group string) []*types.IRODSUser {
 	users, exist := cache.GroupUsersCache.Get(group)
 	if exist {
-		if irodsUsers, ok := users.([]types.IRODSUser); ok {
+		if irodsUsers, ok := users.([]*types.IRODSUser); ok {
 			return irodsUsers
 		}
 	}
