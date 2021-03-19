@@ -1071,6 +1071,8 @@ func (fs *FileSystem) ListMetadata(path string) ([]*types.IRODSMeta, error) {
 func (fs *FileSystem) AddMetadata(irodsPath string, attName string, attValue string, attUnits string) error {
 	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
+	fs.Cache.RemoveMetadataCache(irodsCorrectPath)
+
 	metadata := &types.IRODSMeta{
 		Name:  attName,
 		Value: attValue,
@@ -1100,6 +1102,8 @@ func (fs *FileSystem) AddMetadata(irodsPath string, attName string, attValue str
 
 func (fs *FileSystem) DeleteMetadata(irodsPath string, attName string, attValue string, attUnits string) error {
 	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
+
+	fs.Cache.RemoveMetadataCache(irodsCorrectPath)
 
 	metadata := &types.IRODSMeta{
 		Name:  attName,
