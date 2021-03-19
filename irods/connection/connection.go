@@ -601,3 +601,41 @@ func (conn *IRODSConnection) ReadMessage() (*message.IRODSMessage, error) {
 
 func (conn *IRODSConnection) release(val bool) {
 }
+
+// Commit a transaction.
+func (conn *IRODSConnection) Commit() error {
+	return conn.endTransaction(true)
+}
+
+// Rollback a transaction.
+func (conn *IRODSConnection) Rollback() error {
+	return conn.endTransaction(false)
+}
+
+func (conn *IRODSConnection) endTransaction(commit bool) error {
+	request := message.NewIRODSMessageEndTransactionRequest(commit)
+	requestMessage, err := request.GetMessage()
+	if err != nil {
+		return fmt.Errorf("Could not make a end transaction request message - %v", err)
+	}
+
+	err = conn.SendMessage(requestMessage)
+	if err != nil {
+		return fmt.Errorf("Could not send a end transaction request message - %v", err)
+	}
+
+	// Server responds with results
+	responseMessage, err := conn.ReadMessage()
+	if err != nil {
+		return fmt.Errorf("Could not receive a end transaction response message - %v", err)
+	}
+
+	response := message.IRODSMessageEndTransactionResponse{}
+	err = response.FromMessage(responseMessage)
+	if err != nil {
+		return fmt.Errorf("Could not receive a end transaction response message - %v", err)
+	}
+
+	err = response.CheckError()
+	return err
+}
