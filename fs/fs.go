@@ -65,13 +65,7 @@ func (fs *FileSystem) ListGroupUsers(group string) ([]*types.IRODSUser, error) {
 	// check cache first
 	cachedUsers := fs.Cache.GetGroupUsersCache(group)
 	if cachedUsers != nil {
-		// convert it to pointer arrays
-		userArray := []*types.IRODSUser{}
-		for _, cu := range cachedUsers {
-			userArray = append(userArray, &cu)
-		}
-
-		return userArray, nil
+		return cachedUsers, nil
 	}
 
 	// otherwise, retrieve it and add it to cache
@@ -87,13 +81,7 @@ func (fs *FileSystem) ListGroupUsers(group string) ([]*types.IRODSUser, error) {
 	}
 
 	// cache it
-	// convert it to arrays
-	userArray := []types.IRODSUser{}
-	for _, u := range users {
-		userArray = append(userArray, *u)
-	}
-
-	fs.Cache.AddGroupUsersCache(group, userArray)
+	fs.Cache.AddGroupUsersCache(group, users)
 
 	return users, nil
 }
