@@ -253,7 +253,7 @@ func TestListIRODSDataObjectMeta(t *testing.T) {
 		panic(err)
 	}
 
-	metas, err := ListDataObjectMeta(conn, collection, "bench.tmp")
+	metas, err := ListDataObjectMeta(conn, collection, "all.fna.tar.gz")
 	if err != nil {
 		t.Errorf("err - %v", err)
 		panic(err)
@@ -547,6 +547,45 @@ func TestListIRODSGroupUsers(t *testing.T) {
 	} else {
 		for _, user := range users {
 			util.LogDebugf("User : %v", user)
+		}
+	}
+
+	shutdown()
+}
+
+func TestSearchDataObjectsByMeta(t *testing.T) {
+	setup()
+
+	dataobjects, err := SearchDataObjectsByMeta(conn, "ipc_UUID", "3241af9a-c199-11e5-bd90-3c4a92e4a804")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	for _, dataobject := range dataobjects {
+		util.LogDebugf("DataObject : %v", dataobject)
+		for _, replica := range dataobject.Replicas {
+			util.LogDebugf("Replica : %v", replica)
+		}
+	}
+
+	shutdown()
+}
+
+func TestSearchDataObjectsByMetaWildcard(t *testing.T) {
+	setup()
+
+	// this takes a long time to perform
+	dataobjects, err := SearchDataObjectsByMetaWildcard(conn, "ipc_UUID", "3241af9a-c199-11e5-bd90-3c4a92e4a80%")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	for _, dataobject := range dataobjects {
+		util.LogDebugf("DataObject : %v", dataobject)
+		for _, replica := range dataobject.Replicas {
+			util.LogDebugf("Replica : %v", replica)
 		}
 	}
 
