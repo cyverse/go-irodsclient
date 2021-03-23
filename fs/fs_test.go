@@ -63,6 +63,26 @@ func TestListEntries(t *testing.T) {
 	shutdown()
 }
 
+func TestListEntriesByMeta(t *testing.T) {
+	setup()
+
+	entries, err := fs.SearchByMeta("ipc_UUID", "3241af9a-c199-11e5-bd90-3c4a92e4a804")
+	if err != nil {
+		t.Errorf("err - %v", err)
+		panic(err)
+	}
+
+	if len(entries) == 0 {
+		util.LogDebug("There is no entries")
+	} else {
+		for _, entry := range entries {
+			util.LogDebugf("Entry : %v", entry)
+		}
+	}
+
+	shutdown()
+}
+
 func TestListACLs(t *testing.T) {
 	setup()
 

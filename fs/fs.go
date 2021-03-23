@@ -365,6 +365,11 @@ func (fs *FileSystem) List(path string) ([]*FSEntry, error) {
 	return fs.listEntries(collection.Internal.(*types.IRODSCollection))
 }
 
+// SearchByMeta searches all file system entries with given metadata
+func (fs *FileSystem) SearchByMeta(metaname string, metavalue string) ([]*FSEntry, error) {
+	return fs.searchEntriesByMeta(metaname, metavalue)
+}
+
 // RemoveDir deletes a directory
 func (fs *FileSystem) RemoveDir(path string, recurse bool, force bool) error {
 	irodsPath := util.GetCorrectIRODSPath(path)
@@ -904,6 +909,74 @@ func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*FSEntry
 		dirEntryPaths = append(dirEntryPaths, fsEntry.Path)
 	}
 	fs.Cache.AddDirCache(collection.Path, dirEntryPaths)
+
+	return fsEntries, nil
+}
+
+func (fs *FileSystem) searchEntriesByMeta(metaName string, metaValue string) ([]*FSEntry, error) {
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	collections, err := irods_fs.SearchCollectionsByMeta(conn, metaName, metaValue)
+	if err != nil {
+		return nil, err
+	}
+
+	fsEntries := []*FSEntry{}
+
+	for _, coll := range collections {
+		fsEntry := &FSEntry{
+			ID:         coll.ID,
+			Type:       FSDirectoryEntry,
+			Name:       coll.Name,
+			Path:       coll.Path,
+			Owner:      coll.Owner,
+			Size:       0,
+			CreateTime: coll.CreateTime,
+			ModifyTime: coll.ModifyTime,
+			CheckSum:   "",
+			Internal:   coll,
+		}
+
+		fsEntries = append(fsEntries, fsEntry)
+
+		// cache it
+		fs.Cache.AddEntryCache(fsEntry)
+	}
+
+	dataobjects, err := irods_fs.SearchDataObjectsMasterReplicaByMeta(conn, metaName, metaValue)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, dataobject := range dataobjects {
+		if len(dataobject.Replicas) == 0 {
+			continue
+		}
+
+		replica := dataobject.Replicas[0]
+
+		fsEntry := &FSEntry{
+			ID:         dataobject.ID,
+			Type:       FSFileEntry,
+			Name:       dataobject.Name,
+			Path:       dataobject.Path,
+			Owner:      replica.Owner,
+			Size:       dataobject.Size,
+			CreateTime: replica.CreateTime,
+			ModifyTime: replica.ModifyTime,
+			CheckSum:   replica.CheckSum,
+			Internal:   dataobject,
+		}
+
+		fsEntries = append(fsEntries, fsEntry)
+
+		// cache it
+		fs.Cache.AddEntryCache(fsEntry)
+	}
 
 	return fsEntries, nil
 }

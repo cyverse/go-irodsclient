@@ -669,9 +669,9 @@ func SearchCollectionsByMeta(conn *connection.IRODSConnection, metaName string, 
 		query.AddSelect(common.ICAT_COLUMN_COLL_MODIFY_TIME, 1)
 
 		metaNameCondVal := fmt.Sprintf("= '%s'", metaName)
-		query.AddCondition(common.ICAT_COLUMN_META_DATA_ATTR_NAME, metaNameCondVal)
+		query.AddCondition(common.ICAT_COLUMN_META_COLL_ATTR_NAME, metaNameCondVal)
 		metaValueCondVal := fmt.Sprintf("= '%s'", metaValue)
-		query.AddCondition(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, metaValueCondVal)
+		query.AddCondition(common.ICAT_COLUMN_META_COLL_ATTR_VALUE, metaValueCondVal)
 
 		queryMessage, err := query.GetMessage()
 		if err != nil {
@@ -787,9 +787,9 @@ func SearchCollectionsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 		query.AddSelect(common.ICAT_COLUMN_COLL_MODIFY_TIME, 1)
 
 		metaNameCondVal := fmt.Sprintf("= '%s'", metaName)
-		query.AddCondition(common.ICAT_COLUMN_META_DATA_ATTR_NAME, metaNameCondVal)
+		query.AddCondition(common.ICAT_COLUMN_META_COLL_ATTR_NAME, metaNameCondVal)
 		metaValueCondVal := fmt.Sprintf("like '%s'", metaValue)
-		query.AddCondition(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, metaValueCondVal)
+		query.AddCondition(common.ICAT_COLUMN_META_COLL_ATTR_VALUE, metaValueCondVal)
 
 		queryMessage, err := query.GetMessage()
 		if err != nil {
