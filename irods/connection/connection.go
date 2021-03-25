@@ -26,7 +26,7 @@ type IRODSConnection struct {
 	connected         bool
 	socket            net.Conn
 	serverVersion     *types.IRODSVersion
-	generatedPassword string
+	GeneratedPassword string
 }
 
 // NewIRODSConnection create a IRODSConnection
@@ -395,10 +395,10 @@ func (conn *IRODSConnection) loginPAM() error {
 	}
 
 	// save irods generated password for possible future use
-	conn.generatedPassword = pamAuthResponse.GeneratedPassword
+	conn.GeneratedPassword = pamAuthResponse.GeneratedPassword
 
 	// retry native auth with generated password
-	return conn.loginNative(conn.generatedPassword)
+	return conn.loginNative(conn.GeneratedPassword)
 }
 
 // Disconnect disconnects

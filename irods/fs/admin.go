@@ -1,16 +1,36 @@
 package fs
 
 import (
-	"github.com/thanhpk/randstr"
-
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/message"
+	"github.com/cyverse/go-irodsclient/irods/types"
+	"github.com/cyverse/go-irodsclient/irods/util"
 )
 
+// Maximum password length
+const maxPwLength = 50
+
+// Very secret key that is part of the public cpp code of irods
+const scramblePadding = "1gCBizHWbwIYyWLoysGzTe6SyzqFKMniZX05faZHWAwQKXf6Fs"
+
 // AddUser adds a user.
-func AddUser(conn *connection.IRODSConnection, username string) error {
-	// random scrambled password
-	scrambledPassword := randstr.Hex(30)
+func AddUser(conn *connection.IRODSConnection, username, password string) error {
+	// copy the behaviour from setScrambledPw
+	if len(password) > maxPwLength {
+		password = password[0:maxPwLength]
+	}
+
+	if lencopy := maxPwLength - 10 - len(password); lencopy > 15 {
+		password = password + scramblePadding[0:lencopy]
+	}
+
+	adminPassword := conn.Account.Password
+
+	if conn.Account.AuthenticationScheme == types.AuthSchemePAM {
+		adminPassword = conn.GeneratedPassword
+	}
+
+	scrambledPassword := util.Scramble(password, adminPassword)
 
 	req := message.NewIRODSMessageUserAdminRequest("mkuser", username, scrambledPassword)
 
