@@ -23,10 +23,10 @@ type IRODSConnection struct {
 	ApplicationName string
 
 	// internal
-	connected         bool
-	socket            net.Conn
-	serverVersion     *types.IRODSVersion
-	GeneratedPassword string
+	connected               bool
+	socket                  net.Conn
+	serverVersion           *types.IRODSVersion
+	generatedPasswordForPAM string // used for PAM auth
 }
 
 // NewIRODSConnection create a IRODSConnection
@@ -45,6 +45,11 @@ func (conn *IRODSConnection) GetVersion() *types.IRODSVersion {
 
 func (conn *IRODSConnection) requiresCSNegotiation() bool {
 	return conn.Account.ClientServerNegotiation
+}
+
+// GetGeneratedPasswordForPAMAuth returns generated Password For PAM Auth
+func (conn *IRODSConnection) GetGeneratedPasswordForPAMAuth() string {
+	return conn.generatedPasswordForPAM
 }
 
 // IsConnected returns if the connection is live
@@ -395,10 +400,10 @@ func (conn *IRODSConnection) loginPAM() error {
 	}
 
 	// save irods generated password for possible future use
-	conn.GeneratedPassword = pamAuthResponse.GeneratedPassword
+	conn.generatedPasswordForPAM = pamAuthResponse.GeneratedPassword
 
 	// retry native auth with generated password
-	return conn.loginNative(conn.GeneratedPassword)
+	return conn.loginNative(conn.generatedPasswordForPAM)
 }
 
 // Disconnect disconnects

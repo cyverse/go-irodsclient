@@ -1,33 +1,33 @@
 package fs
 
 import (
+	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/message"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
 )
 
-// Maximum password length
-const maxPwLength = 50
-
 // Very secret key that is part of the public cpp code of irods
-const scramblePadding = "1gCBizHWbwIYyWLoysGzTe6SyzqFKMniZX05faZHWAwQKXf6Fs"
+const (
+	scramblePadding string = "1gCBizHWbwIYyWLoysGzTe6SyzqFKMniZX05faZHWAwQKXf6Fs"
+)
 
 // AddUser adds a user.
 func AddUser(conn *connection.IRODSConnection, username, password string) error {
 	// copy the behaviour from setScrambledPw
-	if len(password) > maxPwLength {
-		password = password[0:maxPwLength]
+	if len(password) > common.MaxPasswordLength {
+		password = password[0:common.MaxPasswordLength]
 	}
 
-	if lencopy := maxPwLength - 10 - len(password); lencopy > 15 {
+	if lencopy := common.MaxPasswordLength - 10 - len(password); lencopy > 15 {
 		password = password + scramblePadding[0:lencopy]
 	}
 
 	adminPassword := conn.Account.Password
 
 	if conn.Account.AuthenticationScheme == types.AuthSchemePAM {
-		adminPassword = conn.GeneratedPassword
+		adminPassword = conn.GetGeneratedPasswordForPAMAuth()
 	}
 
 	scrambledPassword := util.Scramble(password, adminPassword)
