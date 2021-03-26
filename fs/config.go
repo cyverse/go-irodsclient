@@ -10,10 +10,13 @@ type FileSystemConfig struct {
 	ConnectionMax         int
 	CacheTimeout          time.Duration
 	CacheCleanupTime      time.Duration
+	// for mysql iCAT backend, this should be true.
+	// for postgresql iCAT backend, this can be false.
+	StartNewTransaction bool
 }
 
 // NewFileSystemConfig create a FileSystemConfig
-func NewFileSystemConfig(applicationName string, operationTimeout time.Duration, connectionIdleTimeout time.Duration, connectionMax int, cacheTimeout time.Duration, cacheCleanupTime time.Duration) *FileSystemConfig {
+func NewFileSystemConfig(applicationName string, operationTimeout time.Duration, connectionIdleTimeout time.Duration, connectionMax int, cacheTimeout time.Duration, cacheCleanupTime time.Duration, startNewTransaction bool) *FileSystemConfig {
 	return &FileSystemConfig{
 		ApplicationName:       applicationName,
 		OperationTimeout:      operationTimeout,
@@ -21,6 +24,7 @@ func NewFileSystemConfig(applicationName string, operationTimeout time.Duration,
 		ConnectionMax:         connectionMax,
 		CacheTimeout:          cacheTimeout,
 		CacheCleanupTime:      cacheCleanupTime,
+		StartNewTransaction:   startNewTransaction,
 	}
 }
 
@@ -33,5 +37,6 @@ func NewFileSystemConfigWithDefault(applicationName string) *FileSystemConfig {
 		ConnectionMax:         20,
 		CacheTimeout:          5 * time.Minute,
 		CacheCleanupTime:      5 * time.Minute,
+		StartNewTransaction:   true,
 	}
 }

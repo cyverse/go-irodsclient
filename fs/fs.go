@@ -21,7 +21,7 @@ type FileSystem struct {
 
 // NewFileSystem creates a new FileSystem
 func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*FileSystem, error) {
-	sessConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax)
+	sessConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax, config.StartNewTransaction)
 	sess, err := session.NewIRODSSession(account, sessConfig)
 	if err != nil {
 		return nil, err
@@ -40,7 +40,7 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*File
 // NewFileSystemWithDefault ...
 func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName string) (*FileSystem, error) {
 	config := NewFileSystemConfigWithDefault(applicationName)
-	sessConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax)
+	sessConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax, config.StartNewTransaction)
 	sess, err := session.NewIRODSSession(account, sessConfig)
 	if err != nil {
 		return nil, err

@@ -12,10 +12,11 @@ type IRODSSessionConfig struct {
 	ConnectionMax        int
 	ConnectionInitNumber int
 	ConnectionMaxIdle    int
+	StartNewTransaction  bool
 }
 
 // NewIRODSSessionConfig create a IRODSSessionConfig
-func NewIRODSSessionConfig(applicationName string, operationTimeout time.Duration, idleTimeout time.Duration, connectionMax int) *IRODSSessionConfig {
+func NewIRODSSessionConfig(applicationName string, operationTimeout time.Duration, idleTimeout time.Duration, connectionMax int, startNewTransaction bool) *IRODSSessionConfig {
 	initCap := 1
 	maxIdle := 1
 	if connectionMax >= 15 {
@@ -31,6 +32,7 @@ func NewIRODSSessionConfig(applicationName string, operationTimeout time.Duratio
 		ConnectionMax:        connectionMax,
 		ConnectionInitNumber: initCap,
 		ConnectionMaxIdle:    maxIdle,
+		StartNewTransaction:  startNewTransaction,
 	}
 }
 
@@ -43,5 +45,6 @@ func NewIRODSSessionConfigWithDefault(applicationName string) *IRODSSessionConfi
 		ConnectionMax:        20,
 		ConnectionInitNumber: 1,
 		ConnectionMaxIdle:    10,
+		StartNewTransaction:  true,
 	}
 }
