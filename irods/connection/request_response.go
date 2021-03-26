@@ -24,10 +24,6 @@ type CheckErrorResponse interface {
 
 // Request sends a request and expects a response.
 func (conn *IRODSConnection) Request(request Request, response Response) error {
-	if conn == nil || !conn.IsConnected() {
-		return fmt.Errorf("connection is nil or disconnected")
-	}
-
 	requestMessage, err := request.GetMessage()
 	if err != nil {
 		return fmt.Errorf("Could not make a request message - %v", err)

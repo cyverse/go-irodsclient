@@ -54,24 +54,8 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 	condVal := fmt.Sprintf("= '%s'", path)
 	query.AddCondition(common.ICAT_COLUMN_COLL_NAME, condVal)
 
-	queryMessage, err := query.GetMessage()
-	if err != nil {
-		return nil, fmt.Errorf("Could not make a collection query message - %v", err)
-	}
-
-	err = conn.SendMessage(queryMessage)
-	if err != nil {
-		return nil, fmt.Errorf("Could not send a collection query message - %v", err)
-	}
-
-	// Server responds with results
-	queryResultMessage, err := conn.ReadMessage()
-	if err != nil {
-		return nil, fmt.Errorf("Could not receive a collection query result message - %v", err)
-	}
-
 	queryResult := message.IRODSMessageQueryResult{}
-	err = queryResult.FromMessage(queryResultMessage)
+	err := conn.Request(query, &queryResult)
 	if err != nil {
 		return nil, fmt.Errorf("Could not receive a collection query result message - %v", err)
 	}
@@ -160,24 +144,8 @@ func ListCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types
 		condVal := fmt.Sprintf("= '%s'", path)
 		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, condVal)
 
-		queryMessage, err := query.GetMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not make a collection metadata query message - %v", err)
-		}
-
-		err = conn.SendMessage(queryMessage)
-		if err != nil {
-			return nil, fmt.Errorf("Could not send a collection metadata query message - %v", err)
-		}
-
-		// Server responds with results
-		queryResultMessage, err := conn.ReadMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not receive a collection metadata query result message - %v", err)
-		}
-
 		queryResult := message.IRODSMessageQueryResult{}
-		err = queryResult.FromMessage(queryResultMessage)
+		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a collection metadata query result message - %v", err)
 		}
@@ -261,24 +229,8 @@ func ListCollectionAccess(conn *connection.IRODSConnection, path string) ([]*typ
 		condVal := fmt.Sprintf("= '%s'", path)
 		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, condVal)
 
-		queryMessage, err := query.GetMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not make a collection access query message - %v", err)
-		}
-
-		err = conn.SendMessage(queryMessage)
-		if err != nil {
-			return nil, fmt.Errorf("Could not send a collection access query message - %v", err)
-		}
-
-		// Server responds with results
-		queryResultMessage, err := conn.ReadMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not receive a collection access query result message - %v", err)
-		}
-
 		queryResult := message.IRODSMessageQueryResult{}
-		err = queryResult.FromMessage(queryResultMessage)
+		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a collection access query result message - %v", err)
 		}
@@ -360,24 +312,8 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 		condVal := fmt.Sprintf("= '%s'", path)
 		query.AddCondition(common.ICAT_COLUMN_COLL_PARENT_NAME, condVal)
 
-		queryMessage, err := query.GetMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not make a collection query message - %v", err)
-		}
-
-		err = conn.SendMessage(queryMessage)
-		if err != nil {
-			return nil, fmt.Errorf("Could not send a collection query message - %v", err)
-		}
-
-		// Server responds with results
-		queryResultMessage, err := conn.ReadMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not receive a collection query result message - %v", err)
-		}
-
 		queryResult := message.IRODSMessageQueryResult{}
-		err = queryResult.FromMessage(queryResultMessage)
+		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a collection query result message - %v", err)
 		}
@@ -461,30 +397,8 @@ func CreateCollection(conn *connection.IRODSConnection, path string, recurse boo
 	}
 
 	request := message.NewIRODSMessageMkcolRequest(path, recurse)
-	requestMessage, err := request.GetMessage()
-	if err != nil {
-		return fmt.Errorf("Could not make a collection creation request message - %v", err)
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		return fmt.Errorf("Could not send a collection creation request message - %v", err)
-	}
-
-	// Server responds with results
-	responseMessage, err := conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("Could not receive a collection creation response message - %v", err)
-	}
-
 	response := message.IRODSMessageMkcolResponse{}
-	err = response.FromMessage(responseMessage)
-	if err != nil {
-		return fmt.Errorf("Could not receive a collection creation response message - %v", err)
-	}
-
-	err = response.CheckError()
-	return err
+	return conn.RequestAndCheck(request, &response)
 }
 
 // DeleteCollection deletes a collection for the path
@@ -494,29 +408,8 @@ func DeleteCollection(conn *connection.IRODSConnection, path string, recurse boo
 	}
 
 	request := message.NewIRODSMessageRmcolRequest(path, recurse, force)
-	requestMessage, err := request.GetMessage()
-	if err != nil {
-		return fmt.Errorf("Could not make a collection deletion request message - %v", err)
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		return fmt.Errorf("Could not send a collection deletion request message - %v", err)
-	}
-
-	// Server responds with results
-	responseMessage, err := conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("Could not receive a collection deletion response message - %v", err)
-	}
-
 	response := message.IRODSMessageRmcolResponse{}
-	err = response.FromMessage(responseMessage)
-	if err != nil {
-		return fmt.Errorf("Could not receive a collection deletion response message - %v", err)
-	}
-
-	err = response.CheckError()
+	err := conn.RequestAndCheck(request, &response)
 	if err != nil {
 		return err
 	}
@@ -549,30 +442,8 @@ func MoveCollection(conn *connection.IRODSConnection, srcPath string, destPath s
 	}
 
 	request := message.NewIRODSMessageMvcolRequest(srcPath, destPath)
-	requestMessage, err := request.GetMessage()
-	if err != nil {
-		return fmt.Errorf("Could not make a collection move request message - %v", err)
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		return fmt.Errorf("Could not send a collection move request message - %v", err)
-	}
-
-	// Server responds with results
-	responseMessage, err := conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("Could not receive a collection move response message - %v", err)
-	}
-
 	response := message.IRODSMessageMvcolResponse{}
-	err = response.FromMessage(responseMessage)
-	if err != nil {
-		return fmt.Errorf("Could not receive a collection move response message - %v", err)
-	}
-
-	err = response.CheckError()
-	return err
+	return conn.RequestAndCheck(request, &response)
 }
 
 // AddCollectionMeta sets metadata of a data object for the path to the given key values.
@@ -583,30 +454,8 @@ func AddCollectionMeta(conn *connection.IRODSConnection, path string, metadata *
 	}
 
 	request := message.NewIRODSMessageAddMetadataRequest(types.IRODSCollectionMetaItemType, path, metadata)
-	requestMessage, err := request.GetMessage()
-	if err != nil {
-		return fmt.Errorf("Could not make a metadata modification request message - %v", err)
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		return fmt.Errorf("Could not send a metadata modification request message - %v", err)
-	}
-
-	// Server responds with results
-	responseMessage, err := conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("Could not receive a metadata modification response message - %v", err)
-	}
-
 	response := message.IRODSMessageModMetaResponse{}
-	err = response.FromMessage(responseMessage)
-	if err != nil {
-		return fmt.Errorf("Could not receive a metadata modification response message - %v", err)
-	}
-
-	err = response.CheckError()
-	return err
+	return conn.RequestAndCheck(request, &response)
 }
 
 // DeleteCollectionMeta sets metadata of a data object for the path to the given key values.
@@ -624,30 +473,8 @@ func DeleteCollectionMeta(conn *connection.IRODSConnection, path string, metadat
 		request = message.NewIRODSMessageRemoveMetadataRequest(types.IRODSCollectionMetaItemType, path, metadata)
 	}
 
-	requestMessage, err := request.GetMessage()
-	if err != nil {
-		return fmt.Errorf("Could not make a metadata modification request message - %v", err)
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		return fmt.Errorf("Could not send a metadata modification request message - %v", err)
-	}
-
-	// Server responds with results
-	responseMessage, err := conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("Could not receive a metadata modification response message - %v", err)
-	}
-
 	response := message.IRODSMessageModMetaResponse{}
-	err = response.FromMessage(responseMessage)
-	if err != nil {
-		return fmt.Errorf("Could not receive a metadata modification response message - %v", err)
-	}
-
-	err = response.CheckError()
-	return err
+	return conn.RequestAndCheck(request, &response)
 }
 
 // SearchCollectionsByMeta searches collections by metadata
@@ -673,24 +500,8 @@ func SearchCollectionsByMeta(conn *connection.IRODSConnection, metaName string, 
 		metaValueCondVal := fmt.Sprintf("= '%s'", metaValue)
 		query.AddCondition(common.ICAT_COLUMN_META_COLL_ATTR_VALUE, metaValueCondVal)
 
-		queryMessage, err := query.GetMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not make a collection query message - %v", err)
-		}
-
-		err = conn.SendMessage(queryMessage)
-		if err != nil {
-			return nil, fmt.Errorf("Could not send a collection query message - %v", err)
-		}
-
-		// Server responds with results
-		queryResultMessage, err := conn.ReadMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not receive a collection query result message - %v", err)
-		}
-
 		queryResult := message.IRODSMessageQueryResult{}
-		err = queryResult.FromMessage(queryResultMessage)
+		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a collection query result message - %v", err)
 		}
@@ -791,24 +602,8 @@ func SearchCollectionsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 		metaValueCondVal := fmt.Sprintf("like '%s'", metaValue)
 		query.AddCondition(common.ICAT_COLUMN_META_COLL_ATTR_VALUE, metaValueCondVal)
 
-		queryMessage, err := query.GetMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not make a collection query message - %v", err)
-		}
-
-		err = conn.SendMessage(queryMessage)
-		if err != nil {
-			return nil, fmt.Errorf("Could not send a collection query message - %v", err)
-		}
-
-		// Server responds with results
-		queryResultMessage, err := conn.ReadMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not receive a collection query result message - %v", err)
-		}
-
 		queryResult := message.IRODSMessageQueryResult{}
-		err = queryResult.FromMessage(queryResultMessage)
+		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a collection query result message - %v", err)
 		}

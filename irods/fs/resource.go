@@ -34,24 +34,8 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 	rescCondVal := fmt.Sprintf("= '%s'", name)
 	query.AddCondition(common.ICAT_COLUMN_R_RESC_NAME, rescCondVal)
 
-	queryMessage, err := query.GetMessage()
-	if err != nil {
-		return nil, fmt.Errorf("Could not make a data object query message - %v", err)
-	}
-
-	err = conn.SendMessage(queryMessage)
-	if err != nil {
-		return nil, fmt.Errorf("Could not send a data object query message - %v", err)
-	}
-
-	// Server responds with results
-	queryResultMessage, err := conn.ReadMessage()
-	if err != nil {
-		return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
-	}
-
 	queryResult := message.IRODSMessageQueryResult{}
-	err = queryResult.FromMessage(queryResultMessage)
+	err := conn.Request(query, &queryResult)
 	if err != nil {
 		return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
 	}
@@ -127,30 +111,8 @@ func AddResourceMeta(conn *connection.IRODSConnection, name string, metadata *ty
 	}
 
 	request := message.NewIRODSMessageAddMetadataRequest(types.IRODSResourceMetaItemType, name, metadata)
-	requestMessage, err := request.GetMessage()
-	if err != nil {
-		return fmt.Errorf("Could not make a metadata modification request message - %v", err)
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		return fmt.Errorf("Could not send a metadata modification request message - %v", err)
-	}
-
-	// Server responds with results
-	responseMessage, err := conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("Could not receive a metadata modification response message - %v", err)
-	}
-
 	response := message.IRODSMessageModMetaResponse{}
-	err = response.FromMessage(responseMessage)
-	if err != nil {
-		return fmt.Errorf("Could not receive a metadata modification response message - %v", err)
-	}
-
-	err = response.CheckError()
-	return err
+	return conn.RequestAndCheck(request, &response)
 }
 
 // DeleteResourceMeta sets metadata of a resource to the given key values.
@@ -168,28 +130,6 @@ func DeleteResourceMeta(conn *connection.IRODSConnection, name string, metadata 
 		request = message.NewIRODSMessageRemoveMetadataRequest(types.IRODSResourceMetaItemType, name, metadata)
 	}
 
-	requestMessage, err := request.GetMessage()
-	if err != nil {
-		return fmt.Errorf("Could not make a metadata modification request message - %v", err)
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		return fmt.Errorf("Could not send a metadata modification request message - %v", err)
-	}
-
-	// Server responds with results
-	responseMessage, err := conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("Could not receive a metadata modification response message - %v", err)
-	}
-
 	response := message.IRODSMessageModMetaResponse{}
-	err = response.FromMessage(responseMessage)
-	if err != nil {
-		return fmt.Errorf("Could not receive a metadata modification response message - %v", err)
-	}
-
-	err = response.CheckError()
-	return err
+	return conn.RequestAndCheck(request, &response)
 }

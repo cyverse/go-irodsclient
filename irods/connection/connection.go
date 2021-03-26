@@ -171,24 +171,8 @@ func (conn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, er
 
 		// Send negotiation result to server
 		negotiationResult := message.NewIRODSMessageCSNegotiation(status, policyResult)
-		negotiationResultMessage, err := negotiationResult.GetMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not make a negotiation result message - %v", err)
-		}
-
-		err = conn.SendMessage(negotiationResultMessage)
-		if err != nil {
-			return nil, fmt.Errorf("Could not send a negotiation result message - %v", err)
-		}
-
-		// Server responds with version
-		versionMessage, err := conn.ReadMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not receive a version message - %v", err)
-		}
-
 		version := message.IRODSMessageVersion{}
-		err = version.FromMessage(versionMessage)
+		err = conn.Request(negotiationResult, &version)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a version message - %v", err)
 		}
@@ -211,24 +195,8 @@ func (conn *IRODSConnection) connectWithoutCSNegotiation() (*types.IRODSVersion,
 	// Send a startup message
 	util.LogInfo("Start up a new connection")
 	startup := message.NewIRODSMessageStartupPack(conn.Account, conn.ApplicationName, false)
-	startupMessage, err := startup.GetMessage()
-	if err != nil {
-		return nil, fmt.Errorf("Could not make a startup message - %v", err)
-	}
-
-	err = conn.SendMessage(startupMessage)
-	if err != nil {
-		return nil, fmt.Errorf("Could not send a startup message - %v", err)
-	}
-
-	// Server responds with version
-	versionMessage, err := conn.ReadMessage()
-	if err != nil {
-		return nil, fmt.Errorf("Could not receive a version message - %v", err)
-	}
-
 	version := message.IRODSMessageVersion{}
-	err = version.FromMessage(versionMessage)
+	err := conn.Request(startup, &version)
 	if err != nil {
 		return nil, fmt.Errorf("Could not receive a version message - %v", err)
 	}
@@ -305,24 +273,8 @@ func (conn *IRODSConnection) loginNative(password string) error {
 
 	// authenticate
 	authRequest := message.NewIRODSMessageAuthRequest()
-	authRequestMessage, err := authRequest.GetMessage()
-	if err != nil {
-		return fmt.Errorf("Could not make a login request message - %v", err)
-	}
-
-	err = conn.SendMessage(authRequestMessage)
-	if err != nil {
-		return fmt.Errorf("Could not send a login request message - %v", err)
-	}
-
-	// challenge
-	authChallengeMessage, err := conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("Could not receive an authentication challenge message - %v", err)
-	}
-
 	authChallenge := message.IRODSMessageAuthChallenge{}
-	err = authChallenge.FromMessage(authChallengeMessage)
+	err := conn.Request(authRequest, &authChallenge)
 	if err != nil {
 		return fmt.Errorf("Could not receive an authentication challenge message body")
 	}
@@ -333,29 +285,8 @@ func (conn *IRODSConnection) loginNative(password string) error {
 	}
 
 	authResponse := message.NewIRODSMessageAuthResponse(encodedPassword, conn.Account.ProxyUser)
-	authResponseMessage, err := authResponse.GetMessage()
-	if err != nil {
-		return fmt.Errorf("Could not make a login response message - %v", err)
-	}
-
-	err = conn.SendMessage(authResponseMessage)
-	if err != nil {
-		return fmt.Errorf("Could not send a login response message - %v", err)
-	}
-
-	authResultMessage, err := conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("Could not receive a login result message - %v", err)
-	}
-
 	authResult := message.IRODSMessageAuthResult{}
-	err = authResult.FromMessage(authResultMessage)
-	if err != nil {
-		return fmt.Errorf("Could not receive a login result message body - %v", err)
-	}
-
-	err = authResult.CheckError()
-	return err
+	return conn.RequestAndCheck(authResponse, &authResult)
 }
 
 func (conn *IRODSConnection) loginGSI() error {
@@ -377,26 +308,10 @@ func (conn *IRODSConnection) loginPAM() error {
 
 	// authenticate
 	pamAuthRequest := message.NewIRODSMessagePamAuthRequest(conn.Account.ClientUser, conn.Account.Password, ttl)
-	pamAuthRequestMessage, err := pamAuthRequest.GetMessage()
-	if err != nil {
-		return fmt.Errorf("Could not make a pam login request message - %v", err)
-	}
-
-	err = conn.SendMessage(pamAuthRequestMessage)
-	if err != nil {
-		return fmt.Errorf("Could not send a pam login request message - %v", err)
-	}
-
-	// response
-	pamAuthResponseMessage, err := conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("Could not receive an authentication challenge message - %v", err)
-	}
-
 	pamAuthResponse := message.IRODSMessagePamAuthResponse{}
-	err = pamAuthResponse.FromMessage(pamAuthResponseMessage)
+	err := conn.Request(pamAuthRequest, &pamAuthResponse)
 	if err != nil {
-		return fmt.Errorf("Could not receive an authentication challenge message body")
+		return fmt.Errorf("Could not receive an authentication challenge message")
 	}
 
 	// save irods generated password for possible future use

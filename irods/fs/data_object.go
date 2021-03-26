@@ -80,24 +80,8 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 		pathCondVal := fmt.Sprintf("= '%s'", filename)
 		query.AddCondition(common.ICAT_COLUMN_DATA_NAME, pathCondVal)
 
-		queryMessage, err := query.GetMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not make a data object query message - %v", err)
-		}
-
-		err = conn.SendMessage(queryMessage)
-		if err != nil {
-			return nil, fmt.Errorf("Could not send a data object query message - %v", err)
-		}
-
-		// Server responds with results
-		queryResultMessage, err := conn.ReadMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
-		}
-
 		queryResult := message.IRODSMessageQueryResult{}
-		err = queryResult.FromMessage(queryResultMessage)
+		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
 		}
@@ -264,24 +248,8 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 		query.AddCondition(common.ICAT_COLUMN_DATA_NAME, pathCondVal)
 		query.AddCondition(common.ICAT_COLUMN_DATA_REPL_NUM, "= '0'")
 
-		queryMessage, err := query.GetMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not make a data object query message - %v", err)
-		}
-
-		err = conn.SendMessage(queryMessage)
-		if err != nil {
-			return nil, fmt.Errorf("Could not send a data object query message - %v", err)
-		}
-
-		// Server responds with results
-		queryResultMessage, err := conn.ReadMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
-		}
-
 		queryResult := message.IRODSMessageQueryResult{}
-		err = queryResult.FromMessage(queryResultMessage)
+		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
 		}
@@ -426,24 +394,8 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 		collidCondVal := fmt.Sprintf("= '%d'", collection.ID)
 		query.AddCondition(common.ICAT_COLUMN_D_COLL_ID, collidCondVal)
 
-		queryMessage, err := query.GetMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not make a data object query message - %v", err)
-		}
-
-		err = conn.SendMessage(queryMessage)
-		if err != nil {
-			return nil, fmt.Errorf("Could not send a data object query message - %v", err)
-		}
-
-		// Server responds with results
-		queryResultMessage, err := conn.ReadMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
-		}
-
 		queryResult := message.IRODSMessageQueryResult{}
-		err = queryResult.FromMessage(queryResultMessage)
+		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
 		}
@@ -605,24 +557,8 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 		query.AddCondition(common.ICAT_COLUMN_D_COLL_ID, collidCondVal)
 		query.AddCondition(common.ICAT_COLUMN_DATA_REPL_NUM, "= '0'")
 
-		queryMessage, err := query.GetMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not make a data object query message - %v", err)
-		}
-
-		err = conn.SendMessage(queryMessage)
-		if err != nil {
-			return nil, fmt.Errorf("Could not send a data object query message - %v", err)
-		}
-
-		// Server responds with results
-		queryResultMessage, err := conn.ReadMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
-		}
-
 		queryResult := message.IRODSMessageQueryResult{}
-		err = queryResult.FromMessage(queryResultMessage)
+		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
 		}
@@ -755,24 +691,8 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, collection *types.IROD
 		nameCondVal := fmt.Sprintf("= '%s'", filename)
 		query.AddCondition(common.ICAT_COLUMN_DATA_NAME, nameCondVal)
 
-		queryMessage, err := query.GetMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not make a data object metadata query message - %v", err)
-		}
-
-		err = conn.SendMessage(queryMessage)
-		if err != nil {
-			return nil, fmt.Errorf("Could not send a data object metadata query message - %v", err)
-		}
-
-		// Server responds with results
-		queryResultMessage, err := conn.ReadMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object metadata query result message - %v", err)
-		}
-
 		queryResult := message.IRODSMessageQueryResult{}
-		err = queryResult.FromMessage(queryResultMessage)
+		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a data object metadata query result message - %v", err)
 		}
@@ -858,24 +778,8 @@ func ListDataObjectAccess(conn *connection.IRODSConnection, collection *types.IR
 		nameCondVal := fmt.Sprintf("= '%s'", filename)
 		query.AddCondition(common.ICAT_COLUMN_DATA_NAME, nameCondVal)
 
-		queryMessage, err := query.GetMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not make a data object access query message - %v", err)
-		}
-
-		err = conn.SendMessage(queryMessage)
-		if err != nil {
-			return nil, fmt.Errorf("Could not send a data object access query message - %v", err)
-		}
-
-		// Server responds with results
-		queryResultMessage, err := conn.ReadMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object access query result message - %v", err)
-		}
-
 		queryResult := message.IRODSMessageQueryResult{}
-		err = queryResult.FromMessage(queryResultMessage)
+		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a data object access query result message - %v", err)
 		}
@@ -943,30 +847,8 @@ func DeleteDataObject(conn *connection.IRODSConnection, path string, force bool)
 	}
 
 	request := message.NewIRODSMessageRmobjRequest(path, force)
-	requestMessage, err := request.GetMessage()
-	if err != nil {
-		return fmt.Errorf("Could not make a data object deletion request message - %v", err)
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		return fmt.Errorf("Could not send a data object deletion request message - %v", err)
-	}
-
-	// Server responds with results
-	responseMessage, err := conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("Could not receive a data object deletion response message - %v", err)
-	}
-
 	response := message.IRODSMessageRmobjResponse{}
-	err = response.FromMessage(responseMessage)
-	if err != nil {
-		return fmt.Errorf("Could not receive a data object deletion response message - %v", err)
-	}
-
-	err = response.CheckError()
-	return err
+	return conn.RequestAndCheck(request, &response)
 }
 
 // MoveDataObject moves a data object for the path to another path
@@ -976,30 +858,8 @@ func MoveDataObject(conn *connection.IRODSConnection, srcPath string, destPath s
 	}
 
 	request := message.NewIRODSMessageMvobjRequest(srcPath, destPath)
-	requestMessage, err := request.GetMessage()
-	if err != nil {
-		return fmt.Errorf("Could not make a data object move request message - %v", err)
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		return fmt.Errorf("Could not send a data object move request message - %v", err)
-	}
-
-	// Server responds with results
-	responseMessage, err := conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("Could not receive a data object move response message - %v", err)
-	}
-
 	response := message.IRODSMessageMvobjResponse{}
-	err = response.FromMessage(responseMessage)
-	if err != nil {
-		return fmt.Errorf("Could not receive a data object move response message - %v", err)
-	}
-
-	err = response.CheckError()
-	return err
+	return conn.RequestAndCheck(request, &response)
 }
 
 // CopyDataObject creates a copy of a data object for the path
@@ -1009,30 +869,8 @@ func CopyDataObject(conn *connection.IRODSConnection, srcPath string, destPath s
 	}
 
 	request := message.NewIRODSMessageCpobjRequest(srcPath, destPath)
-	requestMessage, err := request.GetMessage()
-	if err != nil {
-		return fmt.Errorf("Could not make a data object copy request message - %v", err)
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		return fmt.Errorf("Could not send a data object copy request message - %v", err)
-	}
-
-	// Server responds with results
-	responseMessage, err := conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("Could not receive a data object copy response message - %v", err)
-	}
-
 	response := message.IRODSMessageCpobjResponse{}
-	err = response.FromMessage(responseMessage)
-	if err != nil {
-		return fmt.Errorf("Could not receive a data object copy response message - %v", err)
-	}
-
-	err = response.CheckError()
-	return err
+	return conn.RequestAndCheck(request, &response)
 }
 
 // TruncateDataObject truncates a data object for the path to the given size
@@ -1042,30 +880,8 @@ func TruncateDataObject(conn *connection.IRODSConnection, path string, size int6
 	}
 
 	request := message.NewIRODSMessageTruncobjRequest(path, size)
-	requestMessage, err := request.GetMessage()
-	if err != nil {
-		return fmt.Errorf("Could not make a data object truncation request message - %v", err)
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		return fmt.Errorf("Could not send a data object truncation request message - %v", err)
-	}
-
-	// Server responds with results
-	responseMessage, err := conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("Could not receive a data object truncation response message - %v", err)
-	}
-
 	response := message.IRODSMessageTruncobjResponse{}
-	err = response.FromMessage(responseMessage)
-	if err != nil {
-		return fmt.Errorf("Could not receive a data object truncation response message - %v", err)
-	}
-
-	err = response.CheckError()
-	return err
+	return conn.RequestAndCheck(request, &response)
 }
 
 // ReplicateDataObject replicates a data object for the path to the given reousrce
@@ -1084,30 +900,8 @@ func ReplicateDataObject(conn *connection.IRODSConnection, path string, resource
 		request.AddKeyVal(common.ADMIN_KW, "")
 	}
 
-	requestMessage, err := request.GetMessage()
-	if err != nil {
-		return fmt.Errorf("Could not make a data object replication request message - %v", err)
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		return fmt.Errorf("Could not send a data object replication request message - %v", err)
-	}
-
-	// Server responds with results
-	responseMessage, err := conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("Could not receive a data object replication response message - %v", err)
-	}
-
 	response := message.IRODSMessageReplobjResponse{}
-	err = response.FromMessage(responseMessage)
-	if err != nil {
-		return fmt.Errorf("Could not receive a data object replication response message - %v", err)
-	}
-
-	err = response.CheckError()
-	return err
+	return conn.RequestAndCheck(request, &response)
 }
 
 // TrimDataObject trims replicas for a data object
@@ -1122,30 +916,8 @@ func TrimDataObject(conn *connection.IRODSConnection, path string, resource stri
 		request.AddKeyVal(common.ADMIN_KW, "")
 	}
 
-	requestMessage, err := request.GetMessage()
-	if err != nil {
-		return fmt.Errorf("Could not make a data object trim request message - %v", err)
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		return fmt.Errorf("Could not send a data object trim request message - %v", err)
-	}
-
-	// Server responds with results
-	responseMessage, err := conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("Could not receive a data object trim response message - %v", err)
-	}
-
 	response := message.IRODSMessageTrimobjResponse{}
-	err = response.FromMessage(responseMessage)
-	if err != nil {
-		return fmt.Errorf("Could not receive a data object trim response message - %v", err)
-	}
-
-	err = response.CheckError()
-	return err
+	return conn.RequestAndCheck(request, &response)
 }
 
 // CreateDataObject creates a data object for the path, returns a file handle
@@ -1155,29 +927,8 @@ func CreateDataObject(conn *connection.IRODSConnection, path string, resource st
 	}
 
 	request := message.NewIRODSMessageCreateobjRequest(path, resource, force)
-	requestMessage, err := request.GetMessage()
-	if err != nil {
-		return nil, fmt.Errorf("Could not make a data object creation request message - %v", err)
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		return nil, fmt.Errorf("Could not send a data object creation request message - %v", err)
-	}
-
-	// Server responds with results
-	responseMessage, err := conn.ReadMessage()
-	if err != nil {
-		return nil, fmt.Errorf("Could not receive a data object creation response message - %v", err)
-	}
-
 	response := message.IRODSMessageCreateobjResponse{}
-	err = response.FromMessage(responseMessage)
-	if err != nil {
-		return nil, fmt.Errorf("Could not receive a data object creation response message - %v", err)
-	}
-
-	err = response.CheckError()
+	err := conn.RequestAndCheck(request, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -1195,29 +946,8 @@ func OpenDataObject(conn *connection.IRODSConnection, path string, resource stri
 	}
 
 	request := message.NewIRODSMessageOpenobjRequest(path, resource, types.FileOpenMode(mode))
-	requestMessage, err := request.GetMessage()
-	if err != nil {
-		return nil, -1, fmt.Errorf("Could not make a data object open request message - %v", err)
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		return nil, -1, fmt.Errorf("Could not send a data object open request message - %v", err)
-	}
-
-	// Server responds with results
-	responseMessage, err := conn.ReadMessage()
-	if err != nil {
-		return nil, -1, fmt.Errorf("Could not receive a data object open response message - %v", err)
-	}
-
 	response := message.IRODSMessageOpenobjResponse{}
-	err = response.FromMessage(responseMessage)
-	if err != nil {
-		return nil, -1, fmt.Errorf("Could not receive a data object open response message - %v", err)
-	}
-
-	err = response.CheckError()
+	err := conn.RequestAndCheck(request, &response)
 	if err != nil {
 		return nil, -1, err
 	}
@@ -1247,29 +977,8 @@ func OpenDataObjectWithOperation(conn *connection.IRODSConnection, path string, 
 	}
 
 	request := message.NewIRODSMessageOpenobjRequestWithOperation(path, resource, types.FileOpenMode(mode), oper)
-	requestMessage, err := request.GetMessage()
-	if err != nil {
-		return nil, fmt.Errorf("Could not make a data object open request message - %v", err)
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		return nil, fmt.Errorf("Could not send a data object open request message - %v", err)
-	}
-
-	// Server responds with results
-	responseMessage, err := conn.ReadMessage()
-	if err != nil {
-		return nil, fmt.Errorf("Could not receive a data object open response message - %v", err)
-	}
-
 	response := message.IRODSMessageOpenobjResponse{}
-	err = response.FromMessage(responseMessage)
-	if err != nil {
-		return nil, fmt.Errorf("Could not receive a data object open response message - %v", err)
-	}
-
-	err = response.CheckError()
+	err := conn.RequestAndCheck(request, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -1298,29 +1007,8 @@ func SeekDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHan
 	}
 
 	request := message.NewIRODSMessageSeekobjRequest(handle.FileDescriptor, offset, whence)
-	requestMessage, err := request.GetMessage()
-	if err != nil {
-		return -1, fmt.Errorf("Could not make a data object seek request message - %v", err)
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		return -1, fmt.Errorf("Could not send a data object seek request message - %v", err)
-	}
-
-	// Server responds with results
-	responseMessage, err := conn.ReadMessage()
-	if err != nil {
-		return -1, fmt.Errorf("Could not receive a data object seek response message - %v", err)
-	}
-
 	response := message.IRODSMessageSeekobjResponse{}
-	err = response.FromMessage(responseMessage)
-	if err != nil {
-		return -1, fmt.Errorf("Could not receive a data object seek response message - %v", err)
-	}
-
-	err = response.CheckError()
+	err := conn.RequestAndCheck(request, &response)
 	if err != nil {
 		return -1, err
 	}
@@ -1335,29 +1023,8 @@ func ReadDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHan
 	}
 
 	request := message.NewIRODSMessageReadobjRequest(handle.FileDescriptor, length)
-	requestMessage, err := request.GetMessage()
-	if err != nil {
-		return nil, fmt.Errorf("Could not make a data object read request message - %v", err)
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		return nil, fmt.Errorf("Could not send a data object read request message - %v", err)
-	}
-
-	// Server responds with results
-	responseMessage, err := conn.ReadMessage()
-	if err != nil {
-		return nil, fmt.Errorf("Could not receive a data object read response message - %v", err)
-	}
-
 	response := message.IRODSMessageReadobjResponse{}
-	err = response.FromMessage(responseMessage)
-	if err != nil {
-		return nil, fmt.Errorf("Could not receive a data object read response message - %v", err)
-	}
-
-	err = response.CheckError()
+	err := conn.RequestAndCheck(request, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -1372,34 +1039,8 @@ func WriteDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHa
 	}
 
 	request := message.NewIRODSMessageWriteobjRequest(handle.FileDescriptor, data)
-	requestMessage, err := request.GetMessage()
-	if err != nil {
-		return fmt.Errorf("Could not make a data object write request message - %v", err)
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		return fmt.Errorf("Could not send a data object write request message - %v", err)
-	}
-
-	// Server responds with results
-	responseMessage, err := conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("Could not receive a data object write response message - %v", err)
-	}
-
 	response := message.IRODSMessageWriteobjResponse{}
-	err = response.FromMessage(responseMessage)
-	if err != nil {
-		return fmt.Errorf("Could not receive a data object write response message - %v", err)
-	}
-
-	err = response.CheckError()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return conn.RequestAndCheck(request, &response)
 }
 
 // CloseDataObject closes a file handle of a data object
@@ -1409,29 +1050,8 @@ func CloseDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHa
 	}
 
 	request := message.NewIRODSMessageCloseobjRequest(handle.FileDescriptor)
-	requestMessage, err := request.GetMessage()
-	if err != nil {
-		return fmt.Errorf("Could not make a data object close request message - %v", err)
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		return fmt.Errorf("Could not send a data object close request message - %v", err)
-	}
-
-	// Server responds with results
-	responseMessage, err := conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("Could not receive a data object close response message - %v", err)
-	}
-
 	response := message.IRODSMessageCloseobjResponse{}
-	err = response.FromMessage(responseMessage)
-	if err != nil {
-		return fmt.Errorf("Could not receive a data object close response message - %v", err)
-	}
-
-	return response.CheckError()
+	return conn.RequestAndCheck(request, &response)
 }
 
 // AddDataObjectMeta sets metadata of a data object for the path to the given key values.
@@ -1442,30 +1062,8 @@ func AddDataObjectMeta(conn *connection.IRODSConnection, path string, metadata *
 	}
 
 	request := message.NewIRODSMessageAddMetadataRequest(types.IRODSDataObjectMetaItemType, path, metadata)
-	requestMessage, err := request.GetMessage()
-	if err != nil {
-		return fmt.Errorf("Could not make a metadata modification request message - %v", err)
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		return fmt.Errorf("Could not send a metadata modification request message - %v", err)
-	}
-
-	// Server responds with results
-	responseMessage, err := conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("Could not receive a metadata modification response message - %v", err)
-	}
-
 	response := message.IRODSMessageModMetaResponse{}
-	err = response.FromMessage(responseMessage)
-	if err != nil {
-		return fmt.Errorf("Could not receive a metadata modification response message - %v", err)
-	}
-
-	err = response.CheckError()
-	return err
+	return conn.RequestAndCheck(request, &response)
 }
 
 // DeleteDataObjectMeta sets metadata of a data object for the path to the given key values.
@@ -1483,30 +1081,8 @@ func DeleteDataObjectMeta(conn *connection.IRODSConnection, path string, metadat
 		request = message.NewIRODSMessageRemoveMetadataRequest(types.IRODSDataObjectMetaItemType, path, metadata)
 	}
 
-	requestMessage, err := request.GetMessage()
-	if err != nil {
-		return fmt.Errorf("Could not make a metadata modification request message - %v", err)
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		return fmt.Errorf("Could not send a metadata modification request message - %v", err)
-	}
-
-	// Server responds with results
-	responseMessage, err := conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("Could not receive a metadata modification response message - %v", err)
-	}
-
 	response := message.IRODSMessageModMetaResponse{}
-	err = response.FromMessage(responseMessage)
-	if err != nil {
-		return fmt.Errorf("Could not receive a metadata modification response message - %v", err)
-	}
-
-	err = response.CheckError()
-	return err
+	return conn.RequestAndCheck(request, &response)
 }
 
 // SearchDataObjectsByMeta searches data objects by metadata
@@ -1544,24 +1120,8 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 		metaValueCondVal := fmt.Sprintf("= '%s'", metaValue)
 		query.AddCondition(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, metaValueCondVal)
 
-		queryMessage, err := query.GetMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not make a data object query message - %v", err)
-		}
-
-		err = conn.SendMessage(queryMessage)
-		if err != nil {
-			return nil, fmt.Errorf("Could not send a data object query message - %v", err)
-		}
-
-		// Server responds with results
-		queryResultMessage, err := conn.ReadMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
-		}
-
 		queryResult := message.IRODSMessageQueryResult{}
-		err = queryResult.FromMessage(queryResultMessage)
+		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
 		}
@@ -1743,24 +1303,8 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 		query.AddCondition(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, metaValueCondVal)
 		query.AddCondition(common.ICAT_COLUMN_DATA_REPL_NUM, "= '0'")
 
-		queryMessage, err := query.GetMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not make a data object query message - %v", err)
-		}
-
-		err = conn.SendMessage(queryMessage)
-		if err != nil {
-			return nil, fmt.Errorf("Could not send a data object query message - %v", err)
-		}
-
-		// Server responds with results
-		queryResultMessage, err := conn.ReadMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
-		}
-
 		queryResult := message.IRODSMessageQueryResult{}
-		err = queryResult.FromMessage(queryResultMessage)
+		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
 		}
@@ -1923,24 +1467,8 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 		metaValueCondVal := fmt.Sprintf("like '%s'", metaValue)
 		query.AddCondition(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, metaValueCondVal)
 
-		queryMessage, err := query.GetMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not make a data object query message - %v", err)
-		}
-
-		err = conn.SendMessage(queryMessage)
-		if err != nil {
-			return nil, fmt.Errorf("Could not send a data object query message - %v", err)
-		}
-
-		// Server responds with results
-		queryResultMessage, err := conn.ReadMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
-		}
-
 		queryResult := message.IRODSMessageQueryResult{}
-		err = queryResult.FromMessage(queryResultMessage)
+		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
 		}
@@ -2123,24 +1651,8 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 		query.AddCondition(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, metaValueCondVal)
 		query.AddCondition(common.ICAT_COLUMN_DATA_REPL_NUM, "= '0'")
 
-		queryMessage, err := query.GetMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not make a data object query message - %v", err)
-		}
-
-		err = conn.SendMessage(queryMessage)
-		if err != nil {
-			return nil, fmt.Errorf("Could not send a data object query message - %v", err)
-		}
-
-		// Server responds with results
-		queryResultMessage, err := conn.ReadMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
-		}
-
 		queryResult := message.IRODSMessageQueryResult{}
-		err = queryResult.FromMessage(queryResultMessage)
+		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
 		}

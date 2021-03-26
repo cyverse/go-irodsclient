@@ -32,24 +32,8 @@ func GetGroup(conn *connection.IRODSConnection, group string) (*types.IRODSUser,
 		condTypeVal := fmt.Sprintf("= '%s'", types.IRODSUserRodsGroup)
 		query.AddCondition(common.ICAT_COLUMN_USER_TYPE, condTypeVal)
 
-		queryMessage, err := query.GetMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not make a group query message - %v", err)
-		}
-
-		err = conn.SendMessage(queryMessage)
-		if err != nil {
-			return nil, fmt.Errorf("Could not send a group query message - %v", err)
-		}
-
-		// Server responds with results
-		queryResultMessage, err := conn.ReadMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not receive a group query result message - %v", err)
-		}
-
 		queryResult := message.IRODSMessageQueryResult{}
-		err = queryResult.FromMessage(queryResultMessage)
+		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a group query result message - %v", err)
 		}
@@ -137,24 +121,8 @@ func ListGroupUsers(conn *connection.IRODSConnection, group string) ([]*types.IR
 		condNameVal := fmt.Sprintf("= '%s'", group)
 		query.AddCondition(common.ICAT_COLUMN_COLL_USER_GROUP_NAME, condNameVal)
 
-		queryMessage, err := query.GetMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not make a group user query message - %v", err)
-		}
-
-		err = conn.SendMessage(queryMessage)
-		if err != nil {
-			return nil, fmt.Errorf("Could not send a group user query message - %v", err)
-		}
-
-		// Server responds with results
-		queryResultMessage, err := conn.ReadMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not receive a group user query result message - %v", err)
-		}
-
 		queryResult := message.IRODSMessageQueryResult{}
-		err = queryResult.FromMessage(queryResultMessage)
+		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a group user query result message - %v", err)
 		}
