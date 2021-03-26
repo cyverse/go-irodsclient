@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/auth"
+	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/message"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
@@ -520,4 +521,100 @@ func (conn *IRODSConnection) ReadMessage() (*message.IRODSMessage, error) {
 }
 
 func (conn *IRODSConnection) release(val bool) {
+}
+
+// Commit a transaction. This is useful in combination with the NO_COMMIT_FLAG.
+// Usage is limited to privileged accounts.
+func (conn *IRODSConnection) Commit() error {
+	return conn.endTransaction(true)
+}
+
+// Rollback a transaction. This is useful in combination with the NO_COMMIT_FLAG.
+// It can also be used to clear the current database transaction if there are no staged operations,
+// just to refresh the view on the database for future queries.
+// Usage is limited to privileged accounts.
+func (conn *IRODSConnection) Rollback() error {
+	return conn.endTransaction(false)
+}
+
+// PoorMansRollback rolls back a transaction as a nonprivileged account, bypassing API limitations.
+// A nonprivileged account cannot have staged operations, so rollback is always a no-op.
+// The usage for this function, is that rolling back the current database transaction still will start
+// a new one, so that future queries will see all changes that where made up to calling this function.
+func (conn *IRODSConnection) PoorMansRollback() error {
+	dummyCol := fmt.Sprintf("/%s/home/%s", conn.Account.ClientZone, conn.Account.ClientUser)
+
+	return conn.poorMansEndTransaction(dummyCol, false)
+}
+
+func (conn *IRODSConnection) endTransaction(commit bool) error {
+	request := message.NewIRODSMessageEndTransactionRequest(commit)
+	requestMessage, err := request.GetMessage()
+	if err != nil {
+		return fmt.Errorf("Could not make a end transaction request message - %v", err)
+	}
+
+	err = conn.SendMessage(requestMessage)
+	if err != nil {
+		return fmt.Errorf("Could not send a end transaction request message - %v", err)
+	}
+
+	// Server responds with results
+	responseMessage, err := conn.ReadMessage()
+	if err != nil {
+		return fmt.Errorf("Could not receive a end transaction response message - %v", err)
+	}
+
+	response := message.IRODSMessageEndTransactionResponse{}
+	err = response.FromMessage(responseMessage)
+	if err != nil {
+		return fmt.Errorf("Could not receive a end transaction response message - %v", err)
+	}
+
+	err = response.CheckError()
+	return err
+}
+
+func (conn *IRODSConnection) poorMansEndTransaction(dummyCol string, commit bool) error {
+	request := message.NewIRODSMessageModColRequest(dummyCol)
+
+	if commit {
+		request.AddKeyVal(common.COLLECTION_TYPE_KW, "NULL_SPECIAL_VALUE")
+	}
+
+	requestMessage, err := request.GetMessage()
+	if err != nil {
+		return fmt.Errorf("Could not make a poor mans end transaction request message - %v", err)
+	}
+
+	err = conn.SendMessage(requestMessage)
+	if err != nil {
+		return fmt.Errorf("Could not send a poor mans end transaction request message - %v", err)
+	}
+
+	// Server responds with results
+	responseMessage, err := conn.ReadMessage()
+	if err != nil {
+		return fmt.Errorf("Could not receive a poor mans end transaction response message - %v", err)
+	}
+
+	response := message.IRODSMessageModColResponse{}
+	err = response.FromMessage(responseMessage)
+	if err != nil {
+		return fmt.Errorf("Could not receive a poor mans end transaction response message - %v", err)
+	}
+
+	if !commit {
+		// We do expect an error on rollback because we didn't supply enough parameters
+		if common.ErrorCode(response.Result) == common.CAT_INVALID_ARGUMENT {
+			return nil
+		}
+
+		if response.Result == 0 {
+			return fmt.Errorf("expected an error, but transaction completed successfully")
+		}
+	}
+
+	err = response.CheckError()
+	return err
 }

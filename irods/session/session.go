@@ -67,7 +67,20 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 	}
 
 	conn := v.(*connection.IRODSConnection)
-	return conn, nil
+
+	// Each irods connection automatically starts a database transaction at initial setup.
+	// All queries against irods using a connection will give results corresponding to the time
+	// the connection was made, or since the last change using the very same connection.
+	// I.e. if connections 1 and 2 are created at the same time, and connection 1 does an update,
+	// connection 2 will not see it until any other change is made using connection 2.
+	// The connection we get here from the connection pool might be old, and we might miss
+	// changes that happened in parallel connections. We fix this by doing a rollback operation,
+	// which will do nothing to the database (there are no operations staged for commit/rollback),
+	// but which will close the current transaction and starts a new one - refreshing the view for
+	// future queries.
+	err = conn.PoorMansRollback()
+
+	return conn, err
 }
 
 // ReturnConnection returns an idle connection
