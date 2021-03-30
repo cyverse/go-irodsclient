@@ -29,6 +29,12 @@ func (conn *IRODSConnection) Request(request Request, response Response) error {
 		return fmt.Errorf("Could not make a request message - %v", err)
 	}
 
+	// translate xml.Marshal XML into irods-understandable XML (among others, replace &#34; by &quot;)
+	err = conn.PreprocessMessage(requestMessage)
+	if err != nil {
+		return fmt.Errorf("Could not send preprocess message - %v", err)
+	}
+
 	err = conn.SendMessage(requestMessage)
 	if err != nil {
 		return fmt.Errorf("Could not send a request message - %v", err)
@@ -38,6 +44,12 @@ func (conn *IRODSConnection) Request(request Request, response Response) error {
 	responseMessage, err := conn.ReadMessage()
 	if err != nil {
 		return fmt.Errorf("Could not receive a response message - %v", err)
+	}
+
+	// translate irods-dialect XML into valid XML
+	err = conn.PostprocessMessage(responseMessage)
+	if err != nil {
+		return fmt.Errorf("Could not send postprocess message - %v", err)
 	}
 
 	err = response.FromMessage(responseMessage)
