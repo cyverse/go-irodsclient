@@ -9,7 +9,7 @@ const (
 	// Magic Numbers
 	MaxQueryRows        int = 500
 	MaxPasswordLength   int = 50
-	ReadWriteBufferSize int = 64 * 1024
+	ReadWriteBufferSize int = 1024 * 1024 * 8 // 8MB
 
 	/*
 		MAX_SQL_ATTR               int = 50
