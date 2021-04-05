@@ -86,7 +86,7 @@ func TestListEntriesByMeta(t *testing.T) {
 func TestListACLs(t *testing.T) {
 	setup()
 
-	acls, err := fs.ListACLsWithGroupUsers("/iplant/home/iychoi/bench.tmp")
+	acls, err := fs.ListACLsWithGroupUsers("/iplant/home/iychoi/all.fna.tar.gz")
 	if err != nil {
 		t.Errorf("err - %v", err)
 		panic(err)
@@ -106,7 +106,7 @@ func TestListACLs(t *testing.T) {
 func TestReadWrite(t *testing.T) {
 	setup()
 
-	text := "HELLO WORLD!"
+	text := "HELLO WORLD!<?!'\">"
 
 	handle, err := fs.CreateFile("/iplant/home/iychoi/testnewfile.txt", "")
 	if err != nil {
