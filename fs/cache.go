@@ -17,6 +17,8 @@ type FileSystemCache struct {
 	DirCache        *gocache.Cache
 	MetadataCache   *gocache.Cache
 	GroupUsersCache *gocache.Cache
+	GroupsCache     *gocache.Cache
+	UsersCache      *gocache.Cache
 }
 
 // NewFileSystemCache creates a new FileSystemCache
@@ -25,6 +27,8 @@ func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration) *File
 	dirCache := gocache.New(cacheTimeout, cleanup)
 	metadataCache := gocache.New(cacheTimeout, cleanup)
 	groupUsersCache := gocache.New(cacheTimeout, cleanup)
+	groupsCache := gocache.New(cacheTimeout, cleanup)
+	usersCache := gocache.New(cacheTimeout, cleanup)
 
 	return &FileSystemCache{
 		CacheTimeout:    cacheTimeout,
@@ -33,6 +37,8 @@ func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration) *File
 		DirCache:        dirCache,
 		MetadataCache:   metadataCache,
 		GroupUsersCache: groupUsersCache,
+		GroupsCache:     groupsCache,
+		UsersCache:      usersCache,
 	}
 }
 
@@ -162,6 +168,48 @@ func (cache *FileSystemCache) RemoveGroupUsersCache(group string) {
 // GetGroupUsersCache ...
 func (cache *FileSystemCache) GetGroupUsersCache(group string) []*types.IRODSUser {
 	users, exist := cache.GroupUsersCache.Get(group)
+	if exist {
+		if irodsUsers, ok := users.([]*types.IRODSUser); ok {
+			return irodsUsers
+		}
+	}
+	return nil
+}
+
+// AddGroupsCache ...
+func (cache *FileSystemCache) AddGroupsCache(groups []*types.IRODSUser) {
+	cache.GroupsCache.Set("groups", groups, 0)
+}
+
+// RemoveGroupsCache ...
+func (cache *FileSystemCache) RemoveGroupsCache() {
+	cache.GroupsCache.Delete("groups")
+}
+
+// GetGroupsCache ...
+func (cache *FileSystemCache) GetGroupsCache() []*types.IRODSUser {
+	groups, exist := cache.GroupsCache.Get("groups")
+	if exist {
+		if irodsGroups, ok := groups.([]*types.IRODSUser); ok {
+			return irodsGroups
+		}
+	}
+	return nil
+}
+
+// AddUsersCache ...
+func (cache *FileSystemCache) AddUsersCache(users []*types.IRODSUser) {
+	cache.UsersCache.Set("users", users, 0)
+}
+
+// RemoveUsersCache ...
+func (cache *FileSystemCache) RemoveUsersCache() {
+	cache.UsersCache.Delete("users")
+}
+
+// GetUsersCache ...
+func (cache *FileSystemCache) GetUsersCache() []*types.IRODSUser {
+	users, exist := cache.UsersCache.Get("users")
 	if exist {
 		if irodsUsers, ok := users.([]*types.IRODSUser); ok {
 			return irodsUsers

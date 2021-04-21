@@ -86,6 +86,56 @@ func (fs *FileSystem) ListGroupUsers(group string) ([]*types.IRODSUser, error) {
 	return users, nil
 }
 
+func (fs *FileSystem) ListGroups() ([]*types.IRODSUser, error) {
+	// check cache first
+	cachedGroups := fs.Cache.GetGroupsCache()
+	if cachedGroups != nil {
+		return cachedGroups, nil
+	}
+
+	// otherwise, retrieve it and add it to cache
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	groups, err := irods_fs.ListGroups(conn)
+	if err != nil {
+		return nil, err
+	}
+
+	// cache it
+	fs.Cache.AddGroupUsersCache("groups", groups)
+
+	return groups, nil
+}
+
+func (fs *FileSystem) ListUsers() ([]*types.IRODSUser, error) {
+	// check cache first
+	cachedUsers := fs.Cache.GetUsersCache()
+	if cachedUsers != nil {
+		return cachedUsers, nil
+	}
+
+	// otherwise, retrieve it and add it to cache
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	users, err := irods_fs.ListUsers(conn)
+	if err != nil {
+		return nil, err
+	}
+
+	// cache it
+	fs.Cache.AddUsersCache(users)
+
+	return users, nil
+}
+
 // Stat returns file status
 func (fs *FileSystem) Stat(path string) (*FSEntry, error) {
 	dirStat, err := fs.StatDir(path)
@@ -1071,6 +1121,8 @@ func (fs *FileSystem) ListMetadata(path string) ([]*types.IRODSMeta, error) {
 func (fs *FileSystem) AddMetadata(irodsPath string, attName string, attValue string, attUnits string) error {
 	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
+	fs.Cache.RemoveMetadataCache(irodsCorrectPath)
+
 	metadata := &types.IRODSMeta{
 		Name:  attName,
 		Value: attValue,
@@ -1100,6 +1152,8 @@ func (fs *FileSystem) AddMetadata(irodsPath string, attName string, attValue str
 
 func (fs *FileSystem) DeleteMetadata(irodsPath string, attName string, attValue string, attUnits string) error {
 	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
+
+	fs.Cache.RemoveMetadataCache(irodsCorrectPath)
 
 	metadata := &types.IRODSMeta{
 		Name:  attName,
@@ -1153,4 +1207,63 @@ func (fs *FileSystem) removeCachePath(path string) {
 
 		fs.Cache.RemoveDirCache(util.GetIRODSPathDirname(path))
 	}
+}
+
+func (fs *FileSystem) AddUserMetadata(user string, avuid int64, attName, attValue, attUnits string) error {
+	metadata := &types.IRODSMeta{
+		AVUID: avuid,
+		Name:  attName,
+		Value: attValue,
+		Units: attUnits,
+	}
+
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	err = irods_fs.AddUserMeta(conn, user, metadata)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (fs *FileSystem) DeleteUserMetadata(user string, avuid int64, attName, attValue, attUnits string) error {
+	metadata := &types.IRODSMeta{
+		AVUID: avuid,
+		Name:  attName,
+		Value: attValue,
+		Units: attUnits,
+	}
+
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	err = irods_fs.DeleteUserMeta(conn, user, metadata)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (fs *FileSystem) ListUserMetadata(user string) ([]*types.IRODSMeta, error) {
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	metadataobjects, err := irods_fs.ListUserMeta(conn, user)
+	if err != nil {
+		return nil, err
+	}
+
+	return metadataobjects, nil
 }
