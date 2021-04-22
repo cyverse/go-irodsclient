@@ -83,7 +83,8 @@ func NewIRODSMessageRemoveMetadataByIDRequest(itemType types.IRODSMetaItemType, 
 	return request
 }
 
-func NewIRODSMessageRemoveMetadataWcRequest(itemType types.IRODSMetaItemType, itemName, attName string) *IRODSMessageModMetaRequest {
+// NewIRODSMessageRemoveMetadataWildcardRequest creates a IRODSMessageModMetaRequest message for removing a metadata AVU by itemName and attributeValue.
+func NewIRODSMessageRemoveMetadataWildcardRequest(itemType types.IRODSMetaItemType, itemName, attName string) *IRODSMessageModMetaRequest {
 	request := &IRODSMessageModMetaRequest{
 		Operation: "rmw",
 		ItemType:  string(itemType),

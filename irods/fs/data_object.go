@@ -1077,6 +1077,8 @@ func DeleteDataObjectMeta(conn *connection.IRODSConnection, path string, metadat
 
 	if metadata.AVUID != 0 {
 		request = message.NewIRODSMessageRemoveMetadataByIDRequest(types.IRODSDataObjectMetaItemType, path, metadata.AVUID)
+	} else if metadata.Units == "" && metadata.Value == "" {
+		request = message.NewIRODSMessageRemoveMetadataWildcardRequest(types.IRODSDataObjectMetaItemType, path, metadata.Name)
 	} else {
 		request = message.NewIRODSMessageRemoveMetadataRequest(types.IRODSDataObjectMetaItemType, path, metadata)
 	}

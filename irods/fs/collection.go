@@ -469,6 +469,8 @@ func DeleteCollectionMeta(conn *connection.IRODSConnection, path string, metadat
 
 	if metadata.AVUID != 0 {
 		request = message.NewIRODSMessageRemoveMetadataByIDRequest(types.IRODSCollectionMetaItemType, path, metadata.AVUID)
+	} else if metadata.Units == "" && metadata.Value == "" {
+		request = message.NewIRODSMessageRemoveMetadataWildcardRequest(types.IRODSCollectionMetaItemType, path, metadata.Name)
 	} else {
 		request = message.NewIRODSMessageRemoveMetadataRequest(types.IRODSCollectionMetaItemType, path, metadata)
 	}

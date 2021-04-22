@@ -39,7 +39,7 @@ func AddUser(conn *connection.IRODSConnection, username, password string) error 
 
 // AddGroup adds a group.
 func AddGroup(conn *connection.IRODSConnection, group string) error {
-	req := message.NewIRODSMessageUserAdminRequest("mkgroup", group, "rodsgroup")
+	req := message.NewIRODSMessageUserAdminRequest("mkgroup", group, string(types.IRODSUserRodsGroup))
 
 	return conn.RequestAndCheck(req, &message.IRODSMessageUserAdminResponse{})
 }

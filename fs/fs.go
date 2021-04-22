@@ -106,7 +106,7 @@ func (fs *FileSystem) ListGroups() ([]*types.IRODSUser, error) {
 	}
 
 	// cache it
-	fs.Cache.AddGroupUsersCache("groups", groups)
+	fs.Cache.AddGroupsCache(groups)
 
 	return groups, nil
 }

@@ -206,24 +206,8 @@ func ListGroups(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 		condTypeVal := fmt.Sprintf("= '%s'", types.IRODSUserRodsGroup)
 		query.AddCondition(common.ICAT_COLUMN_USER_TYPE, condTypeVal)
 
-		queryMessage, err := query.GetMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not make a group query message - %v", err)
-		}
-
-		err = conn.SendMessage(queryMessage)
-		if err != nil {
-			return nil, fmt.Errorf("Could not send a group query message - %v", err)
-		}
-
-		// Server responds with results
-		queryResultMessage, err := conn.ReadMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not receive a group query result message - %v", err)
-		}
-
 		queryResult := message.IRODSMessageQueryResult{}
-		err = queryResult.FromMessage(queryResultMessage)
+		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a group query result message - %v", err)
 		}
@@ -303,27 +287,11 @@ func ListUsers(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_ZONE, 1)
 
-		//		condTypeVal := fmt.Sprintf("IN ('%s','%s')", types.IRODSUserRodsUser, types.IRODSUserGroupAdmin)
-		//		query.AddCondition(common.ICAT_COLUMN_USER_TYPE, condTypeVal)
-
-		queryMessage, err := query.GetMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not make a user query message - %v", err)
-		}
-
-		err = conn.SendMessage(queryMessage)
-		if err != nil {
-			return nil, fmt.Errorf("Could not send a user query message - %v", err)
-		}
-
-		// Server responds with results
-		queryResultMessage, err := conn.ReadMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not receive a user query result message - %v", err)
-		}
+		condTypeVal := fmt.Sprintf("<> '%s'", types.IRODSUserRodsGroup)
+		query.AddCondition(common.ICAT_COLUMN_USER_TYPE, condTypeVal)
 
 		queryResult := message.IRODSMessageQueryResult{}
-		err = queryResult.FromMessage(queryResultMessage)
+		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a user query result message - %v", err)
 		}
@@ -387,8 +355,8 @@ func ListUsers(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 	return users, nil
 }
 
-// ListUserGroups lists the groups a user is a member of
-func ListUserGroups(conn *connection.IRODSConnection, user string) ([]string, error) {
+// ListUserGroupNames lists the group names a user is a member of
+func ListUserGroupNames(conn *connection.IRODSConnection, user string) ([]string, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
@@ -404,24 +372,8 @@ func ListUserGroups(conn *connection.IRODSConnection, user string) ([]string, er
 		condTypeVal := fmt.Sprintf("= '%s'", user)
 		query.AddCondition(common.ICAT_COLUMN_USER_NAME, condTypeVal)
 
-		queryMessage, err := query.GetMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not make a group query message - %v", err)
-		}
-
-		err = conn.SendMessage(queryMessage)
-		if err != nil {
-			return nil, fmt.Errorf("Could not send a group query message - %v", err)
-		}
-
-		// Server responds with results
-		queryResultMessage, err := conn.ReadMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not receive a group query result message - %v", err)
-		}
-
 		queryResult := message.IRODSMessageQueryResult{}
-		err = queryResult.FromMessage(queryResultMessage)
+		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a group query result message - %v", err)
 		}
@@ -463,44 +415,26 @@ func ListUserGroups(conn *connection.IRODSConnection, user string) ([]string, er
 	return groups, nil
 }
 
-// ListUserResQuota lists all existing resource quota of a user or group
-func ListUserResQuota(conn *connection.IRODSConnection, user string) ([]*types.IRODSQuota, error) {
+// ListUserResourceQuota lists all existing resource quota of a user or group
+func ListUserResourceQuota(conn *connection.IRODSConnection, user string) ([]*types.IRODSQuota, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	var quota []string
-
-	var quotaSlice []*types.IRODSQuota
+	quota := []*types.IRODSQuota{}
 
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
 		query := message.NewIRODSMessageQuery(common.MaxQueryRows, 0, 0, 0)
-		query.AddSelect(common.ICAT_COLUMN_QUOTA_LIMIT, 1)
 		query.AddSelect(common.ICAT_COLUMN_QUOTA_RESC_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_QUOTA_LIMIT, 1)
 
 		condTypeVal := fmt.Sprintf("= '%s'", user)
 		query.AddCondition(common.ICAT_COLUMN_QUOTA_USER_NAME, condTypeVal)
 
-		queryMessage, err := query.GetMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not make a quota query message - %v", err)
-		}
-
-		err = conn.SendMessage(queryMessage)
-		if err != nil {
-			return nil, fmt.Errorf("Could not send a quota query message - %v", err)
-		}
-
-		// Server responds with results
-		queryResultMessage, err := conn.ReadMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not receive a quota query result message - %v", err)
-		}
-
 		queryResult := message.IRODSMessageQueryResult{}
-		err = queryResult.FromMessage(queryResultMessage)
+		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a quota query result message - %v", err)
 		}
@@ -513,7 +447,7 @@ func ListUserResQuota(conn *connection.IRODSConnection, user string) ([]*types.I
 			return nil, fmt.Errorf("Could not receive quota attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		var newQuota []string
+		pagenatedQuota := make([]*types.IRODSQuota, queryResult.RowCount, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -523,24 +457,31 @@ func ListUserResQuota(conn *connection.IRODSConnection, user string) ([]*types.I
 
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
-				newQuota = append(newQuota, value)
+
+				if pagenatedQuota[row] == nil {
+					// create a new
+					pagenatedQuota[row] = &types.IRODSQuota{
+						RescName: "",
+						Limit:    -1,
+					}
+				}
+
+				switch sqlResult.AttributeIndex {
+				case int(common.ICAT_COLUMN_QUOTA_RESC_NAME):
+					pagenatedQuota[row].RescName = value
+				case int(common.ICAT_COLUMN_QUOTA_LIMIT):
+					limit, err := strconv.ParseInt(value, 10, 64)
+					if err != nil {
+						return nil, fmt.Errorf("Could not parse quota limit - %s", value)
+					}
+					pagenatedQuota[row].Limit = limit
+				default:
+					// ignore
+				}
 			}
 		}
-		quota = append(quota, newQuota...)
 
-		for i := 0; i < len(quota)/2; i++ {
-			l, err := strconv.Atoi(quota[i])
-			if err != nil {
-				return nil, fmt.Errorf("Could not convert string to int - %v", err)
-			}
-
-			n := quota[(len(quota)/2)+i]
-			quotum := types.IRODSQuota{
-				Limit:    int64(l),
-				RescName: n,
-			}
-			quotaSlice = append(quotaSlice, &quotum)
-		}
+		quota = append(quota, pagenatedQuota...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -548,7 +489,7 @@ func ListUserResQuota(conn *connection.IRODSConnection, user string) ([]*types.I
 		}
 	}
 
-	return quotaSlice, nil
+	return quota, nil
 }
 
 // ListUserGlobalQuota lists the global quota of a user or group
@@ -557,7 +498,7 @@ func ListUserGlobalQuota(conn *connection.IRODSConnection, user string) (*types.
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	var quota *types.IRODSQuota
+	quota := []*types.IRODSQuota{}
 
 	continueQuery := true
 	continueIndex := 0
@@ -570,24 +511,8 @@ func ListUserGlobalQuota(conn *connection.IRODSConnection, user string) (*types.
 		condTypeVal = fmt.Sprintf("= '%s'", "0")
 		query.AddCondition(common.ICAT_COLUMN_QUOTA_RESC_ID, condTypeVal)
 
-		queryMessage, err := query.GetMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not make a quota query message - %v", err)
-		}
-
-		err = conn.SendMessage(queryMessage)
-		if err != nil {
-			return nil, fmt.Errorf("Could not send a quota query message - %v", err)
-		}
-
-		// Server responds with results
-		queryResultMessage, err := conn.ReadMessage()
-		if err != nil {
-			return nil, fmt.Errorf("Could not receive a quota query result message - %v", err)
-		}
-
 		queryResult := message.IRODSMessageQueryResult{}
-		err = queryResult.FromMessage(queryResultMessage)
+		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a quota query result message - %v", err)
 		}
@@ -600,6 +525,8 @@ func ListUserGlobalQuota(conn *connection.IRODSConnection, user string) (*types.
 			return nil, fmt.Errorf("Could not receive quota attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
+		pagenatedQuota := make([]*types.IRODSQuota, queryResult.RowCount, queryResult.RowCount)
+
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
@@ -608,17 +535,29 @@ func ListUserGlobalQuota(conn *connection.IRODSConnection, user string) (*types.
 
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
-				l, err := strconv.Atoi(value)
-				if err != nil {
-					return nil, fmt.Errorf("Could not convert string to int - %v", err)
+
+				if pagenatedQuota[row] == nil {
+					// create a new
+					pagenatedQuota[row] = &types.IRODSQuota{
+						RescName: "global",
+						Limit:    -1,
+					}
 				}
-				quotum := &types.IRODSQuota{
-					Limit:    int64(l),
-					RescName: "global",
+
+				switch sqlResult.AttributeIndex {
+				case int(common.ICAT_COLUMN_QUOTA_LIMIT):
+					limit, err := strconv.ParseInt(value, 10, 64)
+					if err != nil {
+						return nil, fmt.Errorf("Could not parse quota limit - %s", value)
+					}
+					pagenatedQuota[row].Limit = limit
+				default:
+					// ignore
 				}
-				quota = quotum
 			}
 		}
+
+		quota = append(quota, pagenatedQuota...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -626,7 +565,7 @@ func ListUserGlobalQuota(conn *connection.IRODSConnection, user string) (*types.
 		}
 	}
 
-	return quota, nil
+	return quota[0], nil
 }
 
 // AddUserMeta sets metadata of a user object to given key values.
@@ -652,7 +591,7 @@ func DeleteUserMeta(conn *connection.IRODSConnection, user string, metadata *typ
 	if metadata.AVUID != 0 {
 		request = message.NewIRODSMessageRemoveMetadataByIDRequest(types.IRODSUserMetaItemType, user, metadata.AVUID)
 	} else if metadata.Units == "" && metadata.Value == "" {
-		request = message.NewIRODSMessageRemoveMetadataWcRequest(types.IRODSUserMetaItemType, user, metadata.Name)
+		request = message.NewIRODSMessageRemoveMetadataWildcardRequest(types.IRODSUserMetaItemType, user, metadata.Name)
 	} else {
 		request = message.NewIRODSMessageRemoveMetadataRequest(types.IRODSUserMetaItemType, user, metadata)
 	}
