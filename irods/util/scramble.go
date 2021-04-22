@@ -1,8 +1,6 @@
 package util
 
-import (
-	"crypto/md5"
-)
+import "crypto/md5"
 
 const wheel = `0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!"#$%&'()*+,-./`
 

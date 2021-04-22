@@ -83,6 +83,20 @@ func NewIRODSMessageRemoveMetadataByIDRequest(itemType types.IRODSMetaItemType, 
 	return request
 }
 
+// NewIRODSMessageRemoveMetadataWildcardRequest creates a IRODSMessageModMetaRequest message for removing a metadata AVU by itemName and attributeValue.
+func NewIRODSMessageRemoveMetadataWildcardRequest(itemType types.IRODSMetaItemType, itemName, attName string) *IRODSMessageModMetaRequest {
+	request := &IRODSMessageModMetaRequest{
+		Operation: "rmw",
+		ItemType:  string(itemType),
+		ItemName:  itemName,
+		AttrName:  attName,
+		AttrValue: "%",
+		AttrUnits: "%",
+	}
+
+	return request
+}
+
 // NewIRODSMessageSetMetadataRequest creates a IRODSMessageModMetaRequest message for changing the first metadata AVU on the given item with a matching attribute name to the given value an units.
 // metadata.AVUID is ignored.
 func NewIRODSMessageSetMetadataRequest(itemType types.IRODSMetaItemType, itemName string, metadata *types.IRODSMeta) *IRODSMessageModMetaRequest {

@@ -126,6 +126,8 @@ func DeleteResourceMeta(conn *connection.IRODSConnection, name string, metadata 
 
 	if metadata.AVUID != 0 {
 		request = message.NewIRODSMessageRemoveMetadataByIDRequest(types.IRODSResourceMetaItemType, name, metadata.AVUID)
+	} else if metadata.Units == "" && metadata.Value == "" {
+		request = message.NewIRODSMessageRemoveMetadataWildcardRequest(types.IRODSResourceMetaItemType, name, metadata.Name)
 	} else {
 		request = message.NewIRODSMessageRemoveMetadataRequest(types.IRODSResourceMetaItemType, name, metadata)
 	}
