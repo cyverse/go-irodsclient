@@ -618,3 +618,9 @@ func (conn *IRODSConnection) poorMansEndTransaction(dummyCol string, commit bool
 	err = response.CheckError()
 	return err
 }
+
+// RawBind binds an IRODSConnection to a raw net.Conn socket - to be used for e.g. a proxy server setup
+func (conn *IRODSConnection) RawBind(socket net.Conn) {
+	conn.connected = true
+	conn.socket = socket
+}
