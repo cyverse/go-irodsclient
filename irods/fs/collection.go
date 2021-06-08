@@ -688,3 +688,31 @@ func SearchCollectionsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 
 	return collections, nil
 }
+
+// ChangeAccessControlCollection changes access control on a data object.
+func ChangeAccessControlCollection(conn *connection.IRODSConnection, path string, access types.IRODSAccessLevelType, userName, zoneName string, recursive, adminFlag bool) error {
+	if conn == nil || !conn.IsConnected() {
+		return fmt.Errorf("connection is nil or disconnected")
+	}
+
+	request := message.NewIRODSMessageModAccessRequest(access.ChmodString(), userName, zoneName, path, recursive, adminFlag)
+	response := message.IRODSMessageModAccessResponse{}
+	return conn.RequestAndCheck(request, &response)
+}
+
+// SetInheritAccessControl sets the inherit bit on a collection.
+func SetInheritAccessControl(conn *connection.IRODSConnection, path string, inherit, recursive, adminFlag bool) error {
+	if conn == nil || !conn.IsConnected() {
+		return fmt.Errorf("connection is nil or disconnected")
+	}
+
+	inheritStr := "inherit"
+
+	if !inherit {
+		inheritStr = "noinherit"
+	}
+
+	request := message.NewIRODSMessageModAccessRequest(inheritStr, "", "", path, recursive, adminFlag)
+	response := message.IRODSMessageModAccessResponse{}
+	return conn.RequestAndCheck(request, &response)
+}

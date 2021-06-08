@@ -11,6 +11,20 @@ const (
 	IRODSAccessLevelNone  IRODSAccessLevelType = ""
 )
 
+// ChmodString returns the string for update access control messages.
+func (accessType IRODSAccessLevelType) ChmodString() string {
+	switch accessType {
+	case IRODSAccessLevelRead:
+		return "read"
+	case IRODSAccessLevelWrite:
+		return "write"
+	case IRODSAccessLevelNone:
+		return "null"
+	default:
+		return string(accessType)
+	}
+}
+
 // IRODSAccess contains irods access information
 type IRODSAccess struct {
 	Path        string

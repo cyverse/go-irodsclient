@@ -1780,3 +1780,14 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 
 	return dataObjects, nil
 }
+
+// ChangeAccessControlDataObject changes access control on a data object.
+func ChangeAccessControlDataObject(conn *connection.IRODSConnection, path string, access types.IRODSAccessLevelType, userName, zoneName string, adminFlag bool) error {
+	if conn == nil || !conn.IsConnected() {
+		return fmt.Errorf("connection is nil or disconnected")
+	}
+
+	request := message.NewIRODSMessageModAccessRequest(access.ChmodString(), userName, zoneName, path, false, adminFlag)
+	response := message.IRODSMessageModAccessResponse{}
+	return conn.RequestAndCheck(request, &response)
+}
