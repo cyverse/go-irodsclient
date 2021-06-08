@@ -88,3 +88,13 @@ func (msg *IRODSMessageStartupPack) GetMessage() (*IRODSMessage, error) {
 		Body:   &msgBody,
 	}, nil
 }
+
+// FromMessage returns struct from IRODSMessage
+func (msg *IRODSMessageStartupPack) FromMessage(msgIn *IRODSMessage) error {
+	if msgIn.Body == nil {
+		return fmt.Errorf("Cannot create a struct from an empty body")
+	}
+
+	err := msg.FromBytes(msgIn.Body.Message)
+	return err
+}
