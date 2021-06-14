@@ -19,6 +19,8 @@ type FileSystemCache struct {
 	GroupUsersCache *gocache.Cache
 	GroupsCache     *gocache.Cache
 	UsersCache      *gocache.Cache
+	DirACLsCache    *gocache.Cache
+	FileACLsCache   *gocache.Cache
 }
 
 // NewFileSystemCache creates a new FileSystemCache
@@ -29,6 +31,8 @@ func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration) *File
 	groupUsersCache := gocache.New(cacheTimeout, cleanup)
 	groupsCache := gocache.New(cacheTimeout, cleanup)
 	usersCache := gocache.New(cacheTimeout, cleanup)
+	dirACLsCache := gocache.New(cacheTimeout, cleanup)
+	fileACLsCache := gocache.New(cacheTimeout, cleanup)
 
 	return &FileSystemCache{
 		CacheTimeout:    cacheTimeout,
@@ -39,6 +43,8 @@ func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration) *File
 		GroupUsersCache: groupUsersCache,
 		GroupsCache:     groupsCache,
 		UsersCache:      usersCache,
+		DirACLsCache:    dirACLsCache,
+		FileACLsCache:   fileACLsCache,
 	}
 }
 
@@ -216,4 +222,66 @@ func (cache *FileSystemCache) GetUsersCache() []*types.IRODSUser {
 		}
 	}
 	return nil
+}
+
+// AddDirACLsCache ...
+func (cache *FileSystemCache) AddDirACLsCache(path string, accesses []*types.IRODSAccess) {
+	if shouldHaveInfiniteCacheTTL(path) {
+		cache.DirACLsCache.Set(path, accesses, -1)
+	}
+
+	// default
+	cache.DirACLsCache.Set(path, accesses, 0)
+}
+
+// RemoveDirACLsCache ...
+func (cache *FileSystemCache) RemoveDirACLsCache(path string) {
+	cache.DirACLsCache.Delete(path)
+}
+
+// GetDirACLsCache ...
+func (cache *FileSystemCache) GetDirACLsCache(path string) []*types.IRODSAccess {
+	data, exist := cache.DirACLsCache.Get(path)
+	if exist {
+		if entries, ok := data.([]*types.IRODSAccess); ok {
+			return entries
+		}
+	}
+	return nil
+}
+
+// ClearDirCache ...
+func (cache *FileSystemCache) ClearDirACLsCache() {
+	cache.DirACLsCache.Flush()
+}
+
+// AddFileACLsCache ...
+func (cache *FileSystemCache) AddFileACLsCache(path string, accesses []*types.IRODSAccess) {
+	if shouldHaveInfiniteCacheTTL(path) {
+		cache.FileACLsCache.Set(path, accesses, -1)
+	}
+
+	// default
+	cache.FileACLsCache.Set(path, accesses, 0)
+}
+
+// RemoveFileACLsCache ...
+func (cache *FileSystemCache) RemoveFileACLsCache(path string) {
+	cache.FileACLsCache.Delete(path)
+}
+
+// GetFileACLsCache ...
+func (cache *FileSystemCache) GetFileACLsCache(path string) []*types.IRODSAccess {
+	data, exist := cache.FileACLsCache.Get(path)
+	if exist {
+		if entries, ok := data.([]*types.IRODSAccess); ok {
+			return entries
+		}
+	}
+	return nil
+}
+
+// ClearFileACLsCache ...
+func (cache *FileSystemCache) ClearFileACLsCache() {
+	cache.FileACLsCache.Flush()
 }
