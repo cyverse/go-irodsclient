@@ -259,6 +259,13 @@ func (fs *FileSystem) ListACLsWithGroupUsers(path string) ([]*types.IRODSAccess,
 func (fs *FileSystem) ListDirACLs(path string) ([]*types.IRODSAccess, error) {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
+	// check cache first
+	cachedAccesses := fs.Cache.GetDirACLsCache(irodsPath)
+	if cachedAccesses != nil {
+		return cachedAccesses, nil
+	}
+
+	// otherwise, retrieve it and add it to cache
 	conn, err := fs.Session.AcquireConnection()
 	if err != nil {
 		return nil, err
@@ -269,21 +276,16 @@ func (fs *FileSystem) ListDirACLs(path string) ([]*types.IRODSAccess, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// cache it
+	fs.Cache.AddDirACLsCache(irodsPath, accesses)
 
 	return accesses, nil
 }
 
 // ListDirACLsWithGroupUsers returns ACLs of a directory
 func (fs *FileSystem) ListDirACLsWithGroupUsers(path string) ([]*types.IRODSAccess, error) {
-	irodsPath := util.GetCorrectIRODSPath(path)
-
-	conn, err := fs.Session.AcquireConnection()
-	if err != nil {
-		return nil, err
-	}
-	defer fs.Session.ReturnConnection(conn)
-
-	accesses, err := irods_fs.ListCollectionAccess(conn, irodsPath)
+	accesses, err := fs.ListDirACLs(path)
 	if err != nil {
 		return nil, err
 	}
@@ -328,6 +330,13 @@ func (fs *FileSystem) ListDirACLsWithGroupUsers(path string) ([]*types.IRODSAcce
 func (fs *FileSystem) ListFileACLs(path string) ([]*types.IRODSAccess, error) {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
+	// check cache first
+	cachedAccesses := fs.Cache.GetFileACLsCache(irodsPath)
+	if cachedAccesses != nil {
+		return cachedAccesses, nil
+	}
+
+	// otherwise, retrieve it and add it to cache
 	conn, err := fs.Session.AcquireConnection()
 	if err != nil {
 		return nil, err
@@ -343,26 +352,16 @@ func (fs *FileSystem) ListFileACLs(path string) ([]*types.IRODSAccess, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// cache it
+	fs.Cache.AddFileACLsCache(irodsPath, accesses)
 
 	return accesses, nil
 }
 
 // ListFileACLsWithGroupUsers returns ACLs of a file
 func (fs *FileSystem) ListFileACLsWithGroupUsers(path string) ([]*types.IRODSAccess, error) {
-	irodsPath := util.GetCorrectIRODSPath(path)
-
-	conn, err := fs.Session.AcquireConnection()
-	if err != nil {
-		return nil, err
-	}
-	defer fs.Session.ReturnConnection(conn)
-
-	collection, err := fs.getCollection(util.GetIRODSPathDirname(irodsPath))
-	if err != nil {
-		return nil, err
-	}
-
-	accesses, err := irods_fs.ListDataObjectAccess(conn, collection.Internal.(*types.IRODSCollection), util.GetIRODSPathFileName(irodsPath))
+	accesses, err := fs.ListFileACLs(path)
 	if err != nil {
 		return nil, err
 	}
