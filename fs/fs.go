@@ -138,22 +138,44 @@ func (fs *FileSystem) ListUsers() ([]*types.IRODSUser, error) {
 
 // Stat returns file status
 func (fs *FileSystem) Stat(path string) (*FSEntry, error) {
-	dirStat, err := fs.StatDir(path)
-	if err != nil {
-		if !types.IsFileNotFoundError(err) {
-			return nil, err
+	// check if a cached FSEntry for the given path is a dir or a file
+	if fs.isCacheDataObject(path) {
+		fileStat, err := fs.StatFile(path)
+		if err != nil {
+			if !types.IsFileNotFoundError(err) {
+				return nil, err
+			}
+		} else {
+			return fileStat, nil
 		}
-	} else {
-		return dirStat, nil
-	}
 
-	fileStat, err := fs.StatFile(path)
-	if err != nil {
-		if !types.IsFileNotFoundError(err) {
-			return nil, err
+		dirStat, err := fs.StatDir(path)
+		if err != nil {
+			if !types.IsFileNotFoundError(err) {
+				return nil, err
+			}
+		} else {
+			return dirStat, nil
 		}
 	} else {
-		return fileStat, nil
+		// default
+		dirStat, err := fs.StatDir(path)
+		if err != nil {
+			if !types.IsFileNotFoundError(err) {
+				return nil, err
+			}
+		} else {
+			return dirStat, nil
+		}
+
+		fileStat, err := fs.StatFile(path)
+		if err != nil {
+			if !types.IsFileNotFoundError(err) {
+				return nil, err
+			}
+		} else {
+			return fileStat, nil
+		}
 	}
 
 	// not a collection, not a data object
@@ -823,6 +845,15 @@ func (fs *FileSystem) InvalidateCache(path string) {
 	fs.invalidateCachePath(irodsPath)
 }
 
+func (fs *FileSystem) isCacheCollection(path string) bool {
+	// check cache
+	cachedEntry := fs.Cache.GetEntryCache(path)
+	if cachedEntry != nil && cachedEntry.Type == FSDirectoryEntry {
+		return true
+	}
+	return false
+}
+
 func (fs *FileSystem) getCollection(path string) (*FSEntry, error) {
 	// check cache first
 	cachedEntry := fs.Cache.GetEntryCache(path)
@@ -1028,6 +1059,15 @@ func (fs *FileSystem) searchEntriesByMeta(metaName string, metaValue string) ([]
 	}
 
 	return fsEntries, nil
+}
+
+func (fs *FileSystem) isCacheDataObject(path string) bool {
+	// check cache
+	cachedEntry := fs.Cache.GetEntryCache(path)
+	if cachedEntry != nil && cachedEntry.Type == FSFileEntry {
+		return true
+	}
+	return false
 }
 
 func (fs *FileSystem) getDataObject(path string) (*FSEntry, error) {
