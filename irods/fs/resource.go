@@ -12,7 +12,7 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/util"
 )
 
-// GetResource returns a data object for the path
+// GetResource returns a resource for the name
 func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSResource, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
@@ -37,7 +37,12 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 	queryResult := message.IRODSMessageQueryResult{}
 	err := conn.Request(query, &queryResult)
 	if err != nil {
-		return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
+		return nil, fmt.Errorf("Could not receive a resource query result message - %v", err)
+	}
+
+	err = queryResult.CheckError()
+	if err != nil {
+		return nil, fmt.Errorf("Received a data resource query error - %v", err)
 	}
 
 	if queryResult.ContinueIndex != 0 {
@@ -49,7 +54,7 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 	}
 
 	if queryResult.AttributeCount > len(queryResult.SQLResult) {
-		return nil, fmt.Errorf("Could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+		return nil, fmt.Errorf("Could not receive resource attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 	}
 
 	resource := &types.IRODSResource{}
@@ -57,7 +62,7 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 	for attr := 0; attr < queryResult.AttributeCount; attr++ {
 		sqlResult := queryResult.SQLResult[attr]
 		if len(sqlResult.Values) != queryResult.RowCount {
-			return nil, fmt.Errorf("Could not receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+			return nil, fmt.Errorf("Could not receive resource rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 		}
 
 		value := sqlResult.Values[0]

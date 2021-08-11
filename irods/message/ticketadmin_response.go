@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
+	"github.com/cyverse/go-irodsclient/irods/types"
 )
 
 // IRODSMessageTicketAdminResponse stores ticket admin response
@@ -15,7 +16,7 @@ type IRODSMessageTicketAdminResponse struct {
 // CheckError returns error if server returned an error
 func (msg *IRODSMessageTicketAdminResponse) CheckError() error {
 	if msg.Result < 0 {
-		return common.MakeIRODSError(common.ErrorCode(msg.Result))
+		return types.NewIRODSError(common.ErrorCode(msg.Result))
 	}
 	return nil
 }

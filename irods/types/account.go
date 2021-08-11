@@ -302,6 +302,6 @@ func (account *IRODSAccount) UseTicket() bool {
 func (account *IRODSAccount) MaskSensitiveData() *IRODSAccount {
 	maskedAccount := *account
 	maskedAccount.Password = "<password masked>"
-
+	maskedAccount.Ticket = "<ticket masked>"
 	return &maskedAccount
 }

@@ -86,6 +86,11 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
 		}
 
+		err = queryResult.CheckError()
+		if err != nil {
+			return nil, fmt.Errorf("Received a data object query error - %v", err)
+		}
+
 		if queryResult.RowCount == 0 {
 			break
 		}
@@ -254,6 +259,11 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
 		}
 
+		err = queryResult.CheckError()
+		if err != nil {
+			return nil, fmt.Errorf("Received a data object query error - %v", err)
+		}
+
 		if queryResult.RowCount == 0 {
 			break
 		}
@@ -398,6 +408,16 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
+		}
+
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return dataObjects, nil
+			}
+
+			return nil, fmt.Errorf("Received a data object query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -563,6 +583,16 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
 		}
 
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return dataObjects, nil
+			}
+
+			return nil, fmt.Errorf("Received a data object query error - %v", err)
+		}
+
 		if queryResult.RowCount == 0 {
 			break
 		}
@@ -697,6 +727,16 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, collection *types.IROD
 			return nil, fmt.Errorf("Could not receive a data object metadata query result message - %v", err)
 		}
 
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return metas, nil
+			}
+
+			return nil, fmt.Errorf("Received a data object metadata query error - %v", err)
+		}
+
 		if queryResult.RowCount == 0 {
 			break
 		}
@@ -782,6 +822,16 @@ func ListDataObjectAccess(conn *connection.IRODSConnection, collection *types.IR
 		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a data object access query result message - %v", err)
+		}
+
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return accesses, nil
+			}
+
+			return nil, fmt.Errorf("Received a data object access query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -1128,6 +1178,16 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
 		}
 
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return dataObjects, nil
+			}
+
+			return nil, fmt.Errorf("Received a data object query error - %v", err)
+		}
+
 		if queryResult.RowCount == 0 {
 			break
 		}
@@ -1311,6 +1371,16 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
 		}
 
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return dataObjects, nil
+			}
+
+			return nil, fmt.Errorf("Received a data object query error - %v", err)
+		}
+
 		if queryResult.RowCount == 0 {
 			break
 		}
@@ -1473,6 +1543,16 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
+		}
+
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return dataObjects, nil
+			}
+
+			return nil, fmt.Errorf("Received a data object query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -1657,6 +1737,16 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
+		}
+
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return dataObjects, nil
+			}
+
+			return nil, fmt.Errorf("Received a data object query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {

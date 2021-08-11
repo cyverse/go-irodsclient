@@ -38,7 +38,7 @@ func (msg *IRODSMessageVersion) FromBytes(bytes []byte) error {
 // CheckError returns error if server returned an error
 func (msg *IRODSMessageVersion) CheckError() error {
 	if msg.Status < 0 {
-		return common.MakeIRODSError(common.ErrorCode(msg.Status))
+		return types.NewIRODSError(common.ErrorCode(msg.Status))
 	}
 	return nil
 }

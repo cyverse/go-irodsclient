@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
+	"github.com/cyverse/go-irodsclient/irods/types"
 )
 
 // IRODSMessageSeekobjResponse stores data object seek response
@@ -22,7 +23,7 @@ func (msg *IRODSMessageSeekobjResponse) FromBytes(bytes []byte) error {
 // CheckError returns error if server returned an error
 func (msg *IRODSMessageSeekobjResponse) CheckError() error {
 	if msg.Offset < 0 {
-		return common.MakeIRODSError(common.ErrorCode(msg.Offset))
+		return types.NewIRODSError(common.ErrorCode(msg.Offset))
 	}
 	return nil
 }
