@@ -38,6 +38,11 @@ func GetGroup(conn *connection.IRODSConnection, group string) (*types.IRODSUser,
 			return nil, fmt.Errorf("Could not receive a group query result message - %v", err)
 		}
 
+		err = queryResult.CheckError()
+		if err != nil {
+			return nil, fmt.Errorf("Received a group query error - %v", err)
+		}
+
 		if queryResult.RowCount == 0 {
 			break
 		}
@@ -127,6 +132,16 @@ func ListGroupUsers(conn *connection.IRODSConnection, group string) ([]*types.IR
 			return nil, fmt.Errorf("Could not receive a group user query result message - %v", err)
 		}
 
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return users, nil
+			}
+
+			return nil, fmt.Errorf("Received a group user query error - %v", err)
+		}
+
 		if queryResult.RowCount == 0 {
 			break
 		}
@@ -210,6 +225,16 @@ func ListGroups(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a group query result message - %v", err)
+		}
+
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return groups, nil
+			}
+
+			return nil, fmt.Errorf("Received a group query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -296,6 +321,16 @@ func ListUsers(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 			return nil, fmt.Errorf("Could not receive a user query result message - %v", err)
 		}
 
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return users, nil
+			}
+
+			return nil, fmt.Errorf("Received a user query error - %v", err)
+		}
+
 		if queryResult.RowCount == 0 {
 			break
 		}
@@ -378,6 +413,16 @@ func ListUserGroupNames(conn *connection.IRODSConnection, user string) ([]string
 			return nil, fmt.Errorf("Could not receive a group query result message - %v", err)
 		}
 
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return groups, nil
+			}
+
+			return nil, fmt.Errorf("Received a group query error - %v", err)
+		}
+
 		if queryResult.RowCount == 0 {
 			break
 		}
@@ -439,6 +484,16 @@ func ListUserResourceQuota(conn *connection.IRODSConnection, user string) ([]*ty
 			return nil, fmt.Errorf("Could not receive a quota query result message - %v", err)
 		}
 
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return quota, nil
+			}
+
+			return nil, fmt.Errorf("Received a quota query error - %v", err)
+		}
+
 		if queryResult.RowCount == 0 {
 			break
 		}
@@ -492,8 +547,8 @@ func ListUserResourceQuota(conn *connection.IRODSConnection, user string) ([]*ty
 	return quota, nil
 }
 
-// ListUserGlobalQuota lists the global quota of a user or group
-func ListUserGlobalQuota(conn *connection.IRODSConnection, user string) (*types.IRODSQuota, error) {
+// GetUserGlobalQuota returns the global quota of a user or group
+func GetUserGlobalQuota(conn *connection.IRODSConnection, user string) (*types.IRODSQuota, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
@@ -515,6 +570,11 @@ func ListUserGlobalQuota(conn *connection.IRODSConnection, user string) (*types.
 		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a quota query result message - %v", err)
+		}
+
+		err = queryResult.CheckError()
+		if err != nil {
+			return nil, fmt.Errorf("Received a quota query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -600,7 +660,7 @@ func DeleteUserMeta(conn *connection.IRODSConnection, user string, metadata *typ
 	return conn.RequestAndCheck(request, &response)
 }
 
-// ListUserMeta returns a data object metadata for the path
+// ListUserMeta returns a user metadata for the path
 func ListUserMeta(conn *connection.IRODSConnection, user string) ([]*types.IRODSMeta, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
@@ -623,7 +683,17 @@ func ListUserMeta(conn *connection.IRODSConnection, user string) ([]*types.IRODS
 		queryResult := message.IRODSMessageQueryResult{}
 		err := conn.Request(query, &queryResult)
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a user object metadata query result message - %v", err)
+			return nil, fmt.Errorf("Could not receive a user metadata query result message - %v", err)
+		}
+
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return metas, nil
+			}
+
+			return nil, fmt.Errorf("Received a user metadata query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -631,7 +701,7 @@ func ListUserMeta(conn *connection.IRODSConnection, user string) ([]*types.IRODS
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, fmt.Errorf("Could not receive user object metadata attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, fmt.Errorf("Could not receive user metadata attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedMetas := make([]*types.IRODSMeta, queryResult.RowCount, queryResult.RowCount)
@@ -639,7 +709,7 @@ func ListUserMeta(conn *connection.IRODSConnection, user string) ([]*types.IRODS
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, fmt.Errorf("Could not receive user object metadata rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, fmt.Errorf("Could not receive user metadata rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -659,7 +729,7 @@ func ListUserMeta(conn *connection.IRODSConnection, user string) ([]*types.IRODS
 				case int(common.ICAT_COLUMN_META_USER_ATTR_ID):
 					avuID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse user object metadata id - %s", value)
+						return nil, fmt.Errorf("Could not parse user metadata id - %s", value)
 					}
 					pagenatedMetas[row].AVUID = avuID
 				case int(common.ICAT_COLUMN_META_USER_ATTR_NAME):

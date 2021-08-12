@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
+	"github.com/cyverse/go-irodsclient/irods/types"
 )
 
 // IRODSMessageWriteobjResponse stores data object write response
@@ -15,7 +16,7 @@ type IRODSMessageWriteobjResponse struct {
 // CheckError returns error if server returned an error
 func (msg *IRODSMessageWriteobjResponse) CheckError() error {
 	if msg.Result < 0 {
-		return common.MakeIRODSError(common.ErrorCode(msg.Result))
+		return types.NewIRODSError(common.ErrorCode(msg.Result))
 	}
 	return nil
 }

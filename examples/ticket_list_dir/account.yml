@@ -1,0 +1,9 @@
+host:
+  hostname: "data.cyverse.org"
+  port: 1247
+user:
+  username: ""
+  password: ""
+  zone: "iplant"
+  ticket: ""
+auth_scheme: "native"

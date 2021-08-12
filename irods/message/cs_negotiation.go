@@ -48,7 +48,7 @@ func (msg *IRODSMessageCSNegotiation) FromBytes(bytes []byte) error {
 // CheckError returns error if server returned an error
 func (msg *IRODSMessageCSNegotiation) CheckError() error {
 	if msg.Status < 0 {
-		return common.MakeIRODSErrorFromString(common.ErrorCode(msg.Status), msg.Result)
+		return types.NewIRODSErrorWithString(common.ErrorCode(msg.Status), msg.Result)
 	}
 	return nil
 }

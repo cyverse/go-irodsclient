@@ -68,6 +68,11 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 
 	conn := v.(*connection.IRODSConnection)
 
+	if len(sess.Account.Ticket) > 0 {
+		// when ticket is used, we cannot use transaction since we don't have access to home dir
+		return conn, nil
+	}
+
 	if sess.Config.StartNewTransaction {
 		// Each irods connection automatically starts a database transaction at initial setup.
 		// All queries against irods using a connection will give results corresponding to the time

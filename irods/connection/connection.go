@@ -103,6 +103,10 @@ func (conn *IRODSConnection) Connect() error {
 		return err
 	}
 
+	if conn.Account.UseTicket() {
+		conn.showTicket()
+	}
+
 	conn.connected = true
 
 	return nil
@@ -320,6 +324,18 @@ func (conn *IRODSConnection) loginPAM() error {
 
 	// retry native auth with generated password
 	return conn.loginNative(conn.generatedPasswordForPAM)
+}
+
+func (conn *IRODSConnection) showTicket() error {
+	util.LogInfo("Submitting a ticket to obtain access")
+
+	if len(conn.Account.Ticket) > 0 {
+		// show the ticket
+		ticketRequest := message.NewIRODSMessageTicketAdminRequest("session", conn.Account.Ticket)
+		ticketResult := message.IRODSMessageTicketAdminResponse{}
+		return conn.RequestAndCheck(ticketRequest, &ticketResult)
+	}
+	return nil
 }
 
 // Disconnect disconnects

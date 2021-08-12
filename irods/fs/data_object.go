@@ -75,8 +75,9 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
-		collidCondVal := fmt.Sprintf("= '%d'", collection.ID)
-		query.AddCondition(common.ICAT_COLUMN_D_COLL_ID, collidCondVal)
+		collCondVal := fmt.Sprintf("= '%s'", collection.Path)
+		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, collCondVal)
+
 		pathCondVal := fmt.Sprintf("= '%s'", filename)
 		query.AddCondition(common.ICAT_COLUMN_DATA_NAME, pathCondVal)
 
@@ -84,6 +85,11 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
+		}
+
+		err = queryResult.CheckError()
+		if err != nil {
+			return nil, fmt.Errorf("Received a data object query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -242,8 +248,8 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
-		collidCondVal := fmt.Sprintf("= '%d'", collection.ID)
-		query.AddCondition(common.ICAT_COLUMN_D_COLL_ID, collidCondVal)
+		collCondVal := fmt.Sprintf("= '%s'", collection.Path)
+		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, collCondVal)
 		pathCondVal := fmt.Sprintf("= '%s'", filename)
 		query.AddCondition(common.ICAT_COLUMN_DATA_NAME, pathCondVal)
 		query.AddCondition(common.ICAT_COLUMN_DATA_REPL_NUM, "= '0'")
@@ -252,6 +258,11 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
+		}
+
+		err = queryResult.CheckError()
+		if err != nil {
+			return nil, fmt.Errorf("Received a data object query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -391,13 +402,23 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
-		collidCondVal := fmt.Sprintf("= '%d'", collection.ID)
-		query.AddCondition(common.ICAT_COLUMN_D_COLL_ID, collidCondVal)
+		collCondVal := fmt.Sprintf("= '%s'", collection.Path)
+		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, collCondVal)
 
 		queryResult := message.IRODSMessageQueryResult{}
 		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
+		}
+
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return dataObjects, nil
+			}
+
+			return nil, fmt.Errorf("Received a data object query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -553,14 +574,24 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
-		collidCondVal := fmt.Sprintf("= '%d'", collection.ID)
-		query.AddCondition(common.ICAT_COLUMN_D_COLL_ID, collidCondVal)
+		collCondVal := fmt.Sprintf("= '%s'", collection.Path)
+		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, collCondVal)
 		query.AddCondition(common.ICAT_COLUMN_DATA_REPL_NUM, "= '0'")
 
 		queryResult := message.IRODSMessageQueryResult{}
 		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
+		}
+
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return dataObjects, nil
+			}
+
+			return nil, fmt.Errorf("Received a data object query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -686,8 +717,8 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, collection *types.IROD
 		query.AddSelect(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, 1)
 		query.AddSelect(common.ICAT_COLUMN_META_DATA_ATTR_UNITS, 1)
 
-		collidCondVal := fmt.Sprintf("= '%d'", collection.ID)
-		query.AddCondition(common.ICAT_COLUMN_D_COLL_ID, collidCondVal)
+		collCondVal := fmt.Sprintf("= '%s'", collection.Path)
+		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, collCondVal)
 		nameCondVal := fmt.Sprintf("= '%s'", filename)
 		query.AddCondition(common.ICAT_COLUMN_DATA_NAME, nameCondVal)
 
@@ -695,6 +726,16 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, collection *types.IROD
 		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a data object metadata query result message - %v", err)
+		}
+
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return metas, nil
+			}
+
+			return nil, fmt.Errorf("Received a data object metadata query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -773,8 +814,8 @@ func ListDataObjectAccess(conn *connection.IRODSConnection, collection *types.IR
 		query.AddSelect(common.ICAT_COLUMN_USER_ZONE, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
 
-		collidCondVal := fmt.Sprintf("= '%d'", collection.ID)
-		query.AddCondition(common.ICAT_COLUMN_D_COLL_ID, collidCondVal)
+		collCondVal := fmt.Sprintf("= '%s'", collection.Path)
+		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, collCondVal)
 		nameCondVal := fmt.Sprintf("= '%s'", filename)
 		query.AddCondition(common.ICAT_COLUMN_DATA_NAME, nameCondVal)
 
@@ -782,6 +823,16 @@ func ListDataObjectAccess(conn *connection.IRODSConnection, collection *types.IR
 		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a data object access query result message - %v", err)
+		}
+
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return accesses, nil
+			}
+
+			return nil, fmt.Errorf("Received a data object access query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -1128,6 +1179,16 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
 		}
 
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return dataObjects, nil
+			}
+
+			return nil, fmt.Errorf("Received a data object query error - %v", err)
+		}
+
 		if queryResult.RowCount == 0 {
 			break
 		}
@@ -1311,6 +1372,16 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
 		}
 
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return dataObjects, nil
+			}
+
+			return nil, fmt.Errorf("Received a data object query error - %v", err)
+		}
+
 		if queryResult.RowCount == 0 {
 			break
 		}
@@ -1473,6 +1544,16 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
+		}
+
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return dataObjects, nil
+			}
+
+			return nil, fmt.Errorf("Received a data object query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -1657,6 +1738,16 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 		err := conn.Request(query, &queryResult)
 		if err != nil {
 			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
+		}
+
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return dataObjects, nil
+			}
+
+			return nil, fmt.Errorf("Received a data object query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {

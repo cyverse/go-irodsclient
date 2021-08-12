@@ -23,6 +23,7 @@ type IRODSAccount struct {
 	ProxyZone               string
 	ServerDN                string
 	Password                string
+	Ticket                  string
 	PamTTL                  int
 	SSLConfiguration        *IRODSSSLConfig
 }
@@ -43,6 +44,29 @@ func CreateIRODSAccount(host string, port int, user string, zone string,
 		ProxyZone:               zone,
 		ServerDN:                serverDN,
 		Password:                password,
+		Ticket:                  "",
+		PamTTL:                  PamTTLDefault,
+		SSLConfiguration:        nil,
+	}, nil
+}
+
+// CreateIRODSAccountForTicket creates IRODSAccount
+func CreateIRODSAccountForTicket(host string, port int, user string, zone string,
+	authScheme AuthScheme, password string, ticket string,
+	serverDN string) (*IRODSAccount, error) {
+	return &IRODSAccount{
+		AuthenticationScheme:    authScheme,
+		ClientServerNegotiation: false,
+		CSNegotiationPolicy:     CSNegotiationRequireTCP,
+		Host:                    host,
+		Port:                    port,
+		ClientUser:              user,
+		ClientZone:              zone,
+		ProxyUser:               user,
+		ProxyZone:               zone,
+		ServerDN:                serverDN,
+		Password:                password,
+		Ticket:                  ticket,
 		PamTTL:                  PamTTLDefault,
 		SSLConfiguration:        nil,
 	}, nil
@@ -139,6 +163,11 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 		proxyZone = val.(string)
 	}
 
+	ticket := ""
+	if val, ok := proxyUser["ticket"]; ok {
+		ticket = val.(string)
+	}
+
 	// client user
 	clientUser := make(map[interface{}]interface{})
 	if val, ok := y["client_user"]; ok {
@@ -153,6 +182,10 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 	clientZone := ""
 	if val, ok := clientUser["zone"]; ok {
 		clientZone = val.(string)
+	}
+
+	if val, ok := clientUser["ticket"]; ok {
+		ticket = val.(string)
 	}
 
 	// normal user
@@ -174,6 +207,10 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 	if val, ok := user["zone"]; ok {
 		proxyZone = val.(string)
 		clientZone = proxyZone
+	}
+
+	if val, ok := user["ticket"]; ok {
+		ticket = val.(string)
 	}
 
 	// PAM Configuration
@@ -240,6 +277,7 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 		ProxyZone:               proxyZone,
 		ServerDN:                serverDN,
 		Password:                proxyPassword,
+		Ticket:                  ticket,
 		PamTTL:                  pamTTL,
 		SSLConfiguration:        irodsSSLConfig,
 	}, nil
@@ -252,16 +290,18 @@ func (account *IRODSAccount) SetSSLConfiguration(sslConf *IRODSSSLConfig) {
 
 // UseProxyAccess returns whether it uses proxy access or not
 func (account *IRODSAccount) UseProxyAccess() bool {
-	if len(account.ProxyUser) > 0 && len(account.ClientUser) > 0 && account.ProxyUser != account.ClientUser {
-		return true
-	}
-	return false
+	return len(account.ProxyUser) > 0 && len(account.ClientUser) > 0 && account.ProxyUser != account.ClientUser
+}
+
+// UseTicket returns whether it uses ticket for access control
+func (account *IRODSAccount) UseTicket() bool {
+	return len(account.Ticket) > 0
 }
 
 // MaskSensitiveData returns IRODSAccount object with sensitive data masked
 func (account *IRODSAccount) MaskSensitiveData() *IRODSAccount {
 	maskedAccount := *account
 	maskedAccount.Password = "<password masked>"
-
+	maskedAccount.Ticket = "<ticket masked>"
 	return &maskedAccount
 }

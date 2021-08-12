@@ -7,14 +7,14 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/types"
 )
 
-// IRODSMessageEndTransactionResponse stores end transaction response
-type IRODSMessageEndTransactionResponse struct {
+// IRODSMessageTicketAdminResponse stores ticket admin response
+type IRODSMessageTicketAdminResponse struct {
 	// empty structure
 	Result int
 }
 
 // CheckError returns error if server returned an error
-func (msg *IRODSMessageEndTransactionResponse) CheckError() error {
+func (msg *IRODSMessageTicketAdminResponse) CheckError() error {
 	if msg.Result < 0 {
 		return types.NewIRODSError(common.ErrorCode(msg.Result))
 	}
@@ -22,7 +22,7 @@ func (msg *IRODSMessageEndTransactionResponse) CheckError() error {
 }
 
 // FromMessage returns struct from IRODSMessage
-func (msg *IRODSMessageEndTransactionResponse) FromMessage(msgIn *IRODSMessage) error {
+func (msg *IRODSMessageTicketAdminResponse) FromMessage(msgIn *IRODSMessage) error {
 	if msgIn.Body == nil {
 		return fmt.Errorf("Cannot create a struct from an empty body")
 	}
