@@ -75,8 +75,9 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
-		collidCondVal := fmt.Sprintf("= '%d'", collection.ID)
-		query.AddCondition(common.ICAT_COLUMN_D_COLL_ID, collidCondVal)
+		collCondVal := fmt.Sprintf("= '%s'", collection.Path)
+		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, collCondVal)
+
 		pathCondVal := fmt.Sprintf("= '%s'", filename)
 		query.AddCondition(common.ICAT_COLUMN_DATA_NAME, pathCondVal)
 
@@ -247,8 +248,8 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
-		collidCondVal := fmt.Sprintf("= '%d'", collection.ID)
-		query.AddCondition(common.ICAT_COLUMN_D_COLL_ID, collidCondVal)
+		collCondVal := fmt.Sprintf("= '%s'", collection.Path)
+		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, collCondVal)
 		pathCondVal := fmt.Sprintf("= '%s'", filename)
 		query.AddCondition(common.ICAT_COLUMN_DATA_NAME, pathCondVal)
 		query.AddCondition(common.ICAT_COLUMN_DATA_REPL_NUM, "= '0'")
@@ -401,8 +402,8 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
-		collidCondVal := fmt.Sprintf("= '%d'", collection.ID)
-		query.AddCondition(common.ICAT_COLUMN_D_COLL_ID, collidCondVal)
+		collCondVal := fmt.Sprintf("= '%s'", collection.Path)
+		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, collCondVal)
 
 		queryResult := message.IRODSMessageQueryResult{}
 		err := conn.Request(query, &queryResult)
@@ -573,8 +574,8 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
-		collidCondVal := fmt.Sprintf("= '%d'", collection.ID)
-		query.AddCondition(common.ICAT_COLUMN_D_COLL_ID, collidCondVal)
+		collCondVal := fmt.Sprintf("= '%s'", collection.Path)
+		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, collCondVal)
 		query.AddCondition(common.ICAT_COLUMN_DATA_REPL_NUM, "= '0'")
 
 		queryResult := message.IRODSMessageQueryResult{}
@@ -716,8 +717,8 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, collection *types.IROD
 		query.AddSelect(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, 1)
 		query.AddSelect(common.ICAT_COLUMN_META_DATA_ATTR_UNITS, 1)
 
-		collidCondVal := fmt.Sprintf("= '%d'", collection.ID)
-		query.AddCondition(common.ICAT_COLUMN_D_COLL_ID, collidCondVal)
+		collCondVal := fmt.Sprintf("= '%s'", collection.Path)
+		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, collCondVal)
 		nameCondVal := fmt.Sprintf("= '%s'", filename)
 		query.AddCondition(common.ICAT_COLUMN_DATA_NAME, nameCondVal)
 
@@ -813,8 +814,8 @@ func ListDataObjectAccess(conn *connection.IRODSConnection, collection *types.IR
 		query.AddSelect(common.ICAT_COLUMN_USER_ZONE, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
 
-		collidCondVal := fmt.Sprintf("= '%d'", collection.ID)
-		query.AddCondition(common.ICAT_COLUMN_D_COLL_ID, collidCondVal)
+		collCondVal := fmt.Sprintf("= '%s'", collection.Path)
+		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, collCondVal)
 		nameCondVal := fmt.Sprintf("= '%s'", filename)
 		query.AddCondition(common.ICAT_COLUMN_DATA_NAME, nameCondVal)
 
