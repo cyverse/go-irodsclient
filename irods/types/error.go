@@ -56,6 +56,10 @@ func IsIRODSError(err error) bool {
 
 // IsIRODSError checks if the given error is IRODSError
 func GetIRODSErrorCode(err error) common.ErrorCode {
+	if err == nil {
+		return common.ErrorCode(0)
+	}
+
 	var irodsError *IRODSError
 	if errors.As(err, &irodsError) {
 		return irodsError.GetCode()
