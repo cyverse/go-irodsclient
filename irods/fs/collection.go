@@ -62,6 +62,10 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 
 	err = queryResult.CheckError()
 	if err != nil {
+		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+			return nil, types.NewFileNotFoundErrorf("Could not find a collection")
+		}
+
 		return nil, fmt.Errorf("Received a collection query error - %v", err)
 	}
 
@@ -446,6 +450,10 @@ func DeleteCollection(conn *connection.IRODSConnection, path string, recurse boo
 	response := message.IRODSMessageRmcolResponse{}
 	err := conn.RequestAndCheck(request, &response)
 	if err != nil {
+		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+			return types.NewFileNotFoundErrorf("Could not find a collection")
+		}
+
 		return err
 	}
 
@@ -478,7 +486,11 @@ func MoveCollection(conn *connection.IRODSConnection, srcPath string, destPath s
 
 	request := message.NewIRODSMessageMvcolRequest(srcPath, destPath)
 	response := message.IRODSMessageMvcolResponse{}
-	return conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response)
+	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+		return types.NewFileNotFoundErrorf("Could not find a collection")
+	}
+	return err
 }
 
 // AddCollectionMeta sets metadata of a data object for the path to the given key values.
@@ -511,7 +523,11 @@ func DeleteCollectionMeta(conn *connection.IRODSConnection, path string, metadat
 	}
 
 	response := message.IRODSMessageModMetaResponse{}
-	return conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response)
+	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+		return types.NewFileNotFoundErrorf("Could not find a collection")
+	}
+	return err
 }
 
 // SearchCollectionsByMeta searches collections by metadata
@@ -752,7 +768,11 @@ func ChangeAccessControlCollection(conn *connection.IRODSConnection, path string
 
 	request := message.NewIRODSMessageModAccessRequest(access.ChmodString(), userName, zoneName, path, recursive, adminFlag)
 	response := message.IRODSMessageModAccessResponse{}
-	return conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response)
+	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+		return types.NewFileNotFoundErrorf("Could not find a collection")
+	}
+	return err
 }
 
 // SetInheritAccessControl sets the inherit bit on a collection.
@@ -769,5 +789,9 @@ func SetInheritAccessControl(conn *connection.IRODSConnection, path string, inhe
 
 	request := message.NewIRODSMessageModAccessRequest(inheritStr, "", "", path, recursive, adminFlag)
 	response := message.IRODSMessageModAccessResponse{}
-	return conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response)
+	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+		return types.NewFileNotFoundErrorf("Could not find a collection")
+	}
+	return err
 }
