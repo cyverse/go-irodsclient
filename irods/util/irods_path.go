@@ -34,18 +34,18 @@ func GetIRODSPathFileName(p string) string {
 // GetIRODSZone returns the zone of the path
 func GetIRODSZone(p string) (string, error) {
 	if len(p) < 1 {
-		return "", fmt.Errorf("Cannot extract Zone from path - %s", p)
+		return "", fmt.Errorf("cannot extract Zone from path - %s", p)
 	}
 
 	if p[0] != '/' {
-		return "", fmt.Errorf("Cannot extract Zone from path - %s", p)
+		return "", fmt.Errorf("cannot extract Zone from path - %s", p)
 	}
 
 	parts := strings.Split(p[1:], "/")
 	if len(parts) >= 1 {
 		return parts[0], nil
 	}
-	return "", fmt.Errorf("Cannot extract Zone from path - %s", p)
+	return "", fmt.Errorf("cannot extract Zone from path - %s", p)
 }
 
 // GetCorrectIRODSPath corrects the path

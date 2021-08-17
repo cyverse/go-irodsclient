@@ -10,7 +10,7 @@ import (
 func GetIRODSDateTime(timestring string) (time.Time, error) {
 	i64, err := strconv.ParseInt(timestring, 10, 64)
 	if err != nil {
-		return time.Time{}, fmt.Errorf("Cannot parse IRODS time string - %s", timestring)
+		return time.Time{}, fmt.Errorf("cannot parse IRODS time string - %s", timestring)
 	}
 	return time.Unix(i64, 0), nil
 }

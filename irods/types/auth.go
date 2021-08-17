@@ -30,7 +30,7 @@ func GetAuthScheme(authScheme string) (AuthScheme, error) {
 		scheme = AuthSchemePAM
 	default:
 		scheme = AuthSchemeNative
-		err = fmt.Errorf("Cannot parse string %s", authScheme)
+		err = fmt.Errorf("cannot parse string %s", authScheme)
 	}
 
 	return scheme, err

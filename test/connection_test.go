@@ -1,22 +1,23 @@
-package connection
+package test
 
 import (
 	"io/ioutil"
 	"testing"
 	"time"
 
+	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/util"
 
 	"github.com/cyverse/go-irodsclient/irods/types"
 )
 
 var (
-	account *types.IRODSAccount
-	timeout time.Duration
-	conn    *IRODSConnection
+	conn *connection.IRODSConnection
 )
 
-func setup(requireCSNegotiation bool, csNegotiationPolicy types.CSNegotiationRequire) {
+func setupConnection(requireCSNegotiation bool, csNegotiationPolicy types.CSNegotiationRequire) {
+	setupTest()
+
 	util.SetLogLevel(9)
 
 	yaml, err := ioutil.ReadFile("../../../config/test_account.yml")
@@ -37,7 +38,7 @@ func setup(requireCSNegotiation bool, csNegotiationPolicy types.CSNegotiationReq
 	account.CSNegotiationPolicy = csNegotiationPolicy
 	util.LogDebugf("Account : %v", account.MaskSensitiveData())
 
-	conn = NewIRODSConnection(account, timeout, "go-irodsclient-test")
+	conn = connection.NewIRODSConnection(account, timeout, "go-irodsclient-test")
 	err = conn.Connect()
 	if err != nil {
 		util.LogErrorf("err - %v", err)
@@ -45,26 +46,26 @@ func setup(requireCSNegotiation bool, csNegotiationPolicy types.CSNegotiationReq
 	}
 }
 
-func shutdown() {
+func shutdownConnection() {
 	conn.Disconnect()
 	conn = nil
 }
 
 func TestIRODSConnection(t *testing.T) {
-	setup(false, types.CSNegotiationDontCare)
+	setupConnection(false, types.CSNegotiationDontCare)
 
 	ver := conn.GetVersion()
 	util.LogDebugf("Version : %v", ver)
 
-	shutdown()
+	shutdownConnection()
 }
 
 func TestIRODSConnectionWithNegotiation(t *testing.T) {
-	setup(true, types.CSNegotiationRequireTCP)
+	setupConnection(true, types.CSNegotiationRequireTCP)
 
 	util.LogDebugf("Account : %v", account.MaskSensitiveData())
 
-	conn := NewIRODSConnection(account, timeout, "go-irodsclient-test")
+	conn := connection.NewIRODSConnection(account, timeout, "go-irodsclient-test")
 	err := conn.Connect()
 	if err != nil {
 		t.Errorf("err - %v", err)
@@ -74,5 +75,5 @@ func TestIRODSConnectionWithNegotiation(t *testing.T) {
 	ver := conn.GetVersion()
 	util.LogDebugf("Version : %v", ver)
 
-	shutdown()
+	shutdownConnection()
 }

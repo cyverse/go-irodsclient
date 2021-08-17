@@ -32,7 +32,7 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 
 	p, err := pool.NewChannelPool(&poolConfig)
 	if err != nil {
-		util.LogErrorf("Cannot create a new connection pool - %v", err)
+		util.LogErrorf("cannot create a new connection pool - %v", err)
 		return nil, err
 	}
 
@@ -45,7 +45,7 @@ func (sess *IRODSSession) connOpen() (interface{}, error) {
 	conn := connection.NewIRODSConnection(sess.Account, sess.Config.OperationTimeout, sess.Config.ApplicationName)
 	err := conn.Connect()
 	if err != nil {
-		util.LogErrorf("Could not connect - %v", err)
+		util.LogErrorf("could not connect - %v", err)
 		return nil, err
 	}
 	return conn, nil
@@ -62,7 +62,7 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 	// close a conenction
 	v, err := sess.ConnectionPool.Get()
 	if err != nil {
-		util.LogErrorf("Could not get an idle connection - %v", err)
+		util.LogErrorf("could not get an idle connection - %v", err)
 		return nil, err
 	}
 
@@ -86,7 +86,7 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 		// future queries.
 		err = conn.PoorMansRollback()
 		if err != nil {
-			util.LogErrorf("Could not perform poor man rollback for the connection - %v", err)
+			util.LogErrorf("could not perform poor man rollback for the connection - %v", err)
 			_ = sess.ReturnConnection(conn)
 			return nil, err
 		}
@@ -99,7 +99,7 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 func (sess *IRODSSession) ReturnConnection(conn *connection.IRODSConnection) error {
 	err := sess.ConnectionPool.Put(conn)
 	if err != nil {
-		util.LogErrorf("Could not return an idle connection - %v", err)
+		util.LogErrorf("could not return an idle connection - %v", err)
 		return err
 	}
 	return nil

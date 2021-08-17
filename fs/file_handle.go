@@ -60,7 +60,7 @@ func (handle *FileHandle) Seek(offset int64, whence types.Whence) (int64, error)
 // Read reads the file
 func (handle *FileHandle) Read(length int) ([]byte, error) {
 	if !handle.IsReadMode() {
-		return nil, fmt.Errorf("File is opened with %s mode", handle.OpenMode)
+		return nil, fmt.Errorf("file is opened with %s mode", handle.OpenMode)
 	}
 
 	bytes, err := irods_fs.ReadDataObject(handle.Connection, handle.IRODSHandle, length)
@@ -75,7 +75,7 @@ func (handle *FileHandle) Read(length int) ([]byte, error) {
 // Write writes the file
 func (handle *FileHandle) Write(data []byte) error {
 	if !handle.IsWriteMode() {
-		return fmt.Errorf("File is opened with %s mode", handle.OpenMode)
+		return fmt.Errorf("file is opened with %s mode", handle.OpenMode)
 	}
 
 	err := irods_fs.WriteDataObject(handle.Connection, handle.IRODSHandle, data)

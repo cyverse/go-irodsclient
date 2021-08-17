@@ -119,8 +119,8 @@ func TestReadWrite(t *testing.T) {
 	handle.Close()
 
 	if !fs.Exists("/iplant/home/iychoi/testnewfile.txt") {
-		t.Error("Cannot find the file created")
-		panic(fmt.Errorf("Cannot find the file created"))
+		t.Error("cannot find the file created")
+		panic(fmt.Errorf("cannot find the file created"))
 	}
 
 	newHandle, err := fs.OpenFile("/iplant/home/iychoi/testnewfile.txt", "", "r")
@@ -144,8 +144,8 @@ func TestReadWrite(t *testing.T) {
 	fs.RemoveFile("/iplant/home/iychoi/testnewfile.txt", true)
 
 	if fs.Exists("/iplant/home/iychoi/testnewfile.txt") {
-		t.Error("Cannot remove the file created")
-		panic(fmt.Errorf("Cannot remove the file created"))
+		t.Error("cannot remove the file created")
+		panic(fmt.Errorf("cannot remove the file created"))
 	}
 
 	shutdown()

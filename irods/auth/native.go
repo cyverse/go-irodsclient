@@ -17,7 +17,7 @@ const (
 func GenerateAuthResponse(challenge string, password string) (string, error) {
 	challengeBytes, err := base64.StdEncoding.DecodeString(challenge)
 	if err != nil {
-		return "", fmt.Errorf("Could not decode an authentication challenge")
+		return "", fmt.Errorf("could not decode an authentication challenge")
 	}
 
 	paddedPassword := make([]byte, common.MaxPasswordLength, common.MaxPasswordLength)

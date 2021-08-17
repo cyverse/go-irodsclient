@@ -84,13 +84,13 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 		queryResult := message.IRODSMessageQueryResult{}
 		err := conn.Request(query, &queryResult)
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
+			return nil, fmt.Errorf("could not receive a data object query result message - %v", err)
 		}
 
 		err = queryResult.CheckError()
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-				return nil, types.NewFileNotFoundErrorf("Could not find a data object")
+				return nil, types.NewFileNotFoundErrorf("could not find a data object")
 			}
 
 			return nil, fmt.Errorf("Received a data object query error - %v", err)
@@ -101,7 +101,7 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, fmt.Errorf("Could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, fmt.Errorf("could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount, queryResult.RowCount)
@@ -109,7 +109,7 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, fmt.Errorf("Could not receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, fmt.Errorf("could not receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -142,7 +142,7 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 				case int(common.ICAT_COLUMN_D_DATA_ID):
 					objID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse data object id - %s", value)
+						return nil, fmt.Errorf("could not parse data object id - %s", value)
 					}
 					pagenatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_DATA_NAME):
@@ -151,13 +151,13 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse data object size - %s", value)
+						return nil, fmt.Errorf("could not parse data object size - %s", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse data object replica number - %s", value)
+						return nil, fmt.Errorf("could not parse data object replica number - %s", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
@@ -175,13 +175,13 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse create time - %s", value)
+						return nil, fmt.Errorf("could not parse create time - %s", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse modify time - %s", value)
+						return nil, fmt.Errorf("could not parse modify time - %s", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
 				default:
@@ -218,7 +218,7 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 	}
 
 	if len(mergedDataObjects) == 0 {
-		return nil, types.NewFileNotFoundErrorf("Could not find a data object")
+		return nil, types.NewFileNotFoundErrorf("could not find a data object")
 	}
 
 	return mergedDataObjects[0], nil
@@ -261,13 +261,13 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 		queryResult := message.IRODSMessageQueryResult{}
 		err := conn.Request(query, &queryResult)
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
+			return nil, fmt.Errorf("could not receive a data object query result message - %v", err)
 		}
 
 		err = queryResult.CheckError()
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-				return nil, types.NewFileNotFoundErrorf("Could not find a data object")
+				return nil, types.NewFileNotFoundErrorf("could not find a data object")
 			}
 
 			return nil, fmt.Errorf("Received a data object query error - %v", err)
@@ -278,7 +278,7 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, fmt.Errorf("Could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, fmt.Errorf("could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount, queryResult.RowCount)
@@ -286,7 +286,7 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, fmt.Errorf("Could not receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, fmt.Errorf("could not receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -319,7 +319,7 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 				case int(common.ICAT_COLUMN_D_DATA_ID):
 					objID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse data object id - %s", value)
+						return nil, fmt.Errorf("could not parse data object id - %s", value)
 					}
 					pagenatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_DATA_NAME):
@@ -328,13 +328,13 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse data object size - %s", value)
+						return nil, fmt.Errorf("could not parse data object size - %s", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse data object replica number - %s", value)
+						return nil, fmt.Errorf("could not parse data object replica number - %s", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
@@ -352,13 +352,13 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse create time - %s", value)
+						return nil, fmt.Errorf("could not parse create time - %s", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse modify time - %s", value)
+						return nil, fmt.Errorf("could not parse modify time - %s", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
 				default:
@@ -376,7 +376,7 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 	}
 
 	if len(dataObjects) == 0 {
-		return nil, types.NewFileNotFoundErrorf("Could not find a data object")
+		return nil, types.NewFileNotFoundErrorf("could not find a data object")
 	}
 
 	return dataObjects[0], nil
@@ -416,7 +416,7 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 		queryResult := message.IRODSMessageQueryResult{}
 		err := conn.Request(query, &queryResult)
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
+			return nil, fmt.Errorf("could not receive a data object query result message - %v", err)
 		}
 
 		err = queryResult.CheckError()
@@ -434,7 +434,7 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, fmt.Errorf("Could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, fmt.Errorf("could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount, queryResult.RowCount)
@@ -442,7 +442,7 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, fmt.Errorf("Could not receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, fmt.Errorf("could not receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -476,7 +476,7 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 				case int(common.ICAT_COLUMN_D_DATA_ID):
 					objID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse data object id - %s", value)
+						return nil, fmt.Errorf("could not parse data object id - %s", value)
 					}
 					pagenatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_DATA_NAME):
@@ -485,13 +485,13 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse data object size - %s", value)
+						return nil, fmt.Errorf("could not parse data object size - %s", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse data object replica number - %s", value)
+						return nil, fmt.Errorf("could not parse data object replica number - %s", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
@@ -509,13 +509,13 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse create time - %s", value)
+						return nil, fmt.Errorf("could not parse create time - %s", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse modify time - %s", value)
+						return nil, fmt.Errorf("could not parse modify time - %s", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
 				default:
@@ -589,7 +589,7 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 		queryResult := message.IRODSMessageQueryResult{}
 		err := conn.Request(query, &queryResult)
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
+			return nil, fmt.Errorf("could not receive a data object query result message - %v", err)
 		}
 
 		err = queryResult.CheckError()
@@ -607,7 +607,7 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, fmt.Errorf("Could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, fmt.Errorf("could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount, queryResult.RowCount)
@@ -615,7 +615,7 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, fmt.Errorf("Could not receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, fmt.Errorf("could not receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -649,7 +649,7 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 				case int(common.ICAT_COLUMN_D_DATA_ID):
 					objID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse data object id - %s", value)
+						return nil, fmt.Errorf("could not parse data object id - %s", value)
 					}
 					pagenatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_DATA_NAME):
@@ -658,13 +658,13 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse data object size - %s", value)
+						return nil, fmt.Errorf("could not parse data object size - %s", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse data object replica number - %s", value)
+						return nil, fmt.Errorf("could not parse data object replica number - %s", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
@@ -682,13 +682,13 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse create time - %s", value)
+						return nil, fmt.Errorf("could not parse create time - %s", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse modify time - %s", value)
+						return nil, fmt.Errorf("could not parse modify time - %s", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
 				default:
@@ -733,7 +733,7 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, collection *types.IROD
 		queryResult := message.IRODSMessageQueryResult{}
 		err := conn.Request(query, &queryResult)
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object metadata query result message - %v", err)
+			return nil, fmt.Errorf("could not receive a data object metadata query result message - %v", err)
 		}
 
 		err = queryResult.CheckError()
@@ -751,7 +751,7 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, collection *types.IROD
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, fmt.Errorf("Could not receive data object metadata attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, fmt.Errorf("could not receive data object metadata attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedMetas := make([]*types.IRODSMeta, queryResult.RowCount, queryResult.RowCount)
@@ -759,7 +759,7 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, collection *types.IROD
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, fmt.Errorf("Could not receive data object metadata rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, fmt.Errorf("could not receive data object metadata rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -779,7 +779,7 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, collection *types.IROD
 				case int(common.ICAT_COLUMN_META_DATA_ATTR_ID):
 					avuID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse data object metadata id - %s", value)
+						return nil, fmt.Errorf("could not parse data object metadata id - %s", value)
 					}
 					pagenatedMetas[row].AVUID = avuID
 				case int(common.ICAT_COLUMN_META_DATA_ATTR_NAME):
@@ -830,7 +830,7 @@ func ListDataObjectAccess(conn *connection.IRODSConnection, collection *types.IR
 		queryResult := message.IRODSMessageQueryResult{}
 		err := conn.Request(query, &queryResult)
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object access query result message - %v", err)
+			return nil, fmt.Errorf("could not receive a data object access query result message - %v", err)
 		}
 
 		err = queryResult.CheckError()
@@ -848,7 +848,7 @@ func ListDataObjectAccess(conn *connection.IRODSConnection, collection *types.IR
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, fmt.Errorf("Could not receive data object access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, fmt.Errorf("could not receive data object access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount, queryResult.RowCount)
@@ -856,7 +856,7 @@ func ListDataObjectAccess(conn *connection.IRODSConnection, collection *types.IR
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, fmt.Errorf("Could not receive data object access rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, fmt.Errorf("could not receive data object access rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -909,7 +909,7 @@ func DeleteDataObject(conn *connection.IRODSConnection, path string, force bool)
 	response := message.IRODSMessageRmobjResponse{}
 	err := conn.RequestAndCheck(request, &response)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-		return types.NewFileNotFoundErrorf("Could not find a data object")
+		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
 	return err
 }
@@ -924,7 +924,7 @@ func MoveDataObject(conn *connection.IRODSConnection, srcPath string, destPath s
 	response := message.IRODSMessageMvobjResponse{}
 	err := conn.RequestAndCheck(request, &response)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-		return types.NewFileNotFoundErrorf("Could not find a data object")
+		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
 	return err
 }
@@ -939,7 +939,7 @@ func CopyDataObject(conn *connection.IRODSConnection, srcPath string, destPath s
 	response := message.IRODSMessageCpobjResponse{}
 	err := conn.RequestAndCheck(request, &response)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-		return types.NewFileNotFoundErrorf("Could not find a data object")
+		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
 	return err
 }
@@ -954,7 +954,7 @@ func TruncateDataObject(conn *connection.IRODSConnection, path string, size int6
 	response := message.IRODSMessageTruncobjResponse{}
 	err := conn.RequestAndCheck(request, &response)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-		return types.NewFileNotFoundErrorf("Could not find a data object")
+		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
 	return err
 }
@@ -978,7 +978,7 @@ func ReplicateDataObject(conn *connection.IRODSConnection, path string, resource
 	response := message.IRODSMessageReplobjResponse{}
 	err := conn.RequestAndCheck(request, &response)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-		return types.NewFileNotFoundErrorf("Could not find a data object")
+		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
 	return err
 }
@@ -998,7 +998,7 @@ func TrimDataObject(conn *connection.IRODSConnection, path string, resource stri
 	response := message.IRODSMessageTrimobjResponse{}
 	err := conn.RequestAndCheck(request, &response)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-		return types.NewFileNotFoundErrorf("Could not find a data object")
+		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
 	return err
 }
@@ -1033,7 +1033,7 @@ func OpenDataObject(conn *connection.IRODSConnection, path string, resource stri
 	err := conn.RequestAndCheck(request, &response)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, -1, types.NewFileNotFoundErrorf("Could not find a data object")
+			return nil, -1, types.NewFileNotFoundErrorf("could not find a data object")
 		}
 
 		return nil, -1, err
@@ -1050,7 +1050,7 @@ func OpenDataObject(conn *connection.IRODSConnection, path string, resource stri
 	if seekToEnd {
 		offset, err = SeekDataObject(conn, handle, 0, types.SeekEnd)
 		if err != nil {
-			return handle, -1, fmt.Errorf("Could not seek a data object - %v", err)
+			return handle, -1, fmt.Errorf("could not seek a data object - %v", err)
 		}
 	}
 
@@ -1068,7 +1068,7 @@ func OpenDataObjectWithOperation(conn *connection.IRODSConnection, path string, 
 	err := conn.RequestAndCheck(request, &response)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, types.NewFileNotFoundErrorf("Could not find a data object")
+			return nil, types.NewFileNotFoundErrorf("could not find a data object")
 		}
 
 		return nil, err
@@ -1084,7 +1084,7 @@ func OpenDataObjectWithOperation(conn *connection.IRODSConnection, path string, 
 	if seekToEnd {
 		_, err = SeekDataObject(conn, handle, 0, types.SeekEnd)
 		if err != nil {
-			return handle, fmt.Errorf("Could not seek a data object - %v", err)
+			return handle, fmt.Errorf("could not seek a data object - %v", err)
 		}
 	}
 
@@ -1102,7 +1102,7 @@ func SeekDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHan
 	err := conn.RequestAndCheck(request, &response)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return -1, types.NewFileNotFoundErrorf("Could not find a data object")
+			return -1, types.NewFileNotFoundErrorf("could not find a data object")
 		}
 
 		return -1, err
@@ -1122,7 +1122,7 @@ func ReadDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHan
 	err := conn.RequestAndCheck(request, &response)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, types.NewFileNotFoundErrorf("Could not find a data object")
+			return nil, types.NewFileNotFoundErrorf("could not find a data object")
 		}
 
 		return nil, err
@@ -1141,7 +1141,7 @@ func WriteDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHa
 	response := message.IRODSMessageWriteobjResponse{}
 	err := conn.RequestAndCheck(request, &response)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-		return types.NewFileNotFoundErrorf("Could not find a data object")
+		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
 	return err
 }
@@ -1156,7 +1156,7 @@ func CloseDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHa
 	response := message.IRODSMessageCloseobjResponse{}
 	err := conn.RequestAndCheck(request, &response)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-		return types.NewFileNotFoundErrorf("Could not find a data object")
+		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
 	return err
 }
@@ -1172,7 +1172,7 @@ func AddDataObjectMeta(conn *connection.IRODSConnection, path string, metadata *
 	response := message.IRODSMessageModMetaResponse{}
 	err := conn.RequestAndCheck(request, &response)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-		return types.NewFileNotFoundErrorf("Could not find a data object")
+		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
 	return err
 }
@@ -1197,7 +1197,7 @@ func DeleteDataObjectMeta(conn *connection.IRODSConnection, path string, metadat
 	response := message.IRODSMessageModMetaResponse{}
 	err := conn.RequestAndCheck(request, &response)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-		return types.NewFileNotFoundErrorf("Could not find a data object")
+		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
 	return err
 }
@@ -1240,7 +1240,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 		queryResult := message.IRODSMessageQueryResult{}
 		err := conn.Request(query, &queryResult)
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
+			return nil, fmt.Errorf("could not receive a data object query result message - %v", err)
 		}
 
 		err = queryResult.CheckError()
@@ -1258,7 +1258,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, fmt.Errorf("Could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, fmt.Errorf("could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount, queryResult.RowCount)
@@ -1266,7 +1266,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, fmt.Errorf("Could not receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, fmt.Errorf("could not receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -1300,7 +1300,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 				case int(common.ICAT_COLUMN_COLL_ID):
 					collID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse collection id - %s", value)
+						return nil, fmt.Errorf("could not parse collection id - %s", value)
 					}
 					pagenatedDataObjects[row].CollectionID = collID
 				case int(common.ICAT_COLUMN_COLL_NAME):
@@ -1312,7 +1312,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 				case int(common.ICAT_COLUMN_D_DATA_ID):
 					objID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse data object id - %s", value)
+						return nil, fmt.Errorf("could not parse data object id - %s", value)
 					}
 					pagenatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_DATA_NAME):
@@ -1325,13 +1325,13 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse data object size - %s", value)
+						return nil, fmt.Errorf("could not parse data object size - %s", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse data object replica number - %s", value)
+						return nil, fmt.Errorf("could not parse data object replica number - %s", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
@@ -1349,13 +1349,13 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse create time - %s", value)
+						return nil, fmt.Errorf("could not parse create time - %s", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse modify time - %s", value)
+						return nil, fmt.Errorf("could not parse modify time - %s", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
 				default:
@@ -1433,7 +1433,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 		queryResult := message.IRODSMessageQueryResult{}
 		err := conn.Request(query, &queryResult)
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
+			return nil, fmt.Errorf("could not receive a data object query result message - %v", err)
 		}
 
 		err = queryResult.CheckError()
@@ -1451,7 +1451,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, fmt.Errorf("Could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, fmt.Errorf("could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount, queryResult.RowCount)
@@ -1459,7 +1459,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, fmt.Errorf("Could not receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, fmt.Errorf("could not receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -1493,7 +1493,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 				case int(common.ICAT_COLUMN_COLL_ID):
 					collID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse collection id - %s", value)
+						return nil, fmt.Errorf("could not parse collection id - %s", value)
 					}
 					pagenatedDataObjects[row].CollectionID = collID
 				case int(common.ICAT_COLUMN_COLL_NAME):
@@ -1505,7 +1505,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 				case int(common.ICAT_COLUMN_D_DATA_ID):
 					objID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse data object id - %s", value)
+						return nil, fmt.Errorf("could not parse data object id - %s", value)
 					}
 					pagenatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_DATA_NAME):
@@ -1518,13 +1518,13 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse data object size - %s", value)
+						return nil, fmt.Errorf("could not parse data object size - %s", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse data object replica number - %s", value)
+						return nil, fmt.Errorf("could not parse data object replica number - %s", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
@@ -1542,13 +1542,13 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse create time - %s", value)
+						return nil, fmt.Errorf("could not parse create time - %s", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse modify time - %s", value)
+						return nil, fmt.Errorf("could not parse modify time - %s", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
 				default:
@@ -1607,7 +1607,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 		queryResult := message.IRODSMessageQueryResult{}
 		err := conn.Request(query, &queryResult)
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
+			return nil, fmt.Errorf("could not receive a data object query result message - %v", err)
 		}
 
 		err = queryResult.CheckError()
@@ -1625,7 +1625,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, fmt.Errorf("Could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, fmt.Errorf("could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount, queryResult.RowCount)
@@ -1633,7 +1633,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, fmt.Errorf("Could not receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, fmt.Errorf("could not receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -1667,7 +1667,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 				case int(common.ICAT_COLUMN_COLL_ID):
 					collID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse collection id - %s", value)
+						return nil, fmt.Errorf("could not parse collection id - %s", value)
 					}
 					pagenatedDataObjects[row].CollectionID = collID
 				case int(common.ICAT_COLUMN_COLL_NAME):
@@ -1679,7 +1679,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 				case int(common.ICAT_COLUMN_D_DATA_ID):
 					objID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse data object id - %s", value)
+						return nil, fmt.Errorf("could not parse data object id - %s", value)
 					}
 					pagenatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_DATA_NAME):
@@ -1692,13 +1692,13 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse data object size - %s", value)
+						return nil, fmt.Errorf("could not parse data object size - %s", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse data object replica number - %s", value)
+						return nil, fmt.Errorf("could not parse data object replica number - %s", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
@@ -1716,13 +1716,13 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse create time - %s", value)
+						return nil, fmt.Errorf("could not parse create time - %s", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse modify time - %s", value)
+						return nil, fmt.Errorf("could not parse modify time - %s", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
 				default:
@@ -1801,7 +1801,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 		queryResult := message.IRODSMessageQueryResult{}
 		err := conn.Request(query, &queryResult)
 		if err != nil {
-			return nil, fmt.Errorf("Could not receive a data object query result message - %v", err)
+			return nil, fmt.Errorf("could not receive a data object query result message - %v", err)
 		}
 
 		err = queryResult.CheckError()
@@ -1819,7 +1819,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, fmt.Errorf("Could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, fmt.Errorf("could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount, queryResult.RowCount)
@@ -1827,7 +1827,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, fmt.Errorf("Could not receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, fmt.Errorf("could not receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -1861,7 +1861,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 				case int(common.ICAT_COLUMN_COLL_ID):
 					collID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse collection id - %s", value)
+						return nil, fmt.Errorf("could not parse collection id - %s", value)
 					}
 					pagenatedDataObjects[row].CollectionID = collID
 				case int(common.ICAT_COLUMN_COLL_NAME):
@@ -1873,7 +1873,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 				case int(common.ICAT_COLUMN_D_DATA_ID):
 					objID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse data object id - %s", value)
+						return nil, fmt.Errorf("could not parse data object id - %s", value)
 					}
 					pagenatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_DATA_NAME):
@@ -1886,13 +1886,13 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse data object size - %s", value)
+						return nil, fmt.Errorf("could not parse data object size - %s", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse data object replica number - %s", value)
+						return nil, fmt.Errorf("could not parse data object replica number - %s", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
@@ -1910,13 +1910,13 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse create time - %s", value)
+						return nil, fmt.Errorf("could not parse create time - %s", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, fmt.Errorf("Could not parse modify time - %s", value)
+						return nil, fmt.Errorf("could not parse modify time - %s", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
 				default:
@@ -1946,7 +1946,7 @@ func ChangeAccessControlDataObject(conn *connection.IRODSConnection, path string
 	response := message.IRODSMessageModAccessResponse{}
 	err := conn.RequestAndCheck(request, &response)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-		return types.NewFileNotFoundErrorf("Could not find a data object")
+		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
 	return err
 }

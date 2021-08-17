@@ -59,10 +59,25 @@ func main() {
 		panic(err)
 	}
 
-	err = filesystem.DownloadFile(srcPath, "", destPath)
-	if err != nil {
-		util.LogErrorf("err - %v", err)
-		panic(err)
+	outputChan, errChan := filesystem.DownloadFileParallelInBlocksAsync(srcPath, "", destPath, 0, 0)
+	outputDone := false
+	errDone := false
+	for !outputDone || !errDone {
+		select {
+		case offset, ok := <-outputChan:
+			if ok {
+				util.LogInfof("done reading data at offset %d", offset)
+			} else {
+				outputDone = true
+			}
+		case err, ok := <-errChan:
+			if ok {
+				util.LogErrorf("err - %v", err)
+				panic(err)
+			} else {
+				errDone = true
+			}
+		}
 	}
 
 	fsinfo, err := os.Stat(destPath)

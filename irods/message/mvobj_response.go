@@ -24,7 +24,7 @@ func (msg *IRODSMessageMvobjResponse) CheckError() error {
 // FromMessage returns struct from IRODSMessage
 func (msg *IRODSMessageMvobjResponse) FromMessage(msgIn *IRODSMessage) error {
 	if msgIn.Body == nil {
-		return fmt.Errorf("Cannot create a struct from an empty body")
+		return fmt.Errorf("cannot create a struct from an empty body")
 	}
 
 	msg.Result = int(msgIn.Body.IntInfo)

@@ -37,7 +37,7 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 	queryResult := message.IRODSMessageQueryResult{}
 	err := conn.Request(query, &queryResult)
 	if err != nil {
-		return nil, fmt.Errorf("Could not receive a resource query result message - %v", err)
+		return nil, fmt.Errorf("could not receive a resource query result message - %v", err)
 	}
 
 	err = queryResult.CheckError()
@@ -54,7 +54,7 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 	}
 
 	if queryResult.AttributeCount > len(queryResult.SQLResult) {
-		return nil, fmt.Errorf("Could not receive resource attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+		return nil, fmt.Errorf("could not receive resource attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 	}
 
 	resource := &types.IRODSResource{}
@@ -62,7 +62,7 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 	for attr := 0; attr < queryResult.AttributeCount; attr++ {
 		sqlResult := queryResult.SQLResult[attr]
 		if len(sqlResult.Values) != queryResult.RowCount {
-			return nil, fmt.Errorf("Could not receive resource rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+			return nil, fmt.Errorf("could not receive resource rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 		}
 
 		value := sqlResult.Values[0]
@@ -71,7 +71,7 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 		case int(common.ICAT_COLUMN_R_RESC_ID):
 			objID, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("Could not parse resource id - %s", value)
+				return nil, fmt.Errorf("could not parse resource id - %s", value)
 			}
 			resource.RescID = objID
 		case int(common.ICAT_COLUMN_R_RESC_NAME):
@@ -91,13 +91,13 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 		case int(common.ICAT_COLUMN_R_CREATE_TIME):
 			cT, err := util.GetIRODSDateTime(value)
 			if err != nil {
-				return nil, fmt.Errorf("Could not parse create time - %s", value)
+				return nil, fmt.Errorf("could not parse create time - %s", value)
 			}
 			resource.CreateTime = cT
 		case int(common.ICAT_COLUMN_R_MODIFY_TIME):
 			mT, err := util.GetIRODSDateTime(value)
 			if err != nil {
-				return nil, fmt.Errorf("Could not parse modify time - %s", value)
+				return nil, fmt.Errorf("could not parse modify time - %s", value)
 			}
 			resource.ModifyTime = mT
 		default:

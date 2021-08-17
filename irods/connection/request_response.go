@@ -26,35 +26,35 @@ type CheckErrorResponse interface {
 func (conn *IRODSConnection) Request(request Request, response Response) error {
 	requestMessage, err := request.GetMessage()
 	if err != nil {
-		return fmt.Errorf("Could not make a request message - %v", err)
+		return fmt.Errorf("could not make a request message - %v", err)
 	}
 
 	// translate xml.Marshal XML into irods-understandable XML (among others, replace &#34; by &quot;)
 	err = conn.PreprocessMessage(requestMessage)
 	if err != nil {
-		return fmt.Errorf("Could not send preprocess message - %v", err)
+		return fmt.Errorf("could not send preprocess message - %v", err)
 	}
 
 	err = conn.SendMessage(requestMessage)
 	if err != nil {
-		return fmt.Errorf("Could not send a request message - %v", err)
+		return fmt.Errorf("could not send a request message - %v", err)
 	}
 
 	// Server responds with results
 	responseMessage, err := conn.ReadMessage()
 	if err != nil {
-		return fmt.Errorf("Could not receive a response message - %v", err)
+		return fmt.Errorf("could not receive a response message - %v", err)
 	}
 
 	// translate irods-dialect XML into valid XML
 	err = conn.PostprocessMessage(responseMessage)
 	if err != nil {
-		return fmt.Errorf("Could not send postprocess message - %v", err)
+		return fmt.Errorf("could not send postprocess message - %v", err)
 	}
 
 	err = response.FromMessage(responseMessage)
 	if err != nil {
-		return fmt.Errorf("Could not parse a response message - %v", err)
+		return fmt.Errorf("could not parse a response message - %v", err)
 	}
 
 	return nil

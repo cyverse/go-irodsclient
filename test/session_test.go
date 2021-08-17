@@ -1,51 +1,33 @@
-package session
+package test
 
 import (
-	"io/ioutil"
 	"testing"
-	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/fs"
-	"github.com/cyverse/go-irodsclient/irods/types"
+	"github.com/cyverse/go-irodsclient/irods/session"
 	"github.com/cyverse/go-irodsclient/irods/util"
 )
 
 var (
-	account       *types.IRODSAccount
-	timeout       time.Duration
-	sessionConfig *IRODSSessionConfig
+	sessionConfig *session.IRODSSessionConfig
 )
 
-func setup() {
-	util.SetLogLevel(9)
-
-	yaml, err := ioutil.ReadFile("../../../config/test_account.yml")
-	if err != nil {
-		util.LogErrorf("err - %v", err)
-		panic(err)
-	}
-
-	account, err = types.CreateIRODSAccountFromYAML(yaml)
-	if err != nil {
-		util.LogErrorf("err - %v", err)
-		panic(err)
-	}
-
-	timeout = time.Second * 200 // 200 sec
+func setupSession() {
+	setupTest()
 
 	account.ClientServerNegotiation = false
 	util.LogDebugf("Account : %v", account.MaskSensitiveData())
 
-	sessionConfig = NewIRODSSessionConfigWithDefault("go-irodsclient-test")
+	sessionConfig = session.NewIRODSSessionConfigWithDefault("go-irodsclient-test")
 }
 
-func shutdown() {
+func shutdownSession() {
 }
 
 func TestSession(t *testing.T) {
-	setup()
+	setupSession()
 
-	sess, err := NewIRODSSession(account, sessionConfig)
+	sess, err := session.NewIRODSSession(account, sessionConfig)
 	if err != nil {
 		t.Errorf("err - %v", err)
 		panic(err)
@@ -95,5 +77,5 @@ func TestSession(t *testing.T) {
 
 	sess.Release()
 
-	shutdown()
+	shutdownSession()
 }
