@@ -93,7 +93,7 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 				return nil, types.NewFileNotFoundErrorf("could not find a data object")
 			}
 
-			return nil, fmt.Errorf("Received a data object query error - %v", err)
+			return nil, fmt.Errorf("received a data object query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -104,7 +104,7 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 			return nil, fmt.Errorf("could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount, queryResult.RowCount)
+		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -270,7 +270,7 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 				return nil, types.NewFileNotFoundErrorf("could not find a data object")
 			}
 
-			return nil, fmt.Errorf("Received a data object query error - %v", err)
+			return nil, fmt.Errorf("received a data object query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -281,7 +281,7 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 			return nil, fmt.Errorf("could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount, queryResult.RowCount)
+		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -426,7 +426,7 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 				return dataObjects, nil
 			}
 
-			return nil, fmt.Errorf("Received a data object query error - %v", err)
+			return nil, fmt.Errorf("received a data object query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -437,7 +437,7 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 			return nil, fmt.Errorf("could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount, queryResult.RowCount)
+		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -599,7 +599,7 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 				return dataObjects, nil
 			}
 
-			return nil, fmt.Errorf("Received a data object query error - %v", err)
+			return nil, fmt.Errorf("received a data object query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -610,7 +610,7 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 			return nil, fmt.Errorf("could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount, queryResult.RowCount)
+		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -743,7 +743,7 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, collection *types.IROD
 				return metas, nil
 			}
 
-			return nil, fmt.Errorf("Received a data object metadata query error - %v", err)
+			return nil, fmt.Errorf("received a data object metadata query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -754,7 +754,7 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, collection *types.IROD
 			return nil, fmt.Errorf("could not receive data object metadata attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedMetas := make([]*types.IRODSMeta, queryResult.RowCount, queryResult.RowCount)
+		pagenatedMetas := make([]*types.IRODSMeta, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -840,7 +840,7 @@ func ListDataObjectAccess(conn *connection.IRODSConnection, collection *types.IR
 				return accesses, nil
 			}
 
-			return nil, fmt.Errorf("Received a data object access query error - %v", err)
+			return nil, fmt.Errorf("received a data object access query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -851,7 +851,7 @@ func ListDataObjectAccess(conn *connection.IRODSConnection, collection *types.IR
 			return nil, fmt.Errorf("could not receive data object access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount, queryResult.RowCount)
+		pagenatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -1250,7 +1250,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 				return dataObjects, nil
 			}
 
-			return nil, fmt.Errorf("Received a data object query error - %v", err)
+			return nil, fmt.Errorf("received a data object query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -1261,7 +1261,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 			return nil, fmt.Errorf("could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount, queryResult.RowCount)
+		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -1443,7 +1443,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 				return dataObjects, nil
 			}
 
-			return nil, fmt.Errorf("Received a data object query error - %v", err)
+			return nil, fmt.Errorf("received a data object query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -1454,7 +1454,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 			return nil, fmt.Errorf("could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount, queryResult.RowCount)
+		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -1617,7 +1617,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 				return dataObjects, nil
 			}
 
-			return nil, fmt.Errorf("Received a data object query error - %v", err)
+			return nil, fmt.Errorf("received a data object query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -1628,7 +1628,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 			return nil, fmt.Errorf("could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount, queryResult.RowCount)
+		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -1811,7 +1811,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 				return dataObjects, nil
 			}
 
-			return nil, fmt.Errorf("Received a data object query error - %v", err)
+			return nil, fmt.Errorf("received a data object query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -1822,7 +1822,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 			return nil, fmt.Errorf("could not receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount, queryResult.RowCount)
+		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]

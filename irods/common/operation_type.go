@@ -5,6 +5,7 @@ type OperationType int
 
 // operation types
 const (
+	OPER_TYPE_NONE               OperationType = 0
 	OPER_TYPE_PUT_DATA_OBJ       OperationType = 1
 	OPER_TYPE_REPLICATE_DATA_OBJ OperationType = 6
 	OPER_TYPE_COPY_DATA_OBJ_DEST OperationType = 9

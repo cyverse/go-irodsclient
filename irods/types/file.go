@@ -41,7 +41,7 @@ func GetFileOpenFlagSeekToEnd(mode FileOpenMode) (int, bool) {
 	case FileOpenModeReadWrite:
 		return int(O_RDWR), false
 	case FileOpenModeWriteOnly:
-		return int(O_WRONLY) | int(O_CREAT) | int(O_TRUNC), false
+		return int(O_WRONLY) | int(O_CREAT), false
 	case FileOpenModeWriteTruncate:
 		return int(O_RDWR) | int(O_CREAT) | int(O_TRUNC), false
 	case FileOpenModeAppend:

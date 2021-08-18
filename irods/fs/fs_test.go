@@ -322,7 +322,7 @@ func TestCreateDeleteIRODSCollection(t *testing.T) {
 		panic(err)
 	}
 
-	collection, err = GetCollection(conn, "/iplant/home/iychoi/test123")
+	_, err = GetCollection(conn, "/iplant/home/iychoi/test123")
 	deleted := false
 	if err != nil {
 		if types.IsFileNotFoundError(err) {
@@ -384,7 +384,7 @@ func TestCreateMoveDeleteIRODSCollection(t *testing.T) {
 		panic(err)
 	}
 
-	collection, err = GetCollection(conn, "/iplant/home/iychoi/test456")
+	_, err = GetCollection(conn, "/iplant/home/iychoi/test456")
 	deleted := false
 	if err != nil {
 		if types.IsFileNotFoundError(err) {
@@ -441,7 +441,7 @@ func TestCreateDeleteIRODSDataObject(t *testing.T) {
 		panic(err)
 	}
 
-	obj, err = GetDataObject(conn, collection, "testobj123")
+	_, err = GetDataObject(conn, collection, "testobj123")
 	deleted := false
 	if err != nil {
 		if types.IsFileNotFoundError(err) {

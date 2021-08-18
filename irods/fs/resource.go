@@ -42,7 +42,7 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 
 	err = queryResult.CheckError()
 	if err != nil {
-		return nil, fmt.Errorf("Received a data resource query error - %v", err)
+		return nil, fmt.Errorf("received a data resource query error - %v", err)
 	}
 
 	if queryResult.ContinueIndex != 0 {
@@ -50,7 +50,7 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 	}
 
 	if queryResult.RowCount == 0 {
-		return nil, errors.New("No row found")
+		return nil, errors.New("no row found")
 	}
 
 	if queryResult.AttributeCount > len(queryResult.SQLResult) {

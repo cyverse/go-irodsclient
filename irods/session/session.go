@@ -59,7 +59,7 @@ func (sess *IRODSSession) connClose(v interface{}) error {
 
 // AcquireConnection returns an idle connection
 func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, error) {
-	// close a conenction
+	// get a conenction
 	v, err := sess.ConnectionPool.Get()
 	if err != nil {
 		util.LogErrorf("could not get an idle connection - %v", err)

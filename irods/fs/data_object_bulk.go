@@ -14,6 +14,8 @@ import (
 
 // UploadDataObject put a data object at the local path to the iRODS path
 func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath string, resource string, replicate bool) error {
+	util.LogDebugf("upload data object - %s\n", localPath)
+
 	conn, err := session.AcquireConnection()
 	if err != nil {
 		return err
@@ -24,7 +26,7 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
-	f, err := os.Open(localPath)
+	f, err := os.OpenFile(localPath, os.O_RDONLY, 0)
 	if err != nil {
 		return err
 	}
@@ -40,6 +42,15 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 	var writeErr error
 	for {
 		bytesRead, err := f.Read(buffer)
+		if bytesRead > 0 {
+			err = WriteDataObject(conn, handle, buffer[:bytesRead])
+			if err != nil {
+				CloseDataObject(conn, handle)
+				writeErr = err
+				break
+			}
+		}
+
 		if err != nil {
 			CloseDataObject(conn, handle)
 			if err == io.EOF {
@@ -48,13 +59,6 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 				writeErr = err
 				break
 			}
-		}
-
-		err = WriteDataObject(conn, handle, buffer[:bytesRead])
-		if err != nil {
-			CloseDataObject(conn, handle)
-			writeErr = err
-			break
 		}
 	}
 
@@ -71,9 +75,324 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 	return replErr
 }
 
+// UploadDataObjectParallel put a data object at the local path to the iRODS path in parallel
+// Partitions a file into n (taskNum) tasks and uploads in parallel
+func UploadDataObjectParallel(session *session.IRODSSession, localPath string, irodsPath string, resource string, fileLength int64, taskNum int, replicate bool) error {
+	numTasks := taskNum
+	if numTasks <= 0 {
+		numTasks = util.GetNumTasksForParallelTransfer(fileLength)
+	}
+
+	util.LogDebugf("upload data object in parallel - %s, size(%d), threads(%d)\n", irodsPath, fileLength, numTasks)
+
+	conn, err := session.AcquireConnection()
+	if err != nil {
+		return err
+	}
+	defer session.ReturnConnection(conn)
+
+	if conn == nil || !conn.IsConnected() {
+		return fmt.Errorf("connection is nil or disconnected")
+	}
+
+	// create an empty file
+	handle, err := CreateDataObject(conn, irodsPath, resource, true)
+	if err != nil {
+		return err
+	}
+
+	err = CloseDataObject(conn, handle)
+	if err != nil {
+		return err
+	}
+
+	errChan := make(chan error, numTasks)
+	taskWaitGroup := sync.WaitGroup{}
+
+	uploadTask := func(taskOffset int64, taskLength int64) {
+		defer taskWaitGroup.Done()
+
+		taskConn, taskErr := session.AcquireConnection()
+		if taskErr != nil {
+			errChan <- taskErr
+		}
+		defer session.ReturnConnection(taskConn)
+
+		if taskConn == nil || !taskConn.IsConnected() {
+			errChan <- fmt.Errorf("connection is nil or disconnected")
+			return
+		}
+
+		taskHandle, _, taskErr := OpenDataObject(taskConn, irodsPath, resource, "r+")
+		if taskErr != nil {
+			errChan <- taskErr
+			return
+		}
+		// Python-irodsclient does not send file close, but replica_close.
+		// But this still works, why?
+		defer CloseDataObject(taskConn, taskHandle)
+
+		f, taskErr := os.OpenFile(localPath, os.O_RDONLY, 0)
+		if taskErr != nil {
+			errChan <- taskErr
+			return
+		}
+		defer f.Close()
+
+		taskNewOffset, taskErr := SeekDataObject(taskConn, taskHandle, taskOffset, types.SeekSet)
+		if taskErr != nil {
+			errChan <- fmt.Errorf("could not seek a data object - %v", taskErr)
+			return
+		}
+
+		if taskNewOffset != taskOffset {
+			errChan <- fmt.Errorf("could not seek to target offset %d", taskOffset)
+			return
+		}
+
+		taskRemain := taskLength
+
+		// copy
+		buffer := make([]byte, common.ReadWriteBufferSize)
+
+		for taskRemain > 0 {
+			bufferLen := common.ReadWriteBufferSize
+			if taskRemain < int64(bufferLen) {
+				bufferLen = int(taskRemain)
+			}
+
+			bytesRead, taskErr := f.ReadAt(buffer[:bufferLen], taskOffset+(taskLength-taskRemain))
+			if bytesRead > 0 {
+				taskErr = WriteDataObject(taskConn, taskHandle, buffer[:bytesRead])
+				if taskErr != nil {
+					errChan <- taskErr
+					return
+				}
+			}
+
+			taskRemain -= int64(bytesRead)
+
+			if taskErr != nil {
+				if taskErr == io.EOF {
+					return
+				}
+
+				errChan <- taskErr
+				return
+			}
+		}
+	}
+
+	lengthPerThread := fileLength / int64(numTasks)
+	if fileLength%int64(numTasks) > 0 {
+		lengthPerThread++
+	}
+
+	offset := int64(0)
+	for i := 0; i < numTasks; i++ {
+		taskWaitGroup.Add(1)
+
+		go uploadTask(offset, lengthPerThread)
+		offset += lengthPerThread
+	}
+
+	taskWaitGroup.Wait()
+
+	if len(errChan) > 0 {
+		return <-errChan
+	}
+
+	// replicate
+	if replicate {
+		err = ReplicateDataObject(conn, irodsPath, "", true, false)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// UploadDataObjectParallelInBlockAsync put a data object at the local path to the iRODS path in parallel
+// Chunks a file into fixed-size blocks and transfers them using n (taskNum) tasks in parallel
+func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPath string, irodsPath string, resource string, fileLength int64, blockLength int64, taskNum int, replicate bool) (chan int64, chan error) {
+	blockSize := blockLength
+	if blockSize <= 0 {
+		blockSize = util.GetBlockSizeForParallelTransfer(fileLength)
+	}
+
+	numTasks := taskNum
+	if numTasks <= 0 {
+		numTasks = util.GetNumTasksForParallelTransfer(fileLength)
+	}
+
+	if numTasks == 1 {
+		blockSize = fileLength
+	}
+
+	numBlocks := fileLength / blockSize
+	if fileLength%blockSize != 0 {
+		numBlocks++
+	}
+
+	util.LogDebugf("upload data object in parallel - %s, size(%d), threads(%d), block_size(%d)\n", irodsPath, fileLength, numTasks, blockSize)
+
+	inputChan := make(chan int64, numBlocks)
+	outputChan := make(chan int64, numBlocks)
+	errChan := make(chan error, numBlocks)
+
+	conn, err := session.AcquireConnection()
+	if err != nil {
+		errChan <- err
+		close(outputChan)
+		close(errChan)
+		return outputChan, errChan
+	}
+	defer session.ReturnConnection(conn)
+
+	if conn == nil || !conn.IsConnected() {
+		errChan <- fmt.Errorf("connection is nil or disconnected")
+		close(outputChan)
+		close(errChan)
+		return outputChan, errChan
+	}
+
+	// create an empty file
+	handle, err := CreateDataObject(conn, irodsPath, resource, true)
+	if err != nil {
+		errChan <- err
+		close(outputChan)
+		close(errChan)
+		return outputChan, errChan
+	}
+
+	err = CloseDataObject(conn, handle)
+	if err != nil {
+		errChan <- err
+		close(outputChan)
+		close(errChan)
+		return outputChan, errChan
+	}
+
+	offset := int64(0)
+	for offset < fileLength {
+		inputChan <- offset
+		offset += blockSize
+	}
+	close(inputChan)
+
+	taskWaitGroup := sync.WaitGroup{}
+
+	uploadTask := func() {
+		defer taskWaitGroup.Done()
+
+		taskConn, taskErr := session.AcquireConnection()
+		if taskErr != nil {
+			errChan <- taskErr
+		}
+		defer session.ReturnConnection(taskConn)
+
+		if taskConn == nil || !taskConn.IsConnected() {
+			errChan <- fmt.Errorf("connection is nil or disconnected")
+			return
+		}
+
+		// open the file with read-write mode
+		taskHandle, _, taskErr := OpenDataObject(taskConn, irodsPath, resource, "r+")
+		if taskErr != nil {
+			errChan <- taskErr
+			return
+		}
+		// Python-irodsclient does not send file close, but replica_close.
+		// But this still works, why?
+		defer CloseDataObject(taskConn, taskHandle)
+
+		f, taskErr := os.OpenFile(localPath, os.O_RDONLY, 0)
+		if taskErr != nil {
+			errChan <- taskErr
+			return
+		}
+		defer f.Close()
+
+		buffer := make([]byte, common.ReadWriteBufferSize)
+		for {
+			taskOffset, ok := <-inputChan
+			if !ok {
+				break
+			}
+
+			taskNewOffset, taskErr := SeekDataObject(taskConn, taskHandle, taskOffset, types.SeekSet)
+			if taskErr != nil {
+				errChan <- fmt.Errorf("could not seek a data object - %v", taskErr)
+				return
+			}
+
+			if taskNewOffset != taskOffset {
+				errChan <- fmt.Errorf("could not seek to target offset %d", taskOffset)
+				return
+			}
+
+			taskRemain := blockSize
+
+			// copy
+			for taskRemain > 0 {
+				bufferLen := common.ReadWriteBufferSize
+				if taskRemain < int64(bufferLen) {
+					bufferLen = int(taskRemain)
+				}
+
+				bytesRead, err := f.ReadAt(buffer[:bufferLen], taskOffset+(blockSize-taskRemain))
+				if bytesRead > 0 {
+					err = WriteDataObject(taskConn, taskHandle, buffer[:bytesRead])
+					if err != nil {
+						errChan <- err
+						return
+					}
+				}
+
+				taskRemain -= int64(bytesRead)
+
+				if err != nil {
+					if err == io.EOF {
+						break
+					}
+
+					errChan <- err
+					return
+				}
+			}
+
+			// copy done
+			outputChan <- taskOffset
+		}
+	}
+
+	for i := 0; i < numTasks; i++ {
+		taskWaitGroup.Add(1)
+		go uploadTask()
+	}
+
+	go func() {
+		// all tasks are done
+		taskWaitGroup.Wait()
+
+		// replicate
+		if replicate {
+			err = ReplicateDataObject(conn, irodsPath, "", true, false)
+			if err != nil {
+				errChan <- err
+			}
+		}
+
+		close(outputChan)
+		close(errChan)
+	}()
+
+	return outputChan, errChan
+}
+
 // DownloadDataObject downloads a data object at the iRODS path to the local path
 func DownloadDataObject(session *session.IRODSSession, irodsPath string, resource string, localPath string) error {
-	util.LogErrorf("download data object - %s\n", irodsPath)
+	util.LogDebugf("download data object - %s\n", irodsPath)
 
 	conn, err := session.AcquireConnection()
 	if err != nil {
@@ -124,7 +443,7 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 		numTasks = util.GetNumTasksForParallelTransfer(dataObjectLength)
 	}
 
-	util.LogErrorf("download data object in parallel - %s, size(%d), threads(%d)\n", irodsPath, dataObjectLength, numTasks)
+	util.LogDebugf("download data object in parallel - %s, size(%d), threads(%d)\n", irodsPath, dataObjectLength, numTasks)
 
 	// create an empty file
 	f, err := os.Create(localPath)
@@ -136,59 +455,57 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 	errChan := make(chan error, numTasks)
 	taskWaitGroup := sync.WaitGroup{}
 
-	downloadTask := func(offset int64, length int64) {
+	downloadTask := func(taskOffset int64, taskLength int64) {
 		defer taskWaitGroup.Done()
 
-		conn, err := session.AcquireConnection()
-		if err != nil {
-			errChan <- err
+		taskConn, taskErr := session.AcquireConnection()
+		if taskErr != nil {
+			errChan <- taskErr
 		}
-		defer session.ReturnConnection(conn)
+		defer session.ReturnConnection(taskConn)
 
-		if conn == nil || !conn.IsConnected() {
+		if taskConn == nil || !taskConn.IsConnected() {
 			errChan <- fmt.Errorf("connection is nil or disconnected")
 			return
 		}
 
-		handle, _, err := OpenDataObject(conn, irodsPath, resource, "r")
-		if err != nil {
-			errChan <- err
+		taskHandle, _, taskErr := OpenDataObject(taskConn, irodsPath, resource, "r")
+		if taskErr != nil {
+			errChan <- taskErr
 			return
 		}
+		defer CloseDataObject(taskConn, taskHandle)
 
-		defer CloseDataObject(conn, handle)
-
-		f, err := os.OpenFile(localPath, os.O_WRONLY, 0)
-		if err != nil {
-			errChan <- err
+		f, taskErr := os.OpenFile(localPath, os.O_WRONLY, 0)
+		if taskErr != nil {
+			errChan <- taskErr
 			return
 		}
-
 		defer f.Close()
 
-		newOffset, err := SeekDataObject(conn, handle, offset, types.SeekSet)
-		if err != nil {
-			errChan <- fmt.Errorf("could not seek a data object - %v", err)
+		taskNewOffset, taskErr := SeekDataObject(taskConn, taskHandle, taskOffset, types.SeekSet)
+		if taskErr != nil {
+			errChan <- fmt.Errorf("could not seek a data object - %v", taskErr)
 			return
 		}
 
-		if newOffset != offset {
-			errChan <- fmt.Errorf("could not seek to target offset %d", offset)
+		if taskNewOffset != taskOffset {
+			errChan <- fmt.Errorf("could not seek to target offset %d", taskOffset)
 			return
 		}
 
-		remain := length
+		taskRemain := taskLength
 
 		// copy
-		for remain > 0 {
-			toCopy := remain
+		for taskRemain > 0 {
+			toCopy := taskRemain
 			if toCopy >= int64(common.ReadWriteBufferSize) {
 				toCopy = int64(common.ReadWriteBufferSize)
 			}
 
-			buffer, err := ReadDataObject(conn, handle, int(toCopy))
-			if err != nil {
-				errChan <- err
+			buffer, taskErr := ReadDataObject(taskConn, taskHandle, int(toCopy))
+			if taskErr != nil {
+				errChan <- taskErr
 				return
 			}
 
@@ -196,12 +513,13 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 				// EOF
 				return
 			} else {
-				_, err = f.WriteAt(buffer, offset+(length-remain))
-				if err != nil {
-					errChan <- err
+				_, taskErr = f.WriteAt(buffer, taskOffset+(taskLength-taskRemain))
+				if taskErr != nil {
+					errChan <- taskErr
+					return
 				}
 
-				remain -= int64(len(buffer))
+				taskRemain -= int64(len(buffer))
 			}
 		}
 	}
@@ -249,7 +567,7 @@ func DownloadDataObjectParallelInBlocksAsync(session *session.IRODSSession, irod
 		numBlocks++
 	}
 
-	util.LogErrorf("download data object in parallel - %s, size(%d), threads(%d), block_size(%d)\n", irodsPath, dataObjectLength, numTasks, blockSize)
+	util.LogDebugf("download data object in parallel - %s, size(%d), threads(%d), block_size(%d)\n", irodsPath, dataObjectLength, numTasks, blockSize)
 
 	inputChan := make(chan int64, numBlocks)
 	outputChan := make(chan int64, numBlocks)
@@ -275,31 +593,29 @@ func DownloadDataObjectParallelInBlocksAsync(session *session.IRODSSession, irod
 	downloadTask := func() {
 		defer taskWaitGroup.Done()
 
-		conn, err := session.AcquireConnection()
-		if err != nil {
-			errChan <- err
+		taskConn, taskErr := session.AcquireConnection()
+		if taskErr != nil {
+			errChan <- taskErr
 		}
-		defer session.ReturnConnection(conn)
+		defer session.ReturnConnection(taskConn)
 
-		if conn == nil || !conn.IsConnected() {
+		if taskConn == nil || !taskConn.IsConnected() {
 			errChan <- fmt.Errorf("connection is nil or disconnected")
 			return
 		}
 
-		handle, _, err := OpenDataObject(conn, irodsPath, resource, "r")
-		if err != nil {
-			errChan <- err
+		taskHandle, _, taskErr := OpenDataObject(taskConn, irodsPath, resource, "r")
+		if taskErr != nil {
+			errChan <- taskErr
 			return
 		}
+		defer CloseDataObject(taskConn, taskHandle)
 
-		defer CloseDataObject(conn, handle)
-
-		f, err := os.OpenFile(localPath, os.O_WRONLY, 0)
-		if err != nil {
-			errChan <- err
+		f, taskErr := os.OpenFile(localPath, os.O_WRONLY, 0)
+		if taskErr != nil {
+			errChan <- taskErr
 			return
 		}
-
 		defer f.Close()
 
 		for {
@@ -308,27 +624,27 @@ func DownloadDataObjectParallelInBlocksAsync(session *session.IRODSSession, irod
 				break
 			}
 
-			newOffset, err := SeekDataObject(conn, handle, taskOffset, types.SeekSet)
+			taskNewOffset, err := SeekDataObject(taskConn, taskHandle, taskOffset, types.SeekSet)
 			if err != nil {
 				errChan <- fmt.Errorf("could not seek a data object - %v", err)
 				return
 			}
 
-			if newOffset != taskOffset {
+			if taskNewOffset != taskOffset {
 				errChan <- fmt.Errorf("could not seek to target offset %d", taskOffset)
 				return
 			}
 
-			remain := blockSize
+			taskRemain := blockSize
 
 			// copy
-			for remain > 0 {
-				toCopy := remain
+			for taskRemain > 0 {
+				toCopy := taskRemain
 				if toCopy >= int64(common.ReadWriteBufferSize) {
 					toCopy = int64(common.ReadWriteBufferSize)
 				}
 
-				buffer, err := ReadDataObject(conn, handle, int(toCopy))
+				buffer, err := ReadDataObject(taskConn, taskHandle, int(toCopy))
 				if err != nil {
 					errChan <- err
 					return
@@ -338,12 +654,13 @@ func DownloadDataObjectParallelInBlocksAsync(session *session.IRODSSession, irod
 					// EOF
 					break
 				} else {
-					_, err = f.WriteAt(buffer, taskOffset+(blockSize-remain))
+					_, err = f.WriteAt(buffer, taskOffset+(blockSize-taskRemain))
 					if err != nil {
 						errChan <- err
+						return
 					}
 
-					remain -= int64(len(buffer))
+					taskRemain -= int64(len(buffer))
 				}
 			}
 

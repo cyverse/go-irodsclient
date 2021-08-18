@@ -827,6 +827,115 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 	return nil
 }
 
+// UploadFileParallel uploads a local file to irods in parallel
+func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, resource string, taskNum int, replicate bool) error {
+	localSrcPath := util.GetCorrectIRODSPath(localPath)
+	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
+
+	irodsFilePath := irodsDestPath
+
+	srcStat, err := os.Stat(localSrcPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// file not exists
+			return types.NewFileNotFoundError("could not find the local file")
+		}
+		return err
+	}
+
+	if srcStat.IsDir() {
+		return types.NewFileNotFoundError("The local file is a directory")
+	}
+
+	destStat, err := fs.Stat(irodsDestPath)
+	if err != nil {
+		if !types.IsFileNotFoundError(err) {
+			return err
+		}
+	} else {
+		switch destStat.Type {
+		case FSFileEntry:
+			// do nothing
+		case FSDirectoryEntry:
+			localFileName := util.GetIRODSPathFileName(localSrcPath)
+			irodsFilePath = util.MakeIRODSPath(irodsDestPath, localFileName)
+		default:
+			return fmt.Errorf("unknown entry type %s", destStat.Type)
+		}
+	}
+
+	err = irods_fs.UploadDataObjectParallel(fs.Session, localSrcPath, irodsFilePath, resource, srcStat.Size(), taskNum, replicate)
+	if err != nil {
+		return err
+	}
+
+	fs.invalidateCachePath(util.GetIRODSPathDirname(irodsFilePath))
+
+	return nil
+}
+
+// UploadFileParallelInBlocksAsync uploads a local file to irods in parallel
+func (fs *FileSystem) UploadFileParallelInBlocksAsync(localPath string, irodsPath string, resource string, blockLength int64, taskNum int, replicate bool) (chan int64, chan error) {
+	localSrcPath := util.GetCorrectIRODSPath(localPath)
+	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
+
+	irodsFilePath := irodsDestPath
+
+	outputChan := make(chan int64, 1)
+	errChan := make(chan error, 1)
+
+	srcStat, err := os.Stat(localSrcPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// file not exists
+			errChan <- types.NewFileNotFoundError("could not find the local file")
+			close(outputChan)
+			close(errChan)
+			return outputChan, errChan
+		}
+
+		errChan <- err
+		close(outputChan)
+		close(errChan)
+		return outputChan, errChan
+	}
+
+	if srcStat.IsDir() {
+		errChan <- types.NewFileNotFoundError("The local file is a directory")
+		close(outputChan)
+		close(errChan)
+		return outputChan, errChan
+	}
+
+	destStat, err := fs.Stat(irodsDestPath)
+	if err != nil {
+		if !types.IsFileNotFoundError(err) {
+			errChan <- err
+			close(outputChan)
+			close(errChan)
+			return outputChan, errChan
+		}
+	} else {
+		switch destStat.Type {
+		case FSFileEntry:
+			// do nothing
+		case FSDirectoryEntry:
+			localFileName := util.GetIRODSPathFileName(localSrcPath)
+			irodsFilePath = util.MakeIRODSPath(irodsDestPath, localFileName)
+		default:
+			errChan <- fmt.Errorf("unknown entry type %s", destStat.Type)
+			close(outputChan)
+			close(errChan)
+			return outputChan, errChan
+		}
+	}
+
+	outputChan2, errChan2 := irods_fs.UploadDataObjectParallelInBlockAsync(fs.Session, localSrcPath, irodsFilePath, resource, srcStat.Size(), blockLength, taskNum, replicate)
+	fs.invalidateCachePath(util.GetIRODSPathDirname(irodsFilePath))
+
+	return outputChan2, errChan2
+}
+
 // OpenFile opens an existing file for read/write
 func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*FileHandle, error) {
 	irodsPath := util.GetCorrectIRODSPath(path)

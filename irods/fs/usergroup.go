@@ -40,7 +40,7 @@ func GetGroup(conn *connection.IRODSConnection, group string) (*types.IRODSUser,
 
 		err = queryResult.CheckError()
 		if err != nil {
-			return nil, fmt.Errorf("Received a group query error - %v", err)
+			return nil, fmt.Errorf("received a group query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -51,7 +51,7 @@ func GetGroup(conn *connection.IRODSConnection, group string) (*types.IRODSUser,
 			return nil, fmt.Errorf("could not receive group attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedUsers := make([]*types.IRODSUser, queryResult.RowCount, queryResult.RowCount)
+		pagenatedUsers := make([]*types.IRODSUser, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -139,7 +139,7 @@ func ListGroupUsers(conn *connection.IRODSConnection, group string) ([]*types.IR
 				return users, nil
 			}
 
-			return nil, fmt.Errorf("Received a group user query error - %v", err)
+			return nil, fmt.Errorf("received a group user query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -150,7 +150,7 @@ func ListGroupUsers(conn *connection.IRODSConnection, group string) ([]*types.IR
 			return nil, fmt.Errorf("could not receive group user attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedUsers := make([]*types.IRODSUser, queryResult.RowCount, queryResult.RowCount)
+		pagenatedUsers := make([]*types.IRODSUser, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -234,7 +234,7 @@ func ListGroups(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 				return groups, nil
 			}
 
-			return nil, fmt.Errorf("Received a group query error - %v", err)
+			return nil, fmt.Errorf("received a group query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -245,7 +245,7 @@ func ListGroups(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 			return nil, fmt.Errorf("could not receive group attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedGroups := make([]*types.IRODSUser, queryResult.RowCount, queryResult.RowCount)
+		pagenatedGroups := make([]*types.IRODSUser, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -328,7 +328,7 @@ func ListUsers(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 				return users, nil
 			}
 
-			return nil, fmt.Errorf("Received a user query error - %v", err)
+			return nil, fmt.Errorf("received a user query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -339,7 +339,7 @@ func ListUsers(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 			return nil, fmt.Errorf("could not receive user attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedUsers := make([]*types.IRODSUser, queryResult.RowCount, queryResult.RowCount)
+		pagenatedUsers := make([]*types.IRODSUser, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -420,7 +420,7 @@ func ListUserGroupNames(conn *connection.IRODSConnection, user string) ([]string
 				return groups, nil
 			}
 
-			return nil, fmt.Errorf("Received a group query error - %v", err)
+			return nil, fmt.Errorf("received a group query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -491,7 +491,7 @@ func ListUserResourceQuota(conn *connection.IRODSConnection, user string) ([]*ty
 				return quota, nil
 			}
 
-			return nil, fmt.Errorf("Received a quota query error - %v", err)
+			return nil, fmt.Errorf("received a quota query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -502,7 +502,7 @@ func ListUserResourceQuota(conn *connection.IRODSConnection, user string) ([]*ty
 			return nil, fmt.Errorf("could not receive quota attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedQuota := make([]*types.IRODSQuota, queryResult.RowCount, queryResult.RowCount)
+		pagenatedQuota := make([]*types.IRODSQuota, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -574,7 +574,7 @@ func GetUserGlobalQuota(conn *connection.IRODSConnection, user string) (*types.I
 
 		err = queryResult.CheckError()
 		if err != nil {
-			return nil, fmt.Errorf("Received a quota query error - %v", err)
+			return nil, fmt.Errorf("received a quota query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -585,7 +585,7 @@ func GetUserGlobalQuota(conn *connection.IRODSConnection, user string) (*types.I
 			return nil, fmt.Errorf("could not receive quota attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedQuota := make([]*types.IRODSQuota, queryResult.RowCount, queryResult.RowCount)
+		pagenatedQuota := make([]*types.IRODSQuota, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -693,7 +693,7 @@ func ListUserMeta(conn *connection.IRODSConnection, user string) ([]*types.IRODS
 				return metas, nil
 			}
 
-			return nil, fmt.Errorf("Received a user metadata query error - %v", err)
+			return nil, fmt.Errorf("received a user metadata query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -704,7 +704,7 @@ func ListUserMeta(conn *connection.IRODSConnection, user string) ([]*types.IRODS
 			return nil, fmt.Errorf("could not receive user metadata attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedMetas := make([]*types.IRODSMeta, queryResult.RowCount, queryResult.RowCount)
+		pagenatedMetas := make([]*types.IRODSMeta, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]

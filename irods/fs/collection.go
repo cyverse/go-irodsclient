@@ -66,7 +66,7 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 			return nil, types.NewFileNotFoundErrorf("could not find a collection")
 		}
 
-		return nil, fmt.Errorf("Received a collection query error - %v", err)
+		return nil, fmt.Errorf("received a collection query error - %v", err)
 	}
 
 	if queryResult.RowCount != 1 {
@@ -166,7 +166,7 @@ func ListCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types
 				return metas, nil
 			}
 
-			return nil, fmt.Errorf("Received a collection metadata query error - %v", err)
+			return nil, fmt.Errorf("received a collection metadata query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -177,7 +177,7 @@ func ListCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types
 			return nil, fmt.Errorf("could not receive collection metadata attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedMetas := make([]*types.IRODSMeta, queryResult.RowCount, queryResult.RowCount)
+		pagenatedMetas := make([]*types.IRODSMeta, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -261,7 +261,7 @@ func ListCollectionAccess(conn *connection.IRODSConnection, path string) ([]*typ
 				return accesses, nil
 			}
 
-			return nil, fmt.Errorf("Received a collection access query error - %v", err)
+			return nil, fmt.Errorf("received a collection access query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -272,7 +272,7 @@ func ListCollectionAccess(conn *connection.IRODSConnection, path string) ([]*typ
 			return nil, fmt.Errorf("could not receive collection access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount, queryResult.RowCount)
+		pagenatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -354,7 +354,7 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 				return collections, nil
 			}
 
-			return nil, fmt.Errorf("Received a collection query error - %v", err)
+			return nil, fmt.Errorf("received a collection query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -365,7 +365,7 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 			return nil, fmt.Errorf("could not receive collection attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedCollections := make([]*types.IRODSCollection, queryResult.RowCount, queryResult.RowCount)
+		pagenatedCollections := make([]*types.IRODSCollection, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -566,7 +566,7 @@ func SearchCollectionsByMeta(conn *connection.IRODSConnection, metaName string, 
 				return collections, nil
 			}
 
-			return nil, fmt.Errorf("Received a collection query error - %v", err)
+			return nil, fmt.Errorf("received a collection query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -577,7 +577,7 @@ func SearchCollectionsByMeta(conn *connection.IRODSConnection, metaName string, 
 			return nil, fmt.Errorf("could not receive collection attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedCollections := make([]*types.IRODSCollection, queryResult.RowCount, queryResult.RowCount)
+		pagenatedCollections := make([]*types.IRODSCollection, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -678,7 +678,7 @@ func SearchCollectionsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 				return collections, nil
 			}
 
-			return nil, fmt.Errorf("Received a collection query error - %v", err)
+			return nil, fmt.Errorf("received a collection query error - %v", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -689,7 +689,7 @@ func SearchCollectionsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 			return nil, fmt.Errorf("could not receive collection attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedCollections := make([]*types.IRODSCollection, queryResult.RowCount, queryResult.RowCount)
+		pagenatedCollections := make([]*types.IRODSCollection, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
