@@ -1,9 +1,7 @@
 package test
 
 import (
-	"io/ioutil"
 	"testing"
-	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/util"
@@ -18,28 +16,12 @@ var (
 func setupConnection(requireCSNegotiation bool, csNegotiationPolicy types.CSNegotiationRequire) {
 	setupTest()
 
-	util.SetLogLevel(9)
-
-	yaml, err := ioutil.ReadFile("../../../config/test_account.yml")
-	if err != nil {
-		util.LogErrorf("err - %v", err)
-		panic(err)
-	}
-
-	account, err = types.CreateIRODSAccountFromYAML(yaml)
-	if err != nil {
-		util.LogErrorf("err - %v", err)
-		panic(err)
-	}
-
-	timeout = time.Second * 20 // 20 sec
-
 	account.ClientServerNegotiation = requireCSNegotiation
 	account.CSNegotiationPolicy = csNegotiationPolicy
 	util.LogDebugf("Account : %v", account.MaskSensitiveData())
 
 	conn = connection.NewIRODSConnection(account, timeout, "go-irodsclient-test")
-	err = conn.Connect()
+	err := conn.Connect()
 	if err != nil {
 		util.LogErrorf("err - %v", err)
 		panic(err)
