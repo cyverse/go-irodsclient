@@ -10,7 +10,7 @@ import (
 // type IRODSMessageWriteobjRequest IRODSMessageOpenedDataObjectRequest
 type IRODSMessageWriteobjRequest struct {
 	IRODSMessageOpenedDataObjectRequest
-	data []byte `xml:"-"`
+	Data []byte `xml:"-"`
 }
 
 // NewIRODSMessageWriteobjRequest creates a IRODSMessageWriteobjRequest message
@@ -27,7 +27,7 @@ func NewIRODSMessageWriteobjRequest(desc int, data []byte) *IRODSMessageWriteobj
 				Length: 0,
 			},
 		},
-		data: data,
+		Data: data,
 	}
 
 	return request
@@ -61,7 +61,7 @@ func (msg *IRODSMessageWriteobjRequest) GetMessage() (*IRODSMessage, error) {
 		Type:    RODS_MESSAGE_API_REQ_TYPE,
 		Message: bytes,
 		Error:   nil,
-		Bs:      msg.data,
+		Bs:      msg.Data,
 		IntInfo: int32(common.DATA_OBJ_WRITE_AN),
 	}
 
