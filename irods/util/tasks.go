@@ -2,7 +2,7 @@ package util
 
 const (
 	TransferTaskMinLength int64 = 4 * 1024 * 1024 // 4MB
-	TransferTaskMaxNum    int   = 6
+	TransferTaskMaxNum    int   = 4
 	TransferBlockSize     int64 = 1024 * 1024 // 1MB
 )
 

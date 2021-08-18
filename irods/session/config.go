@@ -4,6 +4,13 @@ import (
 	"time"
 )
 
+const (
+	IRODSSessionConnectionMaxMin     = 5
+	IRODSSessionConnectionMaxDefault = 10
+	IRODSSessionIdleConnectionMax    = 5
+	IRODSSessionTimeoutDefault       = 5 * time.Minute
+)
+
 // IRODSSessionConfig ...
 type IRODSSessionConfig struct {
 	ApplicationName      string
@@ -17,12 +24,8 @@ type IRODSSessionConfig struct {
 
 // NewIRODSSessionConfig create a IRODSSessionConfig
 func NewIRODSSessionConfig(applicationName string, operationTimeout time.Duration, idleTimeout time.Duration, connectionMax int, startNewTransaction bool) *IRODSSessionConfig {
-	initCap := 1
-	maxIdle := 1
-	if connectionMax >= 15 {
-		maxIdle = 10
-	} else if connectionMax >= 5 {
-		maxIdle = 4
+	if connectionMax < IRODSSessionConnectionMaxMin {
+		connectionMax = IRODSSessionConnectionMaxMin
 	}
 
 	return &IRODSSessionConfig{
@@ -30,8 +33,8 @@ func NewIRODSSessionConfig(applicationName string, operationTimeout time.Duratio
 		OperationTimeout:     operationTimeout,
 		IdleTimeout:          idleTimeout,
 		ConnectionMax:        connectionMax,
-		ConnectionInitNumber: initCap,
-		ConnectionMaxIdle:    maxIdle,
+		ConnectionInitNumber: 1,
+		ConnectionMaxIdle:    IRODSSessionIdleConnectionMax,
 		StartNewTransaction:  startNewTransaction,
 	}
 }
@@ -40,11 +43,11 @@ func NewIRODSSessionConfig(applicationName string, operationTimeout time.Duratio
 func NewIRODSSessionConfigWithDefault(applicationName string) *IRODSSessionConfig {
 	return &IRODSSessionConfig{
 		ApplicationName:      applicationName,
-		OperationTimeout:     5 * time.Minute,
-		IdleTimeout:          5 * time.Minute,
-		ConnectionMax:        20,
+		OperationTimeout:     IRODSSessionTimeoutDefault,
+		IdleTimeout:          IRODSSessionTimeoutDefault,
+		ConnectionMax:        IRODSSessionConnectionMaxDefault,
 		ConnectionInitNumber: 1,
-		ConnectionMaxIdle:    10,
+		ConnectionMaxIdle:    IRODSSessionIdleConnectionMax,
 		StartNewTransaction:  true,
 	}
 }

@@ -2,6 +2,12 @@ package fs
 
 import "time"
 
+const (
+	FileSystemConnectionMaxMin     = 5
+	FileSystemConnectionMaxDefault = 10
+	FileSystemTimeoutDefault       = 5 * time.Minute
+)
+
 // FileSystemConfig ...
 type FileSystemConfig struct {
 	ApplicationName       string
@@ -17,11 +23,16 @@ type FileSystemConfig struct {
 
 // NewFileSystemConfig create a FileSystemConfig
 func NewFileSystemConfig(applicationName string, operationTimeout time.Duration, connectionIdleTimeout time.Duration, connectionMax int, cacheTimeout time.Duration, cacheCleanupTime time.Duration, startNewTransaction bool) *FileSystemConfig {
+	connMax := connectionMax
+	if connMax < FileSystemConnectionMaxMin {
+		connMax = FileSystemConnectionMaxMin
+	}
+
 	return &FileSystemConfig{
 		ApplicationName:       applicationName,
 		OperationTimeout:      operationTimeout,
 		ConnectionIdleTimeout: connectionIdleTimeout,
-		ConnectionMax:         connectionMax,
+		ConnectionMax:         connMax,
 		CacheTimeout:          cacheTimeout,
 		CacheCleanupTime:      cacheCleanupTime,
 		StartNewTransaction:   startNewTransaction,
@@ -32,11 +43,11 @@ func NewFileSystemConfig(applicationName string, operationTimeout time.Duration,
 func NewFileSystemConfigWithDefault(applicationName string) *FileSystemConfig {
 	return &FileSystemConfig{
 		ApplicationName:       applicationName,
-		OperationTimeout:      5 * time.Minute,
-		ConnectionIdleTimeout: 5 * time.Minute,
-		ConnectionMax:         20,
-		CacheTimeout:          5 * time.Minute,
-		CacheCleanupTime:      5 * time.Minute,
+		OperationTimeout:      FileSystemTimeoutDefault,
+		ConnectionIdleTimeout: FileSystemTimeoutDefault,
+		ConnectionMax:         FileSystemConnectionMaxDefault,
+		CacheTimeout:          FileSystemTimeoutDefault,
+		CacheCleanupTime:      FileSystemTimeoutDefault,
 		StartNewTransaction:   true,
 	}
 }
