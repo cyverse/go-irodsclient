@@ -2,13 +2,18 @@ package types
 
 import "fmt"
 
+// IRODSAccessLevelType is a type for access level
 type IRODSAccessLevelType string
 
 const (
+	// IRODSAccessLevelOwner is for owner access
 	IRODSAccessLevelOwner IRODSAccessLevelType = "own"
+	// IRODSAccessLevelWrite is for write access
 	IRODSAccessLevelWrite IRODSAccessLevelType = "modify object"
-	IRODSAccessLevelRead  IRODSAccessLevelType = "read object"
-	IRODSAccessLevelNone  IRODSAccessLevelType = ""
+	// IRODSAccessLevelRead is for read access
+	IRODSAccessLevelRead IRODSAccessLevelType = "read object"
+	// IRODSAccessLevelNone is for no access
+	IRODSAccessLevelNone IRODSAccessLevelType = ""
 )
 
 // ChmodString returns the string for update access control messages.

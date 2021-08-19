@@ -426,11 +426,11 @@ func DownloadDataObject(session *session.IRODSSession, irodsPath string, resourc
 		if len(buffer) == 0 {
 			// EOF
 			return nil
-		} else {
-			_, err = f.Write(buffer)
-			if err != nil {
-				return err
-			}
+		}
+
+		_, err = f.Write(buffer)
+		if err != nil {
+			return err
 		}
 	}
 }
@@ -512,15 +512,15 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 			if len(buffer) == 0 {
 				// EOF
 				return
-			} else {
-				_, taskErr = f.WriteAt(buffer, taskOffset+(taskLength-taskRemain))
-				if taskErr != nil {
-					errChan <- taskErr
-					return
-				}
-
-				taskRemain -= int64(len(buffer))
 			}
+
+			_, taskErr = f.WriteAt(buffer, taskOffset+(taskLength-taskRemain))
+			if taskErr != nil {
+				errChan <- taskErr
+				return
+			}
+
+			taskRemain -= int64(len(buffer))
 		}
 	}
 

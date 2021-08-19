@@ -1,7 +1,9 @@
 package common
 
+// KeyWord is a type for some reserved keywords
 type KeyWord string
 
+// reserved keywords
 const (
 	ZONE_KW            KeyWord = "zone"
 	RECURSIVE_OPR_KW   KeyWord = "recursiveOpr"

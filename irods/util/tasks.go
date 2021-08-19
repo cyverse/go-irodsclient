@@ -1,9 +1,12 @@
 package util
 
 const (
+	// TransferTaskMinLength is a minimum data length of a task for parallel data transfer
 	TransferTaskMinLength int64 = 4 * 1024 * 1024 // 4MB
-	TransferTaskMaxNum    int   = 4
-	TransferBlockSize     int64 = 1024 * 1024 // 1MB
+	// TransferTaskMaxNum is a maximum number of tasks for parallel data transfer
+	TransferTaskMaxNum int = 4
+	// TransferBlockSize is a block size of a task
+	TransferBlockSize int64 = 1024 * 1024 // 1MB
 )
 
 // GetNumTasksForParallelTransfer returns the number transfer tasks to be used

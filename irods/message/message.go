@@ -6,10 +6,10 @@ import (
 	"fmt"
 )
 
-// MessageType ...
+// MessageType is a message type
 type MessageType string
 
-// IRODSMessageHeader ...
+// IRODSMessageHeader defines a message header
 type IRODSMessageHeader struct {
 	XMLName    xml.Name    `xml:"MsgHeader_PI"`
 	Type       MessageType `xml:"type"`
@@ -19,7 +19,7 @@ type IRODSMessageHeader struct {
 	IntInfo    int32       `xml:"intInfo"`
 }
 
-// IRODSMessageBody ...
+// IRODSMessageBody defines a message body
 type IRODSMessageBody struct {
 	Type    MessageType
 	Message []byte
@@ -28,13 +28,13 @@ type IRODSMessageBody struct {
 	IntInfo int32
 }
 
-// IRODSMessage ...
+// IRODSMessage defines a message
 type IRODSMessage struct {
 	Header *IRODSMessageHeader
 	Body   *IRODSMessageBody
 }
 
-// IRODSMessageSerializationInterface ...
+// IRODSMessageSerializationInterface is an interface for serializaing/deserializing of message
 type IRODSMessageSerializationInterface interface {
 	GetBytes() ([]byte, error)
 	FromBytes([]byte) error

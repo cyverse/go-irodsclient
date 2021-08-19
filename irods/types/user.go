@@ -2,12 +2,17 @@ package types
 
 import "fmt"
 
+// IRODSUserType is a type of iRODS User
 type IRODSUserType string
 
 const (
-	IRODSUserRodsGroup  IRODSUserType = "rodsgroup"
-	IRODSUserRodsUser   IRODSUserType = "rodsuser"
-	IRODSUserRodsAdmin  IRODSUserType = "rodsadmin"
+	// IRODSUserRodsGroup is for a group
+	IRODSUserRodsGroup IRODSUserType = "rodsgroup"
+	// IRODSUserRodsUser is for a user
+	IRODSUserRodsUser IRODSUserType = "rodsuser"
+	// IRODSUserRodsAdmin is for an admin user
+	IRODSUserRodsAdmin IRODSUserType = "rodsadmin"
+	// IRODSUserGroupAdmin is for an admin group
 	IRODSUserGroupAdmin IRODSUserType = "groupadmin"
 )
 

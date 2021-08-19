@@ -5,17 +5,20 @@ import (
 	"time"
 )
 
-type FSEntryType string
+// EntryType defines types of Entry
+type EntryType string
 
 const (
-	FSFileEntry      FSEntryType = "file"
-	FSDirectoryEntry FSEntryType = "directory"
+	// FileEntry is a Entry type for a file
+	FileEntry EntryType = "file"
+	// DirectoryEntry is a Entry type for a directory
+	DirectoryEntry EntryType = "directory"
 )
 
-// FSEntry ...
-type FSEntry struct {
+// Entry ...
+type Entry struct {
 	ID         int64
-	Type       FSEntryType
+	Type       EntryType
 	Name       string
 	Path       string
 	Owner      string
@@ -28,6 +31,6 @@ type FSEntry struct {
 }
 
 // ToString stringifies the object
-func (entry *FSEntry) ToString() string {
-	return fmt.Sprintf("<FSEntry %d %s %s %s %d %s %s>", entry.ID, entry.Type, entry.Path, entry.Owner, entry.Size, entry.CreateTime, entry.ModifyTime)
+func (entry *Entry) ToString() string {
+	return fmt.Sprintf("<Entry %d %s %s %s %d %s %s>", entry.ID, entry.Type, entry.Path, entry.Owner, entry.Size, entry.CreateTime, entry.ModifyTime)
 }

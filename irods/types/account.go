@@ -7,6 +7,7 @@ import (
 )
 
 const (
+	// PamTTLDefault is a default value for Pam TTL
 	PamTTLDefault int = 1
 )
 

@@ -21,6 +21,7 @@ type IRODSMessageUserAdminRequest struct {
 	Arg9    string   `xml:"arg9"` // unused
 }
 
+// NewIRODSMessageUserAdminRequest creates a new IRODSMessageUserAdminRequest
 func NewIRODSMessageUserAdminRequest(action string, args ...string) *IRODSMessageUserAdminRequest {
 	request := &IRODSMessageUserAdminRequest{
 		Action: action,

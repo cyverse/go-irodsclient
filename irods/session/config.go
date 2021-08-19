@@ -5,13 +5,17 @@ import (
 )
 
 const (
-	IRODSSessionConnectionMaxMin     = 5
+	// IRODSSessionConnectionMaxMin is a minimum value for connection max
+	IRODSSessionConnectionMaxMin = 5
+	// IRODSSessionConnectionMaxDefault is a default value for connection max
 	IRODSSessionConnectionMaxDefault = 10
-	IRODSSessionIdleConnectionMax    = 5
-	IRODSSessionTimeoutDefault       = 5 * time.Minute
+	// IRODSSessionIdleConnectionMax is a maximum number of idle connections
+	IRODSSessionIdleConnectionMax = 5
+	// IRODSSessionTimeoutDefault is a default value for timeout
+	IRODSSessionTimeoutDefault = 5 * time.Minute
 )
 
-// IRODSSessionConfig ...
+// IRODSSessionConfig is for session configuration
 type IRODSSessionConfig struct {
 	ApplicationName      string
 	OperationTimeout     time.Duration

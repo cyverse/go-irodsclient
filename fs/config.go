@@ -3,12 +3,15 @@ package fs
 import "time"
 
 const (
-	FileSystemConnectionMaxMin     = 5
+	// FileSystemConnectionMaxMin is a minimum number of connection max value
+	FileSystemConnectionMaxMin = 5
+	// FileSystemConnectionMaxDefault is a default number of connection max value
 	FileSystemConnectionMaxDefault = 10
-	FileSystemTimeoutDefault       = 5 * time.Minute
+	// FileSystemTimeoutDefault is a default timeout value
+	FileSystemTimeoutDefault = 5 * time.Minute
 )
 
-// FileSystemConfig ...
+// FileSystemConfig is a struct for file system configuration
 type FileSystemConfig struct {
 	ApplicationName       string
 	OperationTimeout      time.Duration

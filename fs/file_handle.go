@@ -14,7 +14,7 @@ type FileHandle struct {
 	FileSystem  *FileSystem
 	Connection  *connection.IRODSConnection
 	IRODSHandle *types.IRODSFileHandle
-	Entry       *FSEntry
+	Entry       *Entry
 	Offset      int64
 	OpenMode    types.FileOpenMode
 }

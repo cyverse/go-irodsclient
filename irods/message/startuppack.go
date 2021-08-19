@@ -9,8 +9,9 @@ import (
 )
 
 const (
+	// RODS_MESSAGE_CONNECT_TYPE is a message type for establishing a new connection
 	RODS_MESSAGE_CONNECT_TYPE MessageType = "RODS_CONNECT"
-
+	// RequestNegotiationOptionString is an option string for requesting server negotiation
 	RequestNegotiationOptionString string = "request_server_negotiation"
 )
 

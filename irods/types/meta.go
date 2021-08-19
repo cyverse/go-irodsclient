@@ -6,10 +6,14 @@ import "fmt"
 type IRODSMetaItemType string
 
 const (
+	// IRODSDataObjectMetaItemType is a type for data object meta
 	IRODSDataObjectMetaItemType IRODSMetaItemType = "-d"
+	// IRODSCollectionMetaItemType is a type for collection meta
 	IRODSCollectionMetaItemType IRODSMetaItemType = "-C"
-	IRODSResourceMetaItemType   IRODSMetaItemType = "-R"
-	IRODSUserMetaItemType       IRODSMetaItemType = "-u"
+	// IRODSResourceMetaItemType is a type for resource meta
+	IRODSResourceMetaItemType IRODSMetaItemType = "-R"
+	// IRODSUserMetaItemType is a type for user meta
+	IRODSUserMetaItemType IRODSMetaItemType = "-u"
 )
 
 // GetIRODSMetaItemType gets the irods metadata item type from an object.

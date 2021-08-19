@@ -37,7 +37,7 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*File
 	}, nil
 }
 
-// NewFileSystemWithDefault ...
+// NewFileSystemWithDefault creates a new FileSystem with default configurations
 func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName string) (*FileSystem, error) {
 	config := NewFileSystemConfigWithDefault(applicationName)
 	sessConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax, config.StartNewTransaction)
@@ -56,11 +56,12 @@ func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName strin
 	}, nil
 }
 
-// Release ...
+// Release releases all resources
 func (fs *FileSystem) Release() {
 	fs.Session.Release()
 }
 
+// ListGroupUsers lists all users in a group
 func (fs *FileSystem) ListGroupUsers(group string) ([]*types.IRODSUser, error) {
 	// check cache first
 	cachedUsers := fs.Cache.GetGroupUsersCache(group)
@@ -86,6 +87,7 @@ func (fs *FileSystem) ListGroupUsers(group string) ([]*types.IRODSUser, error) {
 	return users, nil
 }
 
+// ListGroups lists all groups
 func (fs *FileSystem) ListGroups() ([]*types.IRODSUser, error) {
 	// check cache first
 	cachedGroups := fs.Cache.GetGroupsCache()
@@ -111,6 +113,7 @@ func (fs *FileSystem) ListGroups() ([]*types.IRODSUser, error) {
 	return groups, nil
 }
 
+// ListUsers lists all users
 func (fs *FileSystem) ListUsers() ([]*types.IRODSUser, error) {
 	// check cache first
 	cachedUsers := fs.Cache.GetUsersCache()
@@ -137,8 +140,8 @@ func (fs *FileSystem) ListUsers() ([]*types.IRODSUser, error) {
 }
 
 // Stat returns file status
-func (fs *FileSystem) Stat(path string) (*FSEntry, error) {
-	// check if a cached FSEntry for the given path is a dir or a file
+func (fs *FileSystem) Stat(path string) (*Entry, error) {
+	// check if a cached Entry for the given path is a dir or a file
 	if fs.isCacheDataObject(path) {
 		fileStat, err := fs.StatFile(path)
 		if err != nil {
@@ -183,53 +186,44 @@ func (fs *FileSystem) Stat(path string) (*FSEntry, error) {
 }
 
 // StatDir returns status of a directory
-func (fs *FileSystem) StatDir(path string) (*FSEntry, error) {
+func (fs *FileSystem) StatDir(path string) (*Entry, error) {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
 	return fs.getCollection(irodsPath)
 }
 
 // StatFile returns status of a file
-func (fs *FileSystem) StatFile(path string) (*FSEntry, error) {
+func (fs *FileSystem) StatFile(path string) (*Entry, error) {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
 	return fs.getDataObject(irodsPath)
 }
 
-// Exists checks file/directory existance
+// Exists checks file/directory existence
 func (fs *FileSystem) Exists(path string) bool {
 	entry, err := fs.Stat(path)
 	if err != nil {
 		return false
 	}
-	if entry.ID > 0 {
-		return true
-	}
-	return false
+	return entry.ID > 0
 }
 
-// ExistsDir checks directory existance
+// ExistsDir checks directory existence
 func (fs *FileSystem) ExistsDir(path string) bool {
 	entry, err := fs.StatDir(path)
 	if err != nil {
 		return false
 	}
-	if entry.ID > 0 {
-		return true
-	}
-	return false
+	return entry.ID > 0
 }
 
-// ExistsFile checks file existance
+// ExistsFile checks file existence
 func (fs *FileSystem) ExistsFile(path string) bool {
 	entry, err := fs.StatFile(path)
 	if err != nil {
 		return false
 	}
-	if entry.ID > 0 {
-		return true
-	}
-	return false
+	return entry.ID > 0
 }
 
 // ListACLs returns ACLs
@@ -239,13 +233,13 @@ func (fs *FileSystem) ListACLs(path string) ([]*types.IRODSAccess, error) {
 		return nil, err
 	}
 
-	if stat.Type == FSDirectoryEntry {
+	if stat.Type == DirectoryEntry {
 		return fs.ListDirACLs(path)
-	} else if stat.Type == FSFileEntry {
+	} else if stat.Type == FileEntry {
 		return fs.ListFileACLs(path)
-	} else {
-		return nil, fmt.Errorf("unknown type - %s", stat.Type)
 	}
+
+	return nil, fmt.Errorf("unknown type - %s", stat.Type)
 }
 
 // ListACLsWithGroupUsers returns ACLs
@@ -256,14 +250,14 @@ func (fs *FileSystem) ListACLsWithGroupUsers(path string) ([]*types.IRODSAccess,
 	}
 
 	accesses := []*types.IRODSAccess{}
-	if stat.Type == FSDirectoryEntry {
+	if stat.Type == DirectoryEntry {
 		accessList, err := fs.ListDirACLsWithGroupUsers(path)
 		if err != nil {
 			return nil, err
 		}
 
 		accesses = append(accesses, accessList...)
-	} else if stat.Type == FSFileEntry {
+	} else if stat.Type == FileEntry {
 		accessList, err := fs.ListFileACLsWithGroupUsers(path)
 		if err != nil {
 			return nil, err
@@ -425,7 +419,7 @@ func (fs *FileSystem) ListFileACLsWithGroupUsers(path string) ([]*types.IRODSAcc
 }
 
 // List lists all file system entries under the given path
-func (fs *FileSystem) List(path string) ([]*FSEntry, error) {
+func (fs *FileSystem) List(path string) ([]*Entry, error) {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
 	collection, err := fs.getCollection(irodsPath)
@@ -437,7 +431,7 @@ func (fs *FileSystem) List(path string) ([]*FSEntry, error) {
 }
 
 // SearchByMeta searches all file system entries with given metadata
-func (fs *FileSystem) SearchByMeta(metaname string, metavalue string) ([]*FSEntry, error) {
+func (fs *FileSystem) SearchByMeta(metaname string, metavalue string) ([]*Entry, error) {
 	return fs.searchEntriesByMeta(metaname, metavalue)
 }
 
@@ -669,7 +663,7 @@ func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath 
 		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
 
-	if srcStat.Type == FSDirectoryEntry {
+	if srcStat.Type == DirectoryEntry {
 		return fmt.Errorf("cannot download a collection %s", irodsSrcPath)
 	}
 
@@ -677,7 +671,7 @@ func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath 
 	if err != nil {
 		if os.IsNotExist(err) {
 			// file not exists, it's a file
-			localFilePath = localDestPath
+			// pass
 		} else {
 			return err
 		}
@@ -705,7 +699,7 @@ func (fs *FileSystem) DownloadFileParallel(irodsPath string, resource string, lo
 		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
 
-	if srcStat.Type == FSDirectoryEntry {
+	if srcStat.Type == DirectoryEntry {
 		return fmt.Errorf("cannot download a collection %s", irodsSrcPath)
 	}
 
@@ -713,7 +707,7 @@ func (fs *FileSystem) DownloadFileParallel(irodsPath string, resource string, lo
 	if err != nil {
 		if os.IsNotExist(err) {
 			// file not exists, it's a file
-			localFilePath = localDestPath
+			// pass
 		} else {
 			return err
 		}
@@ -747,7 +741,7 @@ func (fs *FileSystem) DownloadFileParallelInBlocksAsync(irodsPath string, resour
 		return outputChan, errChan
 	}
 
-	if srcStat.Type == FSDirectoryEntry {
+	if srcStat.Type == DirectoryEntry {
 		errChan <- fmt.Errorf("cannot download a collection %s", irodsSrcPath)
 		close(outputChan)
 		close(errChan)
@@ -758,7 +752,7 @@ func (fs *FileSystem) DownloadFileParallelInBlocksAsync(irodsPath string, resour
 	if err != nil {
 		if os.IsNotExist(err) {
 			// file not exists, it's a file
-			localFilePath = localDestPath
+			// pass
 		} else {
 			errChan <- err
 			close(outputChan)
@@ -807,9 +801,9 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 		}
 	} else {
 		switch entry.Type {
-		case FSFileEntry:
+		case FileEntry:
 			// do nothing
-		case FSDirectoryEntry:
+		case DirectoryEntry:
 			localFileName := util.GetIRODSPathFileName(localSrcPath)
 			irodsFilePath = util.MakeIRODSPath(irodsDestPath, localFileName)
 		default:
@@ -854,9 +848,9 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 		}
 	} else {
 		switch destStat.Type {
-		case FSFileEntry:
+		case FileEntry:
 			// do nothing
-		case FSDirectoryEntry:
+		case DirectoryEntry:
 			localFileName := util.GetIRODSPathFileName(localSrcPath)
 			irodsFilePath = util.MakeIRODSPath(irodsDestPath, localFileName)
 		default:
@@ -917,9 +911,9 @@ func (fs *FileSystem) UploadFileParallelInBlocksAsync(localPath string, irodsPat
 		}
 	} else {
 		switch destStat.Type {
-		case FSFileEntry:
+		case FileEntry:
 			// do nothing
-		case FSDirectoryEntry:
+		case DirectoryEntry:
 			localFileName := util.GetIRODSPathFileName(localSrcPath)
 			irodsFilePath = util.MakeIRODSPath(irodsDestPath, localFileName)
 		default:
@@ -951,7 +945,7 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 		return nil, err
 	}
 
-	var entry *FSEntry = nil
+	var entry *Entry = nil
 	if types.IsFileOpenFlagOpeningExisting(types.FileOpenMode(mode)) {
 		// file may exists
 		entryExisting, err := fs.StatFile(irodsPath)
@@ -962,9 +956,9 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 
 	if entry == nil {
 		// create a new
-		entry = &FSEntry{
+		entry = &Entry{
 			ID:         0,
-			Type:       FSFileEntry,
+			Type:       FileEntry,
 			Name:       util.GetIRODSPathFileName(irodsPath),
 			Path:       irodsPath,
 			Owner:      fs.Account.ClientUser,
@@ -1003,9 +997,9 @@ func (fs *FileSystem) CreateFile(path string, resource string) (*FileHandle, err
 	}
 
 	// do not return connection here
-	entry := &FSEntry{
+	entry := &Entry{
 		ID:         0,
-		Type:       FSFileEntry,
+		Type:       FileEntry,
 		Name:       util.GetIRODSPathFileName(irodsPath),
 		Path:       irodsPath,
 		Owner:      fs.Account.ClientUser,
@@ -1026,8 +1020,11 @@ func (fs *FileSystem) CreateFile(path string, resource string) (*FileHandle, err
 	}, nil
 }
 
-// ClearCache ...
+// ClearCache clears all file system caches
 func (fs *FileSystem) ClearCache() {
+	fs.Cache.ClearDirACLsCache()
+	fs.Cache.ClearFileACLsCache()
+	fs.Cache.ClearMetadataCache()
 	fs.Cache.ClearEntryCache()
 	fs.Cache.ClearDirCache()
 }
@@ -1039,19 +1036,11 @@ func (fs *FileSystem) InvalidateCache(path string) {
 	fs.invalidateCachePath(irodsPath)
 }
 
-func (fs *FileSystem) isCacheCollection(path string) bool {
-	// check cache
-	cachedEntry := fs.Cache.GetEntryCache(path)
-	if cachedEntry != nil && cachedEntry.Type == FSDirectoryEntry {
-		return true
-	}
-	return false
-}
-
-func (fs *FileSystem) getCollection(path string) (*FSEntry, error) {
+// getCollection returns collection entry
+func (fs *FileSystem) getCollection(path string) (*Entry, error) {
 	// check cache first
 	cachedEntry := fs.Cache.GetEntryCache(path)
-	if cachedEntry != nil && cachedEntry.Type == FSDirectoryEntry {
+	if cachedEntry != nil && cachedEntry.Type == DirectoryEntry {
 		return cachedEntry, nil
 	}
 
@@ -1068,9 +1057,9 @@ func (fs *FileSystem) getCollection(path string) (*FSEntry, error) {
 	}
 
 	if collection.ID > 0 {
-		fsEntry := &FSEntry{
+		entry := &Entry{
 			ID:         collection.ID,
-			Type:       FSDirectoryEntry,
+			Type:       DirectoryEntry,
 			Name:       collection.Name,
 			Path:       collection.Path,
 			Owner:      collection.Owner,
@@ -1082,17 +1071,18 @@ func (fs *FileSystem) getCollection(path string) (*FSEntry, error) {
 		}
 
 		// cache it
-		fs.Cache.AddEntryCache(fsEntry)
+		fs.Cache.AddEntryCache(entry)
 
-		return fsEntry, nil
+		return entry, nil
 	}
 
 	return nil, types.NewFileNotFoundErrorf("could not find a directory")
 }
 
-func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*FSEntry, error) {
+// listEntries lists entries in a collection
+func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*Entry, error) {
 	// check cache first
-	cachedEntries := []*FSEntry{}
+	cachedEntries := []*Entry{}
 	useCached := false
 
 	cachedDirEntryPaths := fs.Cache.GetDirCache(collection.Path)
@@ -1124,12 +1114,12 @@ func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*FSEntry
 		return nil, err
 	}
 
-	fsEntries := []*FSEntry{}
+	entries := []*Entry{}
 
 	for _, coll := range collections {
-		fsEntry := &FSEntry{
+		entry := &Entry{
 			ID:         coll.ID,
-			Type:       FSDirectoryEntry,
+			Type:       DirectoryEntry,
 			Name:       coll.Name,
 			Path:       coll.Path,
 			Owner:      coll.Owner,
@@ -1140,10 +1130,10 @@ func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*FSEntry
 			Internal:   coll,
 		}
 
-		fsEntries = append(fsEntries, fsEntry)
+		entries = append(entries, entry)
 
 		// cache it
-		fs.Cache.AddEntryCache(fsEntry)
+		fs.Cache.AddEntryCache(entry)
 	}
 
 	dataobjects, err := irods_fs.ListDataObjectsMasterReplica(conn, collection)
@@ -1158,9 +1148,9 @@ func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*FSEntry
 
 		replica := dataobject.Replicas[0]
 
-		fsEntry := &FSEntry{
+		entry := &Entry{
 			ID:         dataobject.ID,
-			Type:       FSFileEntry,
+			Type:       FileEntry,
 			Name:       dataobject.Name,
 			Path:       dataobject.Path,
 			Owner:      replica.Owner,
@@ -1171,23 +1161,24 @@ func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*FSEntry
 			Internal:   dataobject,
 		}
 
-		fsEntries = append(fsEntries, fsEntry)
+		entries = append(entries, entry)
 
 		// cache it
-		fs.Cache.AddEntryCache(fsEntry)
+		fs.Cache.AddEntryCache(entry)
 	}
 
 	// cache dir entries
 	dirEntryPaths := []string{}
-	for _, fsEntry := range fsEntries {
-		dirEntryPaths = append(dirEntryPaths, fsEntry.Path)
+	for _, entry := range entries {
+		dirEntryPaths = append(dirEntryPaths, entry.Path)
 	}
 	fs.Cache.AddDirCache(collection.Path, dirEntryPaths)
 
-	return fsEntries, nil
+	return entries, nil
 }
 
-func (fs *FileSystem) searchEntriesByMeta(metaName string, metaValue string) ([]*FSEntry, error) {
+// searchEntriesByMeta searches entries by meta
+func (fs *FileSystem) searchEntriesByMeta(metaName string, metaValue string) ([]*Entry, error) {
 	conn, err := fs.Session.AcquireConnection()
 	if err != nil {
 		return nil, err
@@ -1199,12 +1190,12 @@ func (fs *FileSystem) searchEntriesByMeta(metaName string, metaValue string) ([]
 		return nil, err
 	}
 
-	fsEntries := []*FSEntry{}
+	entries := []*Entry{}
 
 	for _, coll := range collections {
-		fsEntry := &FSEntry{
+		entry := &Entry{
 			ID:         coll.ID,
-			Type:       FSDirectoryEntry,
+			Type:       DirectoryEntry,
 			Name:       coll.Name,
 			Path:       coll.Path,
 			Owner:      coll.Owner,
@@ -1215,10 +1206,10 @@ func (fs *FileSystem) searchEntriesByMeta(metaName string, metaValue string) ([]
 			Internal:   coll,
 		}
 
-		fsEntries = append(fsEntries, fsEntry)
+		entries = append(entries, entry)
 
 		// cache it
-		fs.Cache.AddEntryCache(fsEntry)
+		fs.Cache.AddEntryCache(entry)
 	}
 
 	dataobjects, err := irods_fs.SearchDataObjectsMasterReplicaByMeta(conn, metaName, metaValue)
@@ -1233,9 +1224,9 @@ func (fs *FileSystem) searchEntriesByMeta(metaName string, metaValue string) ([]
 
 		replica := dataobject.Replicas[0]
 
-		fsEntry := &FSEntry{
+		entry := &Entry{
 			ID:         dataobject.ID,
-			Type:       FSFileEntry,
+			Type:       FileEntry,
 			Name:       dataobject.Name,
 			Path:       dataobject.Path,
 			Owner:      replica.Owner,
@@ -1246,28 +1237,30 @@ func (fs *FileSystem) searchEntriesByMeta(metaName string, metaValue string) ([]
 			Internal:   dataobject,
 		}
 
-		fsEntries = append(fsEntries, fsEntry)
+		entries = append(entries, entry)
 
 		// cache it
-		fs.Cache.AddEntryCache(fsEntry)
+		fs.Cache.AddEntryCache(entry)
 	}
 
-	return fsEntries, nil
+	return entries, nil
 }
 
+// isCacheDataObject checks if given path is for data object, return false if unknown
 func (fs *FileSystem) isCacheDataObject(path string) bool {
 	// check cache
 	cachedEntry := fs.Cache.GetEntryCache(path)
-	if cachedEntry != nil && cachedEntry.Type == FSFileEntry {
+	if cachedEntry != nil && cachedEntry.Type == FileEntry {
 		return true
 	}
 	return false
 }
 
-func (fs *FileSystem) getDataObject(path string) (*FSEntry, error) {
+// getDataObject returns an entry for data object
+func (fs *FileSystem) getDataObject(path string) (*Entry, error) {
 	// check cache first
 	cachedEntry := fs.Cache.GetEntryCache(path)
-	if cachedEntry != nil && cachedEntry.Type == FSFileEntry {
+	if cachedEntry != nil && cachedEntry.Type == FileEntry {
 		return cachedEntry, nil
 	}
 
@@ -1289,9 +1282,9 @@ func (fs *FileSystem) getDataObject(path string) (*FSEntry, error) {
 	}
 
 	if dataobject.ID > 0 {
-		fsEntry := &FSEntry{
+		entry := &Entry{
 			ID:         dataobject.ID,
-			Type:       FSFileEntry,
+			Type:       FileEntry,
 			Name:       dataobject.Name,
 			Path:       dataobject.Path,
 			Owner:      dataobject.Replicas[0].Owner,
@@ -1303,14 +1296,15 @@ func (fs *FileSystem) getDataObject(path string) (*FSEntry, error) {
 		}
 
 		// cache it
-		fs.Cache.AddEntryCache(fsEntry)
+		fs.Cache.AddEntryCache(entry)
 
-		return fsEntry, nil
+		return entry, nil
 	}
 
 	return nil, types.NewFileNotFoundErrorf("could not find a data object")
 }
 
+// ListMetadata lists metadata for the given path
 func (fs *FileSystem) ListMetadata(path string) ([]*types.IRODSMeta, error) {
 	// check cache first
 	cachedEntry := fs.Cache.GetMetadataCache(path)
@@ -1351,6 +1345,7 @@ func (fs *FileSystem) ListMetadata(path string) ([]*types.IRODSMeta, error) {
 	return metadataobjects, nil
 }
 
+// AddMetadata adds a metadata for the path
 func (fs *FileSystem) AddMetadata(irodsPath string, attName string, attValue string, attUnits string) error {
 	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
@@ -1383,6 +1378,7 @@ func (fs *FileSystem) AddMetadata(irodsPath string, attName string, attValue str
 	return nil
 }
 
+// DeleteMetadata deletes a metadata for the path
 func (fs *FileSystem) DeleteMetadata(irodsPath string, attName string, attValue string, attUnits string) error {
 	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
@@ -1419,6 +1415,9 @@ func (fs *FileSystem) DeleteMetadata(irodsPath string, attName string, attValue 
 func (fs *FileSystem) invalidateCachePath(path string) {
 	fs.Cache.RemoveEntryCache(path)
 	fs.Cache.RemoveDirCache(path)
+	fs.Cache.RemoveFileACLsCache(path)
+	fs.Cache.RemoveDirACLsCache(path)
+	fs.Cache.RemoveMetadataCache(path)
 }
 
 func (fs *FileSystem) removeCachePath(path string) {
@@ -1426,8 +1425,9 @@ func (fs *FileSystem) removeCachePath(path string) {
 	entry := fs.Cache.GetEntryCache(path)
 	if entry != nil {
 		fs.Cache.RemoveEntryCache(path)
+		fs.Cache.RemoveFileACLsCache(path)
 
-		if entry.Type == FSDirectoryEntry {
+		if entry.Type == DirectoryEntry {
 			dirEntries := fs.Cache.GetDirCache(path)
 			if dirEntries != nil {
 				for _, dirEntry := range dirEntries {
@@ -1435,13 +1435,16 @@ func (fs *FileSystem) removeCachePath(path string) {
 					fs.removeCachePath(dirEntry)
 				}
 				fs.Cache.RemoveDirCache(path)
+				fs.Cache.RemoveDirACLsCache(path)
 			}
 		}
 
 		fs.Cache.RemoveDirCache(util.GetIRODSPathDirname(path))
+		fs.Cache.RemoveDirACLsCache(util.GetIRODSPathDirname(path))
 	}
 }
 
+// AddUserMetadata adds a user metadata
 func (fs *FileSystem) AddUserMetadata(user string, avuid int64, attName, attValue, attUnits string) error {
 	metadata := &types.IRODSMeta{
 		AVUID: avuid,
@@ -1464,6 +1467,7 @@ func (fs *FileSystem) AddUserMetadata(user string, avuid int64, attName, attValu
 	return nil
 }
 
+// DeleteUserMetadata deletes a user metadata
 func (fs *FileSystem) DeleteUserMetadata(user string, avuid int64, attName, attValue, attUnits string) error {
 	metadata := &types.IRODSMeta{
 		AVUID: avuid,
@@ -1486,6 +1490,7 @@ func (fs *FileSystem) DeleteUserMetadata(user string, avuid int64, attName, attV
 	return nil
 }
 
+// ListUserMetadata lists all user metadata
 func (fs *FileSystem) ListUserMetadata(user string) ([]*types.IRODSMeta, error) {
 	conn, err := fs.Session.AcquireConnection()
 	if err != nil {

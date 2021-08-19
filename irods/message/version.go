@@ -9,6 +9,7 @@ import (
 )
 
 const (
+	// RODS_MESSAGE_VERSION_TYPE is a message type for version
 	RODS_MESSAGE_VERSION_TYPE MessageType = "RODS_VERSION"
 )
 

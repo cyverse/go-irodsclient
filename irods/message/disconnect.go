@@ -1,6 +1,7 @@
 package message
 
 const (
+	// RODS_MESSAGE_DISCONNECT_TYPE is a message type for disconnecting
 	RODS_MESSAGE_DISCONNECT_TYPE MessageType = "RODS_DISCONNECT"
 )
 

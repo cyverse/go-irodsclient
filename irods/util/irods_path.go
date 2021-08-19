@@ -11,9 +11,8 @@ import (
 func MakeIRODSPath(collectionPath string, dataobjectName string) string {
 	if strings.HasSuffix(collectionPath, "/") {
 		return fmt.Sprintf("%s/%s", collectionPath[0:len(collectionPath)-1], dataobjectName)
-	} else {
-		return fmt.Sprintf("%s/%s", collectionPath, dataobjectName)
 	}
+	return fmt.Sprintf("%s/%s", collectionPath, dataobjectName)
 }
 
 // SplitIRODSPath splits the path into dir and file

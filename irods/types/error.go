@@ -23,6 +23,7 @@ func NewIRODSError(code common.ErrorCode) *IRODSError {
 	}
 }
 
+// NewIRODSErrorWithString creates a new IRODSError with message
 func NewIRODSErrorWithString(code common.ErrorCode, message string) *IRODSError {
 	return &IRODSError{
 		Code:              code,
@@ -39,7 +40,7 @@ func (err *IRODSError) Error() string {
 	return err.Message
 }
 
-// Code returns error code
+// GetCode returns error code
 func (err *IRODSError) GetCode() common.ErrorCode {
 	return err.Code
 }
@@ -54,7 +55,7 @@ func IsIRODSError(err error) bool {
 	return errors.Is(err, &IRODSError{})
 }
 
-// IsIRODSError checks if the given error is IRODSError
+// GetIRODSErrorCode returns iRODS error code if the error is iRODSError
 func GetIRODSErrorCode(err error) common.ErrorCode {
 	if err == nil {
 		return common.ErrorCode(0)

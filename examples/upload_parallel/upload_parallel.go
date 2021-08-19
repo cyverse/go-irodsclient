@@ -71,7 +71,7 @@ func main() {
 		panic(err)
 	}
 
-	if fsentry.Type == fs.FSFileEntry {
+	if fsentry.Type == fs.FileEntry {
 		fmt.Printf("Successfully uploaded a file %s to %s, size = %d\n", srcPath, destPath, fsentry.Size)
 	} else {
 		// dir
@@ -84,7 +84,7 @@ func main() {
 			panic(err)
 		}
 
-		if fsentry2.Type == fs.FSFileEntry {
+		if fsentry2.Type == fs.FileEntry {
 			fmt.Printf("Successfully uploaded a file %s to %s, size = %d\n", srcPath, destFilePath, fsentry2.Size)
 		} else {
 			util.LogErrorf("Unkonwn file type - %s", fsentry2.Type)

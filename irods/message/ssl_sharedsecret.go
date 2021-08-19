@@ -1,6 +1,7 @@
 package message
 
 const (
+	// RODS_MESSAGE_SSL_SHARED_SECRET_TYPE is a message type for shared secret used in SSL connection establishment
 	RODS_MESSAGE_SSL_SHARED_SECRET_TYPE MessageType = "SHARED_SECRET"
 )
 

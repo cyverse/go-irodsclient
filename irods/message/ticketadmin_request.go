@@ -17,6 +17,7 @@ type IRODSMessageTicketAdminRequest struct {
 	Arg6    string   `xml:"arg6"`
 }
 
+// NewIRODSMessageTicketAdminRequest creates a new IRODSMessageTicketAdminRequest
 func NewIRODSMessageTicketAdminRequest(action string, ticket string, args ...string) *IRODSMessageTicketAdminRequest {
 	request := &IRODSMessageTicketAdminRequest{
 		Action: action,

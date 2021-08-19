@@ -201,7 +201,7 @@ func ListGroupUsers(conn *connection.IRODSConnection, group string) ([]*types.IR
 	return users, nil
 }
 
-// ListGroups returns the groups
+// ListGroups returns all groups
 func ListGroups(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
@@ -296,6 +296,7 @@ func ListGroups(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 	return groups, nil
 }
 
+// ListUsers lists all users
 func ListUsers(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
@@ -639,7 +640,7 @@ func AddUserMeta(conn *connection.IRODSConnection, user string, metadata *types.
 	return conn.RequestAndCheck(request, &response)
 }
 
-// DeleteDataObjectMeta removes the metadata of a user object for the path to the given key values.
+// DeleteUserMeta removes the metadata of a user object.
 // The metadata AVU is selected on basis of AVUID if it is supplied, otherwise on basis of Name, Value and Units.
 func DeleteUserMeta(conn *connection.IRODSConnection, user string, metadata *types.IRODSMeta) error {
 	if conn == nil || !conn.IsConnected() {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-// IRODSResource describes a resource host
+// IRODSQuota describes a resource quota
 type IRODSQuota struct {
 	RescName string
 	Limit    int64
