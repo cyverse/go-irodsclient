@@ -17,4 +17,12 @@ const (
 	AGE_KW             KeyWord = "age"
 	ADMIN_KW           KeyWord = "irodsAdmin"
 	COLLECTION_TYPE_KW KeyWord = "collectionType"
+
+	RESC_HIER_STR_KW      KeyWord = "resc_hier"
+	REPLICA_TOKEN_KW      KeyWord = "replicaToken"
+	DEST_RESC_HIER_STR_KW KeyWord = "dest_resc_hier"
+	IN_PDMO_KW            KeyWord = "in_pdmo"
+	STAGE_OBJ_KW          KeyWord = "stage_object"
+	SYNC_OBJ_KW           KeyWord = "sync_object"
+	IN_REPL_KW            KeyWord = "in_repl"
 )

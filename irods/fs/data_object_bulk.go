@@ -7,10 +7,32 @@ import (
 	"sync"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
+	"github.com/cyverse/go-irodsclient/irods/connection"
+	"github.com/cyverse/go-irodsclient/irods/message"
 	"github.com/cyverse/go-irodsclient/irods/session"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
 )
+
+// CloseDataObjectReplica closes a file handle of a data object replica, only used by parallel upload
+func CloseDataObjectReplica(conn *connection.IRODSConnection, handle *types.IRODSFileHandle) error {
+	if conn == nil || !conn.IsConnected() {
+		return fmt.Errorf("connection is nil or disconnected")
+	}
+
+	if !SupportParallUpload(conn) {
+		// serial upload
+		return fmt.Errorf("does not support close replica in current iRODS Version")
+	}
+
+	request := message.NewIRODSMessageClosereplicaRequest(handle.FileDescriptor, false, false, false, false)
+	response := message.IRODSMessageClosereplicaResponse{}
+	err := conn.RequestAndCheck(request, &response)
+	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+		return types.NewFileNotFoundErrorf("could not find a data object")
+	}
+	return err
+}
 
 // UploadDataObject put a data object at the local path to the iRODS path
 func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath string, resource string, replicate bool) error {
@@ -32,6 +54,7 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 	}
 	defer f.Close()
 
+	// open a new file
 	handle, err := OpenDataObjectWithOperation(conn, irodsPath, resource, "w", common.OPER_TYPE_PUT_DATA_OBJ)
 	if err != nil {
 		return err
@@ -75,16 +98,16 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 	return replErr
 }
 
+// SupportParallUpload checks if current server supports parallel upload
+// available from 4.2.9
+func SupportParallUpload(conn *connection.IRODSConnection) bool {
+	irodsVersion := conn.GetVersion()
+	return irodsVersion.HasHigherVersionThan(4, 2, 9)
+}
+
 // UploadDataObjectParallel put a data object at the local path to the iRODS path in parallel
 // Partitions a file into n (taskNum) tasks and uploads in parallel
 func UploadDataObjectParallel(session *session.IRODSSession, localPath string, irodsPath string, resource string, fileLength int64, taskNum int, replicate bool) error {
-	numTasks := taskNum
-	if numTasks <= 0 {
-		numTasks = util.GetNumTasksForParallelTransfer(fileLength)
-	}
-
-	util.LogDebugf("upload data object in parallel - %s, size(%d), threads(%d)\n", irodsPath, fileLength, numTasks)
-
 	conn, err := session.AcquireConnection()
 	if err != nil {
 		return err
@@ -95,13 +118,25 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
-	// create an empty file
-	handle, err := CreateDataObject(conn, irodsPath, resource, true)
+	if !SupportParallUpload(conn) {
+		// serial upload
+		return UploadDataObject(session, localPath, irodsPath, resource, replicate)
+	}
+
+	numTasks := taskNum
+	if numTasks <= 0 {
+		numTasks = util.GetNumTasksForParallelTransfer(fileLength)
+	}
+
+	util.LogDebugf("upload data object in parallel - %s, size(%d), threads(%d)\n", irodsPath, fileLength, numTasks)
+
+	// open a new file
+	handle, err := OpenDataObjectWithOperation(conn, irodsPath, resource, "w", common.OPER_TYPE_PUT_DATA_OBJ)
 	if err != nil {
 		return err
 	}
 
-	err = CloseDataObject(conn, handle)
+	replicaToken, resourceHierarchy, err := GetReplicaAccessInfo(conn, handle)
 	if err != nil {
 		return err
 	}
@@ -123,14 +158,12 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 			return
 		}
 
-		taskHandle, _, taskErr := OpenDataObject(taskConn, irodsPath, resource, "r+")
+		taskHandle, _, taskErr := OpenDataObjectWithReplicaToken(taskConn, irodsPath, resource, "r+", replicaToken, resourceHierarchy)
 		if taskErr != nil {
 			errChan <- taskErr
 			return
 		}
-		// Python-irodsclient does not send file close, but replica_close.
-		// But this still works, why?
-		defer CloseDataObject(taskConn, taskHandle)
+		defer CloseDataObjectReplica(taskConn, taskHandle)
 
 		f, taskErr := os.OpenFile(localPath, os.O_RDONLY, 0)
 		if taskErr != nil {
@@ -202,6 +235,11 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 		return <-errChan
 	}
 
+	err = CloseDataObject(conn, handle)
+	if err != nil {
+		return err
+	}
+
 	// replicate
 	if replicate {
 		err = ReplicateDataObject(conn, irodsPath, "", true, false)
@@ -215,6 +253,45 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 // UploadDataObjectParallelInBlockAsync put a data object at the local path to the iRODS path in parallel
 // Chunks a file into fixed-size blocks and transfers them using n (taskNum) tasks in parallel
 func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPath string, irodsPath string, resource string, fileLength int64, blockLength int64, taskNum int, replicate bool) (chan int64, chan error) {
+	conn, err := session.AcquireConnection()
+	if err != nil {
+		outputChan := make(chan int64, 1)
+		errChan := make(chan error, 1)
+		errChan <- err
+		close(outputChan)
+		close(errChan)
+		return outputChan, errChan
+	}
+	defer session.ReturnConnection(conn)
+
+	if conn == nil || !conn.IsConnected() {
+		outputChan := make(chan int64, 1)
+		errChan := make(chan error, 1)
+		errChan <- fmt.Errorf("connection is nil or disconnected")
+		close(outputChan)
+		close(errChan)
+		return outputChan, errChan
+	}
+
+	if !SupportParallUpload(conn) {
+		// serial upload
+		outputChan := make(chan int64, 1)
+		errChan := make(chan error, 1)
+
+		err := UploadDataObject(session, localPath, irodsPath, resource, replicate)
+		if err != nil {
+			errChan <- err
+			close(outputChan)
+			close(errChan)
+			return outputChan, errChan
+		}
+
+		outputChan <- 0
+		close(outputChan)
+		close(errChan)
+		return outputChan, errChan
+	}
+
 	blockSize := blockLength
 	if blockSize <= 0 {
 		blockSize = util.GetBlockSizeForParallelTransfer(fileLength)
@@ -240,24 +317,8 @@ func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPa
 	outputChan := make(chan int64, numBlocks)
 	errChan := make(chan error, numBlocks)
 
-	conn, err := session.AcquireConnection()
-	if err != nil {
-		errChan <- err
-		close(outputChan)
-		close(errChan)
-		return outputChan, errChan
-	}
-	defer session.ReturnConnection(conn)
-
-	if conn == nil || !conn.IsConnected() {
-		errChan <- fmt.Errorf("connection is nil or disconnected")
-		close(outputChan)
-		close(errChan)
-		return outputChan, errChan
-	}
-
-	// create an empty file
-	handle, err := CreateDataObject(conn, irodsPath, resource, true)
+	// open a new file
+	handle, err := OpenDataObjectWithOperation(conn, irodsPath, resource, "w", common.OPER_TYPE_PUT_DATA_OBJ)
 	if err != nil {
 		errChan <- err
 		close(outputChan)
@@ -265,7 +326,7 @@ func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPa
 		return outputChan, errChan
 	}
 
-	err = CloseDataObject(conn, handle)
+	replicaToken, resourceHierarchy, err := GetReplicaAccessInfo(conn, handle)
 	if err != nil {
 		errChan <- err
 		close(outputChan)
@@ -297,14 +358,12 @@ func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPa
 		}
 
 		// open the file with read-write mode
-		taskHandle, _, taskErr := OpenDataObject(taskConn, irodsPath, resource, "r+")
+		taskHandle, _, taskErr := OpenDataObjectWithReplicaToken(taskConn, irodsPath, resource, "r+", replicaToken, resourceHierarchy)
 		if taskErr != nil {
 			errChan <- taskErr
 			return
 		}
-		// Python-irodsclient does not send file close, but replica_close.
-		// But this still works, why?
-		defer CloseDataObject(taskConn, taskHandle)
+		defer CloseDataObjectReplica(taskConn, taskHandle)
 
 		f, taskErr := os.OpenFile(localPath, os.O_RDONLY, 0)
 		if taskErr != nil {
@@ -375,11 +434,16 @@ func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPa
 		// all tasks are done
 		taskWaitGroup.Wait()
 
-		// replicate
-		if replicate {
-			err = ReplicateDataObject(conn, irodsPath, "", true, false)
-			if err != nil {
-				errChan <- err
+		err = CloseDataObject(conn, handle)
+		if err != nil {
+			errChan <- err
+		} else {
+			// replicate
+			if replicate {
+				err = ReplicateDataObject(conn, irodsPath, "", true, false)
+				if err != nil {
+					errChan <- err
+				}
 			}
 		}
 

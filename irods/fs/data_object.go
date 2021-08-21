@@ -1057,6 +1057,44 @@ func OpenDataObject(conn *connection.IRODSConnection, path string, resource stri
 	return handle, offset, nil
 }
 
+// OpenDataObjectWithReplicaToken opens a data object for the path, returns a file handle
+func OpenDataObjectWithReplicaToken(conn *connection.IRODSConnection, path string, resource string, mode string, replicaToken string, resourceHierarchy string) (*types.IRODSFileHandle, int64, error) {
+	if conn == nil || !conn.IsConnected() {
+		return nil, -1, fmt.Errorf("connection is nil or disconnected")
+	}
+
+	request := message.NewIRODSMessageOpenobjRequest(path, resource, types.FileOpenMode(mode))
+	request.AddKeyVal(common.RESC_HIER_STR_KW, resourceHierarchy)
+	request.AddKeyVal(common.REPLICA_TOKEN_KW, replicaToken)
+
+	response := message.IRODSMessageOpenobjResponse{}
+	err := conn.RequestAndCheck(request, &response)
+	if err != nil {
+		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+			return nil, -1, types.NewFileNotFoundErrorf("could not find a data object")
+		}
+
+		return nil, -1, err
+	}
+
+	handle := &types.IRODSFileHandle{
+		FileDescriptor: response.GetFileDescriptor(),
+		Path:           path,
+	}
+
+	// handle seek
+	_, seekToEnd := types.GetFileOpenFlagSeekToEnd(types.FileOpenMode(mode))
+	var offset int64 = 0
+	if seekToEnd {
+		offset, err = SeekDataObject(conn, handle, 0, types.SeekEnd)
+		if err != nil {
+			return handle, -1, fmt.Errorf("could not seek a data object - %v", err)
+		}
+	}
+
+	return handle, offset, nil
+}
+
 // OpenDataObjectWithOperation opens a data object for the path, returns a file handle
 func OpenDataObjectWithOperation(conn *connection.IRODSConnection, path string, resource string, mode string, oper common.OperationType) (*types.IRODSFileHandle, error) {
 	if conn == nil || !conn.IsConnected() {
@@ -1089,6 +1127,26 @@ func OpenDataObjectWithOperation(conn *connection.IRODSConnection, path string, 
 	}
 
 	return handle, nil
+}
+
+// GetReplicaAccessInfo returns replica token and resource hierarchy
+func GetReplicaAccessInfo(conn *connection.IRODSConnection, handle *types.IRODSFileHandle) (string, string, error) {
+	if conn == nil || !conn.IsConnected() {
+		return "", "", fmt.Errorf("connection is nil or disconnected")
+	}
+
+	request := message.NewIRODSMessageDescriptorInfoRequest(handle.FileDescriptor)
+	response := message.IRODSMessageDescriptorInfoResponse{}
+	err := conn.RequestAndCheck(request, &response)
+	if err != nil {
+		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+			return "", "", types.NewFileNotFoundErrorf("could not find a data object")
+		}
+
+		return "", "", err
+	}
+
+	return response.ReplicaToken, response.ResourceHierarchy, nil
 }
 
 // SeekDataObject moves file pointer of a data object, returns offset
