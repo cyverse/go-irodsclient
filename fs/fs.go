@@ -633,7 +633,7 @@ func (fs *FileSystem) TruncateFile(path string, size int64) error {
 		return err
 	}
 
-	fs.invalidateCachePath(util.GetIRODSPathDirname(irodsPath))
+	fs.invalidateCachePath(irodsPath)
 
 	return nil
 }
