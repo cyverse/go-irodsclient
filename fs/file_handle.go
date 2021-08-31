@@ -6,7 +6,6 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	irods_fs "github.com/cyverse/go-irodsclient/irods/fs"
 	"github.com/cyverse/go-irodsclient/irods/types"
-	"github.com/cyverse/go-irodsclient/irods/util"
 )
 
 // FileHandle ...
@@ -39,8 +38,7 @@ func (handle *FileHandle) Close() error {
 	defer handle.FileSystem.Session.ReturnConnection(handle.Connection)
 
 	if handle.IsWriteMode() {
-		handle.FileSystem.invalidateCachePath(handle.Entry.Path)
-		handle.FileSystem.invalidateCachePath(util.GetIRODSPathDirname(handle.Entry.Path))
+		handle.FileSystem.invalidateCachePathRecursively(handle.Entry.Path)
 	}
 
 	return irods_fs.CloseDataObject(handle.Connection, handle.IRODSHandle)

@@ -450,7 +450,7 @@ func (fs *FileSystem) RemoveDir(path string, recurse bool, force bool) error {
 		return err
 	}
 
-	fs.removeCachePath(irodsPath)
+	fs.invalidateCachePathRecursively(irodsPath)
 	return nil
 }
 
@@ -469,7 +469,7 @@ func (fs *FileSystem) RemoveFile(path string, force bool) error {
 		return err
 	}
 
-	fs.removeCachePath(irodsPath)
+	fs.invalidateCachePathRecursively(irodsPath)
 	return nil
 }
 
@@ -504,15 +504,8 @@ func (fs *FileSystem) RenameDirToDir(srcPath string, destPath string) error {
 		return err
 	}
 
-	if util.GetIRODSPathDirname(irodsSrcPath) == util.GetIRODSPathDirname(irodsDestPath) {
-		// from the same dir
-		fs.invalidateCachePath(util.GetIRODSPathDirname(irodsSrcPath))
-
-	} else {
-		fs.removeCachePath(irodsSrcPath)
-		fs.invalidateCachePath(util.GetIRODSPathDirname(irodsDestPath))
-	}
-
+	fs.invalidateCachePathRecursively(irodsSrcPath)
+	fs.invalidateCachePathRecursively(irodsDestPath)
 	return nil
 }
 
@@ -547,14 +540,8 @@ func (fs *FileSystem) RenameFileToFile(srcPath string, destPath string) error {
 		return err
 	}
 
-	if util.GetIRODSPathDirname(irodsSrcPath) == util.GetIRODSPathDirname(irodsDestPath) {
-		// from the same dir
-		fs.invalidateCachePath(util.GetIRODSPathDirname(irodsSrcPath))
-	} else {
-		fs.removeCachePath(irodsSrcPath)
-		fs.invalidateCachePath(util.GetIRODSPathDirname(irodsDestPath))
-	}
-
+	fs.invalidateCachePathRecursively(irodsSrcPath)
+	fs.invalidateCachePathRecursively(irodsDestPath)
 	return nil
 }
 
@@ -573,8 +560,7 @@ func (fs *FileSystem) MakeDir(path string, recurse bool) error {
 		return err
 	}
 
-	fs.invalidateCachePath(util.GetIRODSPathDirname(irodsPath))
-
+	fs.invalidateCachePathRecursively(irodsPath)
 	return nil
 }
 
@@ -609,8 +595,7 @@ func (fs *FileSystem) CopyFileToFile(srcPath string, destPath string) error {
 		return err
 	}
 
-	fs.invalidateCachePath(util.GetIRODSPathDirname(irodsDestPath))
-
+	fs.invalidateCachePathRecursively(irodsDestPath)
 	return nil
 }
 
@@ -634,7 +619,6 @@ func (fs *FileSystem) TruncateFile(path string, size int64) error {
 	}
 
 	fs.invalidateCachePath(irodsPath)
-
 	return nil
 }
 
@@ -648,7 +632,13 @@ func (fs *FileSystem) ReplicateFile(path string, resource string, update bool) e
 	}
 	defer fs.Session.ReturnConnection(conn)
 
-	return irods_fs.ReplicateDataObject(conn, irodsPath, resource, update, false)
+	err = irods_fs.ReplicateDataObject(conn, irodsPath, resource, update, false)
+	if err != nil {
+		return err
+	}
+
+	fs.invalidateCachePath(irodsPath)
+	return nil
 }
 
 // DownloadFile downloads a file to local
@@ -816,8 +806,7 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 		return err
 	}
 
-	fs.invalidateCachePath(util.GetIRODSPathDirname(irodsFilePath))
-
+	fs.invalidateCachePathRecursively(irodsFilePath)
 	return nil
 }
 
@@ -863,8 +852,7 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 		return err
 	}
 
-	fs.invalidateCachePath(util.GetIRODSPathDirname(irodsFilePath))
-
+	fs.invalidateCachePathRecursively(irodsFilePath)
 	return nil
 }
 
@@ -925,8 +913,7 @@ func (fs *FileSystem) UploadFileParallelInBlocksAsync(localPath string, irodsPat
 	}
 
 	outputChan2, errChan2 := irods_fs.UploadDataObjectParallelInBlockAsync(fs.Session, localSrcPath, irodsFilePath, resource, srcStat.Size(), blockLength, taskNum, replicate)
-	fs.invalidateCachePath(util.GetIRODSPathDirname(irodsFilePath))
-
+	fs.invalidateCachePathRecursively(irodsFilePath)
 	return outputChan2, errChan2
 }
 
@@ -1349,8 +1336,6 @@ func (fs *FileSystem) ListMetadata(path string) ([]*types.IRODSMeta, error) {
 func (fs *FileSystem) AddMetadata(irodsPath string, attName string, attValue string, attUnits string) error {
 	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
-	fs.Cache.RemoveMetadataCache(irodsCorrectPath)
-
 	metadata := &types.IRODSMeta{
 		Name:  attName,
 		Value: attValue,
@@ -1375,14 +1360,13 @@ func (fs *FileSystem) AddMetadata(irodsPath string, attName string, attValue str
 		}
 	}
 
+	fs.Cache.RemoveMetadataCache(irodsCorrectPath)
 	return nil
 }
 
 // DeleteMetadata deletes a metadata for the path
 func (fs *FileSystem) DeleteMetadata(irodsPath string, attName string, attValue string, attUnits string) error {
 	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
-
-	fs.Cache.RemoveMetadataCache(irodsCorrectPath)
 
 	metadata := &types.IRODSMeta{
 		Name:  attName,
@@ -1408,10 +1392,11 @@ func (fs *FileSystem) DeleteMetadata(irodsPath string, attName string, attValue 
 		}
 	}
 
+	fs.Cache.RemoveMetadataCache(irodsCorrectPath)
 	return nil
 }
 
-// InvalidateCachePath invalidates cache with the given path
+// invalidateCachePath invalidates cache with the given path
 func (fs *FileSystem) invalidateCachePath(path string) {
 	fs.Cache.RemoveEntryCache(path)
 	fs.Cache.RemoveDirCache(path)
@@ -1420,27 +1405,30 @@ func (fs *FileSystem) invalidateCachePath(path string) {
 	fs.Cache.RemoveMetadataCache(path)
 }
 
-func (fs *FileSystem) removeCachePath(path string) {
+func (fs *FileSystem) invalidateCachePathRecursively(path string) {
 	// if path is directory, recursively
 	entry := fs.Cache.GetEntryCache(path)
-	if entry != nil {
-		fs.Cache.RemoveEntryCache(path)
-		fs.Cache.RemoveFileACLsCache(path)
+	fs.Cache.RemoveEntryCache(path)
+	fs.Cache.RemoveFileACLsCache(path)
+	fs.Cache.RemoveMetadataCache(path)
 
+	if entry != nil {
 		if entry.Type == DirectoryEntry {
 			dirEntries := fs.Cache.GetDirCache(path)
-			if dirEntries != nil {
-				for _, dirEntry := range dirEntries {
-					// do it recursively
-					fs.removeCachePath(dirEntry)
-				}
-				fs.Cache.RemoveDirCache(path)
-				fs.Cache.RemoveDirACLsCache(path)
+			for _, dirEntry := range dirEntries {
+				// do it recursively
+				fs.invalidateCachePathRecursively(dirEntry)
 			}
 		}
 
+		fs.Cache.RemoveDirCache(path)
+		fs.Cache.RemoveDirACLsCache(path)
+
 		fs.Cache.RemoveDirCache(util.GetIRODSPathDirname(path))
 		fs.Cache.RemoveDirACLsCache(util.GetIRODSPathDirname(path))
+	} else {
+		fs.Cache.RemoveDirCache(path)
+		fs.Cache.RemoveDirACLsCache(path)
 	}
 }
 
