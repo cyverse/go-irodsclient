@@ -3,20 +3,24 @@ package fs
 import (
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	irods_fs "github.com/cyverse/go-irodsclient/irods/fs"
 	"github.com/cyverse/go-irodsclient/irods/session"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
+	"github.com/rs/xid"
 )
 
 // FileSystem provides a file-system like interface
 type FileSystem struct {
-	Account *types.IRODSAccount
-	Config  *FileSystemConfig
-	Session *session.IRODSSession
-	Cache   *FileSystemCache
+	Account     *types.IRODSAccount
+	Config      *FileSystemConfig
+	Session     *session.IRODSSession
+	Cache       *FileSystemCache
+	Mutex       sync.Mutex
+	FileHandles map[string]*FileHandle
 }
 
 // NewFileSystem creates a new FileSystem
@@ -58,6 +62,15 @@ func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName strin
 
 // Release releases all resources
 func (fs *FileSystem) Release() {
+	fs.Mutex.Lock()
+	defer fs.Mutex.Unlock()
+
+	if len(fs.FileHandles) > 0 {
+		for _, handle := range fs.FileHandles {
+			handle.closeWithoutFileSystemLock()
+		}
+	}
+
 	fs.Session.Release()
 }
 
@@ -958,14 +971,22 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 	}
 
 	// do not return connection here
-	return &FileHandle{
+	fileHandle := &FileHandle{
+		ID:          xid.New().String(),
 		FileSystem:  fs,
 		Connection:  conn,
 		IRODSHandle: handle,
 		Entry:       entry,
 		Offset:      offset,
 		OpenMode:    types.FileOpenMode(mode),
-	}, nil
+	}
+
+	fs.Mutex.Lock()
+	defer fs.Mutex.Unlock()
+
+	fs.FileHandles[fileHandle.ID] = fileHandle
+
+	return fileHandle, nil
 }
 
 // CreateFile opens a new file for write
@@ -997,14 +1018,22 @@ func (fs *FileSystem) CreateFile(path string, resource string) (*FileHandle, err
 		Internal:   nil,
 	}
 
-	return &FileHandle{
+	fileHandle := &FileHandle{
+		ID:          xid.New().String(),
 		FileSystem:  fs,
 		Connection:  conn,
 		IRODSHandle: handle,
 		Entry:       entry,
 		Offset:      0,
 		OpenMode:    types.FileOpenModeWriteOnly,
-	}, nil
+	}
+
+	fs.Mutex.Lock()
+	defer fs.Mutex.Unlock()
+
+	fs.FileHandles[fileHandle.ID] = fileHandle
+
+	return fileHandle, nil
 }
 
 // ClearCache clears all file system caches

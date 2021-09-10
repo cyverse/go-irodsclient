@@ -2,6 +2,7 @@ package fs
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	irods_fs "github.com/cyverse/go-irodsclient/irods/fs"
@@ -10,16 +11,21 @@ import (
 
 // FileHandle ...
 type FileHandle struct {
+	ID          string
 	FileSystem  *FileSystem
 	Connection  *connection.IRODSConnection
 	IRODSHandle *types.IRODSFileHandle
 	Entry       *Entry
 	Offset      int64
 	OpenMode    types.FileOpenMode
+	Mutex       sync.Mutex
 }
 
 // GetOffset returns current offset
 func (handle *FileHandle) GetOffset() int64 {
+	handle.Mutex.Lock()
+	defer handle.Mutex.Unlock()
+
 	return handle.Offset
 }
 
@@ -35,17 +41,44 @@ func (handle *FileHandle) IsWriteMode() bool {
 
 // Close closes the file
 func (handle *FileHandle) Close() error {
+	handle.Mutex.Lock()
+	defer handle.Mutex.Unlock()
+
 	defer handle.FileSystem.Session.ReturnConnection(handle.Connection)
 
 	if handle.IsWriteMode() {
 		handle.FileSystem.invalidateCachePathRecursively(handle.Entry.Path)
 	}
 
+	handle.FileSystem.Mutex.Lock()
+	defer handle.FileSystem.Mutex.Unlock()
+
+	delete(handle.FileSystem.FileHandles, handle.ID)
+
+	return irods_fs.CloseDataObject(handle.Connection, handle.IRODSHandle)
+}
+
+// Close closes the file
+func (handle *FileHandle) closeWithoutFileSystemLock() error {
+	handle.Mutex.Lock()
+	defer handle.Mutex.Unlock()
+
+	defer handle.FileSystem.Session.ReturnConnection(handle.Connection)
+
+	if handle.IsWriteMode() {
+		handle.FileSystem.invalidateCachePathRecursively(handle.Entry.Path)
+	}
+
+	delete(handle.FileSystem.FileHandles, handle.ID)
+
 	return irods_fs.CloseDataObject(handle.Connection, handle.IRODSHandle)
 }
 
 // Seek moves file pointer
 func (handle *FileHandle) Seek(offset int64, whence types.Whence) (int64, error) {
+	handle.Mutex.Lock()
+	defer handle.Mutex.Unlock()
+
 	newOffset, err := irods_fs.SeekDataObject(handle.Connection, handle.IRODSHandle, offset, whence)
 	if err != nil {
 		return newOffset, err
@@ -57,6 +90,9 @@ func (handle *FileHandle) Seek(offset int64, whence types.Whence) (int64, error)
 
 // Read reads the file
 func (handle *FileHandle) Read(length int) ([]byte, error) {
+	handle.Mutex.Lock()
+	defer handle.Mutex.Unlock()
+
 	if !handle.IsReadMode() {
 		return nil, fmt.Errorf("file is opened with %s mode", handle.OpenMode)
 	}
@@ -70,10 +106,80 @@ func (handle *FileHandle) Read(length int) ([]byte, error) {
 	return bytes, nil
 }
 
+func (handle *FileHandle) ReadAt(offset int64, length int) ([]byte, error) {
+	handle.Mutex.Lock()
+	defer handle.Mutex.Unlock()
+
+	if !handle.IsReadMode() {
+		return nil, fmt.Errorf("file is opened with %s mode", handle.OpenMode)
+	}
+
+	if handle.Offset != offset {
+		newOffset, err := irods_fs.SeekDataObject(handle.Connection, handle.IRODSHandle, offset, types.SeekSet)
+		if err != nil {
+			return nil, err
+		}
+
+		handle.Offset = newOffset
+
+		if newOffset != offset {
+			return nil, fmt.Errorf("failed to seek to %d", offset)
+		}
+	}
+
+	bytes, err := irods_fs.ReadDataObject(handle.Connection, handle.IRODSHandle, length)
+	if err != nil {
+		return nil, err
+	}
+
+	handle.Offset += int64(len(bytes))
+	return bytes, nil
+}
+
 // Write writes the file
 func (handle *FileHandle) Write(data []byte) error {
+	handle.Mutex.Lock()
+	defer handle.Mutex.Unlock()
+
 	if !handle.IsWriteMode() {
 		return fmt.Errorf("file is opened with %s mode", handle.OpenMode)
+	}
+
+	err := irods_fs.WriteDataObject(handle.Connection, handle.IRODSHandle, data)
+	if err != nil {
+		return err
+	}
+
+	handle.Offset += int64(len(data))
+
+	// update
+	if handle.Entry.Size < handle.Offset+int64(len(data)) {
+		handle.Entry.Size = handle.Offset + int64(len(data))
+	}
+
+	return nil
+}
+
+// Write writes the file
+func (handle *FileHandle) WriteAt(offset int64, data []byte) error {
+	handle.Mutex.Lock()
+	defer handle.Mutex.Unlock()
+
+	if !handle.IsWriteMode() {
+		return fmt.Errorf("file is opened with %s mode", handle.OpenMode)
+	}
+
+	if handle.Offset != offset {
+		newOffset, err := irods_fs.SeekDataObject(handle.Connection, handle.IRODSHandle, offset, types.SeekSet)
+		if err != nil {
+			return err
+		}
+
+		handle.Offset = newOffset
+
+		if newOffset != offset {
+			return fmt.Errorf("failed to seek to %d", offset)
+		}
 	}
 
 	err := irods_fs.WriteDataObject(handle.Connection, handle.IRODSHandle, data)
