@@ -34,10 +34,11 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*File
 	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime)
 
 	return &FileSystem{
-		Account: account,
-		Config:  config,
-		Session: sess,
-		Cache:   cache,
+		Account:     account,
+		Config:      config,
+		Session:     sess,
+		Cache:       cache,
+		FileHandles: map[string]*FileHandle{},
 	}, nil
 }
 
@@ -53,10 +54,11 @@ func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName strin
 	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime)
 
 	return &FileSystem{
-		Account: account,
-		Config:  config,
-		Session: sess,
-		Cache:   cache,
+		Account:     account,
+		Config:      config,
+		Session:     sess,
+		Cache:       cache,
+		FileHandles: map[string]*FileHandle{},
 	}, nil
 }
 
