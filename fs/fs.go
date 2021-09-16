@@ -64,13 +64,18 @@ func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName strin
 
 // Release releases all resources
 func (fs *FileSystem) Release() {
-	fs.Mutex.Lock()
-	defer fs.Mutex.Unlock()
+	handles := []*FileHandle{}
 
-	if len(fs.FileHandles) > 0 {
-		for _, handle := range fs.FileHandles {
-			handle.closeWithoutFileSystemLock()
-		}
+	// empty
+	fs.Mutex.Lock()
+	for _, handle := range fs.FileHandles {
+		handles = append(handles, handle)
+	}
+	fs.FileHandles = map[string]*FileHandle{}
+	fs.Mutex.Unlock()
+
+	for _, handle := range handles {
+		handle.closeWithoutFSHandleManagement()
 	}
 
 	fs.Session.Release()
@@ -984,9 +989,8 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 	}
 
 	fs.Mutex.Lock()
-	defer fs.Mutex.Unlock()
-
 	fs.FileHandles[fileHandle.ID] = fileHandle
+	fs.Mutex.Unlock()
 
 	return fileHandle, nil
 }
@@ -1031,9 +1035,8 @@ func (fs *FileSystem) CreateFile(path string, resource string) (*FileHandle, err
 	}
 
 	fs.Mutex.Lock()
-	defer fs.Mutex.Unlock()
-
 	fs.FileHandles[fileHandle.ID] = fileHandle
+	fs.Mutex.Unlock()
 
 	return fileHandle, nil
 }

@@ -51,15 +51,14 @@ func (handle *FileHandle) Close() error {
 	}
 
 	handle.FileSystem.Mutex.Lock()
-	defer handle.FileSystem.Mutex.Unlock()
-
 	delete(handle.FileSystem.FileHandles, handle.ID)
+	handle.FileSystem.Mutex.Unlock()
 
 	return irods_fs.CloseDataObject(handle.Connection, handle.IRODSHandle)
 }
 
 // Close closes the file
-func (handle *FileHandle) closeWithoutFileSystemLock() error {
+func (handle *FileHandle) closeWithoutFSHandleManagement() error {
 	handle.Mutex.Lock()
 	defer handle.Mutex.Unlock()
 
@@ -68,8 +67,6 @@ func (handle *FileHandle) closeWithoutFileSystemLock() error {
 	if handle.IsWriteMode() {
 		handle.FileSystem.invalidateCachePathRecursively(handle.Entry.Path)
 	}
-
-	delete(handle.FileSystem.FileHandles, handle.ID)
 
 	return irods_fs.CloseDataObject(handle.Connection, handle.IRODSHandle)
 }
