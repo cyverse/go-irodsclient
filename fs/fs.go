@@ -100,6 +100,11 @@ func (fs *FileSystem) Release() {
 	fs.Session.Release()
 }
 
+// Connections counts current established connections
+func (fs *FileSystem) Connections() int {
+	return fs.Session.Connections()
+}
+
 // ListGroupUsers lists all users in a group
 func (fs *FileSystem) ListGroupUsers(group string) ([]*types.IRODSUser, error) {
 	// check cache first
