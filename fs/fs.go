@@ -62,6 +62,25 @@ func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName strin
 	}, nil
 }
 
+// NewFileSystemWithSessionConfig creates a new FileSystem with custom session configurations
+func NewFileSystemWithSessionConfig(account *types.IRODSAccount, sessConfig *session.IRODSSessionConfig) (*FileSystem, error) {
+	config := NewFileSystemConfigWithDefault(sessConfig.ApplicationName)
+	sess, err := session.NewIRODSSession(account, sessConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime)
+
+	return &FileSystem{
+		Account:     account,
+		Config:      config,
+		Session:     sess,
+		Cache:       cache,
+		FileHandles: map[string]*FileHandle{},
+	}, nil
+}
+
 // Release releases all resources
 func (fs *FileSystem) Release() {
 	handles := []*FileHandle{}
