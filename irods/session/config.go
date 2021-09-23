@@ -9,8 +9,6 @@ const (
 	IRODSSessionConnectionMaxMin = 5
 	// IRODSSessionConnectionMaxDefault is a default value for connection max
 	IRODSSessionConnectionMaxDefault = 10
-	// IRODSSessionIdleConnectionMax is a maximum number of idle connections
-	IRODSSessionIdleConnectionMax = 5
 	// IRODSSessionTimeoutDefault is a default value for timeout
 	IRODSSessionTimeoutDefault = 5 * time.Minute
 )
@@ -38,7 +36,7 @@ func NewIRODSSessionConfig(applicationName string, operationTimeout time.Duratio
 		IdleTimeout:          idleTimeout,
 		ConnectionMax:        connectionMax,
 		ConnectionInitNumber: 1,
-		ConnectionMaxIdle:    IRODSSessionIdleConnectionMax,
+		ConnectionMaxIdle:    1,
 		StartNewTransaction:  startNewTransaction,
 	}
 }
@@ -51,7 +49,7 @@ func NewIRODSSessionConfigWithDefault(applicationName string) *IRODSSessionConfi
 		IdleTimeout:          IRODSSessionTimeoutDefault,
 		ConnectionMax:        IRODSSessionConnectionMaxDefault,
 		ConnectionInitNumber: 1,
-		ConnectionMaxIdle:    IRODSSessionIdleConnectionMax,
+		ConnectionMaxIdle:    1,
 		StartNewTransaction:  true,
 	}
 }
