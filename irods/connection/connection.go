@@ -382,6 +382,10 @@ func (conn *IRODSConnection) socketFail() {
 
 // Send sends data
 func (conn *IRODSConnection) Send(buffer []byte, size int) error {
+	if conn.socket == nil {
+		return fmt.Errorf("unable to send data - socket closed")
+	}
+
 	// use sslSocket
 	if conn.Timeout > 0 {
 		conn.socket.SetWriteDeadline(time.Now().Add(conn.Timeout))
@@ -403,6 +407,10 @@ func (conn *IRODSConnection) Send(buffer []byte, size int) error {
 
 // Recv receives a message
 func (conn *IRODSConnection) Recv(buffer []byte, size int) (int, error) {
+	if conn.socket == nil {
+		return 0, fmt.Errorf("unable to receive data - socket closed")
+	}
+
 	if conn.Timeout > 0 {
 		conn.socket.SetReadDeadline(time.Now().Add(conn.Timeout))
 	}
