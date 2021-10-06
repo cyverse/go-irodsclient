@@ -1,6 +1,8 @@
 package session
 
 import (
+	"fmt"
+
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
@@ -26,6 +28,7 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 		MaxIdle:     config.ConnectionMaxIdle,
 		MaxCap:      config.ConnectionMax,
 		Factory:     sess.connOpen,
+		Ping:        sess.connPing,
 		Close:       sess.connClose,
 		IdleTimeout: config.IdleTimeout,
 	}
@@ -49,6 +52,16 @@ func (sess *IRODSSession) connOpen() (interface{}, error) {
 		return nil, err
 	}
 	return conn, nil
+}
+
+func (sess *IRODSSession) connPing(v interface{}) error {
+	// test a conenction
+	conn := v.(*connection.IRODSConnection)
+	if !conn.IsConnected() {
+		util.LogError("disconnected connection")
+		return fmt.Errorf("disconnected connection")
+	}
+	return nil
 }
 
 func (sess *IRODSSession) connClose(v interface{}) error {

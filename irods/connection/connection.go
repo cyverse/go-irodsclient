@@ -28,6 +28,7 @@ type IRODSConnection struct {
 	socket                  net.Conn
 	serverVersion           *types.IRODSVersion
 	generatedPasswordForPAM string // used for PAM auth
+	lastSuccessfulAccess    time.Time
 }
 
 // NewIRODSConnection create a IRODSConnection
@@ -56,6 +57,11 @@ func (conn *IRODSConnection) GetGeneratedPasswordForPAMAuth() string {
 // IsConnected returns if the connection is live
 func (conn *IRODSConnection) IsConnected() bool {
 	return conn.connected
+}
+
+// GetLastSuccessfulAccess returns last successful access time
+func (conn *IRODSConnection) GetLastSuccessfulAccess() time.Time {
+	return conn.lastSuccessfulAccess
 }
 
 // Connect connects to iRODS
@@ -108,6 +114,7 @@ func (conn *IRODSConnection) Connect() error {
 	}
 
 	conn.connected = true
+	conn.lastSuccessfulAccess = time.Now()
 
 	return nil
 }
@@ -341,8 +348,11 @@ func (conn *IRODSConnection) showTicket() error {
 // Disconnect disconnects
 func (conn *IRODSConnection) disconnectNow() error {
 	conn.connected = false
-	err := conn.socket.Close()
-	conn.socket = nil
+	var err error
+	if conn.socket != nil {
+		err = conn.socket.Close()
+		conn.socket = nil
+	}
 	return err
 }
 
@@ -360,7 +370,14 @@ func (conn *IRODSConnection) Disconnect() error {
 		return fmt.Errorf("could not send a disconnect request message - %v", err)
 	}
 
+	conn.lastSuccessfulAccess = time.Now()
+
 	return conn.disconnectNow()
+}
+
+func (conn *IRODSConnection) socketFail() {
+	conn.connected = false
+	conn.socket = nil
 }
 
 // Send sends data
@@ -375,9 +392,12 @@ func (conn *IRODSConnection) Send(buffer []byte, size int) error {
 		util.LogError("unable to send data. " +
 			"Connection to remote host may have closed. " +
 			"Releasing connection from pool.")
-		conn.release(true)
+		conn.socketFail()
 		return fmt.Errorf("unable to send data - %v", err)
 	}
+
+	conn.lastSuccessfulAccess = time.Now()
+
 	return nil
 }
 
@@ -392,9 +412,12 @@ func (conn *IRODSConnection) Recv(buffer []byte, size int) (int, error) {
 		util.LogError("unable to receive data. " +
 			"Connection to remote host may have closed. " +
 			"Releasing connection from pool.")
-		conn.release(true)
+		conn.socketFail()
 		return readLen, fmt.Errorf("unable to receive data - %v", err)
 	}
+
+	conn.lastSuccessfulAccess = time.Now()
+
 	return readLen, nil
 }
 
@@ -534,9 +557,6 @@ func (conn *IRODSConnection) ReadMessage() (*message.IRODSMessage, error) {
 		Header: header,
 		Body:   &body,
 	}, nil
-}
-
-func (conn *IRODSConnection) release(val bool) {
 }
 
 // Commit a transaction. This is useful in combination with the NO_COMMIT_FLAG.
