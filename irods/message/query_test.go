@@ -3,26 +3,32 @@ package message
 import (
 	"testing"
 
-	"github.com/cyverse/go-irodsclient/irods/util"
+	log "github.com/sirupsen/logrus"
 )
 
-func init() {
-	util.SetLogLevel(9)
-}
-
 func TestIRODSQuery(t *testing.T) {
+	logger := log.WithFields(log.Fields{
+		"package":  "message",
+		"function": "TestIRODSQuery",
+	})
+
 	query := NewIRODSMessageQuery(500, 0, 0, 0)
 
 	queryBytes, err := query.GetBytes()
 	if err != nil {
-		util.LogErrorf("err - %v", err)
+		logger.Errorf("err - %v", err)
 		panic(err)
 	}
 
-	util.LogDebugf("Query : %s", queryBytes)
+	logger.Debugf("Query : %s", queryBytes)
 }
 
 func TestIRODSQueryKeyVal(t *testing.T) {
+	logger := log.WithFields(log.Fields{
+		"package":  "message",
+		"function": "TestIRODSQueryKeyVal",
+	})
+
 	query := NewIRODSMessageQuery(500, 0, 0, 0)
 	query.Selects.Add(500, 1)
 	query.Selects.Add(501, 1)
@@ -33,9 +39,9 @@ func TestIRODSQueryKeyVal(t *testing.T) {
 	query.Conditions.Add(501, "= '/iplant/home/iychoi'")
 	queryBytes, err := query.GetBytes()
 	if err != nil {
-		util.LogErrorf("err - %v", err)
+		logger.Errorf("err - %v", err)
 		panic(err)
 	}
 
-	util.LogDebugf("Query : %s", queryBytes)
+	logger.Debugf("Query : %s", queryBytes)
 }

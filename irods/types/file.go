@@ -1,6 +1,8 @@
 package types
 
-import "github.com/cyverse/go-irodsclient/irods/util"
+import (
+	log "github.com/sirupsen/logrus"
+)
 
 // Whence determines where to start counting the offset
 type Whence int
@@ -54,6 +56,11 @@ const (
 
 // GetFileOpenFlagSeekToEnd returns file open flag and returns true if file pointer moves to the file end
 func GetFileOpenFlagSeekToEnd(mode FileOpenMode) (int, bool) {
+	logger := log.WithFields(log.Fields{
+		"package":  "types",
+		"function": "GetFileOpenFlagSeekToEnd",
+	})
+
 	switch mode {
 	case FileOpenModeReadOnly:
 		return int(O_RDONLY), false
@@ -68,13 +75,18 @@ func GetFileOpenFlagSeekToEnd(mode FileOpenMode) (int, bool) {
 	case FileOpenModeReadAppend:
 		return int(O_RDWR) | int(O_CREAT), true
 	default:
-		util.LogErrorf("Unhandled file open mode %s", mode)
+		logger.Errorf("Unhandled file open mode %s", mode)
 		return -1, false
 	}
 }
 
 // IsFileOpenFlagRead returns true if the file open mode is for read
 func IsFileOpenFlagRead(mode FileOpenMode) bool {
+	logger := log.WithFields(log.Fields{
+		"package":  "types",
+		"function": "IsFileOpenFlagRead",
+	})
+
 	switch mode {
 	case FileOpenModeReadOnly:
 		return true
@@ -89,13 +101,18 @@ func IsFileOpenFlagRead(mode FileOpenMode) bool {
 	case FileOpenModeReadAppend:
 		return true
 	default:
-		util.LogErrorf("Unhandled file open mode %s", mode)
+		logger.Errorf("Unhandled file open mode %s", mode)
 		return false
 	}
 }
 
 // IsFileOpenFlagWrite returns true if the file open mode is for write
 func IsFileOpenFlagWrite(mode FileOpenMode) bool {
+	logger := log.WithFields(log.Fields{
+		"package":  "types",
+		"function": "IsFileOpenFlagWrite",
+	})
+
 	switch mode {
 	case FileOpenModeReadOnly:
 		return false
@@ -110,13 +127,18 @@ func IsFileOpenFlagWrite(mode FileOpenMode) bool {
 	case FileOpenModeReadAppend:
 		return true
 	default:
-		util.LogErrorf("Unhandled file open mode %s", mode)
+		logger.Errorf("Unhandled file open mode %s", mode)
 		return false
 	}
 }
 
 // IsFileOpenFlagOpeningExisting returns true if the file open mode is for opening existing file
 func IsFileOpenFlagOpeningExisting(mode FileOpenMode) bool {
+	logger := log.WithFields(log.Fields{
+		"package":  "types",
+		"function": "IsFileOpenFlagWrite",
+	})
+
 	switch mode {
 	case FileOpenModeReadOnly:
 		return true
@@ -131,7 +153,7 @@ func IsFileOpenFlagOpeningExisting(mode FileOpenMode) bool {
 	case FileOpenModeReadAppend:
 		return true
 	default:
-		util.LogErrorf("Unhandled file open mode %s", mode)
+		logger.Errorf("Unhandled file open mode %s", mode)
 		return false
 	}
 }

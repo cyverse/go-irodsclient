@@ -8,11 +8,15 @@ import (
 
 	"github.com/cyverse/go-irodsclient/fs"
 	"github.com/cyverse/go-irodsclient/irods/types"
-	"github.com/cyverse/go-irodsclient/irods/util"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func main() {
-	util.SetLogLevel(9)
+	logger := log.WithFields(log.Fields{
+		"package":  "main",
+		"function": "main",
+	})
 
 	// Parse cli parameters
 	flag.Parse()
@@ -28,23 +32,23 @@ func main() {
 	// Read account configuration from YAML file
 	yaml, err := ioutil.ReadFile("account.yml")
 	if err != nil {
-		util.LogErrorf("err - %v", err)
+		logger.Errorf("err - %v", err)
 		panic(err)
 	}
 
 	account, err := types.CreateIRODSAccountFromYAML(yaml)
 	if err != nil {
-		util.LogErrorf("err - %v", err)
+		logger.Errorf("err - %v", err)
 		panic(err)
 	}
 
-	util.LogDebugf("Account : %v", account.MaskSensitiveData())
+	logger.Debugf("Account : %v", account.MaskSensitiveData())
 
 	// Create a file system
 	appName := "list_dir_ticket"
 	filesystem, err := fs.NewFileSystemWithDefault(account, appName)
 	if err != nil {
-		util.LogErrorf("err - %v", err)
+		logger.Errorf("err - %v", err)
 		panic(err)
 	}
 
@@ -52,7 +56,7 @@ func main() {
 
 	entries, err := filesystem.List(inputPath)
 	if err != nil {
-		util.LogErrorf("err - %v", err)
+		logger.Errorf("err - %v", err)
 		panic(err)
 	}
 

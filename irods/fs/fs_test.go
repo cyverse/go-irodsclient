@@ -8,7 +8,8 @@ import (
 
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/types"
-	"github.com/cyverse/go-irodsclient/irods/util"
+
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -18,29 +19,32 @@ var (
 )
 
 func setup() {
-	util.SetLogLevel(9)
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "setup",
+	})
 
 	yaml, err := ioutil.ReadFile("../../config/test_account.yml")
 	if err != nil {
-		util.LogErrorf("err - %v", err)
+		logger.Errorf("err - %v", err)
 		panic(err)
 	}
 
 	account, err = types.CreateIRODSAccountFromYAML(yaml)
 	if err != nil {
-		util.LogErrorf("err - %v", err)
+		logger.Errorf("err - %v", err)
 		panic(err)
 	}
 
 	timeout = time.Second * 200 // 200 sec
 
 	account.ClientServerNegotiation = false
-	util.LogDebugf("Account : %v", account.MaskSensitiveData())
+	logger.Debugf("Account : %v", account.MaskSensitiveData())
 
 	conn = connection.NewIRODSConnection(account, timeout, "go-irodsclient-test")
 	err = conn.Connect()
 	if err != nil {
-		util.LogErrorf("err - %v", err)
+		logger.Errorf("err - %v", err)
 		panic(err)
 	}
 }
@@ -51,6 +55,11 @@ func shutdown() {
 }
 
 func TestGetIRODSCollection(t *testing.T) {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "TestGetIRODSCollection",
+	})
+
 	setup()
 
 	collection, err := GetCollection(conn, "/iplant/home/iychoi")
@@ -59,12 +68,17 @@ func TestGetIRODSCollection(t *testing.T) {
 		panic(err)
 	}
 
-	util.LogDebugf("Collection : %v", collection)
+	logger.Debugf("Collection : %v", collection)
 
 	shutdown()
 }
 
 func TestListIRODSCollections(t *testing.T) {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "TestListIRODSCollections",
+	})
+
 	setup()
 
 	collections, err := ListSubCollections(conn, "/iplant/home/iychoi")
@@ -74,10 +88,10 @@ func TestListIRODSCollections(t *testing.T) {
 	}
 
 	if len(collections) == 0 {
-		util.LogDebug("There is no sub collections")
+		logger.Debug("There is no sub collections")
 	} else {
 		for _, collection := range collections {
-			util.LogDebugf("Collection : %v", collection)
+			logger.Debugf("Collection : %v", collection)
 		}
 	}
 
@@ -85,6 +99,11 @@ func TestListIRODSCollections(t *testing.T) {
 }
 
 func TestListManyIRODSCollections(t *testing.T) {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "TestListManyIRODSCollections",
+	})
+
 	setup()
 
 	collections, err := ListSubCollections(conn, "/iplant/home")
@@ -94,10 +113,10 @@ func TestListManyIRODSCollections(t *testing.T) {
 	}
 
 	if len(collections) == 0 {
-		util.LogDebug("There is no sub collections")
+		logger.Debug("There is no sub collections")
 	} else {
 		for _, collection := range collections {
-			util.LogDebugf("Collection : %v", collection)
+			logger.Debugf("Collection : %v", collection)
 		}
 	}
 
@@ -105,6 +124,11 @@ func TestListManyIRODSCollections(t *testing.T) {
 }
 
 func TestListIRODSCollectionMeta(t *testing.T) {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "TestListIRODSCollectionMeta",
+	})
+
 	setup()
 
 	metas, err := ListCollectionMeta(conn, "/iplant/home/iyhoi")
@@ -114,10 +138,10 @@ func TestListIRODSCollectionMeta(t *testing.T) {
 	}
 
 	if len(metas) == 0 {
-		util.LogDebug("There is no metadata")
+		logger.Debug("There is no metadata")
 	} else {
 		for _, meta := range metas {
-			util.LogDebugf("Collection Meta : %v", meta)
+			logger.Debugf("Collection Meta : %v", meta)
 		}
 	}
 
@@ -125,6 +149,11 @@ func TestListIRODSCollectionMeta(t *testing.T) {
 }
 
 func TestListIRODSCollectionAccess(t *testing.T) {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "TestListIRODSCollectionAccess",
+	})
+
 	setup()
 
 	accesses, err := ListCollectionAccess(conn, "/iplant/home/iychoi")
@@ -134,10 +163,10 @@ func TestListIRODSCollectionAccess(t *testing.T) {
 	}
 
 	if len(accesses) == 0 {
-		util.LogDebug("There is no accesses")
+		logger.Debug("There is no accesses")
 	} else {
 		for _, access := range accesses {
-			util.LogDebugf("Collection Access : %v", access)
+			logger.Debugf("Collection Access : %v", access)
 		}
 	}
 
@@ -145,6 +174,11 @@ func TestListIRODSCollectionAccess(t *testing.T) {
 }
 
 func TestListIRODSDataObjects(t *testing.T) {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "TestListIRODSDataObjects",
+	})
+
 	setup()
 
 	collection, err := GetCollection(conn, "/iplant/home/iychoi")
@@ -153,7 +187,7 @@ func TestListIRODSDataObjects(t *testing.T) {
 		panic(err)
 	}
 
-	util.LogDebugf("Collection: %v", collection)
+	logger.Debugf("Collection: %v", collection)
 
 	dataobjects, err := ListDataObjects(conn, collection)
 	if err != nil {
@@ -162,9 +196,9 @@ func TestListIRODSDataObjects(t *testing.T) {
 	}
 
 	for _, dataobject := range dataobjects {
-		util.LogDebugf("DataObject : %v", dataobject)
+		logger.Debugf("DataObject : %v", dataobject)
 		for _, replica := range dataobject.Replicas {
-			util.LogDebugf("Replica : %v", replica)
+			logger.Debugf("Replica : %v", replica)
 		}
 	}
 
@@ -172,6 +206,11 @@ func TestListIRODSDataObjects(t *testing.T) {
 }
 
 func TestListIRODSDataObjectsMasterReplica(t *testing.T) {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "TestListIRODSDataObjectsMasterReplica",
+	})
+
 	setup()
 
 	collection, err := GetCollection(conn, "/iplant/home/iychoi")
@@ -180,7 +219,7 @@ func TestListIRODSDataObjectsMasterReplica(t *testing.T) {
 		panic(err)
 	}
 
-	util.LogDebugf("Collection: %v", collection)
+	logger.Debugf("Collection: %v", collection)
 
 	dataobjects, err := ListDataObjectsMasterReplica(conn, collection)
 	if err != nil {
@@ -189,9 +228,9 @@ func TestListIRODSDataObjectsMasterReplica(t *testing.T) {
 	}
 
 	for _, dataobject := range dataobjects {
-		util.LogDebugf("DataObject : %v", dataobject)
+		logger.Debugf("DataObject : %v", dataobject)
 		for _, replica := range dataobject.Replicas {
-			util.LogDebugf("Replica : %v", replica)
+			logger.Debugf("Replica : %v", replica)
 		}
 	}
 
@@ -199,6 +238,11 @@ func TestListIRODSDataObjectsMasterReplica(t *testing.T) {
 }
 
 func TestGetIRODSDataObject(t *testing.T) {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "TestGetIRODSDataObject",
+	})
+
 	setup()
 
 	collection, err := GetCollection(conn, "/iplant/home/iychoi")
@@ -213,15 +257,20 @@ func TestGetIRODSDataObject(t *testing.T) {
 		panic(err)
 	}
 
-	util.LogDebugf("DataObject : %v", dataobject)
+	logger.Debugf("DataObject : %v", dataobject)
 	for _, replica := range dataobject.Replicas {
-		util.LogDebugf("Replica : %v", replica)
+		logger.Debugf("Replica : %v", replica)
 	}
 
 	shutdown()
 }
 
 func TestGetIRODSDataObjectMasterReplica(t *testing.T) {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "TestGetIRODSDataObjectMasterReplica",
+	})
+
 	setup()
 
 	collection, err := GetCollection(conn, "/iplant/home/iychoi")
@@ -236,15 +285,20 @@ func TestGetIRODSDataObjectMasterReplica(t *testing.T) {
 		panic(err)
 	}
 
-	util.LogDebugf("DataObject : %v", dataobject)
+	logger.Debugf("DataObject : %v", dataobject)
 	for _, replica := range dataobject.Replicas {
-		util.LogDebugf("Replica : %v", replica)
+		logger.Debugf("Replica : %v", replica)
 	}
 
 	shutdown()
 }
 
 func TestListIRODSDataObjectMeta(t *testing.T) {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "TestListIRODSDataObjectMeta",
+	})
+
 	setup()
 
 	collection, err := GetCollection(conn, "/iplant/home/iychoi")
@@ -260,10 +314,10 @@ func TestListIRODSDataObjectMeta(t *testing.T) {
 	}
 
 	if len(metas) == 0 {
-		util.LogDebug("There is no metadata")
+		logger.Debug("There is no metadata")
 	} else {
 		for _, meta := range metas {
-			util.LogDebugf("Data Object Meta : %v", meta)
+			logger.Debugf("Data Object Meta : %v", meta)
 		}
 	}
 
@@ -271,6 +325,11 @@ func TestListIRODSDataObjectMeta(t *testing.T) {
 }
 
 func TestListIRODSDataObjectAccess(t *testing.T) {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "TestListIRODSDataObjectAccess",
+	})
+
 	setup()
 
 	collection, err := GetCollection(conn, "/iplant/home/iychoi")
@@ -286,10 +345,10 @@ func TestListIRODSDataObjectAccess(t *testing.T) {
 	}
 
 	if len(accesses) == 0 {
-		util.LogDebug("There is no accesses")
+		logger.Debug("There is no accesses")
 	} else {
 		for _, access := range accesses {
-			util.LogDebugf("Data Object Access : %v", access)
+			logger.Debugf("Data Object Access : %v", access)
 		}
 	}
 
@@ -297,6 +356,11 @@ func TestListIRODSDataObjectAccess(t *testing.T) {
 }
 
 func TestCreateDeleteIRODSCollection(t *testing.T) {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "TestCreateDeleteIRODSCollection",
+	})
+
 	setup()
 
 	err := CreateCollection(conn, "/iplant/home/iychoi/test123", true)
@@ -327,7 +391,7 @@ func TestCreateDeleteIRODSCollection(t *testing.T) {
 	if err != nil {
 		if types.IsFileNotFoundError(err) {
 			// Okay!
-			util.LogDebugf("Deleted collection")
+			logger.Debugf("Deleted collection")
 			deleted = true
 		}
 	}
@@ -342,6 +406,11 @@ func TestCreateDeleteIRODSCollection(t *testing.T) {
 }
 
 func TestCreateMoveDeleteIRODSCollection(t *testing.T) {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "TestCreateMoveDeleteIRODSCollection",
+	})
+
 	setup()
 
 	err := CreateCollection(conn, "/iplant/home/iychoi/test123", true)
@@ -389,7 +458,7 @@ func TestCreateMoveDeleteIRODSCollection(t *testing.T) {
 	if err != nil {
 		if types.IsFileNotFoundError(err) {
 			// Okay!
-			util.LogDebugf("Deleted collection")
+			logger.Debugf("Deleted collection")
 			deleted = true
 		}
 	}
@@ -404,6 +473,11 @@ func TestCreateMoveDeleteIRODSCollection(t *testing.T) {
 }
 
 func TestCreateDeleteIRODSDataObject(t *testing.T) {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "TestCreateDeleteIRODSDataObject",
+	})
+
 	setup()
 
 	handle, err := CreateDataObject(conn, "/iplant/home/iychoi/testobj123", "", true)
@@ -446,7 +520,7 @@ func TestCreateDeleteIRODSDataObject(t *testing.T) {
 	if err != nil {
 		if types.IsFileNotFoundError(err) {
 			// Okay!
-			util.LogDebugf("Deleted data object")
+			logger.Debugf("Deleted data object")
 			deleted = true
 		}
 	}
@@ -534,6 +608,11 @@ func TestReadWriteIRODSDataObject(t *testing.T) {
 }
 
 func TestListIRODSGroupUsers(t *testing.T) {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "TestListIRODSGroupUsers",
+	})
+
 	setup()
 
 	users, err := ListGroupUsers(conn, "rodsadmin")
@@ -543,10 +622,10 @@ func TestListIRODSGroupUsers(t *testing.T) {
 	}
 
 	if len(users) == 0 {
-		util.LogDebug("There is no users in the group")
+		logger.Debug("There is no users in the group")
 	} else {
 		for _, user := range users {
-			util.LogDebugf("User : %v", user)
+			logger.Debugf("User : %v", user)
 		}
 	}
 
@@ -554,6 +633,11 @@ func TestListIRODSGroupUsers(t *testing.T) {
 }
 
 func TestSearchDataObjectsByMeta(t *testing.T) {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "TestSearchDataObjectsByMeta",
+	})
+
 	setup()
 
 	dataobjects, err := SearchDataObjectsByMeta(conn, "ipc_UUID", "3241af9a-c199-11e5-bd90-3c4a92e4a804")
@@ -563,9 +647,9 @@ func TestSearchDataObjectsByMeta(t *testing.T) {
 	}
 
 	for _, dataobject := range dataobjects {
-		util.LogDebugf("DataObject : %v", dataobject)
+		logger.Debugf("DataObject : %v", dataobject)
 		for _, replica := range dataobject.Replicas {
-			util.LogDebugf("Replica : %v", replica)
+			logger.Debugf("Replica : %v", replica)
 		}
 	}
 
@@ -573,6 +657,11 @@ func TestSearchDataObjectsByMeta(t *testing.T) {
 }
 
 func TestSearchDataObjectsByMetaWildcard(t *testing.T) {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "TestSearchDataObjectsByMetaWildcard",
+	})
+
 	setup()
 
 	// this takes a long time to perform
@@ -583,9 +672,9 @@ func TestSearchDataObjectsByMetaWildcard(t *testing.T) {
 	}
 
 	for _, dataobject := range dataobjects {
-		util.LogDebugf("DataObject : %v", dataobject)
+		logger.Debugf("DataObject : %v", dataobject)
 		for _, replica := range dataobject.Replicas {
-			util.LogDebugf("Replica : %v", replica)
+			logger.Debugf("Replica : %v", replica)
 		}
 	}
 

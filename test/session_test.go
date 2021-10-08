@@ -5,7 +5,8 @@ import (
 
 	"github.com/cyverse/go-irodsclient/irods/fs"
 	"github.com/cyverse/go-irodsclient/irods/session"
-	"github.com/cyverse/go-irodsclient/irods/util"
+
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -13,10 +14,15 @@ var (
 )
 
 func setupSession() {
+	logger := log.WithFields(log.Fields{
+		"package":  "test",
+		"function": "setupSession",
+	})
+
 	setupTest()
 
 	account.ClientServerNegotiation = false
-	util.LogDebugf("Account : %v", account.MaskSensitiveData())
+	logger.Debugf("Account : %v", account.MaskSensitiveData())
 
 	sessionConfig = session.NewIRODSSessionConfigWithDefault("go-irodsclient-test")
 }
@@ -25,6 +31,11 @@ func shutdownSession() {
 }
 
 func TestSession(t *testing.T) {
+	logger := log.WithFields(log.Fields{
+		"package":  "test",
+		"function": "TestSession",
+	})
+
 	setupSession()
 
 	sess, err := session.NewIRODSSession(account, sessionConfig)
@@ -46,7 +57,7 @@ func TestSession(t *testing.T) {
 		panic(err)
 	}
 
-	util.LogDebugf("Collection : %v", collection)
+	logger.Debugf("Collection : %v", collection)
 
 	err = sess.ReturnConnection(conn)
 	if err != nil {
@@ -67,7 +78,7 @@ func TestSession(t *testing.T) {
 		panic(err)
 	}
 
-	util.LogDebugf("Collection : %v", collection)
+	logger.Debugf("Collection : %v", collection)
 
 	err = sess.ReturnConnection(conn)
 	if err != nil {

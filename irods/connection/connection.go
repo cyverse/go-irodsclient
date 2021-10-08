@@ -15,6 +15,8 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/message"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // IRODSConnection connects to iRODS
@@ -66,9 +68,17 @@ func (conn *IRODSConnection) GetLastSuccessfulAccess() time.Time {
 
 // Connect connects to iRODS
 func (conn *IRODSConnection) Connect() error {
+	logger := log.WithFields(log.Fields{
+		"package":  "connection",
+		"struct":   "IRODSConnection",
+		"function": "Connect",
+	})
+
 	conn.connected = false
 
 	server := fmt.Sprintf("%s:%d", conn.Account.Host, conn.Account.Port)
+	logger.Infof("Connecting to %s", server)
+
 	socket, err := net.Dial("tcp", server)
 	if err != nil {
 		return fmt.Errorf("could not connect to specified host and port (%s:%d) - %v", conn.Account.Host, conn.Account.Port, err)
@@ -78,11 +88,9 @@ func (conn *IRODSConnection) Connect() error {
 	var irodsVersion *types.IRODSVersion
 	if conn.requiresCSNegotiation() {
 		// client-server negotiation
-		util.LogInfo("Connect with CS Negotiation")
 		irodsVersion, err = conn.connectWithCSNegotiation()
 	} else {
 		// No client-server negotiation
-		util.LogInfo("Connect without CS Negotiation")
 		irodsVersion, err = conn.connectWithoutCSNegotiation()
 	}
 
@@ -120,6 +128,12 @@ func (conn *IRODSConnection) Connect() error {
 }
 
 func (conn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, error) {
+	logger := log.WithFields(log.Fields{
+		"package":  "connection",
+		"struct":   "IRODSConnection",
+		"function": "connectWithCSNegotiation",
+	})
+
 	// Get client negotiation policy
 	clientPolicy := types.CSNegotiationRequireTCP
 	if len(conn.Account.CSNegotiationPolicy) > 0 {
@@ -127,7 +141,8 @@ func (conn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, er
 	}
 
 	// Send a startup message
-	util.LogInfo("Start up a new connection")
+	logger.Info("Start up a connection with CS Negotiation")
+
 	startup := message.NewIRODSMessageStartupPack(conn.Account, conn.ApplicationName, true)
 	startupMessage, err := startup.GetMessage()
 	if err != nil {
@@ -161,7 +176,8 @@ func (conn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, er
 		return version.GetVersion(), nil
 	} else if negotiationMessage.Body.Type == message.RODS_MESSAGE_CS_NEG_TYPE {
 		// Server responds with its own negotiation policy
-		util.LogInfo("Start up CS Negotiation")
+		logger.Info("Start up CS Negotiation")
+
 		negotiation := message.IRODSMessageCSNegotiation{}
 		err = negotiation.FromMessage(negotiationMessage)
 		if err != nil {
@@ -203,9 +219,16 @@ func (conn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, er
 }
 
 func (conn *IRODSConnection) connectWithoutCSNegotiation() (*types.IRODSVersion, error) {
+	logger := log.WithFields(log.Fields{
+		"package":  "connection",
+		"struct":   "IRODSConnection",
+		"function": "connectWithoutCSNegotiation",
+	})
+
 	// No client-server negotiation
 	// Send a startup message
-	util.LogInfo("Start up a new connection")
+	logger.Info("Start up a connection without CS Negotiation")
+
 	startup := message.NewIRODSMessageStartupPack(conn.Account, conn.ApplicationName, false)
 	version := message.IRODSMessageVersion{}
 	err := conn.Request(startup, &version)
@@ -217,7 +240,13 @@ func (conn *IRODSConnection) connectWithoutCSNegotiation() (*types.IRODSVersion,
 }
 
 func (conn *IRODSConnection) sslStartup() error {
-	util.LogInfo("Start up SSL")
+	logger := log.WithFields(log.Fields{
+		"package":  "connection",
+		"struct":   "IRODSConnection",
+		"function": "sslStartup",
+	})
+
+	logger.Info("Start up SSL")
 
 	irodsSSLConfig := conn.Account.SSLConfiguration
 	if irodsSSLConfig == nil {
@@ -281,7 +310,13 @@ func (conn *IRODSConnection) sslStartup() error {
 }
 
 func (conn *IRODSConnection) loginNative(password string) error {
-	util.LogInfo("Logging in using native authentication method")
+	logger := log.WithFields(log.Fields{
+		"package":  "connection",
+		"struct":   "IRODSConnection",
+		"function": "loginNative",
+	})
+
+	logger.Info("Logging in using native authentication method")
 
 	// authenticate
 	authRequest := message.NewIRODSMessageAuthRequest()
@@ -306,7 +341,13 @@ func (conn *IRODSConnection) loginGSI() error {
 }
 
 func (conn *IRODSConnection) loginPAM() error {
-	util.LogInfo("Logging in using pam authentication method")
+	logger := log.WithFields(log.Fields{
+		"package":  "connection",
+		"struct":   "IRODSConnection",
+		"function": "loginPAM",
+	})
+
+	logger.Info("Logging in using pam authentication method")
 
 	// Check whether ssl has already started, if not, start ssl.
 	if _, ok := conn.socket.(*tls.Conn); !ok {
@@ -334,7 +375,13 @@ func (conn *IRODSConnection) loginPAM() error {
 }
 
 func (conn *IRODSConnection) showTicket() error {
-	util.LogInfo("Submitting a ticket to obtain access")
+	logger := log.WithFields(log.Fields{
+		"package":  "connection",
+		"struct":   "IRODSConnection",
+		"function": "showTicket",
+	})
+
+	logger.Info("Submitting a ticket to obtain access")
 
 	if len(conn.Account.Ticket) > 0 {
 		// show the ticket
@@ -358,7 +405,14 @@ func (conn *IRODSConnection) disconnectNow() error {
 
 // Disconnect disconnects
 func (conn *IRODSConnection) Disconnect() error {
-	util.LogInfo("Disconnecting")
+	logger := log.WithFields(log.Fields{
+		"package":  "connection",
+		"struct":   "IRODSConnection",
+		"function": "Disconnect",
+	})
+
+	logger.Info("Disconnecting the connection")
+
 	disconnect := message.NewIRODSMessageDisconnect()
 	disconnectMessage, err := disconnect.GetMessage()
 	if err != nil {
@@ -382,6 +436,12 @@ func (conn *IRODSConnection) socketFail() {
 
 // Send sends data
 func (conn *IRODSConnection) Send(buffer []byte, size int) error {
+	logger := log.WithFields(log.Fields{
+		"package":  "connection",
+		"struct":   "IRODSConnection",
+		"function": "Send",
+	})
+
 	if conn.socket == nil {
 		return fmt.Errorf("unable to send data - socket closed")
 	}
@@ -393,9 +453,8 @@ func (conn *IRODSConnection) Send(buffer []byte, size int) error {
 
 	err := util.WriteBytes(conn.socket, buffer, size)
 	if err != nil {
-		util.LogError("unable to send data. " +
-			"Connection to remote host may have closed. " +
-			"Releasing connection from pool.")
+		logger.Error("unable to send data. connection to remote host may have closed.")
+
 		conn.socketFail()
 		return fmt.Errorf("unable to send data - %v", err)
 	}
@@ -407,6 +466,12 @@ func (conn *IRODSConnection) Send(buffer []byte, size int) error {
 
 // Recv receives a message
 func (conn *IRODSConnection) Recv(buffer []byte, size int) (int, error) {
+	logger := log.WithFields(log.Fields{
+		"package":  "connection",
+		"struct":   "IRODSConnection",
+		"function": "Recv",
+	})
+
 	if conn.socket == nil {
 		return 0, fmt.Errorf("unable to receive data - socket closed")
 	}
@@ -417,9 +482,8 @@ func (conn *IRODSConnection) Recv(buffer []byte, size int) (int, error) {
 
 	readLen, err := util.ReadBytes(conn.socket, buffer, size)
 	if err != nil {
-		util.LogError("unable to receive data. " +
-			"Connection to remote host may have closed. " +
-			"Releasing connection from pool.")
+		logger.Error("unable to receive data. connection to remote host may have closed.")
+
 		conn.socketFail()
 		return readLen, fmt.Errorf("unable to receive data - %v", err)
 	}

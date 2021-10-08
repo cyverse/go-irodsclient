@@ -5,7 +5,8 @@ import (
 	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/types"
-	"github.com/cyverse/go-irodsclient/irods/util"
+
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -14,17 +15,20 @@ var (
 )
 
 func setupTest() {
-	util.SetLogLevel(9)
+	logger := log.WithFields(log.Fields{
+		"package":  "test",
+		"function": "setupTest",
+	})
 
 	yaml, err := ioutil.ReadFile("../config/test_account.yml")
 	if err != nil {
-		util.LogErrorf("err - %v", err)
+		logger.Errorf("err - %v", err)
 		panic(err)
 	}
 
 	account, err = types.CreateIRODSAccountFromYAML(yaml)
 	if err != nil {
-		util.LogErrorf("err - %v", err)
+		logger.Errorf("err - %v", err)
 		panic(err)
 	}
 

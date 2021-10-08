@@ -6,7 +6,8 @@ import (
 	"testing"
 
 	"github.com/cyverse/go-irodsclient/irods/types"
-	"github.com/cyverse/go-irodsclient/irods/util"
+
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -15,26 +16,29 @@ var (
 )
 
 func setup() {
-	util.SetLogLevel(9)
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "setup",
+	})
 
 	yaml, err := ioutil.ReadFile("../config/test_account.yml")
 	if err != nil {
-		util.LogErrorf("err - %v", err)
+		logger.Errorf("err - %v", err)
 		panic(err)
 	}
 
 	account, err = types.CreateIRODSAccountFromYAML(yaml)
 	if err != nil {
-		util.LogErrorf("err - %v", err)
+		logger.Errorf("err - %v", err)
 		panic(err)
 	}
 
 	account.ClientServerNegotiation = false
-	util.LogDebugf("Account : %v", account.MaskSensitiveData())
+	logger.Debugf("Account : %v", account.MaskSensitiveData())
 
 	fs, err = NewFileSystemWithDefault(account, "go-irodsclient-test")
 	if err != nil {
-		util.LogErrorf("err - %v", err)
+		logger.Errorf("err - %v", err)
 		panic(err)
 	}
 }
@@ -44,6 +48,11 @@ func shutdown() {
 }
 
 func TestListEntries(t *testing.T) {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "TestListEntries",
+	})
+
 	setup()
 
 	entries, err := fs.List("/iplant/home/iychoi")
@@ -53,10 +62,10 @@ func TestListEntries(t *testing.T) {
 	}
 
 	if len(entries) == 0 {
-		util.LogDebug("There is no entries")
+		logger.Debug("There is no entries")
 	} else {
 		for _, entry := range entries {
-			util.LogDebugf("Entry : %v", entry)
+			logger.Debugf("Entry : %v", entry)
 		}
 	}
 
@@ -64,6 +73,11 @@ func TestListEntries(t *testing.T) {
 }
 
 func TestListEntriesByMeta(t *testing.T) {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "TestListEntriesByMeta",
+	})
+
 	setup()
 
 	entries, err := fs.SearchByMeta("ipc_UUID", "3241af9a-c199-11e5-bd90-3c4a92e4a804")
@@ -73,10 +87,10 @@ func TestListEntriesByMeta(t *testing.T) {
 	}
 
 	if len(entries) == 0 {
-		util.LogDebug("There is no entries")
+		logger.Debug("There is no entries")
 	} else {
 		for _, entry := range entries {
-			util.LogDebugf("Entry : %v", entry)
+			logger.Debugf("Entry : %v", entry)
 		}
 	}
 
@@ -84,6 +98,11 @@ func TestListEntriesByMeta(t *testing.T) {
 }
 
 func TestListACLs(t *testing.T) {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "TestListACLs",
+	})
+
 	setup()
 
 	acls, err := fs.ListACLsWithGroupUsers("/iplant/home/iychoi/all.fna.tar.gz")
@@ -93,10 +112,10 @@ func TestListACLs(t *testing.T) {
 	}
 
 	if len(acls) == 0 {
-		util.LogDebug("There is no acls")
+		logger.Debug("There is no acls")
 	} else {
 		for _, acl := range acls {
-			util.LogDebugf("ACL : %v", acl)
+			logger.Debugf("ACL : %v", acl)
 		}
 	}
 

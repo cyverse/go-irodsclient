@@ -26,13 +26,13 @@ Loading a YAML file.
 ```go
 yaml, err := ioutil.ReadFile("account.yml")
 if err != nil {
-    util.LogErrorf("err - %v", err)
+    logger.Errorf("err - %v", err)
     panic(err)
 }
 
 account, err := types.CreateIRODSAccountFromYAML(yaml)
 if err != nil {
-    util.LogErrorf("err - %v", err)
+    logger.Errorf("err - %v", err)
     panic(err)
 }
 ```
@@ -52,7 +52,7 @@ Deleting a file and double check the file existance.
 ```go
 err = filesystem.RemoveFile("/iplant/home/iychoi/test", true) // do it forcefully
 if err != nil {
-    util.LogErrorf("err - %v", err)
+    logger.Errorf("err - %v", err)
     panic(err)
 }
 
@@ -67,7 +67,7 @@ Downloading a file.
 ```go
 err = filesystem.DownloadFile("/iplant/home/iychoi/test", "/opt")
 if err != nil {
-    util.LogErrorf("err - %v", err)
+    logger.Errorf("err - %v", err)
     panic(err)
 }
 ```

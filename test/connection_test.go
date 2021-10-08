@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/cyverse/go-irodsclient/irods/connection"
-	"github.com/cyverse/go-irodsclient/irods/util"
-
 	"github.com/cyverse/go-irodsclient/irods/types"
+
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -14,16 +14,21 @@ var (
 )
 
 func setupConnection(requireCSNegotiation bool, csNegotiationPolicy types.CSNegotiationRequire) {
+	logger := log.WithFields(log.Fields{
+		"package":  "test",
+		"function": "setupConnection",
+	})
+
 	setupTest()
 
 	account.ClientServerNegotiation = requireCSNegotiation
 	account.CSNegotiationPolicy = csNegotiationPolicy
-	util.LogDebugf("Account : %v", account.MaskSensitiveData())
+	logger.Debugf("Account : %v", account.MaskSensitiveData())
 
 	conn = connection.NewIRODSConnection(account, timeout, "go-irodsclient-test")
 	err := conn.Connect()
 	if err != nil {
-		util.LogErrorf("err - %v", err)
+		logger.Errorf("err - %v", err)
 		panic(err)
 	}
 }
@@ -34,18 +39,28 @@ func shutdownConnection() {
 }
 
 func TestIRODSConnection(t *testing.T) {
+	logger := log.WithFields(log.Fields{
+		"package":  "test",
+		"function": "TestIRODSConnection",
+	})
+
 	setupConnection(false, types.CSNegotiationDontCare)
 
 	ver := conn.GetVersion()
-	util.LogDebugf("Version : %v", ver)
+	logger.Debugf("Version : %v", ver)
 
 	shutdownConnection()
 }
 
 func TestIRODSConnectionWithNegotiation(t *testing.T) {
+	logger := log.WithFields(log.Fields{
+		"package":  "test",
+		"function": "TestIRODSConnectionWithNegotiation",
+	})
+
 	setupConnection(true, types.CSNegotiationRequireTCP)
 
-	util.LogDebugf("Account : %v", account.MaskSensitiveData())
+	logger.Debugf("Account : %v", account.MaskSensitiveData())
 
 	conn := connection.NewIRODSConnection(account, timeout, "go-irodsclient-test")
 	err := conn.Connect()
@@ -55,7 +70,7 @@ func TestIRODSConnectionWithNegotiation(t *testing.T) {
 	}
 
 	ver := conn.GetVersion()
-	util.LogDebugf("Version : %v", ver)
+	logger.Debugf("Version : %v", ver)
 
 	shutdownConnection()
 }

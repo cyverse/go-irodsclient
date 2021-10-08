@@ -10,10 +10,17 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/message"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // GetResource returns a resource for the name
 func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSResource, error) {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "GetResource",
+	})
+
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
@@ -46,7 +53,7 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 	}
 
 	if queryResult.ContinueIndex != 0 {
-		util.LogDebugf("resource query for %s would have continued, more than one result found\n", name)
+		logger.Debugf("resource query for %s would have continued, more than one result found\n", name)
 	}
 
 	if queryResult.RowCount == 0 {

@@ -8,7 +8,8 @@ import (
 
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/types"
-	"github.com/cyverse/go-irodsclient/irods/util"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // ConnectionPoolConfig is for connection pool configuration
@@ -123,6 +124,12 @@ func (pool *ConnectionPool) Release() {
 }
 
 func (pool *ConnectionPool) init() error {
+	logger := log.WithFields(log.Fields{
+		"package":  "session",
+		"struct":   "ConnectionPool",
+		"function": "init",
+	})
+
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
 
@@ -131,7 +138,7 @@ func (pool *ConnectionPool) init() error {
 		newConn := connection.NewIRODSConnection(pool.config.Account, pool.config.OperationTimeout, pool.config.ApplicationName)
 		err := newConn.Connect()
 		if err != nil {
-			util.LogErrorf("failed to create a new connection - %v", err)
+			logger.Errorf("failed to create a new connection - %v", err)
 			return err
 		}
 
@@ -143,15 +150,27 @@ func (pool *ConnectionPool) init() error {
 }
 
 func (pool *ConnectionPool) warnExceedsMaxCap() {
+	logger := log.WithFields(log.Fields{
+		"package":  "session",
+		"struct":   "ConnectionPool",
+		"function": "warnExceedsMaxCap",
+	})
+
 	// do not lock here since it's used internally
 	currentConn := len(pool.occupiedConnections) + pool.idleConnections.Len()
 	if currentConn > pool.config.MaxCap {
-		util.LogWarnf("the number of opened connections %d exceeded maxCap %d", currentConn, pool.config.MaxCap)
+		logger.Warnf("the number of opened connections %d exceeded maxCap %d", currentConn, pool.config.MaxCap)
 	}
 }
 
 // Get gets a new or an idle connection out of the pool
 func (pool *ConnectionPool) Get() (*connection.IRODSConnection, error) {
+	logger := log.WithFields(log.Fields{
+		"package":  "session",
+		"struct":   "ConnectionPool",
+		"function": "Get",
+	})
+
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
 
@@ -167,11 +186,11 @@ func (pool *ConnectionPool) Get() (*connection.IRODSConnection, error) {
 				if idleConn.IsConnected() {
 					// move to occupied connections
 					pool.occupiedConnections[idleConn] = true
-					util.LogInfo("Reuse an idle connection")
+					logger.Info("Reuse an idle connection")
 					return idleConn, nil
 				}
 
-				util.LogWarn("failed to reuse an idle connection. already disconnected. discarding.")
+				logger.Warn("failed to reuse an idle connection. already disconnected. discarding.")
 			}
 		}
 	}
@@ -180,7 +199,7 @@ func (pool *ConnectionPool) Get() (*connection.IRODSConnection, error) {
 	newConn := connection.NewIRODSConnection(pool.config.Account, pool.config.OperationTimeout, pool.config.ApplicationName)
 	err = newConn.Connect()
 	if err != nil {
-		util.LogErrorf("failed to create a new connection - %v", err)
+		logger.Errorf("failed to create a new connection - %v", err)
 		return nil, err
 	}
 
@@ -192,6 +211,12 @@ func (pool *ConnectionPool) Get() (*connection.IRODSConnection, error) {
 
 // Return returns the connection after use
 func (pool *ConnectionPool) Return(conn *connection.IRODSConnection) error {
+	logger := log.WithFields(log.Fields{
+		"package":  "session",
+		"struct":   "ConnectionPool",
+		"function": "Return",
+	})
+
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
 
@@ -201,12 +226,12 @@ func (pool *ConnectionPool) Return(conn *connection.IRODSConnection) error {
 		delete(pool.occupiedConnections, conn)
 	} else {
 		// cannot find it from occupied map
-		util.LogError("failed to find the connection from occupied connections")
+		logger.Error("failed to find the connection from occupied connections")
 		return fmt.Errorf("failed to find the connection from occupied connections")
 	}
 
 	if !conn.IsConnected() {
-		util.LogWarn("failed to return the connection. already closed. discarding.")
+		logger.Warn("failed to return the connection. already closed. discarding.")
 		return nil
 	}
 

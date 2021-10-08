@@ -3,7 +3,7 @@ package session
 import (
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/types"
-	"github.com/cyverse/go-irodsclient/irods/util"
+	log "github.com/sirupsen/logrus"
 )
 
 // IRODSSession manages connections to iRODS
@@ -15,6 +15,11 @@ type IRODSSession struct {
 
 // NewIRODSSession create a IRODSSession
 func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*IRODSSession, error) {
+	logger := log.WithFields(log.Fields{
+		"package":  "session",
+		"function": "NewIRODSSession",
+	})
+
 	sess := IRODSSession{
 		account: account,
 		config:  config,
@@ -32,7 +37,7 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 
 	pool, err := NewConnectionPool(&poolConfig)
 	if err != nil {
-		util.LogErrorf("cannot create a new connection pool - %v", err)
+		logger.Errorf("cannot create a new connection pool - %v", err)
 		return nil, err
 	}
 
@@ -42,10 +47,16 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 
 // AcquireConnection returns an idle connection
 func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, error) {
+	logger := log.WithFields(log.Fields{
+		"package":  "session",
+		"struct":   "IRODSSession",
+		"function": "AcquireConnection",
+	})
+
 	// get a conenction
 	conn, err := sess.connectionPool.Get()
 	if err != nil {
-		util.LogErrorf("failed to get an idle connection - %v", err)
+		logger.Errorf("failed to get an idle connection - %v", err)
 		return nil, err
 	}
 
@@ -67,7 +78,7 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 		// future queries.
 		err = conn.PoorMansRollback()
 		if err != nil {
-			util.LogErrorf("could not perform poor man rollback for the connection - %v", err)
+			logger.Errorf("could not perform poor man rollback for the connection - %v", err)
 			_ = sess.ReturnConnection(conn)
 			return nil, err
 		}
@@ -78,9 +89,15 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 
 // ReturnConnection returns an idle connection
 func (sess *IRODSSession) ReturnConnection(conn *connection.IRODSConnection) error {
+	logger := log.WithFields(log.Fields{
+		"package":  "session",
+		"struct":   "IRODSSession",
+		"function": "ReturnConnection",
+	})
+
 	err := sess.connectionPool.Return(conn)
 	if err != nil {
-		util.LogErrorf("failed to return an idle connection - %v", err)
+		logger.Errorf("failed to return an idle connection - %v", err)
 		return err
 	}
 	return nil
