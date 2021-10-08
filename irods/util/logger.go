@@ -76,8 +76,8 @@ func LogWarn(message interface{}) {
 	log.Warn(message)
 }
 
-// LogWarningf logs warning level message
-func LogWarningf(format string, v ...interface{}) {
+// LogWarnf logs warn level message
+func LogWarnf(format string, v ...interface{}) {
 	log.Warnf(format, v...)
 }
 

@@ -1,92 +1,60 @@
 package session
 
 import (
-	"fmt"
-
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
-	"github.com/silenceper/pool"
 )
 
 // IRODSSession manages connections to iRODS
 type IRODSSession struct {
-	Account        *types.IRODSAccount
-	Config         *IRODSSessionConfig
-	ConnectionPool pool.Pool
+	account        *types.IRODSAccount
+	config         *IRODSSessionConfig
+	connectionPool *ConnectionPool
 }
 
 // NewIRODSSession create a IRODSSession
 func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*IRODSSession, error) {
 	sess := IRODSSession{
-		Account: account,
-		Config:  config,
+		account: account,
+		config:  config,
 	}
 
-	poolConfig := pool.Config{
-		InitialCap:  config.ConnectionInitNumber,
-		MaxIdle:     config.ConnectionMaxIdle,
-		MaxCap:      config.ConnectionMax,
-		Factory:     sess.connOpen,
-		Ping:        sess.connPing,
-		Close:       sess.connClose,
-		IdleTimeout: config.IdleTimeout,
+	poolConfig := ConnectionPoolConfig{
+		Account:          account,
+		ApplicationName:  config.ApplicationName,
+		InitialCap:       config.ConnectionInitNumber,
+		MaxIdle:          config.ConnectionMaxIdle,
+		MaxCap:           config.ConnectionMax,
+		IdleTimeout:      config.IdleTimeout,
+		OperationTimeout: config.OperationTimeout,
 	}
 
-	p, err := pool.NewChannelPool(&poolConfig)
+	pool, err := NewConnectionPool(&poolConfig)
 	if err != nil {
 		util.LogErrorf("cannot create a new connection pool - %v", err)
 		return nil, err
 	}
 
-	sess.ConnectionPool = p
+	sess.connectionPool = pool
 	return &sess, nil
-}
-
-func (sess *IRODSSession) connOpen() (interface{}, error) {
-	// create a conenction
-	conn := connection.NewIRODSConnection(sess.Account, sess.Config.OperationTimeout, sess.Config.ApplicationName)
-	err := conn.Connect()
-	if err != nil {
-		util.LogErrorf("could not connect - %v", err)
-		return nil, err
-	}
-	return conn, nil
-}
-
-func (sess *IRODSSession) connPing(v interface{}) error {
-	// test a conenction
-	conn := v.(*connection.IRODSConnection)
-	if !conn.IsConnected() {
-		util.LogError("disconnected connection")
-		return fmt.Errorf("disconnected connection")
-	}
-	return nil
-}
-
-func (sess *IRODSSession) connClose(v interface{}) error {
-	// close a conenction
-	conn := v.(*connection.IRODSConnection)
-	return conn.Disconnect()
 }
 
 // AcquireConnection returns an idle connection
 func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, error) {
 	// get a conenction
-	v, err := sess.ConnectionPool.Get()
+	conn, err := sess.connectionPool.Get()
 	if err != nil {
-		util.LogErrorf("could not get an idle connection - %v", err)
+		util.LogErrorf("failed to get an idle connection - %v", err)
 		return nil, err
 	}
 
-	conn := v.(*connection.IRODSConnection)
-
-	if len(sess.Account.Ticket) > 0 {
+	if len(sess.account.Ticket) > 0 {
 		// when ticket is used, we cannot use transaction since we don't have access to home dir
 		return conn, nil
 	}
 
-	if sess.Config.StartNewTransaction {
+	if sess.config.StartNewTransaction {
 		// Each irods connection automatically starts a database transaction at initial setup.
 		// All queries against irods using a connection will give results corresponding to the time
 		// the connection was made, or since the last change using the very same connection.
@@ -110,9 +78,9 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 
 // ReturnConnection returns an idle connection
 func (sess *IRODSSession) ReturnConnection(conn *connection.IRODSConnection) error {
-	err := sess.ConnectionPool.Put(conn)
+	err := sess.connectionPool.Return(conn)
 	if err != nil {
-		util.LogErrorf("could not return an idle connection - %v", err)
+		util.LogErrorf("failed to return an idle connection - %v", err)
 		return err
 	}
 	return nil
@@ -120,10 +88,10 @@ func (sess *IRODSSession) ReturnConnection(conn *connection.IRODSConnection) err
 
 // Release releases all connections
 func (sess *IRODSSession) Release() {
-	sess.ConnectionPool.Release()
+	sess.connectionPool.Release()
 }
 
 // Connections returns the number of connections in the pool
 func (sess *IRODSSession) Connections() int {
-	return sess.ConnectionPool.Len()
+	return sess.connectionPool.OpenConnections()
 }
