@@ -36,7 +36,7 @@ func NewIRODSSessionConfig(applicationName string, operationTimeout time.Duratio
 		IdleTimeout:          idleTimeout,
 		ConnectionMax:        connectionMax,
 		ConnectionInitNumber: 1,
-		ConnectionMaxIdle:    1,
+		ConnectionMaxIdle:    IRODSSessionConnectionMaxMin,
 		StartNewTransaction:  startNewTransaction,
 	}
 }
@@ -49,7 +49,7 @@ func NewIRODSSessionConfigWithDefault(applicationName string) *IRODSSessionConfi
 		IdleTimeout:          IRODSSessionTimeoutDefault,
 		ConnectionMax:        IRODSSessionConnectionMaxDefault,
 		ConnectionInitNumber: 1,
-		ConnectionMaxIdle:    1,
+		ConnectionMaxIdle:    IRODSSessionConnectionMaxMin,
 		StartNewTransaction:  true,
 	}
 }
