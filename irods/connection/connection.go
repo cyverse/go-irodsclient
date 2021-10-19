@@ -189,6 +189,8 @@ func (conn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, er
 			return nil, fmt.Errorf("unable to parse server policy - %v", err)
 		}
 
+		logger.Infof("Client policy - %s, server policy - %s", clientPolicy, serverPolicy)
+
 		// Perform the negotiation
 		policyResult, status := types.PerformCSNegotiation(clientPolicy, serverPolicy)
 

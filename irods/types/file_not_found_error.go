@@ -32,5 +32,6 @@ func IsFileNotFoundError(err error) bool {
 	if _, ok := err.(*FileNotFoundError); ok {
 		return true
 	}
+
 	return false
 }
