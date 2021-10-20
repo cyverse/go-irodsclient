@@ -30,6 +30,7 @@ func testSession(t *testing.T) {
 
 	sess, err := session.NewIRODSSession(account, sessionConfig)
 	assert.NoError(t, err)
+	defer sess.Release()
 
 	// first
 	conn, err := sess.AcquireConnection()
@@ -43,13 +44,11 @@ func testSession(t *testing.T) {
 		t.FailNow()
 	}
 
-	assert.Equal(t, collection.Path, homedir)
+	assert.Equal(t, homedir, collection.Path)
 	assert.NotEmpty(t, collection.ID)
 
 	err = sess.ReturnConnection(conn)
 	assert.NoError(t, err)
-
-	sess.Release()
 }
 
 func testManyConnections(t *testing.T) {
@@ -62,6 +61,7 @@ func testManyConnections(t *testing.T) {
 
 	sess, err := session.NewIRODSSession(account, sessionConfig)
 	assert.NoError(t, err)
+	defer sess.Release()
 
 	connections := []*connection.IRODSConnection{}
 
@@ -76,7 +76,7 @@ func testManyConnections(t *testing.T) {
 
 		connections = append(connections, conn)
 
-		assert.Equal(t, collection.Path, homedir)
+		assert.Equal(t, homedir, collection.Path)
 		assert.NotEmpty(t, collection.ID)
 	}
 
@@ -84,6 +84,4 @@ func testManyConnections(t *testing.T) {
 		err = sess.ReturnConnection(conn)
 		assert.NoError(t, err)
 	}
-
-	sess.Release()
 }
