@@ -6,6 +6,7 @@ import (
 
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/types"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIRODSConnection(t *testing.T) {
@@ -22,17 +23,14 @@ func testIRODSConnection(t *testing.T) {
 
 	account.ClientServerNegotiation = false
 	account.CSNegotiationPolicy = types.CSNegotiationDontCare
-	t.Logf("Account : %v", account.MaskSensitiveData())
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
 	err := conn.Connect()
-	if err != nil {
-		t.Error(err)
-		t.FailNow()
-	}
+	assert.NoError(t, err)
 
 	ver := conn.GetVersion()
-	t.Logf("Version : %v", ver)
+	verMajor, _, _ := ver.GetReleaseVersion()
+	assert.GreaterOrEqual(t, 4, verMajor)
 
 	conn.Disconnect()
 }
@@ -42,17 +40,14 @@ func testIRODSConnectionWithNegotiation(t *testing.T) {
 
 	account.ClientServerNegotiation = true
 	account.CSNegotiationPolicy = types.CSNegotiationRequireTCP
-	t.Logf("Account : %v", account.MaskSensitiveData())
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
 	err := conn.Connect()
-	if err != nil {
-		t.Error(err)
-		t.FailNow()
-	}
+	assert.NoError(t, err)
 
 	ver := conn.GetVersion()
-	t.Logf("Version : %v", ver)
+	verMajor, _, _ := ver.GetReleaseVersion()
+	assert.GreaterOrEqual(t, 4, verMajor)
 
 	conn.Disconnect()
 }
