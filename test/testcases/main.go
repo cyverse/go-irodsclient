@@ -1,6 +1,8 @@
 package testcases
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -106,6 +108,30 @@ func testPrepareSamples(t *testing.T) {
 		irodsPath := homedir + "/" + filename
 		err = fs.UploadDataObject(sess, filename, irodsPath, "", false)
 		assert.NoError(t, err)
+
+		conn, err := sess.AcquireConnection()
+		assert.NoError(t, err)
+
+		sha1sum := sha1.New()
+		_, err = sha1sum.Write([]byte(irodsPath))
+		assert.NoError(t, err)
+
+		hashBytes := sha1sum.Sum(nil)
+		hashString := hex.EncodeToString(hashBytes)
+
+		err = fs.AddDataObjectMeta(conn, irodsPath, &types.IRODSMeta{
+			Name:  "hash",
+			Value: hashString,
+		})
+		assert.NoError(t, err)
+
+		err = fs.AddDataObjectMeta(conn, irodsPath, &types.IRODSMeta{
+			Name:  "tag",
+			Value: "test",
+		})
+		assert.NoError(t, err)
+
+		sess.ReturnConnection(conn)
 
 		testFiles = append(testFiles, irodsPath)
 

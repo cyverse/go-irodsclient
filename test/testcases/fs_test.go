@@ -1,6 +1,8 @@
 package testcases
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
 	"testing"
 
@@ -14,6 +16,7 @@ func TestFS(t *testing.T) {
 	t.Run("test PrepareSamples", testPrepareSamples)
 
 	t.Run("test ListEntries", testListEntries)
+	t.Run("test ListEntriesByMeta", testListEntriesByMeta)
 	t.Run("test ListACLs", testListACLs)
 	t.Run("test ReadWrite", testReadWrite)
 
@@ -51,32 +54,32 @@ func testListEntries(t *testing.T) {
 	assert.ElementsMatch(t, collectionPaths, expected)
 }
 
-/*
 func testListEntriesByMeta(t *testing.T) {
-	logger := log.WithFields(log.Fields{
-		"package":  "fs",
-		"function": "TestListEntriesByMeta",
-	})
+	account := GetTestAccount()
 
-	setup()
+	account.ClientServerNegotiation = false
 
-	entries, err := fs.SearchByMeta("ipc_UUID", "3241af9a-c199-11e5-bd90-3c4a92e4a804")
-	if err != nil {
-		t.Errorf("err - %v", err)
-		panic(err)
+	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
+
+	fs, err := fs.NewFileSystem(account, fsConfig)
+	assert.NoError(t, err)
+	defer fs.Release()
+
+	for _, testFilePath := range GetTestFiles() {
+		sha1sum := sha1.New()
+		_, err = sha1sum.Write([]byte(testFilePath))
+		assert.NoError(t, err)
+
+		hashBytes := sha1sum.Sum(nil)
+		hashString := hex.EncodeToString(hashBytes)
+
+		entries, err := fs.SearchByMeta("hash", hashString)
+		assert.NoError(t, err)
+
+		assert.Equal(t, 1, len(entries))
+		assert.Equal(t, testFilePath, entries[0].Path)
 	}
-
-	if len(entries) == 0 {
-		logger.Debug("There is no entries")
-	} else {
-		for _, entry := range entries {
-			logger.Debugf("Entry : %v", entry)
-		}
-	}
-
-	shutdown()
 }
-*/
 
 func testListACLs(t *testing.T) {
 	account := GetTestAccount()

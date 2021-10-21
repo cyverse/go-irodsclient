@@ -1,6 +1,8 @@
 package testcases
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
 	"path"
 	"testing"
@@ -32,6 +34,8 @@ func TestFSAPI(t *testing.T) {
 	t.Run("test CreateDeleteIRODSDataObject", testCreateDeleteIRODSDataObject)
 	t.Run("test ReadWriteIRODSDataObject", testReadWriteIRODSDataObject)
 	t.Run("test ListIRODSGroupUsers", testListIRODSGroupUsers)
+	t.Run("test SearchDataObjectsByMeta", testSearchDataObjectsByMeta)
+	t.Run("test SearchDataObjectsByMetaWildcard", testSearchDataObjectsByMetaWildcard)
 
 	shutdown()
 }
@@ -532,7 +536,6 @@ func testListIRODSGroupUsers(t *testing.T) {
 	assert.Contains(t, adminUsers, "rods")
 }
 
-/*
 func testSearchDataObjectsByMeta(t *testing.T) {
 	account := GetTestAccount()
 
@@ -543,44 +546,50 @@ func testSearchDataObjectsByMeta(t *testing.T) {
 	assert.NoError(t, err)
 	defer conn.Disconnect()
 
-	dataobjects, err := fs.SearchDataObjectsByMeta(conn, "ipc_UUID", "3241af9a-c199-11e5-bd90-3c4a92e4a804")
-	if err != nil {
-		t.Errorf("err - %v", err)
-		panic(err)
-	}
+	for _, testFilePath := range GetTestFiles() {
+		sha1sum := sha1.New()
+		_, err = sha1sum.Write([]byte(testFilePath))
+		assert.NoError(t, err)
 
-	for _, dataobject := range dataobjects {
-		logger.Debugf("DataObject : %v", dataobject)
-		for _, replica := range dataobject.Replicas {
-			logger.Debugf("Replica : %v", replica)
-		}
-	}
+		hashBytes := sha1sum.Sum(nil)
+		hashString := hex.EncodeToString(hashBytes)
 
-	shutdown()
+		dataobjects, err := fs.SearchDataObjectsByMeta(conn, "hash", hashString)
+		assert.NoError(t, err)
+
+		assert.Equal(t, 1, len(dataobjects))
+		assert.Equal(t, testFilePath, dataobjects[0].Path)
+	}
 }
 
-func TestSearchDataObjectsByMetaWildcard(t *testing.T) {
-	logger := log.WithFields(log.Fields{
-		"package":  "fs",
-		"function": "TestSearchDataObjectsByMetaWildcard",
-	})
+func testSearchDataObjectsByMetaWildcard(t *testing.T) {
+	account := GetTestAccount()
 
-	setup()
+	account.ClientServerNegotiation = false
+
+	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
+	err := conn.Connect()
+	assert.NoError(t, err)
+	defer conn.Disconnect()
 
 	// this takes a long time to perform
-	dataobjects, err := SearchDataObjectsByMetaWildcard(conn, "ipc_UUID", "3241af9a-c199-11e5-bd90-3c4a92e4a80%")
-	if err != nil {
-		t.Errorf("err - %v", err)
-		panic(err)
+	for _, testFilePath := range GetTestFiles() {
+		sha1sum := sha1.New()
+		_, err = sha1sum.Write([]byte(testFilePath))
+		assert.NoError(t, err)
+
+		hashBytes := sha1sum.Sum(nil)
+		hashString := hex.EncodeToString(hashBytes)
+
+		dataobjects, err := fs.SearchDataObjectsByMetaWildcard(conn, "hash", hashString+"%")
+		assert.NoError(t, err)
+
+		assert.Equal(t, 1, len(dataobjects))
+		assert.Equal(t, testFilePath, dataobjects[0].Path)
 	}
 
-	for _, dataobject := range dataobjects {
-		logger.Debugf("DataObject : %v", dataobject)
-		for _, replica := range dataobject.Replicas {
-			logger.Debugf("Replica : %v", replica)
-		}
-	}
+	dataobjects, err := fs.SearchDataObjectsByMetaWildcard(conn, "tag", "test%")
+	assert.NoError(t, err)
 
-	shutdown()
+	assert.Equal(t, len(GetTestFiles()), len(dataobjects))
 }
-*/
