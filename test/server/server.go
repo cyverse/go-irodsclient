@@ -100,7 +100,7 @@ func stopServerExec() error {
 	return nil
 }
 
-func StartServer() (*types.IRODSAccount, error) {
+func StartServer() error {
 	logger := log.WithFields(log.Fields{
 		"package":  "server",
 		"function": "StartServer",
@@ -109,8 +109,17 @@ func StartServer() (*types.IRODSAccount, error) {
 	err := startServerExec()
 	if err != nil {
 		logger.WithError(err).Error("failed to start iRODS test server")
-		return nil, err
+		return err
 	}
+
+	return nil
+}
+
+func GetLocalAccount() (*types.IRODSAccount, error) {
+	logger := log.WithFields(log.Fields{
+		"package":  "server",
+		"function": "GetLocalAccount",
+	})
 
 	account, err := types.CreateIRODSAccount(testServerHost, testServerPort, testServerAdminUser, testServerZone, types.AuthSchemeNative, testServerAdminPassword, "")
 	if err != nil {

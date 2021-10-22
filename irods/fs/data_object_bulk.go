@@ -43,6 +43,11 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 		"function": "UploadDataObject",
 	})
 
+	_, err := os.Stat(localPath)
+	if err != nil {
+		return err
+	}
+
 	logger.Debugf("upload data object - %s\n", localPath)
 
 	conn, err := session.AcquireConnection()
@@ -114,11 +119,18 @@ func SupportParallUpload(conn *connection.IRODSConnection) bool {
 
 // UploadDataObjectParallel put a data object at the local path to the iRODS path in parallel
 // Partitions a file into n (taskNum) tasks and uploads in parallel
-func UploadDataObjectParallel(session *session.IRODSSession, localPath string, irodsPath string, resource string, fileLength int64, taskNum int, replicate bool) error {
+func UploadDataObjectParallel(session *session.IRODSSession, localPath string, irodsPath string, resource string, taskNum int, replicate bool) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "fs",
 		"function": "UploadDataObjectParallel",
 	})
+
+	stat, err := os.Stat(localPath)
+	if err != nil {
+		return err
+	}
+
+	fileLength := stat.Size()
 
 	conn, err := session.AcquireConnection()
 	if err != nil {
@@ -153,6 +165,8 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 		return err
 	}
 
+	logger.Infof("replicaToken %s, resourceHierarchy %s", replicaToken, resourceHierarchy)
+
 	errChan := make(chan error, numTasks)
 	taskWaitGroup := sync.WaitGroup{}
 
@@ -170,7 +184,9 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 			return
 		}
 
-		taskHandle, _, taskErr := OpenDataObjectWithReplicaToken(taskConn, irodsPath, resource, "r+", replicaToken, resourceHierarchy)
+		logger.Info("Opening...")
+
+		taskHandle, _, taskErr := OpenDataObjectWithReplicaToken(taskConn, irodsPath, resource, "a", replicaToken, resourceHierarchy)
 		if taskErr != nil {
 			errChan <- taskErr
 			return
@@ -183,6 +199,8 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 			return
 		}
 		defer f.Close()
+
+		logger.Info("Seeking...")
 
 		taskNewOffset, taskErr := SeekDataObject(taskConn, taskHandle, taskOffset, types.SeekSet)
 		if taskErr != nil {
@@ -264,11 +282,23 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 
 // UploadDataObjectParallelInBlockAsync put a data object at the local path to the iRODS path in parallel
 // Chunks a file into fixed-size blocks and transfers them using n (taskNum) tasks in parallel
-func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPath string, irodsPath string, resource string, fileLength int64, blockLength int64, taskNum int, replicate bool) (chan int64, chan error) {
+func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPath string, irodsPath string, resource string, blockLength int64, taskNum int, replicate bool) (chan int64, chan error) {
 	logger := log.WithFields(log.Fields{
 		"package":  "fs",
 		"function": "UploadDataObjectParallelInBlockAsync",
 	})
+
+	stat, err := os.Stat(localPath)
+	if err != nil {
+		outputChan := make(chan int64, 1)
+		errChan := make(chan error, 1)
+		errChan <- err
+		close(outputChan)
+		close(errChan)
+		return outputChan, errChan
+	}
+
+	fileLength := stat.Size()
 
 	conn, err := session.AcquireConnection()
 	if err != nil {

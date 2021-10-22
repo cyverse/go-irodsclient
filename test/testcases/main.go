@@ -29,8 +29,27 @@ func setup() {
 		"function": "setup",
 	})
 
+	err := server.StartServer()
+	if err != nil {
+		logger.Error(err)
+		panic(err)
+	}
+
+	account, err = server.GetLocalAccount()
+	if err != nil {
+		logger.Error(err)
+		panic(err)
+	}
+}
+
+func setup_existing() {
+	logger := log.WithFields(log.Fields{
+		"package":  "test",
+		"function": "setup_existing",
+	})
+
 	var err error
-	account, err = server.StartServer()
+	account, err = server.GetLocalAccount()
 	if err != nil {
 		logger.Error(err)
 		panic(err)

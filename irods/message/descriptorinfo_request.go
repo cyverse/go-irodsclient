@@ -1,35 +1,57 @@
 package message
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"encoding/xml"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
 )
 
 // IRODSMessageDescriptorInfoRequest stores data object descriptor info. request
-// Uses JSON, not XML
 type IRODSMessageDescriptorInfoRequest struct {
 	FileDescriptor int `json:"fd"`
 }
 
 // NewIRODSMessageDescriptorInfoRequest creates a IRODSMessageDescriptorInfoRequest message
 func NewIRODSMessageDescriptorInfoRequest(desc int) *IRODSMessageDescriptorInfoRequest {
-	request := &IRODSMessageDescriptorInfoRequest{
+	return &IRODSMessageDescriptorInfoRequest{
 		FileDescriptor: desc,
 	}
-
-	return request
 }
 
 // GetBytes returns byte array
 func (msg *IRODSMessageDescriptorInfoRequest) GetBytes() ([]byte, error) {
-	jsonBytes, err := json.Marshal(msg)
-	return jsonBytes, err
+	jsonBody, err := json.Marshal(msg)
+	if err != nil {
+		return nil, err
+	}
+
+	jsonBodyBin := base64.StdEncoding.EncodeToString(jsonBody)
+
+	binBytesBuf := IRODSMessageBinBytesBuf{
+		Length: len(jsonBody), // use original data's length
+		Data:   jsonBodyBin,
+	}
+
+	xmlBytes, err := xml.Marshal(binBytesBuf)
+	return xmlBytes, err
 }
 
 // FromBytes returns struct from bytes
 func (msg *IRODSMessageDescriptorInfoRequest) FromBytes(bytes []byte) error {
-	err := json.Unmarshal(bytes, msg)
+	binBytesBuf := IRODSMessageBinBytesBuf{}
+	err := xml.Unmarshal(bytes, &binBytesBuf)
+	if err != nil {
+		return err
+	}
+
+	jsonBody, err := base64.StdEncoding.DecodeString(binBytesBuf.Data)
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(jsonBody, msg)
 	return err
 }
 

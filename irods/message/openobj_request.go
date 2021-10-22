@@ -58,6 +58,29 @@ func NewIRODSMessageOpenobjRequestWithOperation(path string, resource string, mo
 	return request
 }
 
+// NewIRODSMessageOpenobjRequest creates a IRODSMessageOpenobjRequest message
+func NewIRODSMessageOpenobjRequestWithReplicaToken(path string, mode types.FileOpenMode, resourceHierarchy string, replicaToken string) *IRODSMessageOpenobjRequest {
+	flags, _ := types.GetFileOpenFlagSeekToEnd(mode)
+
+	request := &IRODSMessageOpenobjRequest{
+		Path:          path,
+		CreateMode:    0,
+		OpenFlags:     flags,
+		Offset:        0,
+		Size:          -1,
+		Threads:       0,
+		OperationType: 0,
+		KeyVals: IRODSMessageSSKeyVal{
+			Length: 0,
+		},
+	}
+
+	request.AddKeyVal(common.RESC_HIER_STR_KW, resourceHierarchy)
+	request.AddKeyVal(common.REPLICA_TOKEN_KW, replicaToken)
+
+	return request
+}
+
 // AddKeyVal adds a key-value pair
 func (msg *IRODSMessageOpenobjRequest) AddKeyVal(key common.KeyWord, val string) {
 	msg.KeyVals.Add(string(key), val)

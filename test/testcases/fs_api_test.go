@@ -4,21 +4,22 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"path"
 	"testing"
 	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/fs"
+	"github.com/cyverse/go-irodsclient/irods/session"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestFSAPI(t *testing.T) {
 	setup()
-
+	
 	t.Run("test PrepareSamples", testPrepareSamples)
-
 	t.Run("test GetIRODSCollection", testGetIRODSCollection)
 	t.Run("test ListIRODSCollections", testListIRODSCollections)
 	t.Run("test ListIRODSCollectionMeta", testListIRODSCollectionMeta)
@@ -36,6 +37,7 @@ func TestFSAPI(t *testing.T) {
 	t.Run("test ListIRODSGroupUsers", testListIRODSGroupUsers)
 	t.Run("test SearchDataObjectsByMeta", testSearchDataObjectsByMeta)
 	t.Run("test SearchDataObjectsByMetaWildcard", testSearchDataObjectsByMetaWildcard)
+	t.Run("test ParallelUploadAndDownloadDataObject", testParallelUploadAndDownloadDataObject)
 
 	shutdown()
 }
@@ -592,4 +594,74 @@ func testSearchDataObjectsByMetaWildcard(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, len(GetTestFiles()), len(dataobjects))
+}
+
+func testParallelUploadAndDownloadDataObject(t *testing.T) {
+	account := GetTestAccount()
+
+	account.ClientServerNegotiation = false
+
+	sessionConfig := session.NewIRODSSessionConfigWithDefault("go-irodsclient-test")
+
+	sess, err := session.NewIRODSSession(account, sessionConfig)
+	assert.NoError(t, err)
+	defer sess.Release()
+
+	conn, err := sess.AcquireConnection()
+	assert.NoError(t, err)
+
+	if !fs.SupportParallUpload(conn) {
+		sess.ReturnConnection(conn)
+		return
+	}
+
+	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+
+	// gen very large file
+	testval := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" // 62
+	fileSize := 100 * 1024 * 1024                                               // 100MB
+
+	filename := "test_large_file.bin"
+	bufSize := 1024
+	buf := make([]byte, bufSize)
+
+	os.Open("")
+	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	assert.NoError(t, err)
+
+	for i := 0; i < fileSize/bufSize; i++ {
+		// fill buf
+		for j := 0; j < bufSize; j++ {
+			buf[j] = testval[j%len(testval)]
+		}
+
+		_, err = f.Write(buf)
+		assert.NoError(t, err)
+	}
+
+	err = f.Close()
+	assert.NoError(t, err)
+
+	// upload
+	irodsPath := homedir + "/" + filename
+	err = fs.UploadDataObjectParallel(sess, filename, irodsPath, "", 4, false)
+	assert.NoError(t, err)
+
+	err = os.Remove(filename)
+	assert.NoError(t, err)
+
+	// get
+	collection, err := fs.GetCollection(conn, homedir)
+	assert.NoError(t, err)
+
+	obj, err := fs.GetDataObject(conn, collection, filename)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, obj.ID)
+	assert.Equal(t, int64(fileSize), obj.Size)
+
+	// delete
+	err = fs.DeleteDataObject(conn, irodsPath, true)
+	assert.NoError(t, err)
+
+	sess.ReturnConnection(conn)
 }

@@ -1,7 +1,9 @@
 package message
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
@@ -11,28 +13,28 @@ import (
 // IRODSMessageDescriptorInfoResponse stores data object descriptor info. response
 type IRODSMessageDescriptorInfoResponse struct {
 	L3DescriptorIndex       int                    `json:"l3descInx"`
-	InUseFlag               int                    `json:"InuseFlag"`
-	OperationType           int                    `json:"oprType"`
-	OpenType                int                    `json:"openType"`
-	OperationStatus         int                    `json:"oprStatus"`
-	ReplicationFlag         int                    `json:"dataObjInpReplFlag"`
-	DataObjectInput         map[string]interface{} `json:"dataObjInp"`
-	DataObjectInfo          map[string]interface{} `json:"dataObjInfo"`
-	OtherDataObjectInfo     map[string]interface{} `json:"otherDataObjInfo"`
-	CopiesNeeded            int                    `json:"copiesNeeded"`
-	BytesWritten            int64                  `json:"bytesWritten"`
-	DataSize                int64                  `json:"dataSize"`
-	ReplicaStatus           int                    `json:"replStatus"`
-	ChecksumFlag            int                    `json:"chksumFlag"`
-	SourceL1DescriptorIndex int                    `json:"srcL1descInx"`
-	Checksum                string                 `json:"chksum"`
-	RemoteL1DescriptorIndex int                    `json:"remoteL1descInx"`
-	StageFlag               int                    `json:"stageFlag"`
-	PurgeCacheFlag          int                    `json:"purgeCacheFlag"`
-	LockFileDescriptor      int                    `json:"lockFd"`
-	PluginData              map[string]interface{} `json:"pluginData"`
-	ReplicaDataObjectInfo   map[string]interface{} `json:"replDataObjInfo"`
-	RemoteZoneHost          map[string]interface{} `json:"remoteZoneHost"`
+	InUseFlag               bool                   `json:"in_use"`
+	OperationType           int                    `json:"operation_type"`
+	OpenType                int                    `json:"open_type"`
+	OperationStatus         int                    `json:"operation_status"`
+	ReplicationFlag         int                    `json:"data_object_input_replica_flag"`
+	DataObjectInput         map[string]interface{} `json:"data_object_input"`
+	DataObjectInfo          map[string]interface{} `json:"data_object_info"`
+	OtherDataObjectInfo     map[string]interface{} `json:"other_data_object_info"`
+	CopiesNeeded            int                    `json:"copies_needed"`
+	BytesWritten            int64                  `json:"bytes_written"`
+	DataSize                int64                  `json:"data_size"`
+	ReplicaStatus           int                    `json:"replica_status"`
+	ChecksumFlag            int                    `json:"checksum_flag"`
+	SourceL1DescriptorIndex int                    `json:"source_l1_descriptor_index"`
+	Checksum                string                 `json:"checksum"`
+	RemoteL1DescriptorIndex int                    `json:"remote_l1_descriptor_index"`
+	StageFlag               int                    `json:"stage_flag"`
+	PurgeCacheFlag          int                    `json:"purge_cache_flag"`
+	LockFileDescriptor      int                    `json:"lock_file_descriptor"`
+	PluginData              map[string]interface{} `json:"plugin_data"`
+	ReplicaDataObjectInfo   map[string]interface{} `json:"replication_data_object_info"`
+	RemoteZoneHost          map[string]interface{} `json:"remote_zone_host"`
 	InPDMO                  string                 `json:"in_pdmo"`
 	ReplicaToken            string                 `json:"replica_token"`
 	ResourceHierarchy       string                 `json:"resource_hierarchy"`
@@ -51,8 +53,29 @@ func (msg *IRODSMessageDescriptorInfoResponse) CheckError() error {
 
 // FromBytes returns struct from bytes
 func (msg *IRODSMessageDescriptorInfoResponse) FromBytes(bytes []byte) error {
-	// fill fields defined
-	err := json.Unmarshal(bytes, msg)
+	binBytesBuf := IRODSMessageBinBytesBuf{}
+	err := xml.Unmarshal(bytes, &binBytesBuf)
+	if err != nil {
+		return err
+	}
+
+	jsonBody, err := base64.StdEncoding.DecodeString(binBytesBuf.Data)
+	if err != nil {
+		return err
+	}
+
+	// remove trail \x00
+	actualLen := len(jsonBody)
+	for i := len(jsonBody) - 1; i >= 0; i-- {
+		if jsonBody[i] == '\x00' {
+			actualLen = i
+		}
+	}
+	jsonBody = jsonBody[:actualLen]
+
+	fmt.Printf("json => %s\n", string(jsonBody))
+
+	err = json.Unmarshal(jsonBody, msg)
 	if err != nil {
 		return err
 	}

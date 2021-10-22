@@ -1063,10 +1063,7 @@ func OpenDataObjectWithReplicaToken(conn *connection.IRODSConnection, path strin
 		return nil, -1, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	request := message.NewIRODSMessageOpenobjRequest(path, resource, types.FileOpenMode(mode))
-	request.AddKeyVal(common.RESC_HIER_STR_KW, resourceHierarchy)
-	request.AddKeyVal(common.REPLICA_TOKEN_KW, replicaToken)
-
+	request := message.NewIRODSMessageOpenobjRequestWithReplicaToken(path, types.FileOpenMode(mode), resourceHierarchy, replicaToken)
 	response := message.IRODSMessageOpenobjResponse{}
 	err := conn.RequestAndCheck(request, &response)
 	if err != nil {

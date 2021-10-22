@@ -891,7 +891,7 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 		}
 	}
 
-	err = irods_fs.UploadDataObjectParallel(fs.Session, localSrcPath, irodsFilePath, resource, srcStat.Size(), taskNum, replicate)
+	err = irods_fs.UploadDataObjectParallel(fs.Session, localSrcPath, irodsFilePath, resource, taskNum, replicate)
 	if err != nil {
 		return err
 	}
@@ -956,7 +956,7 @@ func (fs *FileSystem) UploadFileParallelInBlocksAsync(localPath string, irodsPat
 		}
 	}
 
-	outputChan2, errChan2 := irods_fs.UploadDataObjectParallelInBlockAsync(fs.Session, localSrcPath, irodsFilePath, resource, srcStat.Size(), blockLength, taskNum, replicate)
+	outputChan2, errChan2 := irods_fs.UploadDataObjectParallelInBlockAsync(fs.Session, localSrcPath, irodsFilePath, resource, blockLength, taskNum, replicate)
 	fs.invalidateCachePathRecursively(irodsFilePath)
 	return outputChan2, errChan2
 }
