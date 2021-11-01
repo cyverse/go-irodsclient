@@ -17,6 +17,7 @@ type FileSystemCache struct {
 	DirCache        *gocache.Cache
 	MetadataCache   *gocache.Cache
 	GroupUsersCache *gocache.Cache
+	UserGroupsCache *gocache.Cache
 	GroupsCache     *gocache.Cache
 	UsersCache      *gocache.Cache
 	DirACLsCache    *gocache.Cache
@@ -29,6 +30,7 @@ func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration) *File
 	dirCache := gocache.New(cacheTimeout, cleanup)
 	metadataCache := gocache.New(cacheTimeout, cleanup)
 	groupUsersCache := gocache.New(cacheTimeout, cleanup)
+	userGroupsCache := gocache.New(cacheTimeout, cleanup)
 	groupsCache := gocache.New(cacheTimeout, cleanup)
 	usersCache := gocache.New(cacheTimeout, cleanup)
 	dirACLsCache := gocache.New(cacheTimeout, cleanup)
@@ -41,6 +43,7 @@ func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration) *File
 		DirCache:        dirCache,
 		MetadataCache:   metadataCache,
 		GroupUsersCache: groupUsersCache,
+		UserGroupsCache: userGroupsCache,
 		GroupsCache:     groupsCache,
 		UsersCache:      usersCache,
 		DirACLsCache:    dirACLsCache,
@@ -178,6 +181,27 @@ func (cache *FileSystemCache) GetGroupUsersCache(group string) []*types.IRODSUse
 	if exist {
 		if irodsUsers, ok := users.([]*types.IRODSUser); ok {
 			return irodsUsers
+		}
+	}
+	return nil
+}
+
+// AddUserGroupsCache adds a user's groups (groups that a user belongs to) cache
+func (cache *FileSystemCache) AddUserGroupsCache(user string, groups []*types.IRODSUser) {
+	cache.UserGroupsCache.Set(user, groups, 0)
+}
+
+// RemoveUserGroupsCache removes a user's groups (groups that a user belongs to) cache
+func (cache *FileSystemCache) RemoveUserGroupsCache(user string) {
+	cache.UserGroupsCache.Delete(user)
+}
+
+// GetUserGroupsCache retrives a user's groups (groups that a user belongs to) cache
+func (cache *FileSystemCache) GetUserGroupsCache(user string) []*types.IRODSUser {
+	groups, exist := cache.UserGroupsCache.Get(user)
+	if exist {
+		if irodsGroups, ok := groups.([]*types.IRODSUser); ok {
+			return irodsGroups
 		}
 	}
 	return nil

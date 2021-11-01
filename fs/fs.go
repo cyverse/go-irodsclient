@@ -157,6 +157,42 @@ func (fs *FileSystem) ListGroups() ([]*types.IRODSUser, error) {
 	return groups, nil
 }
 
+// ListUserGroups lists all groups that a user belongs to
+func (fs *FileSystem) ListUserGroups(user string) ([]*types.IRODSUser, error) {
+	// check cache first
+	cachedGroups := fs.Cache.GetUserGroupsCache(user)
+	if cachedGroups != nil {
+		return cachedGroups, nil
+	}
+
+	// otherwise, retrieve it and add it to cache
+	conn, err := fs.Session.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.Session.ReturnConnection(conn)
+
+	groupNames, err := irods_fs.ListUserGroupNames(conn, user)
+	if err != nil {
+		return nil, err
+	}
+
+	groups := []*types.IRODSUser{}
+	for _, groupName := range groupNames {
+		group, err := irods_fs.GetGroup(conn, groupName)
+		if err != nil {
+			return nil, err
+		}
+
+		groups = append(groups, group)
+	}
+
+	// cache it
+	fs.Cache.AddUserGroupsCache(user, groups)
+
+	return groups, nil
+}
+
 // ListUsers lists all users
 func (fs *FileSystem) ListUsers() ([]*types.IRODSUser, error) {
 	// check cache first
@@ -344,6 +380,7 @@ func (fs *FileSystem) ListDirACLs(path string) ([]*types.IRODSAccess, error) {
 }
 
 // ListDirACLsWithGroupUsers returns ACLs of a directory
+// CAUTION: this can fail if a group contains a lot of users
 func (fs *FileSystem) ListDirACLsWithGroupUsers(path string) ([]*types.IRODSAccess, error) {
 	accesses, err := fs.ListDirACLs(path)
 	if err != nil {
