@@ -164,7 +164,8 @@ func (pool *ConnectionPool) warnExceedsMaxCap() {
 }
 
 // Get gets a new or an idle connection out of the pool
-func (pool *ConnectionPool) Get() (*connection.IRODSConnection, error) {
+// the boolean return value indicates if the returned conneciton is new (True) or existing idle (False)
+func (pool *ConnectionPool) Get() (*connection.IRODSConnection, bool, error) {
 	logger := log.WithFields(log.Fields{
 		"package":  "session",
 		"struct":   "ConnectionPool",
@@ -187,7 +188,7 @@ func (pool *ConnectionPool) Get() (*connection.IRODSConnection, error) {
 					// move to occupied connections
 					pool.occupiedConnections[idleConn] = true
 					logger.Info("Reuse an idle connection")
-					return idleConn, nil
+					return idleConn, false, nil
 				}
 
 				logger.Warn("failed to reuse an idle connection. already disconnected. discarding.")
@@ -198,6 +199,30 @@ func (pool *ConnectionPool) Get() (*connection.IRODSConnection, error) {
 	// create a new if not exists
 	newConn := connection.NewIRODSConnection(pool.config.Account, pool.config.OperationTimeout, pool.config.ApplicationName)
 	err = newConn.Connect()
+	if err != nil {
+		logger.Errorf("failed to create a new connection - %v", err)
+		return nil, false, err
+	}
+
+	pool.occupiedConnections[newConn] = true
+	pool.warnExceedsMaxCap()
+
+	return newConn, true, nil
+}
+
+// GetNew gets a new connection out of the pool
+func (pool *ConnectionPool) GetNew() (*connection.IRODSConnection, error) {
+	logger := log.WithFields(log.Fields{
+		"package":  "session",
+		"struct":   "ConnectionPool",
+		"function": "GetNew",
+	})
+
+	pool.mutex.Lock()
+	defer pool.mutex.Unlock()
+
+	newConn := connection.NewIRODSConnection(pool.config.Account, pool.config.OperationTimeout, pool.config.ApplicationName)
+	err := newConn.Connect()
 	if err != nil {
 		logger.Errorf("failed to create a new connection - %v", err)
 		return nil, err
@@ -251,6 +276,19 @@ func (pool *ConnectionPool) Return(conn *connection.IRODSConnection) error {
 
 	pool.warnExceedsMaxCap()
 	return nil
+}
+
+// Discard discards the connection
+func (pool *ConnectionPool) Discard(conn *connection.IRODSConnection) {
+	pool.mutex.Lock()
+	defer pool.mutex.Unlock()
+
+	// find it from occupied map
+	delete(pool.occupiedConnections, conn)
+
+	if conn.IsConnected() {
+		conn.Disconnect()
+	}
 }
 
 // OpenConnections returns total number of connections

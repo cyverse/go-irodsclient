@@ -8,9 +8,10 @@ import (
 
 // IRODSSession manages connections to iRODS
 type IRODSSession struct {
-	account        *types.IRODSAccount
-	config         *IRODSSessionConfig
-	connectionPool *ConnectionPool
+	account             *types.IRODSAccount
+	config              *IRODSSessionConfig
+	connectionPool      *ConnectionPool
+	startNewTransaction bool
 }
 
 // NewIRODSSession create a IRODSSession
@@ -41,6 +42,33 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 		return nil, err
 	}
 
+	// transaction
+	sess.startNewTransaction = config.StartNewTransaction
+
+	// when ticket is used, we cannot use transaction since we don't have access to home dir
+	if len(sess.account.Ticket) > 0 {
+		sess.startNewTransaction = false
+	}
+
+	// test if it can create a new transaction
+	if sess.startNewTransaction {
+		logger.Infof("testing perform poor man rollback")
+
+		conn, _, err := pool.Get()
+		if err != nil {
+			logger.Errorf("failed to get a test connection - %v", err)
+			pool.Release()
+			return nil, err
+		}
+
+		err = conn.PoorMansRollback()
+		if err != nil {
+			logger.Infof("could not perform poor man rollback for the connection, disabling poor mans rollback - %v", err)
+			_ = sess.DiscardConnection(conn)
+			sess.startNewTransaction = false
+		}
+	}
+
 	sess.connectionPool = pool
 	return &sess, nil
 }
@@ -54,18 +82,13 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 	})
 
 	// get a conenction
-	conn, err := sess.connectionPool.Get()
+	conn, isNewConn, err := sess.connectionPool.Get()
 	if err != nil {
 		logger.Errorf("failed to get an idle connection - %v", err)
 		return nil, err
 	}
 
-	if len(sess.account.Ticket) > 0 {
-		// when ticket is used, we cannot use transaction since we don't have access to home dir
-		return conn, nil
-	}
-
-	if sess.config.StartNewTransaction {
+	if sess.startNewTransaction && !isNewConn {
 		// Each irods connection automatically starts a database transaction at initial setup.
 		// All queries against irods using a connection will give results corresponding to the time
 		// the connection was made, or since the last change using the very same connection.
@@ -78,9 +101,14 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 		// future queries.
 		err = conn.PoorMansRollback()
 		if err != nil {
-			logger.Errorf("could not perform poor man rollback for the connection - %v", err)
-			_ = sess.ReturnConnection(conn)
-			return nil, err
+			logger.Infof("could not perform poor man rollback for the connection, creating a new connection - %v", err)
+			_ = sess.DiscardConnection(conn)
+
+			conn, err = sess.connectionPool.GetNew()
+			if err != nil {
+				logger.Errorf("failed to get a new connection - %v", err)
+				return nil, err
+			}
 		}
 	}
 
@@ -100,6 +128,12 @@ func (sess *IRODSSession) ReturnConnection(conn *connection.IRODSConnection) err
 		logger.Errorf("failed to return an idle connection - %v", err)
 		return err
 	}
+	return nil
+}
+
+// DiscardConnection discards a connection
+func (sess *IRODSSession) DiscardConnection(conn *connection.IRODSConnection) error {
+	sess.connectionPool.Discard(conn)
 	return nil
 }
 
