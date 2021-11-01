@@ -8,10 +8,11 @@ import (
 
 // IRODSSession manages connections to iRODS
 type IRODSSession struct {
-	account             *types.IRODSAccount
-	config              *IRODSSessionConfig
-	connectionPool      *ConnectionPool
-	startNewTransaction bool
+	account              *types.IRODSAccount
+	config               *IRODSSessionConfig
+	connectionPool       *ConnectionPool
+	startNewTransaction  bool
+	poormansRollbackFail bool
 }
 
 // NewIRODSSession create a IRODSSession
@@ -44,10 +45,12 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 
 	// transaction
 	sess.startNewTransaction = config.StartNewTransaction
+	sess.poormansRollbackFail = false
 
 	// when ticket is used, we cannot use transaction since we don't have access to home dir
 	if len(sess.account.Ticket) > 0 {
 		sess.startNewTransaction = false
+		sess.poormansRollbackFail = true
 	}
 
 	// test if it can create a new transaction
@@ -64,8 +67,11 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 		err = conn.PoorMansRollback()
 		if err != nil {
 			logger.Infof("could not perform poor man rollback for the connection, disabling poor mans rollback - %v", err)
-			_ = sess.DiscardConnection(conn)
-			sess.startNewTransaction = false
+			pool.Discard(conn)
+			sess.poormansRollbackFail = true
+		} else {
+			logger.Infof("using poor man rollback for the connection")
+			pool.Return(conn)
 		}
 	}
 
@@ -99,15 +105,27 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 		// which will do nothing to the database (there are no operations staged for commit/rollback),
 		// but which will close the current transaction and starts a new one - refreshing the view for
 		// future queries.
-		err = conn.PoorMansRollback()
-		if err != nil {
-			logger.Infof("could not perform poor man rollback for the connection, creating a new connection - %v", err)
-			_ = sess.DiscardConnection(conn)
+		if sess.poormansRollbackFail {
+			// always use new connection
+			sess.connectionPool.Discard(conn)
 
 			conn, err = sess.connectionPool.GetNew()
 			if err != nil {
 				logger.Errorf("failed to get a new connection - %v", err)
 				return nil, err
+			}
+		} else {
+			err = conn.PoorMansRollback()
+			if err != nil {
+				logger.Infof("could not perform poor man rollback for the connection, creating a new connection - %v", err)
+				sess.connectionPool.Discard(conn)
+				sess.poormansRollbackFail = true
+
+				conn, err = sess.connectionPool.GetNew()
+				if err != nil {
+					logger.Errorf("failed to get a new connection - %v", err)
+					return nil, err
+				}
 			}
 		}
 	}
@@ -122,6 +140,12 @@ func (sess *IRODSSession) ReturnConnection(conn *connection.IRODSConnection) err
 		"struct":   "IRODSSession",
 		"function": "ReturnConnection",
 	})
+
+	if sess.startNewTransaction && sess.poormansRollbackFail {
+		// discard, since we cannot reuse the connection
+		sess.connectionPool.Discard(conn)
+		return nil
+	}
 
 	err := sess.connectionPool.Return(conn)
 	if err != nil {
