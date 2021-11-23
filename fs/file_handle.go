@@ -103,6 +103,7 @@ func (handle *FileHandle) Read(length int) ([]byte, error) {
 	return bytes, nil
 }
 
+// ReadAt reads data from given offset
 func (handle *FileHandle) ReadAt(offset int64, length int) ([]byte, error) {
 	handle.Mutex.Lock()
 	defer handle.Mutex.Unlock()
@@ -157,7 +158,7 @@ func (handle *FileHandle) Write(data []byte) error {
 	return nil
 }
 
-// Write writes the file
+// WriteAt writes the file to given offset
 func (handle *FileHandle) WriteAt(offset int64, data []byte) error {
 	handle.Mutex.Lock()
 	defer handle.Mutex.Unlock()

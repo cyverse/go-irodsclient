@@ -115,7 +115,7 @@ func (pool *ConnectionPool) Release() {
 		}
 	}
 
-	for occupiedConn, _ := range pool.occupiedConnections {
+	for occupiedConn := range pool.occupiedConnections {
 		occupiedConn.Disconnect()
 	}
 

@@ -452,6 +452,8 @@ func DeleteCollection(conn *connection.IRODSConnection, path string, recurse boo
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return types.NewFileNotFoundErrorf("could not find a collection")
+		} else if types.GetIRODSErrorCode(err) == common.CAT_COLLECTION_NOT_EMPTY {
+			return types.NewCollectionNotEmptyErrorf("collection is not empty")
 		}
 
 		return err

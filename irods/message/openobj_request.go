@@ -58,7 +58,7 @@ func NewIRODSMessageOpenobjRequestWithOperation(path string, resource string, mo
 	return request
 }
 
-// NewIRODSMessageOpenobjRequest creates a IRODSMessageOpenobjRequest message
+// NewIRODSMessageOpenobjRequestWithReplicaToken creates a IRODSMessageOpenobjRequest message
 func NewIRODSMessageOpenobjRequestWithReplicaToken(path string, mode types.FileOpenMode, resourceHierarchy string, replicaToken string) *IRODSMessageOpenobjRequest {
 	flags, _ := types.GetFileOpenFlagSeekToEnd(mode)
 

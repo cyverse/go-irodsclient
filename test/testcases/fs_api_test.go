@@ -18,7 +18,7 @@ import (
 
 func TestFSAPI(t *testing.T) {
 	setup()
-	
+
 	t.Run("test PrepareSamples", testPrepareSamples)
 	t.Run("test GetIRODSCollection", testGetIRODSCollection)
 	t.Run("test ListIRODSCollections", testListIRODSCollections)
