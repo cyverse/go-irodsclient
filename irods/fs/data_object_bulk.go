@@ -165,7 +165,7 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 		return err
 	}
 
-	logger.Infof("replicaToken %s, resourceHierarchy %s", replicaToken, resourceHierarchy)
+	logger.Debugf("replicaToken %s, resourceHierarchy %s", replicaToken, resourceHierarchy)
 
 	errChan := make(chan error, numTasks)
 	taskWaitGroup := sync.WaitGroup{}
@@ -184,8 +184,6 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 			return
 		}
 
-		logger.Info("Opening...")
-
 		taskHandle, _, taskErr := OpenDataObjectWithReplicaToken(taskConn, irodsPath, resource, "a", replicaToken, resourceHierarchy)
 		if taskErr != nil {
 			errChan <- taskErr
@@ -199,8 +197,6 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 			return
 		}
 		defer f.Close()
-
-		logger.Info("Seeking...")
 
 		taskNewOffset, taskErr := SeekDataObject(taskConn, taskHandle, taskOffset, types.SeekSet)
 		if taskErr != nil {

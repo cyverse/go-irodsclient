@@ -13,6 +13,7 @@ type IRODSSession struct {
 	connectionPool       *ConnectionPool
 	startNewTransaction  bool
 	poormansRollbackFail bool
+	transferMetrics      types.TransferMetrics
 }
 
 // NewIRODSSession create a IRODSSession
@@ -55,7 +56,7 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 
 	// test if it can create a new transaction
 	if sess.startNewTransaction {
-		logger.Infof("testing perform poor man rollback")
+		logger.Debugf("testing perform poor man rollback")
 
 		conn, _, err := pool.Get()
 		if err != nil {
@@ -66,11 +67,11 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 
 		err = conn.PoorMansRollback()
 		if err != nil {
-			logger.Infof("could not perform poor man rollback for the connection, disabling poor mans rollback - %v", err)
+			logger.Warnf("could not perform poor man rollback for the connection, disabling poor mans rollback - %v", err)
 			pool.Discard(conn)
 			sess.poormansRollbackFail = true
 		} else {
-			logger.Infof("using poor man rollback for the connection")
+			logger.Debugf("using poor man rollback for the connection")
 			pool.Return(conn)
 		}
 	}
@@ -117,7 +118,7 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 		} else {
 			err = conn.PoorMansRollback()
 			if err != nil {
-				logger.Infof("could not perform poor man rollback for the connection, creating a new connection - %v", err)
+				logger.Warnf("could not perform poor man rollback for the connection, creating a new connection - %v", err)
 				sess.connectionPool.Discard(conn)
 				sess.poormansRollbackFail = true
 
@@ -141,6 +142,11 @@ func (sess *IRODSSession) ReturnConnection(conn *connection.IRODSConnection) err
 		"function": "ReturnConnection",
 	})
 
+	// add up metrics
+	metrics := conn.GetTransferMetrics()
+	sess.sumUpMetrics(&metrics)
+	conn.ClearTransferMetrics()
+
 	if sess.startNewTransaction && sess.poormansRollbackFail {
 		// discard, since we cannot reuse the connection
 		sess.connectionPool.Discard(conn)
@@ -157,6 +163,12 @@ func (sess *IRODSSession) ReturnConnection(conn *connection.IRODSConnection) err
 
 // DiscardConnection discards a connection
 func (sess *IRODSSession) DiscardConnection(conn *connection.IRODSConnection) error {
+
+	// add up metrics
+	metrics := conn.GetTransferMetrics()
+	sess.sumUpMetrics(&metrics)
+	conn.ClearTransferMetrics()
+
 	sess.connectionPool.Discard(conn)
 	return nil
 }
@@ -169,4 +181,34 @@ func (sess *IRODSSession) Release() {
 // Connections returns the number of connections in the pool
 func (sess *IRODSSession) Connections() int {
 	return sess.connectionPool.OpenConnections()
+}
+
+// sumUpMetrics adds up transfer metrics
+func (sess *IRODSSession) sumUpMetrics(metrics *types.TransferMetrics) {
+	if metrics == nil {
+		return
+	}
+
+	sess.transferMetrics.BytesReceived += metrics.BytesReceived
+	sess.transferMetrics.BytesSent += metrics.BytesSent
+
+	sess.transferMetrics.CollectionIO.Stat += metrics.CollectionIO.Stat
+	sess.transferMetrics.CollectionIO.List += metrics.CollectionIO.List
+	sess.transferMetrics.CollectionIO.Create += metrics.CollectionIO.Create
+	sess.transferMetrics.CollectionIO.Delete += metrics.CollectionIO.Delete
+	sess.transferMetrics.CollectionIO.Rename += metrics.CollectionIO.Rename
+	sess.transferMetrics.CollectionIO.Meta += metrics.CollectionIO.Meta
+
+	sess.transferMetrics.DataObjectIO.Stat += metrics.DataObjectIO.Stat
+	sess.transferMetrics.DataObjectIO.Create += metrics.DataObjectIO.Create
+	sess.transferMetrics.DataObjectIO.Delete += metrics.DataObjectIO.Delete
+	sess.transferMetrics.DataObjectIO.Rename += metrics.DataObjectIO.Rename
+	sess.transferMetrics.DataObjectIO.Meta += metrics.DataObjectIO.Meta
+	sess.transferMetrics.DataObjectIO.Read += metrics.DataObjectIO.Read
+	sess.transferMetrics.DataObjectIO.Write += metrics.DataObjectIO.Write
+}
+
+// GetTransferMetrics returns transfer metrics
+func (sess *IRODSSession) GetTransferMetrics() types.TransferMetrics {
+	return sess.transferMetrics
 }

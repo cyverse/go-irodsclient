@@ -187,7 +187,7 @@ func (pool *ConnectionPool) Get() (*connection.IRODSConnection, bool, error) {
 				if idleConn.IsConnected() {
 					// move to occupied connections
 					pool.occupiedConnections[idleConn] = true
-					logger.Info("Reuse an idle connection")
+					logger.Debug("Reuse an idle connection")
 					return idleConn, false, nil
 				}
 

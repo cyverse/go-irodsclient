@@ -44,6 +44,8 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
+	conn.IncreaseCollectionMetricsStat(1)
+
 	query := message.NewIRODSMessageQuery(common.MaxQueryRows, 0, 0, 0)
 	query.AddSelect(common.ICAT_COLUMN_COLL_ID, 1)
 	query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
@@ -138,6 +140,8 @@ func ListCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
+
+	conn.IncreaseCollectionMetricsStat(1)
 
 	metas := []*types.IRODSMeta{}
 
@@ -234,6 +238,8 @@ func ListCollectionAccess(conn *connection.IRODSConnection, path string) ([]*typ
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
+	conn.IncreaseCollectionMetricsMeta(1)
+
 	accesses := []*types.IRODSAccess{}
 
 	continueQuery := true
@@ -325,6 +331,8 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
+
+	conn.IncreaseCollectionMetricsList(1)
 
 	collections := []*types.IRODSCollection{}
 
@@ -435,6 +443,8 @@ func CreateCollection(conn *connection.IRODSConnection, path string, recurse boo
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
+	conn.IncreaseCollectionMetricsCreate(1)
+
 	request := message.NewIRODSMessageMkcolRequest(path, recurse)
 	response := message.IRODSMessageMkcolResponse{}
 	return conn.RequestAndCheck(request, &response)
@@ -445,6 +455,8 @@ func DeleteCollection(conn *connection.IRODSConnection, path string, recurse boo
 	if conn == nil || !conn.IsConnected() {
 		return fmt.Errorf("connection is nil or disconnected")
 	}
+
+	conn.IncreaseCollectionMetricsDelete(1)
 
 	request := message.NewIRODSMessageRmcolRequest(path, recurse, force)
 	response := message.IRODSMessageRmcolResponse{}
@@ -486,6 +498,8 @@ func MoveCollection(conn *connection.IRODSConnection, srcPath string, destPath s
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
+	conn.IncreaseCollectionMetricsRename(1)
+
 	request := message.NewIRODSMessageMvcolRequest(srcPath, destPath)
 	response := message.IRODSMessageMvcolResponse{}
 	err := conn.RequestAndCheck(request, &response)
@@ -502,6 +516,8 @@ func AddCollectionMeta(conn *connection.IRODSConnection, path string, metadata *
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
+	conn.IncreaseCollectionMetricsMeta(1)
+
 	request := message.NewIRODSMessageAddMetadataRequest(types.IRODSCollectionMetaItemType, path, metadata)
 	response := message.IRODSMessageModMetaResponse{}
 	return conn.RequestAndCheck(request, &response)
@@ -513,6 +529,8 @@ func DeleteCollectionMeta(conn *connection.IRODSConnection, path string, metadat
 	if conn == nil || !conn.IsConnected() {
 		return fmt.Errorf("connection is nil or disconnected")
 	}
+
+	conn.IncreaseCollectionMetricsMeta(1)
 
 	var request *message.IRODSMessageModMetaRequest
 
@@ -537,6 +555,8 @@ func SearchCollectionsByMeta(conn *connection.IRODSConnection, metaName string, 
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
+
+	conn.IncreaseCollectionMetricsMeta(1)
 
 	collections := []*types.IRODSCollection{}
 
@@ -649,6 +669,8 @@ func SearchCollectionsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
+
+	conn.IncreaseCollectionMetricsMeta(1)
 
 	collections := []*types.IRODSCollection{}
 
@@ -768,6 +790,8 @@ func ChangeAccessControlCollection(conn *connection.IRODSConnection, path string
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
+	conn.IncreaseCollectionMetricsMeta(1)
+
 	request := message.NewIRODSMessageModAccessRequest(access.ChmodString(), userName, zoneName, path, recursive, adminFlag)
 	response := message.IRODSMessageModAccessResponse{}
 	err := conn.RequestAndCheck(request, &response)
@@ -782,6 +806,8 @@ func SetInheritAccessControl(conn *connection.IRODSConnection, path string, inhe
 	if conn == nil || !conn.IsConnected() {
 		return fmt.Errorf("connection is nil or disconnected")
 	}
+
+	conn.IncreaseCollectionMetricsMeta(1)
 
 	inheritStr := "inherit"
 

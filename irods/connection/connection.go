@@ -31,6 +31,7 @@ type IRODSConnection struct {
 	serverVersion           *types.IRODSVersion
 	generatedPasswordForPAM string // used for PAM auth
 	lastSuccessfulAccess    time.Time
+	transferMetrics         types.TransferMetrics
 }
 
 // NewIRODSConnection create a IRODSConnection
@@ -77,7 +78,7 @@ func (conn *IRODSConnection) Connect() error {
 	conn.connected = false
 
 	server := fmt.Sprintf("%s:%d", conn.Account.Host, conn.Account.Port)
-	logger.Infof("Connecting to %s", server)
+	logger.Debugf("Connecting to %s", server)
 
 	socket, err := net.Dial("tcp", server)
 	if err != nil {
@@ -141,7 +142,7 @@ func (conn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, er
 	}
 
 	// Send a startup message
-	logger.Info("Start up a connection with CS Negotiation")
+	logger.Debug("Start up a connection with CS Negotiation")
 
 	startup := message.NewIRODSMessageStartupPack(conn.Account, conn.ApplicationName, true)
 	startupMessage, err := startup.GetMessage()
@@ -176,7 +177,7 @@ func (conn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, er
 		return version.GetVersion(), nil
 	} else if negotiationMessage.Body.Type == message.RODS_MESSAGE_CS_NEG_TYPE {
 		// Server responds with its own negotiation policy
-		logger.Info("Start up CS Negotiation")
+		logger.Debug("Start up CS Negotiation")
 
 		negotiation := message.IRODSMessageCSNegotiation{}
 		err = negotiation.FromMessage(negotiationMessage)
@@ -189,7 +190,7 @@ func (conn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, er
 			return nil, fmt.Errorf("unable to parse server policy - %v", err)
 		}
 
-		logger.Infof("Client policy - %s, server policy - %s", clientPolicy, serverPolicy)
+		logger.Debugf("Client policy - %s, server policy - %s", clientPolicy, serverPolicy)
 
 		// Perform the negotiation
 		policyResult, status := types.PerformCSNegotiation(clientPolicy, serverPolicy)
@@ -229,7 +230,7 @@ func (conn *IRODSConnection) connectWithoutCSNegotiation() (*types.IRODSVersion,
 
 	// No client-server negotiation
 	// Send a startup message
-	logger.Info("Start up a connection without CS Negotiation")
+	logger.Debug("Start up a connection without CS Negotiation")
 
 	startup := message.NewIRODSMessageStartupPack(conn.Account, conn.ApplicationName, false)
 	version := message.IRODSMessageVersion{}
@@ -248,7 +249,7 @@ func (conn *IRODSConnection) sslStartup() error {
 		"function": "sslStartup",
 	})
 
-	logger.Info("Start up SSL")
+	logger.Debug("Start up SSL")
 
 	irodsSSLConfig := conn.Account.SSLConfiguration
 	if irodsSSLConfig == nil {
@@ -318,7 +319,7 @@ func (conn *IRODSConnection) loginNative(password string) error {
 		"function": "loginNative",
 	})
 
-	logger.Info("Logging in using native authentication method")
+	logger.Debug("Logging in using native authentication method")
 
 	// authenticate
 	authRequest := message.NewIRODSMessageAuthRequest()
@@ -349,7 +350,7 @@ func (conn *IRODSConnection) loginPAM() error {
 		"function": "loginPAM",
 	})
 
-	logger.Info("Logging in using pam authentication method")
+	logger.Debug("Logging in using pam authentication method")
 
 	// Check whether ssl has already started, if not, start ssl.
 	if _, ok := conn.socket.(*tls.Conn); !ok {
@@ -383,7 +384,7 @@ func (conn *IRODSConnection) showTicket() error {
 		"function": "showTicket",
 	})
 
-	logger.Info("Submitting a ticket to obtain access")
+	logger.Debug("Submitting a ticket to obtain access")
 
 	if len(conn.Account.Ticket) > 0 {
 		// show the ticket
@@ -413,7 +414,7 @@ func (conn *IRODSConnection) Disconnect() error {
 		"function": "Disconnect",
 	})
 
-	logger.Info("Disconnecting the connection")
+	logger.Debug("Disconnecting the connection")
 
 	disconnect := message.NewIRODSMessageDisconnect()
 	disconnectMessage, err := disconnect.GetMessage()
@@ -461,6 +462,10 @@ func (conn *IRODSConnection) Send(buffer []byte, size int) error {
 		return fmt.Errorf("unable to send data - %v", err)
 	}
 
+	if size > 0 {
+		conn.IncreaseTransferMetricsBytesSent(uint64(size))
+	}
+
 	conn.lastSuccessfulAccess = time.Now()
 
 	return nil
@@ -488,6 +493,10 @@ func (conn *IRODSConnection) Recv(buffer []byte, size int) (int, error) {
 
 		conn.socketFail()
 		return readLen, fmt.Errorf("unable to receive data - %v", err)
+	}
+
+	if readLen > 0 {
+		conn.IncreaseTransferMetricsBytesReceived(uint64(readLen))
 	}
 
 	conn.lastSuccessfulAccess = time.Now()
@@ -733,4 +742,94 @@ func (conn *IRODSConnection) poorMansEndTransaction(dummyCol string, commit bool
 func (conn *IRODSConnection) RawBind(socket net.Conn) {
 	conn.connected = true
 	conn.socket = socket
+}
+
+/*
+ * Metrics related functions
+ */
+
+// GetTransferMetrics returns transfer metrics
+func (conn *IRODSConnection) GetTransferMetrics() types.TransferMetrics {
+	// returns a copy of metrics
+	return conn.transferMetrics
+}
+
+// ClearTransferMetrics clears transfer metrics
+func (conn *IRODSConnection) ClearTransferMetrics() {
+	conn.transferMetrics = types.TransferMetrics{}
+}
+
+// IncreaseTransferMetricsBytesSent increases bytes sent metrics
+func (conn *IRODSConnection) IncreaseTransferMetricsBytesSent(n uint64) {
+	conn.transferMetrics.BytesSent += n
+}
+
+// IncreaseTransferMetricsBytesReceived increases bytes received metrics
+func (conn *IRODSConnection) IncreaseTransferMetricsBytesReceived(n uint64) {
+	conn.transferMetrics.BytesReceived += n
+}
+
+// IncreaseDataObjectMetricsStat increases stat data object metrics
+func (conn *IRODSConnection) IncreaseDataObjectMetricsStat(n uint64) {
+	conn.transferMetrics.DataObjectIO.Stat += n
+}
+
+// IncreaseDataObjectMetricsCreate increases create data object metrics
+func (conn *IRODSConnection) IncreaseDataObjectMetricsCreate(n uint64) {
+	conn.transferMetrics.DataObjectIO.Create += n
+}
+
+// IncreaseDataObjectMetricsDelete increases delete data object metrics
+func (conn *IRODSConnection) IncreaseDataObjectMetricsDelete(n uint64) {
+	conn.transferMetrics.DataObjectIO.Delete += n
+}
+
+// IncreaseDataObjectMetricsWrite increases write data object metrics
+func (conn *IRODSConnection) IncreaseDataObjectMetricsWrite(n uint64) {
+	conn.transferMetrics.DataObjectIO.Write += n
+}
+
+// IncreaseDataObjectMetricsRead increases read data object metrics
+func (conn *IRODSConnection) IncreaseDataObjectMetricsRead(n uint64) {
+	conn.transferMetrics.DataObjectIO.Read += n
+}
+
+// IncreaseDataObjectMetricsRename increases rename data object metrics
+func (conn *IRODSConnection) IncreaseDataObjectMetricsRename(n uint64) {
+	conn.transferMetrics.DataObjectIO.Rename += n
+}
+
+// IncreaseDataObjectMetricsMeta increases meta data object metrics
+func (conn *IRODSConnection) IncreaseDataObjectMetricsMeta(n uint64) {
+	conn.transferMetrics.DataObjectIO.Meta += n
+}
+
+// IncreaseCollectionMetricsStat increases stat collection metrics
+func (conn *IRODSConnection) IncreaseCollectionMetricsStat(n uint64) {
+	conn.transferMetrics.CollectionIO.Stat += n
+}
+
+// IncreaseCollectionMetricsList increases list collection metrics
+func (conn *IRODSConnection) IncreaseCollectionMetricsList(n uint64) {
+	conn.transferMetrics.CollectionIO.List += n
+}
+
+// IncreaseCollectionMetricsCreate increases create collection metrics
+func (conn *IRODSConnection) IncreaseCollectionMetricsCreate(n uint64) {
+	conn.transferMetrics.CollectionIO.Create += n
+}
+
+// IncreaseCollectionMetricsDelete increases delete collection metrics
+func (conn *IRODSConnection) IncreaseCollectionMetricsDelete(n uint64) {
+	conn.transferMetrics.CollectionIO.Delete += n
+}
+
+// IncreaseCollectionMetricsRename increases rename collection metrics
+func (conn *IRODSConnection) IncreaseCollectionMetricsRename(n uint64) {
+	conn.transferMetrics.CollectionIO.Rename += n
+}
+
+// IncreaseCollectionMetricsMeta increases meta collection metrics
+func (conn *IRODSConnection) IncreaseCollectionMetricsMeta(n uint64) {
+	conn.transferMetrics.CollectionIO.Meta += n
 }

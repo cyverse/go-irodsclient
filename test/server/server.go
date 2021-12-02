@@ -32,7 +32,7 @@ func startServerExec() error {
 	serverDir := path.Dir(callerPath)
 	scriptPath := fmt.Sprintf("%s/%s", serverDir, "start.sh")
 
-	logger.Infof("Executing %s", scriptPath)
+	logger.Debugf("Executing %s", scriptPath)
 	cmd := exec.Command(scriptPath)
 	cmd.Dir = serverDir
 
@@ -83,7 +83,7 @@ func stopServerExec() error {
 	serverDir := path.Dir(callerPath)
 	scriptPath := fmt.Sprintf("%s/%s", serverDir, "stop.sh")
 
-	logger.Infof("Executing %s", scriptPath)
+	logger.Debugf("Executing %s", scriptPath)
 	cmd := exec.Command(scriptPath)
 	cmd.Dir = serverDir
 

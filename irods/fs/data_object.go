@@ -53,6 +53,8 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
+	conn.IncreaseDataObjectMetricsStat(1)
+
 	dataObjects := []*types.IRODSDataObject{}
 
 	continueQuery := true
@@ -230,6 +232,8 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
+	conn.IncreaseDataObjectMetricsStat(1)
+
 	dataObjects := []*types.IRODSDataObject{}
 
 	continueQuery := true
@@ -387,6 +391,8 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
+
+	conn.IncreaseCollectionMetricsList(1)
 
 	dataObjects := []*types.IRODSDataObject{}
 
@@ -560,6 +566,8 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
+	conn.IncreaseCollectionMetricsList(1)
+
 	dataObjects := []*types.IRODSDataObject{}
 
 	continueQuery := true
@@ -714,6 +722,8 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, collection *types.IROD
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
+	conn.IncreaseDataObjectMetricsMeta(1)
+
 	metas := []*types.IRODSMeta{}
 
 	continueQuery := true
@@ -811,6 +821,8 @@ func ListDataObjectAccess(conn *connection.IRODSConnection, collection *types.IR
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
+	conn.IncreaseDataObjectMetricsMeta(1)
+
 	accesses := []*types.IRODSAccess{}
 
 	continueQuery := true
@@ -905,6 +917,8 @@ func DeleteDataObject(conn *connection.IRODSConnection, path string, force bool)
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
+	conn.IncreaseDataObjectMetricsDelete(1)
+
 	request := message.NewIRODSMessageRmobjRequest(path, force)
 	response := message.IRODSMessageRmobjResponse{}
 	err := conn.RequestAndCheck(request, &response)
@@ -919,6 +933,8 @@ func MoveDataObject(conn *connection.IRODSConnection, srcPath string, destPath s
 	if conn == nil || !conn.IsConnected() {
 		return fmt.Errorf("connection is nil or disconnected")
 	}
+
+	conn.IncreaseDataObjectMetricsRename(1)
 
 	request := message.NewIRODSMessageMvobjRequest(srcPath, destPath)
 	response := message.IRODSMessageMvobjResponse{}
@@ -1009,6 +1025,8 @@ func CreateDataObject(conn *connection.IRODSConnection, path string, resource st
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
+	conn.IncreaseDataObjectMetricsCreate(1)
+
 	request := message.NewIRODSMessageCreateobjRequest(path, resource, force)
 	response := message.IRODSMessageCreateobjResponse{}
 	err := conn.RequestAndCheck(request, &response)
@@ -1028,7 +1046,11 @@ func OpenDataObject(conn *connection.IRODSConnection, path string, resource stri
 		return nil, -1, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	request := message.NewIRODSMessageOpenobjRequest(path, resource, types.FileOpenMode(mode))
+	fileOpenMode := types.FileOpenMode(mode)
+
+	conn.IncreaseDataObjectMetricsCreate(1)
+
+	request := message.NewIRODSMessageOpenobjRequest(path, resource, fileOpenMode)
 	response := message.IRODSMessageOpenobjResponse{}
 	err := conn.RequestAndCheck(request, &response)
 	if err != nil {
@@ -1045,7 +1067,7 @@ func OpenDataObject(conn *connection.IRODSConnection, path string, resource stri
 	}
 
 	// handle seek
-	_, seekToEnd := types.GetFileOpenFlagSeekToEnd(types.FileOpenMode(mode))
+	_, seekToEnd := types.GetFileOpenFlagSeekToEnd(fileOpenMode)
 	var offset int64 = 0
 	if seekToEnd {
 		offset, err = SeekDataObject(conn, handle, 0, types.SeekEnd)
@@ -1063,7 +1085,9 @@ func OpenDataObjectWithReplicaToken(conn *connection.IRODSConnection, path strin
 		return nil, -1, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	request := message.NewIRODSMessageOpenobjRequestWithReplicaToken(path, types.FileOpenMode(mode), resourceHierarchy, replicaToken)
+	fileOpenMode := types.FileOpenMode(mode)
+
+	request := message.NewIRODSMessageOpenobjRequestWithReplicaToken(path, fileOpenMode, resourceHierarchy, replicaToken)
 	response := message.IRODSMessageOpenobjResponse{}
 	err := conn.RequestAndCheck(request, &response)
 	if err != nil {
@@ -1080,7 +1104,7 @@ func OpenDataObjectWithReplicaToken(conn *connection.IRODSConnection, path strin
 	}
 
 	// handle seek
-	_, seekToEnd := types.GetFileOpenFlagSeekToEnd(types.FileOpenMode(mode))
+	_, seekToEnd := types.GetFileOpenFlagSeekToEnd(fileOpenMode)
 	var offset int64 = 0
 	if seekToEnd {
 		offset, err = SeekDataObject(conn, handle, 0, types.SeekEnd)
@@ -1098,7 +1122,9 @@ func OpenDataObjectWithOperation(conn *connection.IRODSConnection, path string, 
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	request := message.NewIRODSMessageOpenobjRequestWithOperation(path, resource, types.FileOpenMode(mode), oper)
+	fileOpenMode := types.FileOpenMode(mode)
+
+	request := message.NewIRODSMessageOpenobjRequestWithOperation(path, resource, fileOpenMode, oper)
 	response := message.IRODSMessageOpenobjResponse{}
 	err := conn.RequestAndCheck(request, &response)
 	if err != nil {
@@ -1115,7 +1141,7 @@ func OpenDataObjectWithOperation(conn *connection.IRODSConnection, path string, 
 	}
 
 	// handle seek
-	_, seekToEnd := types.GetFileOpenFlagSeekToEnd(types.FileOpenMode(mode))
+	_, seekToEnd := types.GetFileOpenFlagSeekToEnd(fileOpenMode)
 	if seekToEnd {
 		_, err = SeekDataObject(conn, handle, 0, types.SeekEnd)
 		if err != nil {
@@ -1172,6 +1198,8 @@ func ReadDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHan
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
+	conn.IncreaseDataObjectMetricsRead(1)
+
 	request := message.NewIRODSMessageReadobjRequest(handle.FileDescriptor, length)
 	response := message.IRODSMessageReadobjResponse{}
 	err := conn.RequestAndCheck(request, &response)
@@ -1191,6 +1219,8 @@ func WriteDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHa
 	if conn == nil || !conn.IsConnected() {
 		return fmt.Errorf("connection is nil or disconnected")
 	}
+
+	conn.IncreaseDataObjectMetricsWrite(1)
 
 	request := message.NewIRODSMessageWriteobjRequest(handle.FileDescriptor, data)
 	response := message.IRODSMessageWriteobjResponse{}
@@ -1223,6 +1253,8 @@ func AddDataObjectMeta(conn *connection.IRODSConnection, path string, metadata *
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
+	conn.IncreaseDataObjectMetricsMeta(1)
+
 	request := message.NewIRODSMessageAddMetadataRequest(types.IRODSDataObjectMetaItemType, path, metadata)
 	response := message.IRODSMessageModMetaResponse{}
 	err := conn.RequestAndCheck(request, &response)
@@ -1238,6 +1270,8 @@ func DeleteDataObjectMeta(conn *connection.IRODSConnection, path string, metadat
 	if conn == nil || !conn.IsConnected() {
 		return fmt.Errorf("connection is nil or disconnected")
 	}
+
+	conn.IncreaseDataObjectMetricsMeta(1)
 
 	var request *message.IRODSMessageModMetaRequest
 
@@ -1262,6 +1296,8 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
+
+	conn.IncreaseDataObjectMetricsMeta(1)
 
 	dataObjects := []*types.IRODSDataObject{}
 
@@ -1455,6 +1491,8 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
+	conn.IncreaseDataObjectMetricsMeta(1)
+
 	dataObjects := []*types.IRODSDataObject{}
 
 	continueQuery := true
@@ -1629,6 +1667,8 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
+
+	conn.IncreaseDataObjectMetricsMeta(1)
 
 	dataObjects := []*types.IRODSDataObject{}
 
@@ -1823,6 +1863,8 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
+	conn.IncreaseDataObjectMetricsMeta(1)
+
 	dataObjects := []*types.IRODSDataObject{}
 
 	continueQuery := true
@@ -1996,6 +2038,8 @@ func ChangeAccessControlDataObject(conn *connection.IRODSConnection, path string
 	if conn == nil || !conn.IsConnected() {
 		return fmt.Errorf("connection is nil or disconnected")
 	}
+
+	conn.IncreaseDataObjectMetricsMeta(1)
 
 	request := message.NewIRODSMessageModAccessRequest(access.ChmodString(), userName, zoneName, path, false, adminFlag)
 	response := message.IRODSMessageModAccessResponse{}
