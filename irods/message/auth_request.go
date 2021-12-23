@@ -29,3 +29,8 @@ func (msg *IRODSMessageAuthRequest) GetMessage() (*IRODSMessage, error) {
 		Body:   nil,
 	}, nil
 }
+
+// FromMessage returns struct from IRODSMessage
+func (msg *IRODSMessageAuthRequest) FromMessage(msgIn *IRODSMessage) error {
+	return nil
+}

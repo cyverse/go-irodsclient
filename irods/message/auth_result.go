@@ -21,6 +21,22 @@ func (msg *IRODSMessageAuthResult) CheckError() error {
 	return nil
 }
 
+// GetMessage builds a message
+func (msg *IRODSMessageAuthResult) GetMessage() (*IRODSMessage, error) {
+	msgHeader := IRODSMessageHeader{
+		Type:       RODS_MESSAGE_API_REPLY_TYPE,
+		MessageLen: 0,
+		ErrorLen:   0,
+		BsLen:      0,
+		IntInfo:    int32(msg.Result),
+	}
+
+	return &IRODSMessage{
+		Header: &msgHeader,
+		Body:   nil,
+	}, nil
+}
+
 // FromMessage returns struct from IRODSMessage
 func (msg *IRODSMessageAuthResult) FromMessage(msgIn *IRODSMessage) error {
 	if msgIn.Body == nil {

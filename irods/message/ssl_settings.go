@@ -1,5 +1,10 @@
 package message
 
+import (
+	"encoding/xml"
+	"fmt"
+)
+
 // IRODSMessageSSLSettings stores ssl settings
 type IRODSMessageSSLSettings struct {
 	EncryptionAlgorithm string
@@ -18,6 +23,18 @@ func NewIRODSMessageSSLSettings(algorithm string, keySize int, saltSize int, has
 	}
 }
 
+// GetBytes returns byte array
+func (msg *IRODSMessageSSLSettings) GetBytes() ([]byte, error) {
+	xmlBytes, err := xml.Marshal(msg)
+	return xmlBytes, err
+}
+
+// FromBytes returns struct from bytes
+func (msg *IRODSMessageSSLSettings) FromBytes(bytes []byte) error {
+	err := xml.Unmarshal(bytes, msg)
+	return err
+}
+
 // GetMessage builds a message
 func (msg *IRODSMessageSSLSettings) GetMessage() (*IRODSMessage, error) {
 	msgHeader := IRODSMessageHeader{
@@ -32,4 +49,18 @@ func (msg *IRODSMessageSSLSettings) GetMessage() (*IRODSMessage, error) {
 		Header: &msgHeader,
 		Body:   nil,
 	}, nil
+}
+
+// FromMessage returns struct from IRODSMessage
+func (msg *IRODSMessageSSLSettings) FromMessage(msgIn *IRODSMessage) error {
+	if msgIn.Body != nil {
+		return fmt.Errorf("ssl settings should not be passed as body")
+	}
+
+	msg.EncryptionAlgorithm = string(msgIn.Header.Type)
+	msg.EncryptionKeySize = msgIn.Header.MessageLen
+	msg.SaltSize = msgIn.Header.ErrorLen
+	msg.HashRounds = msgIn.Header.BsLen
+
+	return nil
 }

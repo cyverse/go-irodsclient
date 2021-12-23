@@ -573,7 +573,7 @@ func (conn *IRODSConnection) SendMessage(msg *message.IRODSMessage) error {
 }
 
 // readMessageHeader reads data from the given connection and returns iRODSMessageHeader
-func (conn *IRODSConnection) readMessageHeader() (*message.IRODSMessageHeader, error) {
+func (conn *IRODSConnection) ReadMessageHeader() (*message.IRODSMessageHeader, error) {
 	// read header size
 	headerLenBuffer := make([]byte, 4)
 	readLen, err := conn.Recv(headerLenBuffer, 4)
@@ -610,7 +610,7 @@ func (conn *IRODSConnection) readMessageHeader() (*message.IRODSMessageHeader, e
 
 // ReadMessage reads data from the given socket and returns IRODSMessage
 func (conn *IRODSConnection) ReadMessage() (*message.IRODSMessage, error) {
-	header, err := conn.readMessageHeader()
+	header, err := conn.ReadMessageHeader()
 	if err != nil {
 		return nil, err
 	}

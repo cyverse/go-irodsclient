@@ -2,6 +2,7 @@ package message
 
 import (
 	"encoding/xml"
+	"fmt"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
 )
@@ -57,4 +58,13 @@ func (msg *IRODSMessageAuthResponse) GetMessage() (*IRODSMessage, error) {
 		Header: msgHeader,
 		Body:   &msgBody,
 	}, nil
+}
+
+// FromMessage returns struct from IRODSMessage
+func (msg *IRODSMessageAuthResponse) FromMessage(msgIn *IRODSMessage) error {
+	if msgIn.Body == nil {
+		return fmt.Errorf("cannot create a struct from an empty body")
+	}
+
+	return msg.FromBytes(msgIn.Body.Message)
 }
