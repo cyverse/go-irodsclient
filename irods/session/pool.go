@@ -194,9 +194,9 @@ func (pool *ConnectionPool) Get() (*connection.IRODSConnection, bool, error) {
 					pool.occupiedConnections[idleConn] = true
 					logger.Debug("Reuse an idle connection")
 					return idleConn, false, nil
-				} else {
-					logger.Warn("failed to reuse an idle connection. already disconnected. discarding.")
 				}
+
+				logger.Warn("failed to reuse an idle connection. already disconnected. discarding.")
 			}
 		}
 	}
