@@ -11,17 +11,17 @@ import (
 
 // FileSystemCache manages filesystem caches
 type FileSystemCache struct {
-	CacheTimeout    time.Duration
-	CleanupTimeout  time.Duration
-	EntryCache      *gocache.Cache
-	DirCache        *gocache.Cache
-	MetadataCache   *gocache.Cache
-	GroupUsersCache *gocache.Cache
-	UserGroupsCache *gocache.Cache
-	GroupsCache     *gocache.Cache
-	UsersCache      *gocache.Cache
-	DirACLsCache    *gocache.Cache
-	FileACLsCache   *gocache.Cache
+	cacheTimeout    time.Duration
+	cleanupTimeout  time.Duration
+	entryCache      *gocache.Cache
+	dirCache        *gocache.Cache
+	metadataCache   *gocache.Cache
+	groupUsersCache *gocache.Cache
+	userGroupsCache *gocache.Cache
+	groupsCache     *gocache.Cache
+	usersCache      *gocache.Cache
+	dirACLsCache    *gocache.Cache
+	fileACLsCache   *gocache.Cache
 }
 
 // NewFileSystemCache creates a new FileSystemCache
@@ -37,17 +37,17 @@ func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration) *File
 	fileACLsCache := gocache.New(cacheTimeout, cleanup)
 
 	return &FileSystemCache{
-		CacheTimeout:    cacheTimeout,
-		CleanupTimeout:  cleanup,
-		EntryCache:      entryCache,
-		DirCache:        dirCache,
-		MetadataCache:   metadataCache,
-		GroupUsersCache: groupUsersCache,
-		UserGroupsCache: userGroupsCache,
-		GroupsCache:     groupsCache,
-		UsersCache:      usersCache,
-		DirACLsCache:    dirACLsCache,
-		FileACLsCache:   fileACLsCache,
+		cacheTimeout:    cacheTimeout,
+		cleanupTimeout:  cleanup,
+		entryCache:      entryCache,
+		dirCache:        dirCache,
+		metadataCache:   metadataCache,
+		groupUsersCache: groupUsersCache,
+		userGroupsCache: userGroupsCache,
+		groupsCache:     groupsCache,
+		usersCache:      usersCache,
+		dirACLsCache:    dirACLsCache,
+		fileACLsCache:   fileACLsCache,
 	}
 }
 
@@ -77,21 +77,21 @@ func shouldHaveInfiniteCacheTTL(path string) bool {
 // AddEntryCache adds an entry cache
 func (cache *FileSystemCache) AddEntryCache(entry *Entry) {
 	if shouldHaveInfiniteCacheTTL(entry.Path) {
-		cache.EntryCache.Set(entry.Path, entry, -1)
+		cache.entryCache.Set(entry.Path, entry, -1)
 	}
 
 	// default
-	cache.EntryCache.Set(entry.Path, entry, 0)
+	cache.entryCache.Set(entry.Path, entry, 0)
 }
 
 // RemoveEntryCache removes an entry cache
 func (cache *FileSystemCache) RemoveEntryCache(path string) {
-	cache.EntryCache.Delete(path)
+	cache.entryCache.Delete(path)
 }
 
 // GetEntryCache retrieves an entry cache
 func (cache *FileSystemCache) GetEntryCache(path string) *Entry {
-	entry, _ := cache.EntryCache.Get(path)
+	entry, _ := cache.entryCache.Get(path)
 	if fsentry, ok := entry.(*Entry); ok {
 		return fsentry
 	}
@@ -100,27 +100,27 @@ func (cache *FileSystemCache) GetEntryCache(path string) *Entry {
 
 // ClearEntryCache clears all entry caches
 func (cache *FileSystemCache) ClearEntryCache() {
-	cache.EntryCache.Flush()
+	cache.entryCache.Flush()
 }
 
 // AddDirCache adds a dir cache
 func (cache *FileSystemCache) AddDirCache(path string, entries []string) {
 	if shouldHaveInfiniteCacheTTL(path) {
-		cache.DirCache.Set(path, entries, -1)
+		cache.dirCache.Set(path, entries, -1)
 	}
 
 	// default
-	cache.DirCache.Set(path, entries, 0)
+	cache.dirCache.Set(path, entries, 0)
 }
 
 // RemoveDirCache removes a dir cache
 func (cache *FileSystemCache) RemoveDirCache(path string) {
-	cache.DirCache.Delete(path)
+	cache.dirCache.Delete(path)
 }
 
 // GetDirCache retrives a dir cache
 func (cache *FileSystemCache) GetDirCache(path string) []string {
-	data, exist := cache.DirCache.Get(path)
+	data, exist := cache.dirCache.Get(path)
 	if exist {
 		if entries, ok := data.([]string); ok {
 			return entries
@@ -131,27 +131,27 @@ func (cache *FileSystemCache) GetDirCache(path string) []string {
 
 // ClearDirCache clears all dir caches
 func (cache *FileSystemCache) ClearDirCache() {
-	cache.DirCache.Flush()
+	cache.dirCache.Flush()
 }
 
 // AddMetadataCache adds a metadata cache
 func (cache *FileSystemCache) AddMetadataCache(path string, metas []*types.IRODSMeta) {
 	if shouldHaveInfiniteCacheTTL(path) {
-		cache.MetadataCache.Set(path, metas, -1)
+		cache.metadataCache.Set(path, metas, -1)
 	}
 
 	// default
-	cache.MetadataCache.Set(path, metas, 0)
+	cache.metadataCache.Set(path, metas, 0)
 }
 
 // RemoveMetadataCache removes a metadata cache
 func (cache *FileSystemCache) RemoveMetadataCache(path string) {
-	cache.MetadataCache.Delete(path)
+	cache.metadataCache.Delete(path)
 }
 
 // GetMetadataCache retrieves a metadata cache
 func (cache *FileSystemCache) GetMetadataCache(path string) []*types.IRODSMeta {
-	data, exist := cache.MetadataCache.Get(path)
+	data, exist := cache.metadataCache.Get(path)
 	if exist {
 		if metas, ok := data.([]*types.IRODSMeta); ok {
 			return metas
@@ -162,22 +162,22 @@ func (cache *FileSystemCache) GetMetadataCache(path string) []*types.IRODSMeta {
 
 // ClearMetadataCache clears all metadata caches
 func (cache *FileSystemCache) ClearMetadataCache() {
-	cache.MetadataCache.Flush()
+	cache.metadataCache.Flush()
 }
 
 // AddGroupUsersCache adds a group user (users in a group) cache
 func (cache *FileSystemCache) AddGroupUsersCache(group string, users []*types.IRODSUser) {
-	cache.GroupUsersCache.Set(group, users, 0)
+	cache.groupUsersCache.Set(group, users, 0)
 }
 
 // RemoveGroupUsersCache removes a group user (users in a group) cache
 func (cache *FileSystemCache) RemoveGroupUsersCache(group string) {
-	cache.GroupUsersCache.Delete(group)
+	cache.groupUsersCache.Delete(group)
 }
 
 // GetGroupUsersCache retrives a group user (users in a group) cache
 func (cache *FileSystemCache) GetGroupUsersCache(group string) []*types.IRODSUser {
-	users, exist := cache.GroupUsersCache.Get(group)
+	users, exist := cache.groupUsersCache.Get(group)
 	if exist {
 		if irodsUsers, ok := users.([]*types.IRODSUser); ok {
 			return irodsUsers
@@ -188,17 +188,17 @@ func (cache *FileSystemCache) GetGroupUsersCache(group string) []*types.IRODSUse
 
 // AddUserGroupsCache adds a user's groups (groups that a user belongs to) cache
 func (cache *FileSystemCache) AddUserGroupsCache(user string, groups []*types.IRODSUser) {
-	cache.UserGroupsCache.Set(user, groups, 0)
+	cache.userGroupsCache.Set(user, groups, 0)
 }
 
 // RemoveUserGroupsCache removes a user's groups (groups that a user belongs to) cache
 func (cache *FileSystemCache) RemoveUserGroupsCache(user string) {
-	cache.UserGroupsCache.Delete(user)
+	cache.userGroupsCache.Delete(user)
 }
 
 // GetUserGroupsCache retrives a user's groups (groups that a user belongs to) cache
 func (cache *FileSystemCache) GetUserGroupsCache(user string) []*types.IRODSUser {
-	groups, exist := cache.UserGroupsCache.Get(user)
+	groups, exist := cache.userGroupsCache.Get(user)
 	if exist {
 		if irodsGroups, ok := groups.([]*types.IRODSUser); ok {
 			return irodsGroups
@@ -209,17 +209,17 @@ func (cache *FileSystemCache) GetUserGroupsCache(user string) []*types.IRODSUser
 
 // AddGroupsCache adds a groups cache (cache of a list of all groups)
 func (cache *FileSystemCache) AddGroupsCache(groups []*types.IRODSUser) {
-	cache.GroupsCache.Set("groups", groups, 0)
+	cache.groupsCache.Set("groups", groups, 0)
 }
 
 // RemoveGroupsCache removes a groups cache (cache of a list of all groups)
 func (cache *FileSystemCache) RemoveGroupsCache() {
-	cache.GroupsCache.Delete("groups")
+	cache.groupsCache.Delete("groups")
 }
 
 // GetGroupsCache retrives a groups cache (cache of a list of all groups)
 func (cache *FileSystemCache) GetGroupsCache() []*types.IRODSUser {
-	groups, exist := cache.GroupsCache.Get("groups")
+	groups, exist := cache.groupsCache.Get("groups")
 	if exist {
 		if irodsGroups, ok := groups.([]*types.IRODSUser); ok {
 			return irodsGroups
@@ -230,17 +230,17 @@ func (cache *FileSystemCache) GetGroupsCache() []*types.IRODSUser {
 
 // AddUsersCache adds a users cache (cache of a list of all users)
 func (cache *FileSystemCache) AddUsersCache(users []*types.IRODSUser) {
-	cache.UsersCache.Set("users", users, 0)
+	cache.usersCache.Set("users", users, 0)
 }
 
 // RemoveUsersCache removes a users cache (cache of a list of all users)
 func (cache *FileSystemCache) RemoveUsersCache() {
-	cache.UsersCache.Delete("users")
+	cache.usersCache.Delete("users")
 }
 
 // GetUsersCache retrives a users cache (cache of a list of all users)
 func (cache *FileSystemCache) GetUsersCache() []*types.IRODSUser {
-	users, exist := cache.UsersCache.Get("users")
+	users, exist := cache.usersCache.Get("users")
 	if exist {
 		if irodsUsers, ok := users.([]*types.IRODSUser); ok {
 			return irodsUsers
@@ -252,21 +252,21 @@ func (cache *FileSystemCache) GetUsersCache() []*types.IRODSUser {
 // AddDirACLsCache adds a Dir ACLs cache
 func (cache *FileSystemCache) AddDirACLsCache(path string, accesses []*types.IRODSAccess) {
 	if shouldHaveInfiniteCacheTTL(path) {
-		cache.DirACLsCache.Set(path, accesses, -1)
+		cache.dirACLsCache.Set(path, accesses, -1)
 	}
 
 	// default
-	cache.DirACLsCache.Set(path, accesses, 0)
+	cache.dirACLsCache.Set(path, accesses, 0)
 }
 
 // RemoveDirACLsCache removes a Dir ACLs cache
 func (cache *FileSystemCache) RemoveDirACLsCache(path string) {
-	cache.DirACLsCache.Delete(path)
+	cache.dirACLsCache.Delete(path)
 }
 
 // GetDirACLsCache retrives a Dir ACLs cache
 func (cache *FileSystemCache) GetDirACLsCache(path string) []*types.IRODSAccess {
-	data, exist := cache.DirACLsCache.Get(path)
+	data, exist := cache.dirACLsCache.Get(path)
 	if exist {
 		if entries, ok := data.([]*types.IRODSAccess); ok {
 			return entries
@@ -277,27 +277,27 @@ func (cache *FileSystemCache) GetDirACLsCache(path string) []*types.IRODSAccess 
 
 // ClearDirACLsCache clears all Dir ACLs caches
 func (cache *FileSystemCache) ClearDirACLsCache() {
-	cache.DirACLsCache.Flush()
+	cache.dirACLsCache.Flush()
 }
 
 // AddFileACLsCache adds a File ACLs cache
 func (cache *FileSystemCache) AddFileACLsCache(path string, accesses []*types.IRODSAccess) {
 	if shouldHaveInfiniteCacheTTL(path) {
-		cache.FileACLsCache.Set(path, accesses, -1)
+		cache.fileACLsCache.Set(path, accesses, -1)
 	}
 
 	// default
-	cache.FileACLsCache.Set(path, accesses, 0)
+	cache.fileACLsCache.Set(path, accesses, 0)
 }
 
 // RemoveFileACLsCache removes a File ACLs cache
 func (cache *FileSystemCache) RemoveFileACLsCache(path string) {
-	cache.FileACLsCache.Delete(path)
+	cache.fileACLsCache.Delete(path)
 }
 
 // GetFileACLsCache retrives a File ACLs cache
 func (cache *FileSystemCache) GetFileACLsCache(path string) []*types.IRODSAccess {
-	data, exist := cache.FileACLsCache.Get(path)
+	data, exist := cache.fileACLsCache.Get(path)
 	if exist {
 		if entries, ok := data.([]*types.IRODSAccess); ok {
 			return entries
@@ -308,5 +308,5 @@ func (cache *FileSystemCache) GetFileACLsCache(path string) []*types.IRODSAccess
 
 // ClearFileACLsCache clears all File ACLs caches
 func (cache *FileSystemCache) ClearFileACLsCache() {
-	cache.FileACLsCache.Flush()
+	cache.fileACLsCache.Flush()
 }

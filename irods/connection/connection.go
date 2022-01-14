@@ -21,26 +21,34 @@ import (
 
 // IRODSConnection connects to iRODS
 type IRODSConnection struct {
-	Account         *types.IRODSAccount
-	Timeout         time.Duration
-	ApplicationName string
+	account         *types.IRODSAccount
+	requestTimeout  time.Duration
+	applicationName string
 
 	// internal
 	connected               bool
 	socket                  net.Conn
 	serverVersion           *types.IRODSVersion
 	generatedPasswordForPAM string // used for PAM auth
+	creationTime            time.Time
 	lastSuccessfulAccess    time.Time
 	transferMetrics         types.TransferMetrics
 }
 
 // NewIRODSConnection create a IRODSConnection
-func NewIRODSConnection(account *types.IRODSAccount, timeout time.Duration, applicationName string) *IRODSConnection {
+func NewIRODSConnection(account *types.IRODSAccount, requestTimeout time.Duration, applicationName string) *IRODSConnection {
 	return &IRODSConnection{
-		Account:         account,
-		Timeout:         timeout,
-		ApplicationName: applicationName,
+		account:         account,
+		requestTimeout:  requestTimeout,
+		applicationName: applicationName,
+
+		creationTime: time.Now(),
 	}
+}
+
+// GetAccount returns iRODSAccount
+func (conn *IRODSConnection) GetAccount() *types.IRODSAccount {
+	return conn.account
 }
 
 // GetVersion returns iRODS version
@@ -49,7 +57,7 @@ func (conn *IRODSConnection) GetVersion() *types.IRODSVersion {
 }
 
 func (conn *IRODSConnection) requiresCSNegotiation() bool {
-	return conn.Account.ClientServerNegotiation
+	return conn.account.ClientServerNegotiation
 }
 
 // GetGeneratedPasswordForPAMAuth returns generated Password For PAM Auth
@@ -60,6 +68,11 @@ func (conn *IRODSConnection) GetGeneratedPasswordForPAMAuth() string {
 // IsConnected returns if the connection is live
 func (conn *IRODSConnection) IsConnected() bool {
 	return conn.connected
+}
+
+// GetCreationTime returns creation time
+func (conn *IRODSConnection) GetCreationTime() time.Time {
+	return conn.creationTime
 }
 
 // GetLastSuccessfulAccess returns last successful access time
@@ -77,12 +90,12 @@ func (conn *IRODSConnection) Connect() error {
 
 	conn.connected = false
 
-	server := fmt.Sprintf("%s:%d", conn.Account.Host, conn.Account.Port)
+	server := fmt.Sprintf("%s:%d", conn.account.Host, conn.account.Port)
 	logger.Debugf("Connecting to %s", server)
 
 	socket, err := net.Dial("tcp", server)
 	if err != nil {
-		return fmt.Errorf("could not connect to specified host and port (%s:%d) - %v", conn.Account.Host, conn.Account.Port, err)
+		return fmt.Errorf("could not connect to specified host and port (%s:%d) - %v", conn.account.Host, conn.account.Port, err)
 	}
 
 	conn.socket = socket
@@ -102,15 +115,15 @@ func (conn *IRODSConnection) Connect() error {
 
 	conn.serverVersion = irodsVersion
 
-	switch conn.Account.AuthenticationScheme {
+	switch conn.account.AuthenticationScheme {
 	case types.AuthSchemeNative:
-		err = conn.loginNative(conn.Account.Password)
+		err = conn.loginNative(conn.account.Password)
 	case types.AuthSchemeGSI:
 		err = conn.loginGSI()
 	case types.AuthSchemePAM:
 		err = conn.loginPAM()
 	default:
-		return fmt.Errorf("unknown Authentication Scheme - %s", conn.Account.AuthenticationScheme)
+		return fmt.Errorf("unknown Authentication Scheme - %s", conn.account.AuthenticationScheme)
 	}
 
 	if err != nil {
@@ -118,7 +131,7 @@ func (conn *IRODSConnection) Connect() error {
 		return err
 	}
 
-	if conn.Account.UseTicket() {
+	if conn.account.UseTicket() {
 		conn.showTicket()
 	}
 
@@ -137,14 +150,14 @@ func (conn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, er
 
 	// Get client negotiation policy
 	clientPolicy := types.CSNegotiationRequireTCP
-	if len(conn.Account.CSNegotiationPolicy) > 0 {
-		clientPolicy = conn.Account.CSNegotiationPolicy
+	if len(conn.account.CSNegotiationPolicy) > 0 {
+		clientPolicy = conn.account.CSNegotiationPolicy
 	}
 
 	// Send a startup message
 	logger.Debug("Start up a connection with CS Negotiation")
 
-	startup := message.NewIRODSMessageStartupPack(conn.Account, conn.ApplicationName, true)
+	startup := message.NewIRODSMessageStartupPack(conn.account, conn.applicationName, true)
 	startupMessage, err := startup.GetMessage()
 	if err != nil {
 		return nil, fmt.Errorf("could not make a startup message - %v", err)
@@ -197,7 +210,7 @@ func (conn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, er
 
 		// If negotiation failed we're done
 		if policyResult == types.CSNegotiationFailure {
-			return nil, fmt.Errorf("Client-Server negotiation failed: %s, %s", string(clientPolicy), string(serverPolicy))
+			return nil, fmt.Errorf("client-server negotiation failed: %s, %s", string(clientPolicy), string(serverPolicy))
 		}
 
 		// Send negotiation result to server
@@ -218,7 +231,7 @@ func (conn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, er
 		return version.GetVersion(), nil
 	}
 
-	return nil, fmt.Errorf("Unknown response message - %s", negotiationMessage.Body.Type)
+	return nil, fmt.Errorf("unknown response message - %s", negotiationMessage.Body.Type)
 }
 
 func (conn *IRODSConnection) connectWithoutCSNegotiation() (*types.IRODSVersion, error) {
@@ -232,7 +245,7 @@ func (conn *IRODSConnection) connectWithoutCSNegotiation() (*types.IRODSVersion,
 	// Send a startup message
 	logger.Debug("Start up a connection without CS Negotiation")
 
-	startup := message.NewIRODSMessageStartupPack(conn.Account, conn.ApplicationName, false)
+	startup := message.NewIRODSMessageStartupPack(conn.account, conn.applicationName, false)
 	version := message.IRODSMessageVersion{}
 	err := conn.Request(startup, &version)
 	if err != nil {
@@ -251,7 +264,7 @@ func (conn *IRODSConnection) sslStartup() error {
 
 	logger.Debug("Start up SSL")
 
-	irodsSSLConfig := conn.Account.SSLConfiguration
+	irodsSSLConfig := conn.account.SSLConfiguration
 	if irodsSSLConfig == nil {
 		return fmt.Errorf("SSL Configuration is not set")
 	}
@@ -264,7 +277,7 @@ func (conn *IRODSConnection) sslStartup() error {
 
 	sslConf := &tls.Config{
 		RootCAs:    caCertPool,
-		ServerName: conn.Account.Host,
+		ServerName: conn.account.Host,
 	}
 
 	// Create a side connection using the existing socket
@@ -334,7 +347,7 @@ func (conn *IRODSConnection) loginNative(password string) error {
 		return fmt.Errorf("could not generate an authentication response - %v", err)
 	}
 
-	authResponse := message.NewIRODSMessageAuthResponse(encodedPassword, conn.Account.ProxyUser)
+	authResponse := message.NewIRODSMessageAuthResponse(encodedPassword, conn.account.ProxyUser)
 	authResult := message.IRODSMessageAuthResult{}
 	return conn.RequestAndCheck(authResponse, &authResult)
 }
@@ -357,13 +370,13 @@ func (conn *IRODSConnection) loginPAM() error {
 		return fmt.Errorf("connection should be using SSL")
 	}
 
-	ttl := conn.Account.PamTTL
+	ttl := conn.account.PamTTL
 	if ttl <= 0 {
 		ttl = 1
 	}
 
 	// authenticate
-	pamAuthRequest := message.NewIRODSMessagePamAuthRequest(conn.Account.ClientUser, conn.Account.Password, ttl)
+	pamAuthRequest := message.NewIRODSMessagePamAuthRequest(conn.account.ClientUser, conn.account.Password, ttl)
 	pamAuthResponse := message.IRODSMessagePamAuthResponse{}
 	err := conn.Request(pamAuthRequest, &pamAuthResponse)
 	if err != nil {
@@ -386,9 +399,9 @@ func (conn *IRODSConnection) showTicket() error {
 
 	logger.Debug("Submitting a ticket to obtain access")
 
-	if len(conn.Account.Ticket) > 0 {
+	if len(conn.account.Ticket) > 0 {
 		// show the ticket
-		ticketRequest := message.NewIRODSMessageTicketAdminRequest("session", conn.Account.Ticket)
+		ticketRequest := message.NewIRODSMessageTicketAdminRequest("session", conn.account.Ticket)
 		ticketResult := message.IRODSMessageTicketAdminResponse{}
 		return conn.RequestAndCheck(ticketRequest, &ticketResult)
 	}
@@ -450,8 +463,8 @@ func (conn *IRODSConnection) Send(buffer []byte, size int) error {
 	}
 
 	// use sslSocket
-	if conn.Timeout > 0 {
-		conn.socket.SetWriteDeadline(time.Now().Add(conn.Timeout))
+	if conn.requestTimeout > 0 {
+		conn.socket.SetWriteDeadline(time.Now().Add(conn.requestTimeout))
 	}
 
 	err := util.WriteBytes(conn.socket, buffer, size)
@@ -483,8 +496,8 @@ func (conn *IRODSConnection) Recv(buffer []byte, size int) (int, error) {
 		return 0, fmt.Errorf("unable to receive data - socket closed")
 	}
 
-	if conn.Timeout > 0 {
-		conn.socket.SetReadDeadline(time.Now().Add(conn.Timeout))
+	if conn.requestTimeout > 0 {
+		conn.socket.SetReadDeadline(time.Now().Add(conn.requestTimeout))
 	}
 
 	readLen, err := util.ReadBytes(conn.socket, buffer, size)
@@ -509,7 +522,7 @@ func (conn *IRODSConnection) SendMessage(msg *message.IRODSMessage) error {
 	messageBuffer := new(bytes.Buffer)
 
 	if msg.Header == nil && msg.Body == nil {
-		return fmt.Errorf("Header and Body cannot be nil")
+		return fmt.Errorf("header and body cannot be nil")
 	}
 
 	var headerBytes []byte
@@ -586,7 +599,7 @@ func (conn *IRODSConnection) readMessageHeader() (*message.IRODSMessageHeader, e
 
 	headerSize := binary.BigEndian.Uint32(headerLenBuffer)
 	if headerSize <= 0 {
-		return nil, fmt.Errorf("Invalid header size returned - len = %d", headerSize)
+		return nil, fmt.Errorf("invalid header size returned - len = %d", headerSize)
 	}
 
 	// read header
@@ -661,7 +674,7 @@ func (conn *IRODSConnection) Rollback() error {
 // The usage for this function, is that rolling back the current database transaction still will start
 // a new one, so that future queries will see all changes that where made up to calling this function.
 func (conn *IRODSConnection) PoorMansRollback() error {
-	dummyCol := fmt.Sprintf("/%s/home/%s", conn.Account.ClientZone, conn.Account.ClientUser)
+	dummyCol := fmt.Sprintf("/%s/home/%s", conn.account.ClientZone, conn.account.ClientUser)
 
 	return conn.poorMansEndTransaction(dummyCol, false)
 }

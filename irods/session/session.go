@@ -34,7 +34,8 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 		InitialCap:       config.ConnectionInitNumber,
 		MaxIdle:          config.ConnectionMaxIdle,
 		MaxCap:           config.ConnectionMax,
-		IdleTimeout:      config.IdleTimeout,
+		Lifespan:         config.ConnectionLifespan,
+		IdleTimeout:      config.ConnectionIdleTimeout,
 		OperationTimeout: config.OperationTimeout,
 	}
 

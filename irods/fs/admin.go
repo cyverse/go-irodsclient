@@ -24,9 +24,11 @@ func AddUser(conn *connection.IRODSConnection, username, password string) error 
 		password = password + scramblePadding[0:lencopy]
 	}
 
-	adminPassword := conn.Account.Password
+	account := conn.GetAccount()
 
-	if conn.Account.AuthenticationScheme == types.AuthSchemePAM {
+	adminPassword := account.Password
+
+	if account.AuthenticationScheme == types.AuthSchemePAM {
 		adminPassword = conn.GetGeneratedPasswordForPAMAuth()
 	}
 

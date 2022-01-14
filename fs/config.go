@@ -7,6 +7,8 @@ const (
 	FileSystemConnectionMaxMin = 5
 	// FileSystemConnectionMaxDefault is a default number of connection max value
 	FileSystemConnectionMaxDefault = 10
+	// ConnectionLifespanDefault is a default lifespan of a connection
+	ConnectionLifespanDefault = 1 * time.Hour
 	// FileSystemTimeoutDefault is a default timeout value
 	FileSystemTimeoutDefault = 5 * time.Minute
 )
@@ -14,6 +16,7 @@ const (
 // FileSystemConfig is a struct for file system configuration
 type FileSystemConfig struct {
 	ApplicationName       string
+	ConnectionLifespan    time.Duration
 	OperationTimeout      time.Duration
 	ConnectionIdleTimeout time.Duration
 	ConnectionMax         int
@@ -25,7 +28,7 @@ type FileSystemConfig struct {
 }
 
 // NewFileSystemConfig create a FileSystemConfig
-func NewFileSystemConfig(applicationName string, operationTimeout time.Duration, connectionIdleTimeout time.Duration, connectionMax int, cacheTimeout time.Duration, cacheCleanupTime time.Duration, startNewTransaction bool) *FileSystemConfig {
+func NewFileSystemConfig(applicationName string, connectionLifespan time.Duration, operationTimeout time.Duration, connectionIdleTimeout time.Duration, connectionMax int, cacheTimeout time.Duration, cacheCleanupTime time.Duration, startNewTransaction bool) *FileSystemConfig {
 	connMax := connectionMax
 	if connMax < FileSystemConnectionMaxMin {
 		connMax = FileSystemConnectionMaxMin
@@ -33,6 +36,7 @@ func NewFileSystemConfig(applicationName string, operationTimeout time.Duration,
 
 	return &FileSystemConfig{
 		ApplicationName:       applicationName,
+		ConnectionLifespan:    connectionLifespan,
 		OperationTimeout:      operationTimeout,
 		ConnectionIdleTimeout: connectionIdleTimeout,
 		ConnectionMax:         connMax,
@@ -46,6 +50,7 @@ func NewFileSystemConfig(applicationName string, operationTimeout time.Duration,
 func NewFileSystemConfigWithDefault(applicationName string) *FileSystemConfig {
 	return &FileSystemConfig{
 		ApplicationName:       applicationName,
+		ConnectionLifespan:    ConnectionLifespanDefault,
 		OperationTimeout:      FileSystemTimeoutDefault,
 		ConnectionIdleTimeout: FileSystemTimeoutDefault,
 		ConnectionMax:         FileSystemConnectionMaxDefault,

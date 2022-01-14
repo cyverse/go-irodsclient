@@ -18,9 +18,10 @@ type ConnectionPoolConfig struct {
 	ApplicationName  string
 	InitialCap       int
 	MaxIdle          int
-	MaxCap           int // output warning if total connections exceeds mapcap
-	IdleTimeout      time.Duration
-	OperationTimeout time.Duration
+	MaxCap           int           // output warning if total connections exceeds maxcap number
+	Lifespan         time.Duration // if a connection exceeds its lifespan, the connection will die
+	IdleTimeout      time.Duration // if there's no activity on a connection for the timeout time, the connection will die
+	OperationTimeout time.Duration // if there's no response for the timeout time, the request will fail
 }
 
 // ConnectionPool is a struct for connection pool
@@ -72,6 +73,10 @@ func NewConnectionPool(config *ConnectionPoolConfig) (*ConnectionPool, error) {
 					if idleConn, ok := idleConnObj.(*connection.IRODSConnection); ok {
 						if idleConn.GetLastSuccessfulAccess().Add(pool.config.IdleTimeout).Before(now) {
 							// timeout
+							pool.idleConnections.Remove(elem)
+							idleConn.Disconnect()
+						} else if idleConn.GetCreationTime().Add(pool.config.Lifespan).Before(now) {
+							// too old
 							pool.idleConnections.Remove(elem)
 							idleConn.Disconnect()
 						} else {
@@ -189,9 +194,9 @@ func (pool *ConnectionPool) Get() (*connection.IRODSConnection, bool, error) {
 					pool.occupiedConnections[idleConn] = true
 					logger.Debug("Reuse an idle connection")
 					return idleConn, false, nil
+				} else {
+					logger.Warn("failed to reuse an idle connection. already disconnected. discarding.")
 				}
-
-				logger.Warn("failed to reuse an idle connection. already disconnected. discarding.")
 			}
 		}
 	}
@@ -257,6 +262,13 @@ func (pool *ConnectionPool) Return(conn *connection.IRODSConnection) error {
 
 	if !conn.IsConnected() {
 		logger.Warn("failed to return the connection. already closed. discarding.")
+		return nil
+	}
+
+	// do not return if the connection is too old
+	now := time.Now()
+	if conn.GetCreationTime().Add(pool.config.Lifespan).Before(now) {
+		conn.Disconnect()
 		return nil
 	}
 

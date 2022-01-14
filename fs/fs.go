@@ -15,17 +15,17 @@ import (
 
 // FileSystem provides a file-system like interface
 type FileSystem struct {
-	Account     *types.IRODSAccount
-	Config      *FileSystemConfig
-	Session     *session.IRODSSession
-	Cache       *FileSystemCache
-	Mutex       sync.Mutex
-	FileHandles map[string]*FileHandle
+	account     *types.IRODSAccount
+	config      *FileSystemConfig
+	session     *session.IRODSSession
+	cache       *FileSystemCache
+	mutex       sync.Mutex
+	fileHandles map[string]*FileHandle
 }
 
 // NewFileSystem creates a new FileSystem
 func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*FileSystem, error) {
-	sessConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax, config.StartNewTransaction)
+	sessConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax, config.StartNewTransaction)
 	sess, err := session.NewIRODSSession(account, sessConfig)
 	if err != nil {
 		return nil, err
@@ -34,18 +34,18 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*File
 	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime)
 
 	return &FileSystem{
-		Account:     account,
-		Config:      config,
-		Session:     sess,
-		Cache:       cache,
-		FileHandles: map[string]*FileHandle{},
+		account:     account,
+		config:      config,
+		session:     sess,
+		cache:       cache,
+		fileHandles: map[string]*FileHandle{},
 	}, nil
 }
 
 // NewFileSystemWithDefault creates a new FileSystem with default configurations
 func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName string) (*FileSystem, error) {
 	config := NewFileSystemConfigWithDefault(applicationName)
-	sessConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax, config.StartNewTransaction)
+	sessConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax, config.StartNewTransaction)
 	sess, err := session.NewIRODSSession(account, sessConfig)
 	if err != nil {
 		return nil, err
@@ -54,11 +54,11 @@ func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName strin
 	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime)
 
 	return &FileSystem{
-		Account:     account,
-		Config:      config,
-		Session:     sess,
-		Cache:       cache,
-		FileHandles: map[string]*FileHandle{},
+		account:     account,
+		config:      config,
+		session:     sess,
+		cache:       cache,
+		fileHandles: map[string]*FileHandle{},
 	}, nil
 }
 
@@ -73,11 +73,11 @@ func NewFileSystemWithSessionConfig(account *types.IRODSAccount, sessConfig *ses
 	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime)
 
 	return &FileSystem{
-		Account:     account,
-		Config:      config,
-		Session:     sess,
-		Cache:       cache,
-		FileHandles: map[string]*FileHandle{},
+		account:     account,
+		config:      config,
+		session:     sess,
+		cache:       cache,
+		fileHandles: map[string]*FileHandle{},
 	}, nil
 }
 
@@ -86,39 +86,39 @@ func (fs *FileSystem) Release() {
 	handles := []*FileHandle{}
 
 	// empty
-	fs.Mutex.Lock()
-	for _, handle := range fs.FileHandles {
+	fs.mutex.Lock()
+	for _, handle := range fs.fileHandles {
 		handles = append(handles, handle)
 	}
-	fs.FileHandles = map[string]*FileHandle{}
-	fs.Mutex.Unlock()
+	fs.fileHandles = map[string]*FileHandle{}
+	fs.mutex.Unlock()
 
 	for _, handle := range handles {
 		handle.closeWithoutFSHandleManagement()
 	}
 
-	fs.Session.Release()
+	fs.session.Release()
 }
 
 // Connections counts current established connections
 func (fs *FileSystem) Connections() int {
-	return fs.Session.Connections()
+	return fs.session.Connections()
 }
 
 // ListGroupUsers lists all users in a group
 func (fs *FileSystem) ListGroupUsers(group string) ([]*types.IRODSUser, error) {
 	// check cache first
-	cachedUsers := fs.Cache.GetGroupUsersCache(group)
+	cachedUsers := fs.cache.GetGroupUsersCache(group)
 	if cachedUsers != nil {
 		return cachedUsers, nil
 	}
 
 	// otherwise, retrieve it and add it to cache
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.Session.ReturnConnection(conn)
+	defer fs.session.ReturnConnection(conn)
 
 	users, err := irods_fs.ListGroupUsers(conn, group)
 	if err != nil {
@@ -126,7 +126,7 @@ func (fs *FileSystem) ListGroupUsers(group string) ([]*types.IRODSUser, error) {
 	}
 
 	// cache it
-	fs.Cache.AddGroupUsersCache(group, users)
+	fs.cache.AddGroupUsersCache(group, users)
 
 	return users, nil
 }
@@ -134,17 +134,17 @@ func (fs *FileSystem) ListGroupUsers(group string) ([]*types.IRODSUser, error) {
 // ListGroups lists all groups
 func (fs *FileSystem) ListGroups() ([]*types.IRODSUser, error) {
 	// check cache first
-	cachedGroups := fs.Cache.GetGroupsCache()
+	cachedGroups := fs.cache.GetGroupsCache()
 	if cachedGroups != nil {
 		return cachedGroups, nil
 	}
 
 	// otherwise, retrieve it and add it to cache
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.Session.ReturnConnection(conn)
+	defer fs.session.ReturnConnection(conn)
 
 	groups, err := irods_fs.ListGroups(conn)
 	if err != nil {
@@ -152,7 +152,7 @@ func (fs *FileSystem) ListGroups() ([]*types.IRODSUser, error) {
 	}
 
 	// cache it
-	fs.Cache.AddGroupsCache(groups)
+	fs.cache.AddGroupsCache(groups)
 
 	return groups, nil
 }
@@ -160,17 +160,17 @@ func (fs *FileSystem) ListGroups() ([]*types.IRODSUser, error) {
 // ListUserGroups lists all groups that a user belongs to
 func (fs *FileSystem) ListUserGroups(user string) ([]*types.IRODSUser, error) {
 	// check cache first
-	cachedGroups := fs.Cache.GetUserGroupsCache(user)
+	cachedGroups := fs.cache.GetUserGroupsCache(user)
 	if cachedGroups != nil {
 		return cachedGroups, nil
 	}
 
 	// otherwise, retrieve it and add it to cache
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.Session.ReturnConnection(conn)
+	defer fs.session.ReturnConnection(conn)
 
 	groupNames, err := irods_fs.ListUserGroupNames(conn, user)
 	if err != nil {
@@ -188,7 +188,7 @@ func (fs *FileSystem) ListUserGroups(user string) ([]*types.IRODSUser, error) {
 	}
 
 	// cache it
-	fs.Cache.AddUserGroupsCache(user, groups)
+	fs.cache.AddUserGroupsCache(user, groups)
 
 	return groups, nil
 }
@@ -196,17 +196,17 @@ func (fs *FileSystem) ListUserGroups(user string) ([]*types.IRODSUser, error) {
 // ListUsers lists all users
 func (fs *FileSystem) ListUsers() ([]*types.IRODSUser, error) {
 	// check cache first
-	cachedUsers := fs.Cache.GetUsersCache()
+	cachedUsers := fs.cache.GetUsersCache()
 	if cachedUsers != nil {
 		return cachedUsers, nil
 	}
 
 	// otherwise, retrieve it and add it to cache
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.Session.ReturnConnection(conn)
+	defer fs.session.ReturnConnection(conn)
 
 	users, err := irods_fs.ListUsers(conn)
 	if err != nil {
@@ -214,7 +214,7 @@ func (fs *FileSystem) ListUsers() ([]*types.IRODSUser, error) {
 	}
 
 	// cache it
-	fs.Cache.AddUsersCache(users)
+	fs.cache.AddUsersCache(users)
 
 	return users, nil
 }
@@ -356,17 +356,17 @@ func (fs *FileSystem) ListDirACLs(path string) ([]*types.IRODSAccess, error) {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
 	// check cache first
-	cachedAccesses := fs.Cache.GetDirACLsCache(irodsPath)
+	cachedAccesses := fs.cache.GetDirACLsCache(irodsPath)
 	if cachedAccesses != nil {
 		return cachedAccesses, nil
 	}
 
 	// otherwise, retrieve it and add it to cache
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.Session.ReturnConnection(conn)
+	defer fs.session.ReturnConnection(conn)
 
 	accesses, err := irods_fs.ListCollectionAccess(conn, irodsPath)
 	if err != nil {
@@ -374,7 +374,7 @@ func (fs *FileSystem) ListDirACLs(path string) ([]*types.IRODSAccess, error) {
 	}
 
 	// cache it
-	fs.Cache.AddDirACLsCache(irodsPath, accesses)
+	fs.cache.AddDirACLsCache(irodsPath, accesses)
 
 	return accesses, nil
 }
@@ -428,17 +428,17 @@ func (fs *FileSystem) ListFileACLs(path string) ([]*types.IRODSAccess, error) {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
 	// check cache first
-	cachedAccesses := fs.Cache.GetFileACLsCache(irodsPath)
+	cachedAccesses := fs.cache.GetFileACLsCache(irodsPath)
 	if cachedAccesses != nil {
 		return cachedAccesses, nil
 	}
 
 	// otherwise, retrieve it and add it to cache
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.Session.ReturnConnection(conn)
+	defer fs.session.ReturnConnection(conn)
 
 	collection, err := fs.getCollection(util.GetIRODSPathDirname(irodsPath))
 	if err != nil {
@@ -451,7 +451,7 @@ func (fs *FileSystem) ListFileACLs(path string) ([]*types.IRODSAccess, error) {
 	}
 
 	// cache it
-	fs.Cache.AddFileACLsCache(irodsPath, accesses)
+	fs.cache.AddFileACLsCache(irodsPath, accesses)
 
 	return accesses, nil
 }
@@ -520,11 +520,11 @@ func (fs *FileSystem) SearchByMeta(metaname string, metavalue string) ([]*Entry,
 func (fs *FileSystem) RemoveDir(path string, recurse bool, force bool) error {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.Session.ReturnConnection(conn)
+	defer fs.session.ReturnConnection(conn)
 
 	err = irods_fs.DeleteCollection(conn, irodsPath, recurse, force)
 	if err != nil {
@@ -539,11 +539,11 @@ func (fs *FileSystem) RemoveDir(path string, recurse bool, force bool) error {
 func (fs *FileSystem) RemoveFile(path string, force bool) error {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.Session.ReturnConnection(conn)
+	defer fs.session.ReturnConnection(conn)
 
 	err = irods_fs.DeleteDataObject(conn, irodsPath, force)
 	if err != nil {
@@ -574,11 +574,11 @@ func (fs *FileSystem) RenameDirToDir(srcPath string, destPath string) error {
 	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
 	irodsDestPath := util.GetCorrectIRODSPath(destPath)
 
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.Session.ReturnConnection(conn)
+	defer fs.session.ReturnConnection(conn)
 
 	err = irods_fs.MoveCollection(conn, irodsSrcPath, irodsDestPath)
 	if err != nil {
@@ -610,11 +610,11 @@ func (fs *FileSystem) RenameFileToFile(srcPath string, destPath string) error {
 	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
 	irodsDestPath := util.GetCorrectIRODSPath(destPath)
 
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.Session.ReturnConnection(conn)
+	defer fs.session.ReturnConnection(conn)
 
 	err = irods_fs.MoveDataObject(conn, irodsSrcPath, irodsDestPath)
 	if err != nil {
@@ -630,11 +630,11 @@ func (fs *FileSystem) RenameFileToFile(srcPath string, destPath string) error {
 func (fs *FileSystem) MakeDir(path string, recurse bool) error {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.Session.ReturnConnection(conn)
+	defer fs.session.ReturnConnection(conn)
 
 	err = irods_fs.CreateCollection(conn, irodsPath, recurse)
 	if err != nil {
@@ -665,11 +665,11 @@ func (fs *FileSystem) CopyFileToFile(srcPath string, destPath string) error {
 	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
 	irodsDestPath := util.GetCorrectIRODSPath(destPath)
 
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.Session.ReturnConnection(conn)
+	defer fs.session.ReturnConnection(conn)
 
 	err = irods_fs.CopyDataObject(conn, irodsSrcPath, irodsDestPath)
 	if err != nil {
@@ -688,11 +688,11 @@ func (fs *FileSystem) TruncateFile(path string, size int64) error {
 		size = 0
 	}
 
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.Session.ReturnConnection(conn)
+	defer fs.session.ReturnConnection(conn)
 
 	err = irods_fs.TruncateDataObject(conn, irodsPath, size)
 	if err != nil {
@@ -707,11 +707,11 @@ func (fs *FileSystem) TruncateFile(path string, size int64) error {
 func (fs *FileSystem) ReplicateFile(path string, resource string, update bool) error {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.Session.ReturnConnection(conn)
+	defer fs.session.ReturnConnection(conn)
 
 	err = irods_fs.ReplicateDataObject(conn, irodsPath, resource, update, false)
 	if err != nil {
@@ -755,7 +755,7 @@ func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath 
 		}
 	}
 
-	return irods_fs.DownloadDataObject(fs.Session, irodsSrcPath, resource, localFilePath)
+	return irods_fs.DownloadDataObject(fs.session, irodsSrcPath, resource, localFilePath)
 }
 
 // DownloadFileParallel downloads a file to local in parallel
@@ -791,7 +791,7 @@ func (fs *FileSystem) DownloadFileParallel(irodsPath string, resource string, lo
 		}
 	}
 
-	return irods_fs.DownloadDataObjectParallel(fs.Session, irodsSrcPath, resource, localFilePath, srcStat.Size, taskNum)
+	return irods_fs.DownloadDataObjectParallel(fs.session, irodsSrcPath, resource, localFilePath, srcStat.Size, taskNum)
 }
 
 // DownloadFileParallelInBlocksAsync downloads a file to local in parallel
@@ -842,7 +842,7 @@ func (fs *FileSystem) DownloadFileParallelInBlocksAsync(irodsPath string, resour
 		}
 	}
 
-	return irods_fs.DownloadDataObjectParallelInBlocksAsync(fs.Session, irodsSrcPath, resource, localFilePath, srcStat.Size, blockLength, taskNum)
+	return irods_fs.DownloadDataObjectParallelInBlocksAsync(fs.session, irodsSrcPath, resource, localFilePath, srcStat.Size, blockLength, taskNum)
 }
 
 // UploadFile uploads a local file to irods
@@ -882,7 +882,7 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 		}
 	}
 
-	err = irods_fs.UploadDataObject(fs.Session, localSrcPath, irodsFilePath, resource, replicate)
+	err = irods_fs.UploadDataObject(fs.session, localSrcPath, irodsFilePath, resource, replicate)
 	if err != nil {
 		return err
 	}
@@ -928,7 +928,7 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 		}
 	}
 
-	err = irods_fs.UploadDataObjectParallel(fs.Session, localSrcPath, irodsFilePath, resource, taskNum, replicate)
+	err = irods_fs.UploadDataObjectParallel(fs.session, localSrcPath, irodsFilePath, resource, taskNum, replicate)
 	if err != nil {
 		return err
 	}
@@ -993,7 +993,7 @@ func (fs *FileSystem) UploadFileParallelInBlocksAsync(localPath string, irodsPat
 		}
 	}
 
-	outputChan2, errChan2 := irods_fs.UploadDataObjectParallelInBlockAsync(fs.Session, localSrcPath, irodsFilePath, resource, blockLength, taskNum, replicate)
+	outputChan2, errChan2 := irods_fs.UploadDataObjectParallelInBlockAsync(fs.session, localSrcPath, irodsFilePath, resource, blockLength, taskNum, replicate)
 	fs.invalidateCachePathRecursively(irodsFilePath)
 	return outputChan2, errChan2
 }
@@ -1002,14 +1002,14 @@ func (fs *FileSystem) UploadFileParallelInBlocksAsync(localPath string, irodsPat
 func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*FileHandle, error) {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
 
 	handle, offset, err := irods_fs.OpenDataObject(conn, irodsPath, resource, mode)
 	if err != nil {
-		fs.Session.ReturnConnection(conn)
+		fs.session.ReturnConnection(conn)
 		return nil, err
 	}
 
@@ -1029,7 +1029,7 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 			Type:       FileEntry,
 			Name:       util.GetIRODSPathFileName(irodsPath),
 			Path:       irodsPath,
-			Owner:      fs.Account.ClientUser,
+			Owner:      fs.account.ClientUser,
 			Size:       0,
 			CreateTime: time.Now(),
 			ModifyTime: time.Now(),
@@ -1049,9 +1049,9 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 		OpenMode:    types.FileOpenMode(mode),
 	}
 
-	fs.Mutex.Lock()
-	fs.FileHandles[fileHandle.ID] = fileHandle
-	fs.Mutex.Unlock()
+	fs.mutex.Lock()
+	fs.fileHandles[fileHandle.ID] = fileHandle
+	fs.mutex.Unlock()
 
 	return fileHandle, nil
 }
@@ -1060,14 +1060,14 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 func (fs *FileSystem) CreateFile(path string, resource string) (*FileHandle, error) {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
 
 	handle, err := irods_fs.CreateDataObject(conn, irodsPath, resource, true)
 	if err != nil {
-		fs.Session.ReturnConnection(conn)
+		fs.session.ReturnConnection(conn)
 		return nil, err
 	}
 
@@ -1077,7 +1077,7 @@ func (fs *FileSystem) CreateFile(path string, resource string) (*FileHandle, err
 		Type:       FileEntry,
 		Name:       util.GetIRODSPathFileName(irodsPath),
 		Path:       irodsPath,
-		Owner:      fs.Account.ClientUser,
+		Owner:      fs.account.ClientUser,
 		Size:       0,
 		CreateTime: time.Now(),
 		ModifyTime: time.Now(),
@@ -1095,20 +1095,20 @@ func (fs *FileSystem) CreateFile(path string, resource string) (*FileHandle, err
 		OpenMode:    types.FileOpenModeWriteOnly,
 	}
 
-	fs.Mutex.Lock()
-	fs.FileHandles[fileHandle.ID] = fileHandle
-	fs.Mutex.Unlock()
+	fs.mutex.Lock()
+	fs.fileHandles[fileHandle.ID] = fileHandle
+	fs.mutex.Unlock()
 
 	return fileHandle, nil
 }
 
 // ClearCache clears all file system caches
 func (fs *FileSystem) ClearCache() {
-	fs.Cache.ClearDirACLsCache()
-	fs.Cache.ClearFileACLsCache()
-	fs.Cache.ClearMetadataCache()
-	fs.Cache.ClearEntryCache()
-	fs.Cache.ClearDirCache()
+	fs.cache.ClearDirACLsCache()
+	fs.cache.ClearFileACLsCache()
+	fs.cache.ClearMetadataCache()
+	fs.cache.ClearEntryCache()
+	fs.cache.ClearDirCache()
 }
 
 // InvalidateCache invalidates cache with the given path
@@ -1121,17 +1121,17 @@ func (fs *FileSystem) InvalidateCache(path string) {
 // getCollection returns collection entry
 func (fs *FileSystem) getCollection(path string) (*Entry, error) {
 	// check cache first
-	cachedEntry := fs.Cache.GetEntryCache(path)
+	cachedEntry := fs.cache.GetEntryCache(path)
 	if cachedEntry != nil && cachedEntry.Type == DirectoryEntry {
 		return cachedEntry, nil
 	}
 
 	// otherwise, retrieve it and add it to cache
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.Session.ReturnConnection(conn)
+	defer fs.session.ReturnConnection(conn)
 
 	collection, err := irods_fs.GetCollection(conn, path)
 	if err != nil {
@@ -1153,7 +1153,7 @@ func (fs *FileSystem) getCollection(path string) (*Entry, error) {
 		}
 
 		// cache it
-		fs.Cache.AddEntryCache(entry)
+		fs.cache.AddEntryCache(entry)
 
 		return entry, nil
 	}
@@ -1167,11 +1167,11 @@ func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*Entry, 
 	cachedEntries := []*Entry{}
 	useCached := false
 
-	cachedDirEntryPaths := fs.Cache.GetDirCache(collection.Path)
+	cachedDirEntryPaths := fs.cache.GetDirCache(collection.Path)
 	if cachedDirEntryPaths != nil {
 		useCached = true
 		for _, cachedDirEntryPath := range cachedDirEntryPaths {
-			cachedEntry := fs.Cache.GetEntryCache(cachedDirEntryPath)
+			cachedEntry := fs.cache.GetEntryCache(cachedDirEntryPath)
 			if cachedEntry != nil {
 				cachedEntries = append(cachedEntries, cachedEntry)
 			} else {
@@ -1185,11 +1185,11 @@ func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*Entry, 
 	}
 
 	// otherwise, retrieve it and add it to cache
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.Session.ReturnConnection(conn)
+	defer fs.session.ReturnConnection(conn)
 
 	collections, err := irods_fs.ListSubCollections(conn, collection.Path)
 	if err != nil {
@@ -1215,7 +1215,7 @@ func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*Entry, 
 		entries = append(entries, entry)
 
 		// cache it
-		fs.Cache.AddEntryCache(entry)
+		fs.cache.AddEntryCache(entry)
 	}
 
 	dataobjects, err := irods_fs.ListDataObjectsMasterReplica(conn, collection)
@@ -1246,7 +1246,7 @@ func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*Entry, 
 		entries = append(entries, entry)
 
 		// cache it
-		fs.Cache.AddEntryCache(entry)
+		fs.cache.AddEntryCache(entry)
 	}
 
 	// cache dir entries
@@ -1254,18 +1254,18 @@ func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*Entry, 
 	for _, entry := range entries {
 		dirEntryPaths = append(dirEntryPaths, entry.Path)
 	}
-	fs.Cache.AddDirCache(collection.Path, dirEntryPaths)
+	fs.cache.AddDirCache(collection.Path, dirEntryPaths)
 
 	return entries, nil
 }
 
 // searchEntriesByMeta searches entries by meta
 func (fs *FileSystem) searchEntriesByMeta(metaName string, metaValue string) ([]*Entry, error) {
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.Session.ReturnConnection(conn)
+	defer fs.session.ReturnConnection(conn)
 
 	collections, err := irods_fs.SearchCollectionsByMeta(conn, metaName, metaValue)
 	if err != nil {
@@ -1291,7 +1291,7 @@ func (fs *FileSystem) searchEntriesByMeta(metaName string, metaValue string) ([]
 		entries = append(entries, entry)
 
 		// cache it
-		fs.Cache.AddEntryCache(entry)
+		fs.cache.AddEntryCache(entry)
 	}
 
 	dataobjects, err := irods_fs.SearchDataObjectsMasterReplicaByMeta(conn, metaName, metaValue)
@@ -1322,7 +1322,7 @@ func (fs *FileSystem) searchEntriesByMeta(metaName string, metaValue string) ([]
 		entries = append(entries, entry)
 
 		// cache it
-		fs.Cache.AddEntryCache(entry)
+		fs.cache.AddEntryCache(entry)
 	}
 
 	return entries, nil
@@ -1331,7 +1331,7 @@ func (fs *FileSystem) searchEntriesByMeta(metaName string, metaValue string) ([]
 // isCacheDataObject checks if given path is for data object, return false if unknown
 func (fs *FileSystem) isCacheDataObject(path string) bool {
 	// check cache
-	cachedEntry := fs.Cache.GetEntryCache(path)
+	cachedEntry := fs.cache.GetEntryCache(path)
 	if cachedEntry != nil && cachedEntry.Type == FileEntry {
 		return true
 	}
@@ -1341,7 +1341,7 @@ func (fs *FileSystem) isCacheDataObject(path string) bool {
 // getDataObject returns an entry for data object
 func (fs *FileSystem) getDataObject(path string) (*Entry, error) {
 	// check cache first
-	cachedEntry := fs.Cache.GetEntryCache(path)
+	cachedEntry := fs.cache.GetEntryCache(path)
 	if cachedEntry != nil && cachedEntry.Type == FileEntry {
 		return cachedEntry, nil
 	}
@@ -1352,11 +1352,11 @@ func (fs *FileSystem) getDataObject(path string) (*Entry, error) {
 		return nil, err
 	}
 
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.Session.ReturnConnection(conn)
+	defer fs.session.ReturnConnection(conn)
 
 	dataobject, err := irods_fs.GetDataObjectMasterReplica(conn, collection.Internal.(*types.IRODSCollection), util.GetIRODSPathFileName(path))
 	if err != nil {
@@ -1378,7 +1378,7 @@ func (fs *FileSystem) getDataObject(path string) (*Entry, error) {
 		}
 
 		// cache it
-		fs.Cache.AddEntryCache(entry)
+		fs.cache.AddEntryCache(entry)
 
 		return entry, nil
 	}
@@ -1389,7 +1389,7 @@ func (fs *FileSystem) getDataObject(path string) (*Entry, error) {
 // ListMetadata lists metadata for the given path
 func (fs *FileSystem) ListMetadata(path string) ([]*types.IRODSMeta, error) {
 	// check cache first
-	cachedEntry := fs.Cache.GetMetadataCache(path)
+	cachedEntry := fs.cache.GetMetadataCache(path)
 	if cachedEntry != nil {
 		return cachedEntry, nil
 	}
@@ -1397,11 +1397,11 @@ func (fs *FileSystem) ListMetadata(path string) ([]*types.IRODSMeta, error) {
 	irodsCorrectPath := util.GetCorrectIRODSPath(path)
 
 	// otherwise, retrieve it and add it to cache
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.Session.ReturnConnection(conn)
+	defer fs.session.ReturnConnection(conn)
 
 	var metadataobjects []*types.IRODSMeta
 
@@ -1422,7 +1422,7 @@ func (fs *FileSystem) ListMetadata(path string) ([]*types.IRODSMeta, error) {
 	}
 
 	// cache it
-	fs.Cache.AddMetadataCache(irodsCorrectPath, metadataobjects)
+	fs.cache.AddMetadataCache(irodsCorrectPath, metadataobjects)
 
 	return metadataobjects, nil
 }
@@ -1437,11 +1437,11 @@ func (fs *FileSystem) AddMetadata(irodsPath string, attName string, attValue str
 		Units: attUnits,
 	}
 
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.Session.ReturnConnection(conn)
+	defer fs.session.ReturnConnection(conn)
 
 	if fs.ExistsDir(irodsCorrectPath) {
 		err = irods_fs.AddCollectionMeta(conn, irodsCorrectPath, metadata)
@@ -1455,7 +1455,7 @@ func (fs *FileSystem) AddMetadata(irodsPath string, attName string, attValue str
 		}
 	}
 
-	fs.Cache.RemoveMetadataCache(irodsCorrectPath)
+	fs.cache.RemoveMetadataCache(irodsCorrectPath)
 	return nil
 }
 
@@ -1469,11 +1469,11 @@ func (fs *FileSystem) DeleteMetadata(irodsPath string, attName string, attValue 
 		Units: attUnits,
 	}
 
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.Session.ReturnConnection(conn)
+	defer fs.session.ReturnConnection(conn)
 
 	if fs.ExistsDir(irodsCorrectPath) {
 		err = irods_fs.DeleteCollectionMeta(conn, irodsCorrectPath, metadata)
@@ -1487,43 +1487,43 @@ func (fs *FileSystem) DeleteMetadata(irodsPath string, attName string, attValue 
 		}
 	}
 
-	fs.Cache.RemoveMetadataCache(irodsCorrectPath)
+	fs.cache.RemoveMetadataCache(irodsCorrectPath)
 	return nil
 }
 
 // invalidateCachePath invalidates cache with the given path
 func (fs *FileSystem) invalidateCachePath(path string) {
-	fs.Cache.RemoveEntryCache(path)
-	fs.Cache.RemoveDirCache(path)
-	fs.Cache.RemoveFileACLsCache(path)
-	fs.Cache.RemoveDirACLsCache(path)
-	fs.Cache.RemoveMetadataCache(path)
+	fs.cache.RemoveEntryCache(path)
+	fs.cache.RemoveDirCache(path)
+	fs.cache.RemoveFileACLsCache(path)
+	fs.cache.RemoveDirACLsCache(path)
+	fs.cache.RemoveMetadataCache(path)
 }
 
 func (fs *FileSystem) invalidateCachePathRecursively(path string) {
 	// if path is directory, recursively
-	entry := fs.Cache.GetEntryCache(path)
-	fs.Cache.RemoveEntryCache(path)
-	fs.Cache.RemoveFileACLsCache(path)
-	fs.Cache.RemoveMetadataCache(path)
+	entry := fs.cache.GetEntryCache(path)
+	fs.cache.RemoveEntryCache(path)
+	fs.cache.RemoveFileACLsCache(path)
+	fs.cache.RemoveMetadataCache(path)
 
 	if entry != nil {
 		if entry.Type == DirectoryEntry {
-			dirEntries := fs.Cache.GetDirCache(path)
+			dirEntries := fs.cache.GetDirCache(path)
 			for _, dirEntry := range dirEntries {
 				// do it recursively
 				fs.invalidateCachePathRecursively(dirEntry)
 			}
 		}
 
-		fs.Cache.RemoveDirCache(path)
-		fs.Cache.RemoveDirACLsCache(path)
+		fs.cache.RemoveDirCache(path)
+		fs.cache.RemoveDirACLsCache(path)
 
-		fs.Cache.RemoveDirCache(util.GetIRODSPathDirname(path))
-		fs.Cache.RemoveDirACLsCache(util.GetIRODSPathDirname(path))
+		fs.cache.RemoveDirCache(util.GetIRODSPathDirname(path))
+		fs.cache.RemoveDirACLsCache(util.GetIRODSPathDirname(path))
 	} else {
-		fs.Cache.RemoveDirCache(path)
-		fs.Cache.RemoveDirACLsCache(path)
+		fs.cache.RemoveDirCache(path)
+		fs.cache.RemoveDirACLsCache(path)
 	}
 }
 
@@ -1536,11 +1536,11 @@ func (fs *FileSystem) AddUserMetadata(user string, avuid int64, attName, attValu
 		Units: attUnits,
 	}
 
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.Session.ReturnConnection(conn)
+	defer fs.session.ReturnConnection(conn)
 
 	err = irods_fs.AddUserMeta(conn, user, metadata)
 	if err != nil {
@@ -1559,11 +1559,11 @@ func (fs *FileSystem) DeleteUserMetadata(user string, avuid int64, attName, attV
 		Units: attUnits,
 	}
 
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.Session.ReturnConnection(conn)
+	defer fs.session.ReturnConnection(conn)
 
 	err = irods_fs.DeleteUserMeta(conn, user, metadata)
 	if err != nil {
@@ -1575,11 +1575,11 @@ func (fs *FileSystem) DeleteUserMetadata(user string, avuid int64, attName, attV
 
 // ListUserMetadata lists all user metadata
 func (fs *FileSystem) ListUserMetadata(user string) ([]*types.IRODSMeta, error) {
-	conn, err := fs.Session.AcquireConnection()
+	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.Session.ReturnConnection(conn)
+	defer fs.session.ReturnConnection(conn)
 
 	metadataobjects, err := irods_fs.ListUserMeta(conn, user)
 	if err != nil {
