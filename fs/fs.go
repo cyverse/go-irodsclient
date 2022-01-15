@@ -31,7 +31,7 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*File
 		return nil, err
 	}
 
-	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime)
+	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime, config.CacheTimeoutPathMap)
 
 	return &FileSystem{
 		account:     account,
@@ -51,7 +51,7 @@ func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName strin
 		return nil, err
 	}
 
-	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime)
+	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime, config.CacheTimeoutPathMap)
 
 	return &FileSystem{
 		account:     account,
@@ -70,7 +70,7 @@ func NewFileSystemWithSessionConfig(account *types.IRODSAccount, sessConfig *ses
 		return nil, err
 	}
 
-	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime)
+	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime, config.CacheTimeoutPathMap)
 
 	return &FileSystem{
 		account:     account,

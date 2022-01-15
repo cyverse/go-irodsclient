@@ -1,31 +1,31 @@
 package fs
 
 import (
-	"fmt"
+	"strings"
 	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/types"
-	"github.com/cyverse/go-irodsclient/irods/util"
 	gocache "github.com/patrickmn/go-cache"
 )
 
 // FileSystemCache manages filesystem caches
 type FileSystemCache struct {
-	cacheTimeout    time.Duration
-	cleanupTimeout  time.Duration
-	entryCache      *gocache.Cache
-	dirCache        *gocache.Cache
-	metadataCache   *gocache.Cache
-	groupUsersCache *gocache.Cache
-	userGroupsCache *gocache.Cache
-	groupsCache     *gocache.Cache
-	usersCache      *gocache.Cache
-	dirACLsCache    *gocache.Cache
-	fileACLsCache   *gocache.Cache
+	cacheTimeout        time.Duration
+	cleanupTimeout      time.Duration
+	cacheTimeoutPathMap map[string]time.Duration
+	entryCache          *gocache.Cache
+	dirCache            *gocache.Cache
+	metadataCache       *gocache.Cache
+	groupUsersCache     *gocache.Cache
+	userGroupsCache     *gocache.Cache
+	groupsCache         *gocache.Cache
+	usersCache          *gocache.Cache
+	dirACLsCache        *gocache.Cache
+	fileACLsCache       *gocache.Cache
 }
 
 // NewFileSystemCache creates a new FileSystemCache
-func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration) *FileSystemCache {
+func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration, cacheTimeoutPathMap map[string]time.Duration) *FileSystemCache {
 	entryCache := gocache.New(cacheTimeout, cleanup)
 	dirCache := gocache.New(cacheTimeout, cleanup)
 	metadataCache := gocache.New(cacheTimeout, cleanup)
@@ -36,52 +36,51 @@ func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration) *File
 	dirACLsCache := gocache.New(cacheTimeout, cleanup)
 	fileACLsCache := gocache.New(cacheTimeout, cleanup)
 
+	if cacheTimeoutPathMap == nil {
+		cacheTimeoutPathMap = map[string]time.Duration{}
+	}
+
 	return &FileSystemCache{
-		cacheTimeout:    cacheTimeout,
-		cleanupTimeout:  cleanup,
-		entryCache:      entryCache,
-		dirCache:        dirCache,
-		metadataCache:   metadataCache,
-		groupUsersCache: groupUsersCache,
-		userGroupsCache: userGroupsCache,
-		groupsCache:     groupsCache,
-		usersCache:      usersCache,
-		dirACLsCache:    dirACLsCache,
-		fileACLsCache:   fileACLsCache,
+		cacheTimeout:        cacheTimeout,
+		cleanupTimeout:      cleanup,
+		cacheTimeoutPathMap: cacheTimeoutPathMap,
+		entryCache:          entryCache,
+		dirCache:            dirCache,
+		metadataCache:       metadataCache,
+		groupUsersCache:     groupUsersCache,
+		userGroupsCache:     userGroupsCache,
+		groupsCache:         groupsCache,
+		usersCache:          usersCache,
+		dirACLsCache:        dirACLsCache,
+		fileACLsCache:       fileACLsCache,
 	}
 }
 
-// shouldHaveInfiniteCacheTTL returns true for some known directories for infinite cache duration
-func shouldHaveInfiniteCacheTTL(path string) bool {
-	zone, err := util.GetIRODSZone(path)
-	if err != nil {
-		return false
+func (cache *FileSystemCache) getCacheTTLForPath(path string) time.Duration {
+	// check map first
+	if ttl, ok := cache.cacheTimeoutPathMap[path]; ok {
+		// exact match
+		return ttl
 	}
 
-	root := "/"
-	zoneRoot := fmt.Sprintf("/%s", zone)
-	home := fmt.Sprintf("/%s/home", zone)
-
-	switch path {
-	case root:
-		return true
-	case zoneRoot:
-		return true
-	case home:
-		return true
-	default:
-		return false
+	for pathMatch, ttl := range cache.cacheTimeoutPathMap {
+		if strings.HasSuffix(pathMatch, "/*") {
+			// wildcard key
+			pathPrefix := pathMatch[0 : len(pathMatch)-1]
+			if strings.HasPrefix(path, pathPrefix) {
+				return ttl
+			}
+		}
 	}
+
+	// use default
+	return 0
 }
 
 // AddEntryCache adds an entry cache
 func (cache *FileSystemCache) AddEntryCache(entry *Entry) {
-	if shouldHaveInfiniteCacheTTL(entry.Path) {
-		cache.entryCache.Set(entry.Path, entry, -1)
-	}
-
-	// default
-	cache.entryCache.Set(entry.Path, entry, 0)
+	ttl := cache.getCacheTTLForPath(entry.Path)
+	cache.entryCache.Set(entry.Path, entry, ttl)
 }
 
 // RemoveEntryCache removes an entry cache
@@ -105,12 +104,8 @@ func (cache *FileSystemCache) ClearEntryCache() {
 
 // AddDirCache adds a dir cache
 func (cache *FileSystemCache) AddDirCache(path string, entries []string) {
-	if shouldHaveInfiniteCacheTTL(path) {
-		cache.dirCache.Set(path, entries, -1)
-	}
-
-	// default
-	cache.dirCache.Set(path, entries, 0)
+	ttl := cache.getCacheTTLForPath(path)
+	cache.dirCache.Set(path, entries, ttl)
 }
 
 // RemoveDirCache removes a dir cache
@@ -136,12 +131,8 @@ func (cache *FileSystemCache) ClearDirCache() {
 
 // AddMetadataCache adds a metadata cache
 func (cache *FileSystemCache) AddMetadataCache(path string, metas []*types.IRODSMeta) {
-	if shouldHaveInfiniteCacheTTL(path) {
-		cache.metadataCache.Set(path, metas, -1)
-	}
-
-	// default
-	cache.metadataCache.Set(path, metas, 0)
+	ttl := cache.getCacheTTLForPath(path)
+	cache.metadataCache.Set(path, metas, ttl)
 }
 
 // RemoveMetadataCache removes a metadata cache
@@ -251,12 +242,8 @@ func (cache *FileSystemCache) GetUsersCache() []*types.IRODSUser {
 
 // AddDirACLsCache adds a Dir ACLs cache
 func (cache *FileSystemCache) AddDirACLsCache(path string, accesses []*types.IRODSAccess) {
-	if shouldHaveInfiniteCacheTTL(path) {
-		cache.dirACLsCache.Set(path, accesses, -1)
-	}
-
-	// default
-	cache.dirACLsCache.Set(path, accesses, 0)
+	ttl := cache.getCacheTTLForPath(path)
+	cache.dirACLsCache.Set(path, accesses, ttl)
 }
 
 // RemoveDirACLsCache removes a Dir ACLs cache
@@ -282,12 +269,8 @@ func (cache *FileSystemCache) ClearDirACLsCache() {
 
 // AddFileACLsCache adds a File ACLs cache
 func (cache *FileSystemCache) AddFileACLsCache(path string, accesses []*types.IRODSAccess) {
-	if shouldHaveInfiniteCacheTTL(path) {
-		cache.fileACLsCache.Set(path, accesses, -1)
-	}
-
-	// default
-	cache.fileACLsCache.Set(path, accesses, 0)
+	ttl := cache.getCacheTTLForPath(path)
+	cache.fileACLsCache.Set(path, accesses, ttl)
 }
 
 // RemoveFileACLsCache removes a File ACLs cache
