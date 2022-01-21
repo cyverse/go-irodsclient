@@ -1524,6 +1524,9 @@ func (fs *FileSystem) invalidateCachePathRecursively(path string) {
 	} else {
 		fs.cache.RemoveDirCache(path)
 		fs.cache.RemoveDirACLsCache(path)
+
+		fs.cache.RemoveDirCache(util.GetIRODSPathDirname(path))
+		fs.cache.RemoveDirACLsCache(util.GetIRODSPathDirname(path))
 	}
 }
 
