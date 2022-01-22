@@ -20,7 +20,7 @@ type IRODSMessageVersion struct {
 	ReleaseVersion string   `xml:"relVersion"`
 	APIVersion     string   `xml:"apiVersion"`
 	ReconnectPort  int      `xml:"reconnPort"`
-	ReconnectAddr  string   `xml:"reconnectAddr"`
+	ReconnectAddr  string   `xml:"reconnAddr"`
 	Cookie         int      `xml:"cookie"`
 }
 
@@ -63,4 +63,30 @@ func (msg *IRODSMessageVersion) FromMessage(msgIn *IRODSMessage) error {
 
 	err := msg.FromBytes(msgIn.Body.Message)
 	return err
+}
+
+// GetMessage builds a message
+func (msg *IRODSMessageVersion) GetMessage() (*IRODSMessage, error) {
+	bytes, err := msg.GetBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	msgBody := IRODSMessageBody{
+		Type:    RODS_MESSAGE_VERSION_TYPE,
+		Message: bytes,
+		Error:   nil,
+		Bs:      nil,
+		IntInfo: 0,
+	}
+
+	msgHeader, err := msgBody.BuildHeader()
+	if err != nil {
+		return nil, err
+	}
+
+	return &IRODSMessage{
+		Header: msgHeader,
+		Body:   &msgBody,
+	}, nil
 }

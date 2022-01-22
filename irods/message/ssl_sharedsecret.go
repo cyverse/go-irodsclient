@@ -1,5 +1,7 @@
 package message
 
+import "fmt"
+
 const (
 	// RODS_MESSAGE_SSL_SHARED_SECRET_TYPE is a message type for shared secret used in SSL connection establishment
 	RODS_MESSAGE_SSL_SHARED_SECRET_TYPE MessageType = "SHARED_SECRET"
@@ -36,4 +38,15 @@ func (msg *IRODSMessageSSLSharedSecret) GetMessage() (*IRODSMessage, error) {
 		Header: msgHeader,
 		Body:   &msgBody,
 	}, nil
+}
+
+// FromMessage returns struct from IRODSMessage
+func (msg *IRODSMessageSSLSharedSecret) FromMessage(msgIn *IRODSMessage) error {
+	if msgIn.Body == nil {
+		return fmt.Errorf("cannot create a struct from an empty body")
+	}
+
+	msg.SharedSecret = msgIn.Body.Message
+
+	return nil
 }

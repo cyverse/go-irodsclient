@@ -3,6 +3,8 @@ package message
 import (
 	"encoding/xml"
 	"fmt"
+
+	"github.com/cyverse/go-irodsclient/irods/common"
 )
 
 // IRODSMessageAuthChallenge stores auth challenge
@@ -21,6 +23,32 @@ func (msg *IRODSMessageAuthChallenge) GetBytes() ([]byte, error) {
 func (msg *IRODSMessageAuthChallenge) FromBytes(bytes []byte) error {
 	err := xml.Unmarshal(bytes, msg)
 	return err
+}
+
+// GetMessage builds a message
+func (msg *IRODSMessageAuthChallenge) GetMessage() (*IRODSMessage, error) {
+	bytes, err := msg.GetBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	msgBody := IRODSMessageBody{
+		Type:    RODS_MESSAGE_API_REPLY_TYPE,
+		Message: bytes,
+		Error:   nil,
+		Bs:      nil,
+		IntInfo: int32(common.AUTH_REQUEST_AN),
+	}
+
+	msgHeader, err := msgBody.BuildHeader()
+	if err != nil {
+		return nil, err
+	}
+
+	return &IRODSMessage{
+		Header: msgHeader,
+		Body:   &msgBody,
+	}, nil
 }
 
 // FromMessage returns struct from IRODSMessage
