@@ -531,7 +531,9 @@ func (fs *FileSystem) RemoveDir(path string, recurse bool, force bool) error {
 		return err
 	}
 
-	fs.invalidateCachePathRecursively(irodsPath)
+	fs.invalidateCacheForPathRecursively(irodsPath)
+	// remove cache for its parent dir as well
+	fs.invalidateCacheForPath(util.GetIRODSPathDirname(irodsPath))
 	return nil
 }
 
@@ -550,7 +552,9 @@ func (fs *FileSystem) RemoveFile(path string, force bool) error {
 		return err
 	}
 
-	fs.invalidateCachePathRecursively(irodsPath)
+	fs.invalidateCacheForPath(irodsPath)
+	// remove cache for its parent dir as well
+	fs.invalidateCacheForPath(util.GetIRODSPathDirname(irodsPath))
 	return nil
 }
 
@@ -585,8 +589,12 @@ func (fs *FileSystem) RenameDirToDir(srcPath string, destPath string) error {
 		return err
 	}
 
-	fs.invalidateCachePathRecursively(irodsSrcPath)
-	fs.invalidateCachePathRecursively(irodsDestPath)
+	fs.invalidateCacheForPathRecursively(irodsSrcPath)
+	fs.invalidateCacheForPathRecursively(irodsDestPath)
+
+	// remove cache for its parent dir as well
+	fs.invalidateCacheForPath(util.GetIRODSPathDirname(irodsSrcPath))
+	fs.invalidateCacheForPath(util.GetIRODSPathDirname(irodsDestPath))
 	return nil
 }
 
@@ -621,8 +629,12 @@ func (fs *FileSystem) RenameFileToFile(srcPath string, destPath string) error {
 		return err
 	}
 
-	fs.invalidateCachePathRecursively(irodsSrcPath)
-	fs.invalidateCachePathRecursively(irodsDestPath)
+	fs.invalidateCacheForPath(irodsSrcPath)
+	fs.invalidateCacheForPath(irodsDestPath)
+
+	// remove cache for its parent dir as well
+	fs.invalidateCacheForPath(util.GetIRODSPathDirname(irodsSrcPath))
+	fs.invalidateCacheForPath(util.GetIRODSPathDirname(irodsDestPath))
 	return nil
 }
 
@@ -641,7 +653,9 @@ func (fs *FileSystem) MakeDir(path string, recurse bool) error {
 		return err
 	}
 
-	fs.invalidateCachePathRecursively(irodsPath)
+	fs.invalidateCacheForPathRecursively(irodsPath)
+	// remove cache for its parent dir as well
+	fs.invalidateCacheForPath(util.GetIRODSPathDirname(irodsPath))
 	return nil
 }
 
@@ -676,7 +690,9 @@ func (fs *FileSystem) CopyFileToFile(srcPath string, destPath string) error {
 		return err
 	}
 
-	fs.invalidateCachePathRecursively(irodsDestPath)
+	fs.invalidateCacheForPath(irodsDestPath)
+	// remove cache for its parent dir as well
+	fs.invalidateCacheForPath(util.GetIRODSPathDirname(irodsDestPath))
 	return nil
 }
 
@@ -699,7 +715,7 @@ func (fs *FileSystem) TruncateFile(path string, size int64) error {
 		return err
 	}
 
-	fs.invalidateCachePath(irodsPath)
+	fs.invalidateCacheForPath(irodsPath)
 	return nil
 }
 
@@ -718,7 +734,7 @@ func (fs *FileSystem) ReplicateFile(path string, resource string, update bool) e
 		return err
 	}
 
-	fs.invalidateCachePath(irodsPath)
+	fs.invalidateCacheForPath(irodsPath)
 	return nil
 }
 
@@ -887,7 +903,9 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 		return err
 	}
 
-	fs.invalidateCachePathRecursively(irodsFilePath)
+	fs.invalidateCacheForPath(irodsFilePath)
+	// remove cache for its parent dir as well
+	fs.invalidateCacheForPath(util.GetIRODSPathDirname(irodsFilePath))
 	return nil
 }
 
@@ -933,7 +951,9 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 		return err
 	}
 
-	fs.invalidateCachePathRecursively(irodsFilePath)
+	fs.invalidateCacheForPath(irodsFilePath)
+	// remove cache for its parent dir as well
+	fs.invalidateCacheForPath(util.GetIRODSPathDirname(irodsFilePath))
 	return nil
 }
 
@@ -994,7 +1014,10 @@ func (fs *FileSystem) UploadFileParallelInBlocksAsync(localPath string, irodsPat
 	}
 
 	outputChan2, errChan2 := irods_fs.UploadDataObjectParallelInBlockAsync(fs.session, localSrcPath, irodsFilePath, resource, blockLength, taskNum, replicate)
-	fs.invalidateCachePathRecursively(irodsFilePath)
+
+	fs.invalidateCacheForPath(irodsFilePath)
+	// remove cache for its parent dir as well
+	fs.invalidateCacheForPath(util.GetIRODSPathDirname(irodsFilePath))
 	return outputChan2, errChan2
 }
 
@@ -1115,7 +1138,7 @@ func (fs *FileSystem) ClearCache() {
 func (fs *FileSystem) InvalidateCache(path string) {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
-	fs.invalidateCachePath(irodsPath)
+	fs.invalidateCacheForPath(irodsPath)
 }
 
 // getCollection returns collection entry
@@ -1491,8 +1514,8 @@ func (fs *FileSystem) DeleteMetadata(irodsPath string, attName string, attValue 
 	return nil
 }
 
-// invalidateCachePath invalidates cache with the given path
-func (fs *FileSystem) invalidateCachePath(path string) {
+// invalidateCacheForPath invalidates cache for the given path
+func (fs *FileSystem) invalidateCacheForPath(path string) {
 	fs.cache.RemoveEntryCache(path)
 	fs.cache.RemoveDirCache(path)
 	fs.cache.RemoveFileACLsCache(path)
@@ -1500,7 +1523,8 @@ func (fs *FileSystem) invalidateCachePath(path string) {
 	fs.cache.RemoveMetadataCache(path)
 }
 
-func (fs *FileSystem) invalidateCachePathRecursively(path string) {
+// invalidateCacheForPathRecursively invalidates cache for the given path and its sub-directories and files recursively
+func (fs *FileSystem) invalidateCacheForPathRecursively(path string) {
 	// if path is directory, recursively
 	entry := fs.cache.GetEntryCache(path)
 	fs.cache.RemoveEntryCache(path)
@@ -1512,22 +1536,14 @@ func (fs *FileSystem) invalidateCachePathRecursively(path string) {
 			dirEntries := fs.cache.GetDirCache(path)
 			for _, dirEntry := range dirEntries {
 				// do it recursively
-				fs.invalidateCachePathRecursively(dirEntry)
+				fs.invalidateCacheForPathRecursively(dirEntry)
 			}
 		}
-
-		fs.cache.RemoveDirCache(path)
-		fs.cache.RemoveDirACLsCache(path)
-
-		fs.cache.RemoveDirCache(util.GetIRODSPathDirname(path))
-		fs.cache.RemoveDirACLsCache(util.GetIRODSPathDirname(path))
-	} else {
-		fs.cache.RemoveDirCache(path)
-		fs.cache.RemoveDirACLsCache(path)
-
-		fs.cache.RemoveDirCache(util.GetIRODSPathDirname(path))
-		fs.cache.RemoveDirACLsCache(util.GetIRODSPathDirname(path))
 	}
+
+	// remove dircache and dir acl cache even if it is a file or unknown, no harm.
+	fs.cache.RemoveDirCache(path)
+	fs.cache.RemoveDirACLsCache(path)
 }
 
 // AddUserMetadata adds a user metadata

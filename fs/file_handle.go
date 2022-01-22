@@ -7,6 +7,7 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	irods_fs "github.com/cyverse/go-irodsclient/irods/fs"
 	"github.com/cyverse/go-irodsclient/irods/types"
+	"github.com/cyverse/go-irodsclient/irods/util"
 )
 
 // FileHandle ...
@@ -47,7 +48,9 @@ func (handle *FileHandle) Close() error {
 	defer handle.FileSystem.session.ReturnConnection(handle.Connection)
 
 	if handle.IsWriteMode() {
-		handle.FileSystem.invalidateCachePathRecursively(handle.Entry.Path)
+		handle.FileSystem.invalidateCacheForPath(handle.Entry.Path)
+		// remove cache for its parent dir as well
+		handle.FileSystem.invalidateCacheForPath(util.GetIRODSPathDirname(handle.Entry.Path))
 	}
 
 	handle.FileSystem.mutex.Lock()
@@ -65,7 +68,9 @@ func (handle *FileHandle) closeWithoutFSHandleManagement() error {
 	defer handle.FileSystem.session.ReturnConnection(handle.Connection)
 
 	if handle.IsWriteMode() {
-		handle.FileSystem.invalidateCachePathRecursively(handle.Entry.Path)
+		handle.FileSystem.invalidateCacheForPath(handle.Entry.Path)
+		// remove cache for its parent dir as well
+		handle.FileSystem.invalidateCacheForPath(util.GetIRODSPathDirname(handle.Entry.Path))
 	}
 
 	return irods_fs.CloseDataObject(handle.Connection, handle.IRODSHandle)
