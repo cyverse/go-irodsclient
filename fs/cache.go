@@ -1,18 +1,26 @@
 package fs
 
 import (
-	"strings"
 	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/types"
+	"github.com/cyverse/go-irodsclient/irods/util"
 	gocache "github.com/patrickmn/go-cache"
 )
+
+// MetadataCacheTimeoutSetting defines cache timeout for path
+type MetadataCacheTimeoutSetting struct {
+	Path    string
+	Timeout time.Duration
+	Inherit bool
+}
 
 // FileSystemCache manages filesystem caches
 type FileSystemCache struct {
 	cacheTimeout        time.Duration
 	cleanupTimeout      time.Duration
-	cacheTimeoutPathMap map[string]time.Duration
+	cacheTimeoutPaths   []MetadataCacheTimeoutSetting
+	cacheTimeoutPathMap map[string]MetadataCacheTimeoutSetting
 	entryCache          *gocache.Cache
 	dirCache            *gocache.Cache
 	metadataCache       *gocache.Cache
@@ -25,7 +33,7 @@ type FileSystemCache struct {
 }
 
 // NewFileSystemCache creates a new FileSystemCache
-func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration, cacheTimeoutPathMap map[string]time.Duration) *FileSystemCache {
+func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration, cacheTimeoutSettings []MetadataCacheTimeoutSetting) *FileSystemCache {
 	entryCache := gocache.New(cacheTimeout, cleanup)
 	dirCache := gocache.New(cacheTimeout, cleanup)
 	metadataCache := gocache.New(cacheTimeout, cleanup)
@@ -36,14 +44,21 @@ func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration, cache
 	dirACLsCache := gocache.New(cacheTimeout, cleanup)
 	fileACLsCache := gocache.New(cacheTimeout, cleanup)
 
-	if cacheTimeoutPathMap == nil {
-		cacheTimeoutPathMap = map[string]time.Duration{}
+	if cacheTimeoutSettings == nil {
+		cacheTimeoutSettings = []MetadataCacheTimeoutSetting{}
+	}
+
+	// build a map for quick search
+	cacheTimeoutSettingMap := map[string]MetadataCacheTimeoutSetting{}
+	for _, timeoutSetting := range cacheTimeoutSettings {
+		cacheTimeoutSettingMap[timeoutSetting.Path] = timeoutSetting
 	}
 
 	return &FileSystemCache{
 		cacheTimeout:        cacheTimeout,
 		cleanupTimeout:      cleanup,
-		cacheTimeoutPathMap: cacheTimeoutPathMap,
+		cacheTimeoutPaths:   cacheTimeoutSettings,
+		cacheTimeoutPathMap: cacheTimeoutSettingMap,
 		entryCache:          entryCache,
 		dirCache:            dirCache,
 		metadataCache:       metadataCache,
@@ -58,17 +73,21 @@ func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration, cache
 
 func (cache *FileSystemCache) getCacheTTLForPath(path string) time.Duration {
 	// check map first
-	if ttl, ok := cache.cacheTimeoutPathMap[path]; ok {
+	if timeoutSetting, ok := cache.cacheTimeoutPathMap[path]; ok {
 		// exact match
-		return ttl
+		return timeoutSetting.Timeout
 	}
 
-	for pathMatch, ttl := range cache.cacheTimeoutPathMap {
-		if strings.HasSuffix(pathMatch, "/*") {
-			// wildcard key
-			pathPrefix := pathMatch[0 : len(pathMatch)-1]
-			if strings.HasPrefix(path, pathPrefix) {
-				return ttl
+	// check inherit
+	parentPaths := util.GetParentDirs(path)
+	for i := len(parentPaths) - 1; i >= 0; i-- {
+		parentPath := parentPaths[i]
+
+		if timeoutSetting, ok := cache.cacheTimeoutPathMap[parentPath]; ok {
+			// parent match
+			if timeoutSetting.Inherit {
+				// inherit
+				return timeoutSetting.Timeout
 			}
 		}
 	}

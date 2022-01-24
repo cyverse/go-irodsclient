@@ -22,21 +22,17 @@ type FileSystemConfig struct {
 	ConnectionMax         int
 	CacheTimeout          time.Duration
 	CacheCleanupTime      time.Duration
-	CacheTimeoutPathMap   map[string]time.Duration
+	CacheTimeoutSettings  []MetadataCacheTimeoutSetting
 	// for mysql iCAT backend, this should be true.
 	// for postgresql iCAT backend, this can be false.
 	StartNewTransaction bool
 }
 
 // NewFileSystemConfig create a FileSystemConfig
-func NewFileSystemConfig(applicationName string, connectionLifespan time.Duration, operationTimeout time.Duration, connectionIdleTimeout time.Duration, connectionMax int, cacheTimeout time.Duration, cacheCleanupTime time.Duration, cacheTimeoutPathMap map[string]time.Duration, startNewTransaction bool) *FileSystemConfig {
+func NewFileSystemConfig(applicationName string, connectionLifespan time.Duration, operationTimeout time.Duration, connectionIdleTimeout time.Duration, connectionMax int, cacheTimeout time.Duration, cacheCleanupTime time.Duration, cacheTimeoutSettings []MetadataCacheTimeoutSetting, startNewTransaction bool) *FileSystemConfig {
 	connMax := connectionMax
 	if connMax < FileSystemConnectionMaxMin {
 		connMax = FileSystemConnectionMaxMin
-	}
-
-	if cacheTimeoutPathMap == nil {
-		cacheTimeoutPathMap = map[string]time.Duration{}
 	}
 
 	return &FileSystemConfig{
@@ -47,7 +43,7 @@ func NewFileSystemConfig(applicationName string, connectionLifespan time.Duratio
 		ConnectionMax:         connMax,
 		CacheTimeout:          cacheTimeout,
 		CacheCleanupTime:      cacheCleanupTime,
-		CacheTimeoutPathMap:   cacheTimeoutPathMap,
+		CacheTimeoutSettings:  cacheTimeoutSettings,
 		StartNewTransaction:   startNewTransaction,
 	}
 }
@@ -61,7 +57,7 @@ func NewFileSystemConfigWithDefault(applicationName string) *FileSystemConfig {
 		ConnectionIdleTimeout: FileSystemTimeoutDefault,
 		ConnectionMax:         FileSystemConnectionMaxDefault,
 		CacheTimeout:          FileSystemTimeoutDefault,
-		CacheTimeoutPathMap:   map[string]time.Duration{},
+		CacheTimeoutSettings:  []MetadataCacheTimeoutSetting{},
 		CacheCleanupTime:      FileSystemTimeoutDefault,
 		StartNewTransaction:   true,
 	}
