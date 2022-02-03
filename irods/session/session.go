@@ -49,8 +49,8 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 	sess.startNewTransaction = config.StartNewTransaction
 	sess.poormansRollbackFail = false
 
-	// when ticket is used, we cannot use transaction since we don't have access to home dir
-	if len(sess.account.Ticket) > 0 {
+	// when the user is anonymous, we cannot use transaction since we don't have access to home dir
+	if sess.account.ClientUser == "anonymous" {
 		sess.startNewTransaction = false
 		sess.poormansRollbackFail = true
 	}
