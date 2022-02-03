@@ -105,6 +105,11 @@ func (fs *FileSystem) Connections() int {
 	return fs.session.Connections()
 }
 
+// GetTransferMetrics returns transfer metrics
+func (fs *FileSystem) GetTransferMetrics() types.TransferMetrics {
+	return fs.session.GetTransferMetrics()
+}
+
 // ListGroupUsers lists all users in a group
 func (fs *FileSystem) ListGroupUsers(group string) ([]*types.IRODSUser, error) {
 	// check cache first
