@@ -64,5 +64,5 @@ type IRODSTicketForAnonymousAccess struct {
 
 // ToString stringifies the object
 func (ticket *IRODSTicketForAnonymousAccess) ToString() string {
-	return fmt.Sprintf("<IRODSTicketForAnonymousAccess %d %s %s>", ticket.ID, ticket.Name, ticket.Path)
+	return fmt.Sprintf("<IRODSTicketForAnonymousAccess %d %s %s %s %v>", ticket.ID, ticket.Name, ticket.Type, ticket.Path, ticket.ExpireTime)
 }
