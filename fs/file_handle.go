@@ -90,6 +90,19 @@ func (handle *FileHandle) Seek(offset int64, whence types.Whence) (int64, error)
 	return newOffset, nil
 }
 
+// Truncate truncates the file
+func (handle *FileHandle) Truncate(size int64) error {
+	handle.Mutex.Lock()
+	defer handle.Mutex.Unlock()
+
+	err := irods_fs.TruncateDataObjectHandle(handle.Connection, handle.IRODSHandle, size)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Read reads the file
 func (handle *FileHandle) Read(length int) ([]byte, error) {
 	handle.Mutex.Lock()

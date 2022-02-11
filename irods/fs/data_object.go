@@ -1037,6 +1037,9 @@ func CreateDataObject(conn *connection.IRODSConnection, path string, resource st
 	return &types.IRODSFileHandle{
 		FileDescriptor: response.GetFileDescriptor(),
 		Path:           path,
+		OpenMode:       types.FileOpenModeReadWrite,
+		Resource:       resource,
+		Oper:           common.OPER_TYPE_NONE,
 	}, nil
 }
 
@@ -1064,6 +1067,9 @@ func OpenDataObject(conn *connection.IRODSConnection, path string, resource stri
 	handle := &types.IRODSFileHandle{
 		FileDescriptor: response.GetFileDescriptor(),
 		Path:           path,
+		OpenMode:       fileOpenMode,
+		Resource:       resource,
+		Oper:           common.OPER_TYPE_NONE,
 	}
 
 	// handle seek
@@ -1101,6 +1107,9 @@ func OpenDataObjectWithReplicaToken(conn *connection.IRODSConnection, path strin
 	handle := &types.IRODSFileHandle{
 		FileDescriptor: response.GetFileDescriptor(),
 		Path:           path,
+		OpenMode:       fileOpenMode,
+		Resource:       resource,
+		Oper:           common.OPER_TYPE_NONE,
 	}
 
 	// handle seek
@@ -1138,6 +1147,9 @@ func OpenDataObjectWithOperation(conn *connection.IRODSConnection, path string, 
 	handle := &types.IRODSFileHandle{
 		FileDescriptor: response.GetFileDescriptor(),
 		Path:           path,
+		OpenMode:       fileOpenMode,
+		Resource:       resource,
+		Oper:           oper,
 	}
 
 	// handle seek
@@ -1229,6 +1241,68 @@ func WriteDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHa
 		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
 	return err
+}
+
+// TruncateDataObjectHandle truncates a data object to the given size
+func TruncateDataObjectHandle(conn *connection.IRODSConnection, handle *types.IRODSFileHandle, size int64) error {
+	if conn == nil || !conn.IsConnected() {
+		return fmt.Errorf("connection is nil or disconnected")
+	}
+
+	conn.IncreaseDataObjectMetricsWrite(1)
+
+	// iRODS does not provide FTruncate operation as far as I know.
+	// Implement this by close/truncate/reopen
+
+	// get offset
+	offset, err := SeekDataObject(conn, handle, 0, types.SeekCur)
+	if err != nil {
+		return fmt.Errorf("could not seek a data object - %v", err)
+	}
+
+	// close
+	request1 := message.NewIRODSMessageCloseobjRequest(handle.FileDescriptor)
+	response1 := message.IRODSMessageCloseobjResponse{}
+	err = conn.RequestAndCheck(request1, &response1)
+	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+		return types.NewFileNotFoundErrorf("could not find a data object")
+	}
+
+	// truncate
+	request2 := message.NewIRODSMessageTruncobjRequest(handle.Path, size)
+	response2 := message.IRODSMessageTruncobjResponse{}
+	err = conn.RequestAndCheck(request2, &response2)
+	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+		return types.NewFileNotFoundErrorf("could not find a data object")
+	}
+
+	// reopen
+	request3 := message.NewIRODSMessageOpenobjRequestWithOperation(handle.Path, handle.Resource, handle.OpenMode, handle.Oper)
+	response3 := message.IRODSMessageOpenobjResponse{}
+	err = conn.RequestAndCheck(request3, &response3)
+	if err != nil {
+		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+			return types.NewFileNotFoundErrorf("could not find a data object")
+		}
+
+		return err
+	}
+
+	handle.FileDescriptor = response3.GetFileDescriptor()
+
+	// seek
+	request4 := message.NewIRODSMessageSeekobjRequest(handle.FileDescriptor, offset, types.SeekSet)
+	response4 := message.IRODSMessageSeekobjResponse{}
+	err = conn.RequestAndCheck(request4, &response4)
+	if err != nil {
+		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+			return types.NewFileNotFoundErrorf("could not find a data object")
+		}
+
+		return err
+	}
+
+	return nil
 }
 
 // CloseDataObject closes a file handle of a data object
