@@ -34,11 +34,11 @@ func TestFSAPI(t *testing.T) {
 	t.Run("test CreateMoveDeleteIRODSCollection", testCreateMoveDeleteIRODSCollection)
 	t.Run("test CreateDeleteIRODSDataObject", testCreateDeleteIRODSDataObject)
 	t.Run("test ReadWriteIRODSDataObject", testReadWriteIRODSDataObject)
+	t.Run("test TruncateIRODSDataObject", testTruncateIRODSDataObject)
 	t.Run("test ListIRODSGroupUsers", testListIRODSGroupUsers)
 	t.Run("test SearchDataObjectsByMeta", testSearchDataObjectsByMeta)
 	t.Run("test SearchDataObjectsByMetaWildcard", testSearchDataObjectsByMetaWildcard)
 	t.Run("test ParallelUploadAndDownloadDataObject", testParallelUploadAndDownloadDataObject)
-
 	shutdown()
 }
 
@@ -504,6 +504,59 @@ func testReadWriteIRODSDataObject(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, data, string(datarecv))
+
+	err = fs.CloseDataObject(conn, handle)
+	assert.NoError(t, err)
+
+	// delete
+	err = fs.DeleteDataObject(conn, newDataObjectPath, true)
+	assert.NoError(t, err)
+}
+
+func testTruncateIRODSDataObject(t *testing.T) {
+	account := GetTestAccount()
+
+	account.ClientServerNegotiation = false
+
+	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
+	err := conn.Connect()
+	assert.NoError(t, err)
+	defer conn.Disconnect()
+
+	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+
+	// create
+	newDataObjectFilename := "testobjtruncate123"
+	newDataObjectPath := homedir + "/" + newDataObjectFilename
+
+	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", true)
+	assert.NoError(t, err)
+
+	data := "Hello World Test!!!!"
+	err = fs.WriteDataObject(conn, handle, []byte(data))
+	assert.NoError(t, err)
+
+	err = fs.TruncateDataObjectHandle(conn, handle, 11)
+	assert.NoError(t, err)
+
+	err = fs.CloseDataObject(conn, handle)
+	assert.NoError(t, err)
+
+	collection, err := fs.GetCollection(conn, homedir)
+	assert.NoError(t, err)
+
+	obj, err := fs.GetDataObject(conn, collection, newDataObjectFilename)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, obj.ID)
+
+	// read
+	handle, _, err = fs.OpenDataObject(conn, newDataObjectPath, "", "r")
+	assert.NoError(t, err)
+
+	datarecv, err := fs.ReadDataObject(conn, handle, len(data))
+	assert.NoError(t, err)
+
+	assert.Equal(t, "Hello World", string(datarecv))
 
 	err = fs.CloseDataObject(conn, handle)
 	assert.NoError(t, err)
