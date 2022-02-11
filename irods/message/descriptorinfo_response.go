@@ -73,8 +73,6 @@ func (msg *IRODSMessageDescriptorInfoResponse) FromBytes(bytes []byte) error {
 	}
 	jsonBody = jsonBody[:actualLen]
 
-	fmt.Printf("json => %s\n", string(jsonBody))
-
 	err = json.Unmarshal(jsonBody, msg)
 	if err != nil {
 		return err
