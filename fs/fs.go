@@ -226,44 +226,31 @@ func (fs *FileSystem) ListUsers() ([]*types.IRODSUser, error) {
 
 // Stat returns file status
 func (fs *FileSystem) Stat(path string) (*Entry, error) {
-	// check if a cached Entry for the given path is a dir or a file
-	if fs.isCacheDataObject(path) {
-		fileStat, err := fs.StatFile(path)
-		if err != nil {
-			if !types.IsFileNotFoundError(err) {
-				return nil, err
-			}
-		} else {
-			return fileStat, nil
-		}
+	irodsPath := util.GetCorrectIRODSPath(path)
 
-		dirStat, err := fs.StatDir(path)
-		if err != nil {
-			if !types.IsFileNotFoundError(err) {
-				return nil, err
-			}
-		} else {
-			return dirStat, nil
+	// check if a cached Entry for the given path exists
+	cachedEntry := fs.cache.GetEntryCache(irodsPath)
+	if cachedEntry != nil {
+		return cachedEntry, nil
+	}
+
+	// if cache does not exist,
+	dirStat, err := fs.StatDir(path)
+	if err != nil {
+		if !types.IsFileNotFoundError(err) {
+			return nil, err
 		}
 	} else {
-		// default
-		dirStat, err := fs.StatDir(path)
-		if err != nil {
-			if !types.IsFileNotFoundError(err) {
-				return nil, err
-			}
-		} else {
-			return dirStat, nil
-		}
+		return dirStat, nil
+	}
 
-		fileStat, err := fs.StatFile(path)
-		if err != nil {
-			if !types.IsFileNotFoundError(err) {
-				return nil, err
-			}
-		} else {
-			return fileStat, nil
+	fileStat, err := fs.StatFile(path)
+	if err != nil {
+		if !types.IsFileNotFoundError(err) {
+			return nil, err
 		}
+	} else {
+		return fileStat, nil
 	}
 
 	// not a collection, not a data object
@@ -1354,16 +1341,6 @@ func (fs *FileSystem) searchEntriesByMeta(metaName string, metaValue string) ([]
 	}
 
 	return entries, nil
-}
-
-// isCacheDataObject checks if given path is for data object, return false if unknown
-func (fs *FileSystem) isCacheDataObject(path string) bool {
-	// check cache
-	cachedEntry := fs.cache.GetEntryCache(path)
-	if cachedEntry != nil && cachedEntry.Type == FileEntry {
-		return true
-	}
-	return false
 }
 
 // getDataObject returns an entry for data object
