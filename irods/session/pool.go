@@ -211,6 +211,7 @@ func (pool *ConnectionPool) Get() (*connection.IRODSConnection, bool, error) {
 
 	pool.occupiedConnections[newConn] = true
 	pool.warnExceedsMaxCap()
+	logger.Debug("Create a new connection")
 
 	return newConn, true, nil
 }
@@ -235,6 +236,7 @@ func (pool *ConnectionPool) GetNew() (*connection.IRODSConnection, error) {
 
 	pool.occupiedConnections[newConn] = true
 	pool.warnExceedsMaxCap()
+	logger.Debug("Create a new connection")
 
 	return newConn, nil
 }
@@ -269,6 +271,7 @@ func (pool *ConnectionPool) Return(conn *connection.IRODSConnection) error {
 	now := time.Now()
 	if conn.GetCreationTime().Add(pool.config.Lifespan).Before(now) {
 		conn.Disconnect()
+		logger.Debug("Returning and destroying an old connection")
 		return nil
 	}
 
@@ -287,6 +290,8 @@ func (pool *ConnectionPool) Return(conn *connection.IRODSConnection) error {
 	}
 
 	pool.warnExceedsMaxCap()
+	logger.Debug("Returning a connection")
+
 	return nil
 }
 
