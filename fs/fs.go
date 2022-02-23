@@ -224,9 +224,40 @@ func (fs *FileSystem) ListUsers() ([]*types.IRODSUser, error) {
 	return users, nil
 }
 
+// isHomeDir checks if given path is for /zone/home
+func (fs *FileSystem) isHomeDir(path string) bool {
+	homeDir := fmt.Sprintf("/%s/home", fs.account.ClientZone)
+	return path == homeDir
+}
+
 // Stat returns file status
 func (fs *FileSystem) Stat(path string) (*Entry, error) {
 	irodsPath := util.GetCorrectIRODSPath(path)
+	dirPath := util.GetDirname(irodsPath)
+
+	if !fs.isHomeDir(dirPath) {
+		// do list first to cache dir entries
+		// we do this only for non-home dirs
+		// because home dir has too many entries so taking too long
+		collection, err := fs.getCollection(dirPath)
+		if err != nil {
+			return nil, err
+		}
+
+		dirEntries, err := fs.listEntries(collection.Internal.(*types.IRODSCollection))
+		if err != nil {
+			// stat should return file not found error if fails
+			return nil, types.NewFileNotFoundError("could not find a data object or a directory")
+		}
+
+		for _, dirEntry := range dirEntries {
+			if dirEntry.Path == irodsPath {
+				return dirEntry, nil
+			}
+		}
+
+		return nil, types.NewFileNotFoundError("could not find a data object or a directory")
+	}
 
 	// check if a cached Entry for the given path exists
 	cachedEntry := fs.cache.GetEntryCache(irodsPath)
