@@ -235,6 +235,7 @@ func (fs *FileSystem) Stat(path string) (*Entry, error) {
 	}
 
 	// if cache does not exist,
+	// check dir first
 	dirStat, err := fs.StatDir(path)
 	if err != nil {
 		if !types.IsFileNotFoundError(err) {
@@ -244,6 +245,7 @@ func (fs *FileSystem) Stat(path string) (*Entry, error) {
 		return dirStat, nil
 	}
 
+	// if it's not dir, check file
 	fileStat, err := fs.StatFile(path)
 	if err != nil {
 		if !types.IsFileNotFoundError(err) {
