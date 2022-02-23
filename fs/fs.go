@@ -234,6 +234,24 @@ func (fs *FileSystem) Stat(path string) (*Entry, error) {
 		return cachedEntry, nil
 	}
 
+	// check if a cached dir Entry for the given path exists
+	parentPath := util.GetDirname(irodsPath)
+	cachedDirEntryPaths := fs.cache.GetDirCache(parentPath)
+	dirEntryExist := false
+	if cachedDirEntryPaths != nil {
+		for _, cachedDirEntryPath := range cachedDirEntryPaths {
+			if cachedDirEntryPath == irodsPath {
+				dirEntryExist = true
+				break
+			}
+		}
+
+		if !dirEntryExist {
+			// dir entry not exist - fail fast
+			return nil, types.NewFileNotFoundError("could not find a data object or a directory")
+		}
+	}
+
 	// if cache does not exist,
 	// check dir first
 	dirStat, err := fs.StatDir(path)
