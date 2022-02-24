@@ -669,6 +669,7 @@ func (fs *FileSystem) MakeDir(path string, recurse bool) error {
 	}
 
 	fs.invalidateCacheForDirCreate(irodsPath)
+	fs.cache.AddDirCache(irodsPath, []string{})
 	return nil
 }
 
@@ -1526,9 +1527,7 @@ func (fs *FileSystem) invalidateCacheForFileUpdate(path string) {
 	fs.cache.RemoveNegativeEntryCache(path)
 	fs.cache.RemoveEntryCache(path)
 
-	// parent dir's entry also changes
-	parentPath := util.GetIRODSPathDirname(path)
-	fs.cache.RemoveEntryCache(parentPath)
+	// modification doesn't affect to parent dir's modified time
 }
 
 // invalidateCacheForRemoveInternal invalidates cache for removal of the given file/dir
