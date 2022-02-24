@@ -26,39 +26,45 @@ type FileSystemConfig struct {
 	// for mysql iCAT backend, this should be true.
 	// for postgresql iCAT backend, this can be false.
 	StartNewTransaction bool
+	// determine if we will invalidate parent dir's entry cache
+	// at subdir/file creation/deletion
+	// turn to false to allow short cache inconsistency
+	InvalidateParentEntryCacheImmediately bool
 }
 
 // NewFileSystemConfig create a FileSystemConfig
-func NewFileSystemConfig(applicationName string, connectionLifespan time.Duration, operationTimeout time.Duration, connectionIdleTimeout time.Duration, connectionMax int, cacheTimeout time.Duration, cacheCleanupTime time.Duration, cacheTimeoutSettings []MetadataCacheTimeoutSetting, startNewTransaction bool) *FileSystemConfig {
+func NewFileSystemConfig(applicationName string, connectionLifespan time.Duration, operationTimeout time.Duration, connectionIdleTimeout time.Duration, connectionMax int, cacheTimeout time.Duration, cacheCleanupTime time.Duration, cacheTimeoutSettings []MetadataCacheTimeoutSetting, startNewTransaction bool, invalidateParentEntryCacheImmediately bool) *FileSystemConfig {
 	connMax := connectionMax
 	if connMax < FileSystemConnectionMaxMin {
 		connMax = FileSystemConnectionMaxMin
 	}
 
 	return &FileSystemConfig{
-		ApplicationName:       applicationName,
-		ConnectionLifespan:    connectionLifespan,
-		OperationTimeout:      operationTimeout,
-		ConnectionIdleTimeout: connectionIdleTimeout,
-		ConnectionMax:         connMax,
-		CacheTimeout:          cacheTimeout,
-		CacheCleanupTime:      cacheCleanupTime,
-		CacheTimeoutSettings:  cacheTimeoutSettings,
-		StartNewTransaction:   startNewTransaction,
+		ApplicationName:                       applicationName,
+		ConnectionLifespan:                    connectionLifespan,
+		OperationTimeout:                      operationTimeout,
+		ConnectionIdleTimeout:                 connectionIdleTimeout,
+		ConnectionMax:                         connMax,
+		CacheTimeout:                          cacheTimeout,
+		CacheCleanupTime:                      cacheCleanupTime,
+		CacheTimeoutSettings:                  cacheTimeoutSettings,
+		StartNewTransaction:                   startNewTransaction,
+		InvalidateParentEntryCacheImmediately: invalidateParentEntryCacheImmediately,
 	}
 }
 
 // NewFileSystemConfigWithDefault create a FileSystemConfig with a default settings
 func NewFileSystemConfigWithDefault(applicationName string) *FileSystemConfig {
 	return &FileSystemConfig{
-		ApplicationName:       applicationName,
-		ConnectionLifespan:    ConnectionLifespanDefault,
-		OperationTimeout:      FileSystemTimeoutDefault,
-		ConnectionIdleTimeout: FileSystemTimeoutDefault,
-		ConnectionMax:         FileSystemConnectionMaxDefault,
-		CacheTimeout:          FileSystemTimeoutDefault,
-		CacheTimeoutSettings:  []MetadataCacheTimeoutSetting{},
-		CacheCleanupTime:      FileSystemTimeoutDefault,
-		StartNewTransaction:   true,
+		ApplicationName:                       applicationName,
+		ConnectionLifespan:                    ConnectionLifespanDefault,
+		OperationTimeout:                      FileSystemTimeoutDefault,
+		ConnectionIdleTimeout:                 FileSystemTimeoutDefault,
+		ConnectionMax:                         FileSystemConnectionMaxDefault,
+		CacheTimeout:                          FileSystemTimeoutDefault,
+		CacheTimeoutSettings:                  []MetadataCacheTimeoutSetting{},
+		CacheCleanupTime:                      FileSystemTimeoutDefault,
+		StartNewTransaction:                   true,
+		InvalidateParentEntryCacheImmediately: true,
 	}
 }

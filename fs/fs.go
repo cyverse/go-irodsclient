@@ -31,7 +31,7 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*File
 		return nil, err
 	}
 
-	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime, config.CacheTimeoutSettings)
+	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime, config.CacheTimeoutSettings, config.InvalidateParentEntryCacheImmediately)
 
 	return &FileSystem{
 		account:     account,
@@ -51,7 +51,7 @@ func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName strin
 		return nil, err
 	}
 
-	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime, config.CacheTimeoutSettings)
+	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime, config.CacheTimeoutSettings, config.InvalidateParentEntryCacheImmediately)
 
 	return &FileSystem{
 		account:     account,
@@ -70,7 +70,7 @@ func NewFileSystemWithSessionConfig(account *types.IRODSAccount, sessConfig *ses
 		return nil, err
 	}
 
-	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime, config.CacheTimeoutSettings)
+	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime, config.CacheTimeoutSettings, config.InvalidateParentEntryCacheImmediately)
 
 	return &FileSystem{
 		account:     account,
@@ -1580,9 +1580,9 @@ func (fs *FileSystem) invalidateCacheForDirRemove(path string, recursive bool) {
 	fs.cache.RemoveDirACLsCache(path)
 
 	// parent dir's entry also changes
-	parentPath := util.GetIRODSPathDirname(path)
-	fs.cache.RemoveEntryCache(parentPath)
+	fs.cache.RemoveParentDirCache(path)
 	// parent dir's dir entry also changes
+	parentPath := util.GetIRODSPathDirname(path)
 	parentDirEntries := fs.cache.GetDirCache(parentPath)
 	newParentDirEntries := []string{}
 	for _, dirEntry := range parentDirEntries {
@@ -1600,9 +1600,9 @@ func (fs *FileSystem) invalidateCacheForFileRemove(path string) {
 	fs.cache.RemoveMetadataCache(path)
 
 	// parent dir's entry also changes
-	parentPath := util.GetIRODSPathDirname(path)
-	fs.cache.RemoveEntryCache(parentPath)
+	fs.cache.RemoveParentDirCache(path)
 	// parent dir's dir entry also changes
+	parentPath := util.GetIRODSPathDirname(path)
 	parentDirEntries := fs.cache.GetDirCache(parentPath)
 	newParentDirEntries := []string{}
 	for _, dirEntry := range parentDirEntries {
@@ -1618,9 +1618,9 @@ func (fs *FileSystem) invalidateCacheForDirCreate(path string) {
 	fs.cache.RemoveNegativeEntryCache(path)
 
 	// parent dir's entry also changes
-	parentPath := util.GetIRODSPathDirname(path)
-	fs.cache.RemoveEntryCache(parentPath)
+	fs.cache.RemoveParentDirCache(path)
 	// parent dir's dir entry also changes
+	parentPath := util.GetIRODSPathDirname(path)
 	parentDirEntries := fs.cache.GetDirCache(parentPath)
 	parentDirEntries = append(parentDirEntries, path)
 	fs.cache.AddDirCache(parentPath, parentDirEntries)
@@ -1631,9 +1631,9 @@ func (fs *FileSystem) invalidateCacheForFileCreate(path string) {
 	fs.cache.RemoveNegativeEntryCache(path)
 
 	// parent dir's entry also changes
-	parentPath := util.GetIRODSPathDirname(path)
-	fs.cache.RemoveEntryCache(parentPath)
+	fs.cache.RemoveParentDirCache(path)
 	// parent dir's dir entry also changes
+	parentPath := util.GetIRODSPathDirname(path)
 	parentDirEntries := fs.cache.GetDirCache(parentPath)
 	parentDirEntries = append(parentDirEntries, path)
 	fs.cache.AddDirCache(parentPath, parentDirEntries)

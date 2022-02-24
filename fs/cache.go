@@ -19,24 +19,25 @@ type MetadataCacheTimeoutSetting struct {
 
 // FileSystemCache manages filesystem caches
 type FileSystemCache struct {
-	cacheTimeout        time.Duration
-	cleanupTimeout      time.Duration
-	cacheTimeoutPaths   []MetadataCacheTimeoutSetting
-	cacheTimeoutPathMap map[string]MetadataCacheTimeoutSetting
-	entryCache          *gocache.Cache
-	negativeEntryCache  *gocache.Cache
-	dirCache            *gocache.Cache
-	metadataCache       *gocache.Cache
-	groupUsersCache     *gocache.Cache
-	userGroupsCache     *gocache.Cache
-	groupsCache         *gocache.Cache
-	usersCache          *gocache.Cache
-	dirACLsCache        *gocache.Cache
-	fileACLsCache       *gocache.Cache
+	cacheTimeout                          time.Duration
+	cleanupTimeout                        time.Duration
+	cacheTimeoutPaths                     []MetadataCacheTimeoutSetting
+	cacheTimeoutPathMap                   map[string]MetadataCacheTimeoutSetting
+	invalidateParentEntryCacheImmediately bool
+	entryCache                            *gocache.Cache
+	negativeEntryCache                    *gocache.Cache
+	dirCache                              *gocache.Cache
+	metadataCache                         *gocache.Cache
+	groupUsersCache                       *gocache.Cache
+	userGroupsCache                       *gocache.Cache
+	groupsCache                           *gocache.Cache
+	usersCache                            *gocache.Cache
+	dirACLsCache                          *gocache.Cache
+	fileACLsCache                         *gocache.Cache
 }
 
 // NewFileSystemCache creates a new FileSystemCache
-func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration, cacheTimeoutSettings []MetadataCacheTimeoutSetting) *FileSystemCache {
+func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration, cacheTimeoutSettings []MetadataCacheTimeoutSetting, invalidateParentEntryCacheImmediately bool) *FileSystemCache {
 	entryCache := gocache.New(cacheTimeout, cleanup)
 	negativeEntryCache := gocache.New(cacheTimeout, cleanup)
 	dirCache := gocache.New(cacheTimeout, cleanup)
@@ -59,20 +60,21 @@ func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration, cache
 	}
 
 	return &FileSystemCache{
-		cacheTimeout:        cacheTimeout,
-		cleanupTimeout:      cleanup,
-		cacheTimeoutPaths:   cacheTimeoutSettings,
-		cacheTimeoutPathMap: cacheTimeoutSettingMap,
-		entryCache:          entryCache,
-		negativeEntryCache:  negativeEntryCache,
-		dirCache:            dirCache,
-		metadataCache:       metadataCache,
-		groupUsersCache:     groupUsersCache,
-		userGroupsCache:     userGroupsCache,
-		groupsCache:         groupsCache,
-		usersCache:          usersCache,
-		dirACLsCache:        dirACLsCache,
-		fileACLsCache:       fileACLsCache,
+		cacheTimeout:                          cacheTimeout,
+		cleanupTimeout:                        cleanup,
+		cacheTimeoutPaths:                     cacheTimeoutSettings,
+		cacheTimeoutPathMap:                   cacheTimeoutSettingMap,
+		invalidateParentEntryCacheImmediately: invalidateParentEntryCacheImmediately,
+		entryCache:                            entryCache,
+		negativeEntryCache:                    negativeEntryCache,
+		dirCache:                              dirCache,
+		metadataCache:                         metadataCache,
+		groupUsersCache:                       groupUsersCache,
+		userGroupsCache:                       userGroupsCache,
+		groupsCache:                           groupsCache,
+		usersCache:                            usersCache,
+		dirACLsCache:                          dirACLsCache,
+		fileACLsCache:                         fileACLsCache,
 	}
 }
 
@@ -110,6 +112,14 @@ func (cache *FileSystemCache) AddEntryCache(entry *Entry) {
 // RemoveEntryCache removes an entry cache
 func (cache *FileSystemCache) RemoveEntryCache(path string) {
 	cache.entryCache.Delete(path)
+}
+
+// RemoveParentDirCache removes an entry cache for the parent path of the given path
+func (cache *FileSystemCache) RemoveParentDirCache(path string) {
+	if cache.invalidateParentEntryCacheImmediately {
+		parentPath := util.GetIRODSPathDirname(path)
+		cache.entryCache.Delete(parentPath)
+	}
 }
 
 // GetEntryCache retrieves an entry cache
