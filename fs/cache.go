@@ -1,6 +1,8 @@
 package fs
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/types"
@@ -22,6 +24,7 @@ type FileSystemCache struct {
 	cacheTimeoutPaths   []MetadataCacheTimeoutSetting
 	cacheTimeoutPathMap map[string]MetadataCacheTimeoutSetting
 	entryCache          *gocache.Cache
+	negativeEntryCache  *gocache.Cache
 	dirCache            *gocache.Cache
 	metadataCache       *gocache.Cache
 	groupUsersCache     *gocache.Cache
@@ -35,6 +38,7 @@ type FileSystemCache struct {
 // NewFileSystemCache creates a new FileSystemCache
 func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration, cacheTimeoutSettings []MetadataCacheTimeoutSetting) *FileSystemCache {
 	entryCache := gocache.New(cacheTimeout, cleanup)
+	negativeEntryCache := gocache.New(cacheTimeout, cleanup)
 	dirCache := gocache.New(cacheTimeout, cleanup)
 	metadataCache := gocache.New(cacheTimeout, cleanup)
 	groupUsersCache := gocache.New(cacheTimeout, cleanup)
@@ -60,6 +64,7 @@ func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration, cache
 		cacheTimeoutPaths:   cacheTimeoutSettings,
 		cacheTimeoutPathMap: cacheTimeoutSettingMap,
 		entryCache:          entryCache,
+		negativeEntryCache:  negativeEntryCache,
 		dirCache:            dirCache,
 		metadataCache:       metadataCache,
 		groupUsersCache:     groupUsersCache,
@@ -119,6 +124,46 @@ func (cache *FileSystemCache) GetEntryCache(path string) *Entry {
 // ClearEntryCache clears all entry caches
 func (cache *FileSystemCache) ClearEntryCache() {
 	cache.entryCache.Flush()
+}
+
+// AddNegativeEntryCache adds a negative entry cache
+func (cache *FileSystemCache) AddNegativeEntryCache(path string) {
+	ttl := cache.getCacheTTLForPath(path)
+	cache.negativeEntryCache.Set(path, true, ttl)
+}
+
+// RemoveNegativeEntryCache removes a negative entry cache
+func (cache *FileSystemCache) RemoveNegativeEntryCache(path string) {
+	cache.negativeEntryCache.Delete(path)
+}
+
+// RemoveAllNegativeEntryCacheForPath removes all negative entry caches
+func (cache *FileSystemCache) RemoveAllNegativeEntryCacheForPath(path string) {
+	prefix := fmt.Sprintf("%s/", path)
+	deleteKey := []string{}
+	for k := range cache.negativeEntryCache.Items() {
+		if k == path || strings.HasPrefix(k, prefix) {
+			deleteKey = append(deleteKey, k)
+		}
+	}
+
+	for _, k := range deleteKey {
+		cache.negativeEntryCache.Delete(k)
+	}
+}
+
+// HasNegativeEntryCache checks the existence of a negative entry cache
+func (cache *FileSystemCache) HasNegativeEntryCache(path string) bool {
+	exist, _ := cache.negativeEntryCache.Get(path)
+	if bexist, ok := exist.(bool); ok {
+		return bexist
+	}
+	return false
+}
+
+// ClearNegativeEntryCache clears all negative entry caches
+func (cache *FileSystemCache) ClearNegativeEntryCache() {
+	cache.negativeEntryCache.Flush()
 }
 
 // AddDirCache adds a dir cache

@@ -228,6 +228,12 @@ func (fs *FileSystem) ListUsers() ([]*types.IRODSUser, error) {
 func (fs *FileSystem) Stat(path string) (*Entry, error) {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
+	// check if a negative cache for the given path exists
+	if fs.cache.HasNegativeEntryCache(irodsPath) {
+		// has a negative cache - fail fast
+		return nil, types.NewFileNotFoundError("could not find a data object or a directory")
+	}
+
 	// check if a cached Entry for the given path exists
 	cachedEntry := fs.cache.GetEntryCache(irodsPath)
 	if cachedEntry != nil {
@@ -248,6 +254,7 @@ func (fs *FileSystem) Stat(path string) (*Entry, error) {
 
 		if !dirEntryExist {
 			// dir entry not exist - fail fast
+			fs.cache.AddNegativeEntryCache(irodsPath)
 			return nil, types.NewFileNotFoundError("could not find a data object or a directory")
 		}
 	}
@@ -274,6 +281,7 @@ func (fs *FileSystem) Stat(path string) (*Entry, error) {
 	}
 
 	// not a collection, not a data object
+	fs.cache.AddNegativeEntryCache(irodsPath)
 	return nil, types.NewFileNotFoundError("could not find a data object or a directory")
 }
 
@@ -543,6 +551,7 @@ func (fs *FileSystem) RemoveDir(path string, recurse bool, force bool) error {
 		return err
 	}
 
+	fs.cache.AddNegativeEntryCache(irodsPath)
 	fs.invalidateCacheForDirRemove(irodsPath, recurse)
 	return nil
 }
@@ -562,6 +571,7 @@ func (fs *FileSystem) RemoveFile(path string, force bool) error {
 		return err
 	}
 
+	fs.cache.AddNegativeEntryCache(irodsPath)
 	fs.invalidateCacheForFileRemove(irodsPath)
 	return nil
 }
@@ -597,6 +607,10 @@ func (fs *FileSystem) RenameDirToDir(srcPath string, destPath string) error {
 		return err
 	}
 
+	// we need to expunge all negatie entry caches under irodsDestPath
+	// since all sub-directories/files are also moved
+	fs.cache.RemoveAllNegativeEntryCacheForPath(irodsSrcPath)
+	fs.cache.AddNegativeEntryCache(irodsSrcPath)
 	fs.invalidateCacheForDirRemove(irodsSrcPath, true)
 	fs.invalidateCacheForDirCreate(irodsDestPath)
 	return nil
@@ -633,6 +647,7 @@ func (fs *FileSystem) RenameFileToFile(srcPath string, destPath string) error {
 		return err
 	}
 
+	fs.cache.AddNegativeEntryCache(irodsSrcPath)
 	fs.invalidateCacheForFileRemove(irodsSrcPath)
 	fs.invalidateCacheForFileCreate(irodsDestPath)
 	return nil
@@ -1123,11 +1138,16 @@ func (fs *FileSystem) ClearCache() {
 	fs.cache.ClearFileACLsCache()
 	fs.cache.ClearMetadataCache()
 	fs.cache.ClearEntryCache()
+	fs.cache.ClearNegativeEntryCache()
 	fs.cache.ClearDirCache()
 }
 
 // getCollection returns collection entry
 func (fs *FileSystem) getCollection(path string) (*Entry, error) {
+	if fs.cache.HasNegativeEntryCache(path) {
+		return nil, types.NewFileNotFoundErrorf("could not find a directory")
+	}
+
 	// check cache first
 	cachedEntry := fs.cache.GetEntryCache(path)
 	if cachedEntry != nil && cachedEntry.Type == DirectoryEntry {
@@ -1161,8 +1181,8 @@ func (fs *FileSystem) getCollection(path string) (*Entry, error) {
 		}
 
 		// cache it
+		fs.cache.RemoveNegativeEntryCache(path)
 		fs.cache.AddEntryCache(entry)
-
 		return entry, nil
 	}
 
@@ -1189,6 +1209,10 @@ func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*Entry, 
 	}
 
 	if useCached {
+		// remove from nagative entry cache
+		for _, cachedEntry := range cachedEntries {
+			fs.cache.RemoveNegativeEntryCache(cachedEntry.Path)
+		}
 		return cachedEntries, nil
 	}
 
@@ -1223,6 +1247,7 @@ func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*Entry, 
 		entries = append(entries, entry)
 
 		// cache it
+		fs.cache.RemoveNegativeEntryCache(entry.Path)
 		fs.cache.AddEntryCache(entry)
 	}
 
@@ -1254,6 +1279,7 @@ func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*Entry, 
 		entries = append(entries, entry)
 
 		// cache it
+		fs.cache.RemoveNegativeEntryCache(entry.Path)
 		fs.cache.AddEntryCache(entry)
 	}
 
@@ -1299,6 +1325,7 @@ func (fs *FileSystem) searchEntriesByMeta(metaName string, metaValue string) ([]
 		entries = append(entries, entry)
 
 		// cache it
+		fs.cache.RemoveNegativeEntryCache(entry.Path)
 		fs.cache.AddEntryCache(entry)
 	}
 
@@ -1330,6 +1357,7 @@ func (fs *FileSystem) searchEntriesByMeta(metaName string, metaValue string) ([]
 		entries = append(entries, entry)
 
 		// cache it
+		fs.cache.RemoveNegativeEntryCache(entry.Path)
 		fs.cache.AddEntryCache(entry)
 	}
 
@@ -1338,6 +1366,10 @@ func (fs *FileSystem) searchEntriesByMeta(metaName string, metaValue string) ([]
 
 // getDataObject returns an entry for data object
 func (fs *FileSystem) getDataObject(path string) (*Entry, error) {
+	if fs.cache.HasNegativeEntryCache(path) {
+		return nil, types.NewFileNotFoundErrorf("could not find a data object")
+	}
+
 	// check cache first
 	cachedEntry := fs.cache.GetEntryCache(path)
 	if cachedEntry != nil && cachedEntry.Type == FileEntry {
@@ -1376,8 +1408,8 @@ func (fs *FileSystem) getDataObject(path string) (*Entry, error) {
 		}
 
 		// cache it
+		fs.cache.RemoveNegativeEntryCache(path)
 		fs.cache.AddEntryCache(entry)
-
 		return entry, nil
 	}
 
@@ -1491,6 +1523,7 @@ func (fs *FileSystem) DeleteMetadata(irodsPath string, attName string, attValue 
 
 // invalidateCacheForFileUpdate invalidates cache for update on the given file
 func (fs *FileSystem) invalidateCacheForFileUpdate(path string) {
+	fs.cache.RemoveNegativeEntryCache(path)
 	fs.cache.RemoveEntryCache(path)
 
 	// parent dir's entry also changes
@@ -1583,6 +1616,8 @@ func (fs *FileSystem) invalidateCacheForFileRemove(path string) {
 
 // invalidateCacheForDirCreate invalidates cache for creation of the given dir
 func (fs *FileSystem) invalidateCacheForDirCreate(path string) {
+	fs.cache.RemoveNegativeEntryCache(path)
+
 	// parent dir's entry also changes
 	parentPath := util.GetIRODSPathDirname(path)
 	fs.cache.RemoveEntryCache(parentPath)
@@ -1594,6 +1629,8 @@ func (fs *FileSystem) invalidateCacheForDirCreate(path string) {
 
 // invalidateCacheForFileCreate invalidates cache for creation of the given file
 func (fs *FileSystem) invalidateCacheForFileCreate(path string) {
+	fs.cache.RemoveNegativeEntryCache(path)
+
 	// parent dir's entry also changes
 	parentPath := util.GetIRODSPathDirname(path)
 	fs.cache.RemoveEntryCache(parentPath)
