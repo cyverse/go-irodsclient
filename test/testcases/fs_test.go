@@ -122,7 +122,7 @@ func testReadWrite(t *testing.T) {
 	text := "HELLO WORLD!<?!'\">"
 
 	// create
-	handle, err := fs.CreateFile(newDataObjectPath, "")
+	handle, err := fs.CreateFile(newDataObjectPath, "", "w")
 	assert.NoError(t, err)
 
 	err = handle.Write([]byte(text))

@@ -434,7 +434,7 @@ func testCreateDeleteIRODSDataObject(t *testing.T) {
 	// create
 	newDataObjectFilename := "testobj123"
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
-	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", true)
+	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", "w", true)
 	assert.NoError(t, err)
 
 	err = fs.CloseDataObject(conn, handle)
@@ -479,7 +479,7 @@ func testReadWriteIRODSDataObject(t *testing.T) {
 	newDataObjectFilename := "testobjwrite123"
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
 
-	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", true)
+	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", "w", true)
 	assert.NoError(t, err)
 
 	data := "Hello World"
@@ -529,7 +529,7 @@ func testTruncateIRODSDataObject(t *testing.T) {
 	newDataObjectFilename := "testobjtruncate123"
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
 
-	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", true)
+	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", "w", true)
 	assert.NoError(t, err)
 
 	data := "Hello World Test!!!!"
