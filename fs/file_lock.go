@@ -10,7 +10,7 @@ import (
 type FileLock struct {
 	path       string
 	references int64
-	mutex      sync.Mutex // used to lock the file
+	mutex      sync.RWMutex // used to lock the file
 }
 
 // FileLocks manages file locks
@@ -45,7 +45,7 @@ func (mgr *FileLocks) LockFilesForPrefix(pathPrefix string) []string {
 
 	lockedFilePaths := []string{}
 	for _, fileLock := range fileLocks {
-		fileLock.mutex.Lock()
+		fileLock.mutex.Lock() // write lock
 		lockedFilePaths = append(lockedFilePaths, fileLock.path)
 	}
 
@@ -84,7 +84,7 @@ func (mgr *FileLocks) UnlockFiles(paths []string) error {
 	// unlock in reverse order
 	for i := len(fileLocks) - 1; i >= 0; i-- {
 		fileLock := fileLocks[i]
-		fileLock.mutex.Unlock()
+		fileLock.mutex.Unlock() // unlock write lock
 	}
 
 	return nil
@@ -105,14 +105,39 @@ func (mgr *FileLocks) Lock(path string) {
 		fileLock = &FileLock{
 			path:       path,
 			references: 1,
-			mutex:      sync.Mutex{},
+			mutex:      sync.RWMutex{},
 		}
 		mgr.locks[path] = fileLock
 	}
 
 	mgr.mutex.Unlock()
 
-	fileLock.mutex.Lock()
+	fileLock.mutex.Lock() // write lock
+}
+
+// RLock locks a file with read mode
+func (mgr *FileLocks) RLock(path string) {
+	var fileLock *FileLock
+
+	mgr.mutex.Lock()
+
+	if lock, ok := mgr.locks[path]; ok {
+		// fileLock already exists
+		fileLock = lock
+		fileLock.references++
+	} else {
+		// create a new
+		fileLock = &FileLock{
+			path:       path,
+			references: 1,
+			mutex:      sync.RWMutex{},
+		}
+		mgr.locks[path] = fileLock
+	}
+
+	mgr.mutex.Unlock()
+
+	fileLock.mutex.RLock() // read lock
 }
 
 // Unlock unlocks a file
@@ -143,5 +168,36 @@ func (mgr *FileLocks) Unlock(path string) error {
 	mgr.mutex.Unlock()
 
 	fileLock.mutex.Unlock()
+	return nil
+}
+
+// RUnlock unlocks a file with read mode
+func (mgr *FileLocks) RUnlock(path string) error {
+	var fileLock *FileLock
+
+	mgr.mutex.Lock()
+
+	if lock, ok := mgr.locks[path]; ok {
+		// fileLock already exists
+		fileLock = lock
+	} else {
+		mgr.mutex.Unlock()
+		return fmt.Errorf("file lock for path %s does not exist", path)
+	}
+
+	if fileLock.references <= 0 {
+		mgr.mutex.Unlock()
+		return fmt.Errorf("file lock for path %s has invalid references %d", path, fileLock.references)
+	}
+
+	fileLock.references--
+
+	if fileLock.references == 0 {
+		delete(mgr.locks, path)
+	}
+
+	mgr.mutex.Unlock()
+
+	fileLock.mutex.RUnlock()
 	return nil
 }

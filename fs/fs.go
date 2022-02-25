@@ -1100,7 +1100,7 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 	irodsPath := util.GetCorrectIRODSPath(path)
 
 	// lock the file
-	fs.fileLocks.Lock(irodsPath)
+	fs.fileLocks.RLock(irodsPath)
 
 	conn, err := fs.session.AcquireConnection()
 	if err != nil {
@@ -1161,7 +1161,7 @@ func (fs *FileSystem) CreateFile(path string, resource string) (*FileHandle, err
 	irodsPath := util.GetCorrectIRODSPath(path)
 
 	// lock the file
-	fs.fileLocks.Lock(irodsPath)
+	fs.fileLocks.RLock(irodsPath)
 
 	conn, err := fs.session.AcquireConnection()
 	if err != nil {

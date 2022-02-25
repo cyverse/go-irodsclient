@@ -41,7 +41,7 @@ func (handle *FileHandle) IsWriteMode() bool {
 
 // Close closes the file
 func (handle *FileHandle) Close() error {
-	defer handle.FileSystem.fileLocks.Unlock(handle.Entry.Path)
+	defer handle.FileSystem.fileLocks.RUnlock(handle.Entry.Path)
 
 	handle.Mutex.Lock()
 	defer handle.Mutex.Unlock()
