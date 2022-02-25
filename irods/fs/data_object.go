@@ -1020,14 +1020,16 @@ func TrimDataObject(conn *connection.IRODSConnection, path string, resource stri
 }
 
 // CreateDataObject creates a data object for the path, returns a file handle
-func CreateDataObject(conn *connection.IRODSConnection, path string, resource string, force bool) (*types.IRODSFileHandle, error) {
+func CreateDataObject(conn *connection.IRODSConnection, path string, resource string, mode string, force bool) (*types.IRODSFileHandle, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
+	fileOpenMode := types.FileOpenMode(mode)
+
 	conn.IncreaseDataObjectMetricsCreate(1)
 
-	request := message.NewIRODSMessageCreateobjRequest(path, resource, force)
+	request := message.NewIRODSMessageCreateobjRequest(path, resource, fileOpenMode, force)
 	response := message.IRODSMessageCreateobjResponse{}
 	err := conn.RequestAndCheck(request, &response)
 	if err != nil {
@@ -1037,7 +1039,7 @@ func CreateDataObject(conn *connection.IRODSConnection, path string, resource st
 	return &types.IRODSFileHandle{
 		FileDescriptor: response.GetFileDescriptor(),
 		Path:           path,
-		OpenMode:       types.FileOpenModeReadWrite,
+		OpenMode:       fileOpenMode,
 		Resource:       resource,
 		Oper:           common.OPER_TYPE_NONE,
 	}, nil

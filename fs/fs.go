@@ -1157,7 +1157,7 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 }
 
 // CreateFile opens a new file for write
-func (fs *FileSystem) CreateFile(path string, resource string) (*FileHandle, error) {
+func (fs *FileSystem) CreateFile(path string, resource string, mode string) (*FileHandle, error) {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
 	// lock the file
@@ -1168,7 +1168,7 @@ func (fs *FileSystem) CreateFile(path string, resource string) (*FileHandle, err
 		return nil, err
 	}
 
-	handle, err := irods_fs.CreateDataObject(conn, irodsPath, resource, true)
+	handle, err := irods_fs.CreateDataObject(conn, irodsPath, resource, mode, true)
 	if err != nil {
 		fs.session.ReturnConnection(conn)
 		return nil, err
@@ -1195,7 +1195,7 @@ func (fs *FileSystem) CreateFile(path string, resource string) (*FileHandle, err
 		IRODSHandle: handle,
 		Entry:       entry,
 		Offset:      0,
-		OpenMode:    types.FileOpenModeWriteOnly,
+		OpenMode:    types.FileOpenMode(mode),
 	}
 
 	fs.mutex.Lock()

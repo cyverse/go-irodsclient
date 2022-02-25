@@ -4,17 +4,20 @@ import (
 	"encoding/xml"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
+	"github.com/cyverse/go-irodsclient/irods/types"
 )
 
 // IRODSMessageCreateobjRequest stores data object creation request
 type IRODSMessageCreateobjRequest IRODSMessageDataObjectRequest
 
 // NewIRODSMessageCreateobjRequest creates a IRODSMessageCreateobjRequest message
-func NewIRODSMessageCreateobjRequest(path string, resource string, force bool) *IRODSMessageCreateobjRequest {
+func NewIRODSMessageCreateobjRequest(path string, resource string, mode types.FileOpenMode, force bool) *IRODSMessageCreateobjRequest {
+	flags, _ := types.GetFileOpenFlagSeekToEnd(mode)
+
 	request := &IRODSMessageCreateobjRequest{
 		Path:          path,
 		CreateMode:    0644,
-		OpenFlags:     0,
+		OpenFlags:     flags,
 		Offset:        0,
 		Size:          -1,
 		Threads:       0,
