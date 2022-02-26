@@ -757,8 +757,10 @@ func (fs *FileSystem) TruncateFile(path string, size int64) error {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
 	// lock the file
-	fs.fileLocks.Lock(irodsPath)
-	defer fs.fileLocks.Unlock(irodsPath)
+	// Warning. This uses RLock since this operation can be called while a file is opened.
+	// (I don't know why. VIM does.)
+	fs.fileLocks.RLock(irodsPath)
+	defer fs.fileLocks.RUnlock(irodsPath)
 
 	if size < 0 {
 		size = 0
