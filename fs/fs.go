@@ -21,7 +21,6 @@ type FileSystem struct {
 	cache       *FileSystemCache
 	mutex       sync.Mutex
 	fileHandles map[string]*FileHandle
-	fileLocks   *FileLocks
 }
 
 // NewFileSystem creates a new FileSystem
@@ -34,15 +33,12 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*File
 
 	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime, config.CacheTimeoutSettings, config.InvalidateParentEntryCacheImmediately)
 
-	fileLocks := NewFileLocks()
-
 	return &FileSystem{
 		account:     account,
 		config:      config,
 		session:     sess,
 		cache:       cache,
 		fileHandles: map[string]*FileHandle{},
-		fileLocks:   fileLocks,
 	}, nil
 }
 
@@ -57,15 +53,12 @@ func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName strin
 
 	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime, config.CacheTimeoutSettings, config.InvalidateParentEntryCacheImmediately)
 
-	fileLocks := NewFileLocks()
-
 	return &FileSystem{
 		account:     account,
 		config:      config,
 		session:     sess,
 		cache:       cache,
 		fileHandles: map[string]*FileHandle{},
-		fileLocks:   fileLocks,
 	}, nil
 }
 
@@ -79,15 +72,12 @@ func NewFileSystemWithSessionConfig(account *types.IRODSAccount, sessConfig *ses
 
 	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime, config.CacheTimeoutSettings, config.InvalidateParentEntryCacheImmediately)
 
-	fileLocks := NewFileLocks()
-
 	return &FileSystem{
 		account:     account,
 		config:      config,
 		session:     sess,
 		cache:       cache,
 		fileHandles: map[string]*FileHandle{},
-		fileLocks:   fileLocks,
 	}, nil
 }
 
@@ -550,14 +540,6 @@ func (fs *FileSystem) SearchByMeta(metaname string, metavalue string) ([]*Entry,
 func (fs *FileSystem) RemoveDir(path string, recurse bool, force bool) error {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
-	// lock files in the dir
-	lockedFiles := fs.fileLocks.LockFilesForPrefix(irodsPath)
-	defer fs.fileLocks.UnlockFiles(lockedFiles)
-
-	// lock the dir
-	fs.fileLocks.Lock(irodsPath)
-	defer fs.fileLocks.Unlock(irodsPath)
-
 	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return err
@@ -577,10 +559,6 @@ func (fs *FileSystem) RemoveDir(path string, recurse bool, force bool) error {
 // RemoveFile deletes a file
 func (fs *FileSystem) RemoveFile(path string, force bool) error {
 	irodsPath := util.GetCorrectIRODSPath(path)
-
-	// lock the file
-	fs.fileLocks.Lock(irodsPath)
-	defer fs.fileLocks.Unlock(irodsPath)
 
 	conn, err := fs.session.AcquireConnection()
 	if err != nil {
@@ -617,14 +595,6 @@ func (fs *FileSystem) RenameDir(srcPath string, destPath string) error {
 func (fs *FileSystem) RenameDirToDir(srcPath string, destPath string) error {
 	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
 	irodsDestPath := util.GetCorrectIRODSPath(destPath)
-
-	// lock files in the dir
-	lockedFiles := fs.fileLocks.LockFilesForPrefix(irodsSrcPath)
-	defer fs.fileLocks.UnlockFiles(lockedFiles)
-
-	// lock the dir
-	fs.fileLocks.Lock(irodsSrcPath)
-	defer fs.fileLocks.Unlock(irodsSrcPath)
 
 	conn, err := fs.session.AcquireConnection()
 	if err != nil {
@@ -666,10 +636,6 @@ func (fs *FileSystem) RenameFileToFile(srcPath string, destPath string) error {
 	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
 	irodsDestPath := util.GetCorrectIRODSPath(destPath)
 
-	// lock the file
-	fs.fileLocks.Lock(irodsSrcPath)
-	defer fs.fileLocks.Unlock(irodsSrcPath)
-
 	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return err
@@ -690,10 +656,6 @@ func (fs *FileSystem) RenameFileToFile(srcPath string, destPath string) error {
 // MakeDir creates a directory
 func (fs *FileSystem) MakeDir(path string, recurse bool) error {
 	irodsPath := util.GetCorrectIRODSPath(path)
-
-	// lock the dir
-	fs.fileLocks.Lock(irodsPath)
-	defer fs.fileLocks.Unlock(irodsPath)
 
 	conn, err := fs.session.AcquireConnection()
 	if err != nil {
@@ -731,12 +693,6 @@ func (fs *FileSystem) CopyFileToFile(srcPath string, destPath string) error {
 	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
 	irodsDestPath := util.GetCorrectIRODSPath(destPath)
 
-	// lock the file
-	fs.fileLocks.Lock(irodsSrcPath)
-	defer fs.fileLocks.Unlock(irodsSrcPath)
-	fs.fileLocks.Lock(irodsDestPath)
-	defer fs.fileLocks.Unlock(irodsDestPath)
-
 	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return err
@@ -755,12 +711,6 @@ func (fs *FileSystem) CopyFileToFile(srcPath string, destPath string) error {
 // TruncateFile truncates a file
 func (fs *FileSystem) TruncateFile(path string, size int64) error {
 	irodsPath := util.GetCorrectIRODSPath(path)
-
-	// lock the file
-	// Warning. This uses RLock since this operation can be called while a file is opened.
-	// (I don't know why. VIM does.)
-	fs.fileLocks.RLock(irodsPath)
-	defer fs.fileLocks.RUnlock(irodsPath)
 
 	if size < 0 {
 		size = 0
@@ -785,10 +735,6 @@ func (fs *FileSystem) TruncateFile(path string, size int64) error {
 func (fs *FileSystem) ReplicateFile(path string, resource string, update bool) error {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
-	// lock the file
-	fs.fileLocks.Lock(irodsPath)
-	defer fs.fileLocks.Unlock(irodsPath)
-
 	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return err
@@ -808,10 +754,6 @@ func (fs *FileSystem) ReplicateFile(path string, resource string, update bool) e
 func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath string) error {
 	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
 	localDestPath := util.GetCorrectIRODSPath(localPath)
-
-	// lock the file
-	fs.fileLocks.Lock(irodsSrcPath)
-	defer fs.fileLocks.Unlock(irodsSrcPath)
 
 	localFilePath := localDestPath
 
@@ -848,10 +790,6 @@ func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath 
 func (fs *FileSystem) DownloadFileParallel(irodsPath string, resource string, localPath string, taskNum int) error {
 	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
 	localDestPath := util.GetCorrectIRODSPath(localPath)
-
-	// lock the file
-	fs.fileLocks.Lock(irodsSrcPath)
-	defer fs.fileLocks.Unlock(irodsSrcPath)
 
 	localFilePath := localDestPath
 
@@ -940,10 +878,6 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 	localSrcPath := util.GetCorrectIRODSPath(localPath)
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
-	// lock the file
-	fs.fileLocks.Lock(irodsDestPath)
-	defer fs.fileLocks.Unlock(irodsDestPath)
-
 	irodsFilePath := irodsDestPath
 
 	stat, err := os.Stat(localSrcPath)
@@ -989,10 +923,6 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, resource string, taskNum int, replicate bool) error {
 	localSrcPath := util.GetCorrectIRODSPath(localPath)
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
-
-	// lock the file
-	fs.fileLocks.Lock(irodsDestPath)
-	defer fs.fileLocks.Unlock(irodsDestPath)
 
 	irodsFilePath := irodsDestPath
 
@@ -1101,9 +1031,6 @@ func (fs *FileSystem) UploadFileParallelInBlocksAsync(localPath string, irodsPat
 func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*FileHandle, error) {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
-	// lock the file
-	fs.fileLocks.RLock(irodsPath)
-
 	conn, err := fs.session.AcquireConnection()
 	if err != nil {
 		return nil, err
@@ -1161,9 +1088,6 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 // CreateFile opens a new file for write
 func (fs *FileSystem) CreateFile(path string, resource string, mode string) (*FileHandle, error) {
 	irodsPath := util.GetCorrectIRODSPath(path)
-
-	// lock the file
-	fs.fileLocks.RLock(irodsPath)
 
 	conn, err := fs.session.AcquireConnection()
 	if err != nil {
