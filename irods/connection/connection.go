@@ -206,7 +206,7 @@ func (conn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, er
 		logger.Debugf("Client policy - %s, server policy - %s", clientPolicy, serverPolicy)
 
 		// Perform the negotiation
-		policyResult, status := types.PerformCSNegotiation(clientPolicy, serverPolicy)
+		policyResult := types.PerformCSNegotiation(clientPolicy, serverPolicy)
 
 		// If negotiation failed we're done
 		if policyResult == types.CSNegotiationFailure {
@@ -214,7 +214,7 @@ func (conn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, er
 		}
 
 		// Send negotiation result to server
-		negotiationResult := message.NewIRODSMessageCSNegotiation(status, policyResult)
+		negotiationResult := message.NewIRODSMessageCSNegotiation(policyResult)
 		version := message.IRODSMessageVersion{}
 		err = conn.Request(negotiationResult, &version)
 		if err != nil {

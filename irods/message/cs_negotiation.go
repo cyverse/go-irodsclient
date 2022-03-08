@@ -25,7 +25,13 @@ type IRODSMessageCSNegotiation struct {
 }
 
 // NewIRODSMessageCSNegotiation creates a IRODSMessageCSNegotiation message
-func NewIRODSMessageCSNegotiation(status int, result types.CSNegotiationPolicy) *IRODSMessageCSNegotiation {
+func NewIRODSMessageCSNegotiation(result types.CSNegotiationPolicy) *IRODSMessageCSNegotiation {
+	status := 1
+	if result == types.CSNegotiationFailure {
+		// meaning failure
+		status = 0
+	}
+
 	negotiationResultString := fmt.Sprintf("%s=%s;", negResultKW, string(result))
 	return &IRODSMessageCSNegotiation{
 		Status: status,

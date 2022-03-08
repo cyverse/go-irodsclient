@@ -33,10 +33,17 @@ type IRODSAccount struct {
 func CreateIRODSAccount(host string, port int, user string, zone string,
 	authScheme AuthScheme, password string,
 	serverDN string) (*IRODSAccount, error) {
+	negotiationRequired := false
+	negotiationPolicy := CSNegotiationRequireTCP
+	if authScheme == AuthSchemePAM {
+		negotiationRequired = true
+		negotiationPolicy = CSNegotiationRequireSSL
+	}
+
 	return &IRODSAccount{
 		AuthenticationScheme:    authScheme,
-		ClientServerNegotiation: false,
-		CSNegotiationPolicy:     CSNegotiationRequireTCP,
+		ClientServerNegotiation: negotiationRequired,
+		CSNegotiationPolicy:     negotiationPolicy,
 		Host:                    host,
 		Port:                    port,
 		ClientUser:              user,
@@ -55,10 +62,17 @@ func CreateIRODSAccount(host string, port int, user string, zone string,
 func CreateIRODSAccountForTicket(host string, port int, user string, zone string,
 	authScheme AuthScheme, password string, ticket string,
 	serverDN string) (*IRODSAccount, error) {
+	negotiationRequired := false
+	negotiationPolicy := CSNegotiationRequireTCP
+	if authScheme == AuthSchemePAM {
+		negotiationRequired = true
+		negotiationPolicy = CSNegotiationRequireSSL
+	}
+
 	return &IRODSAccount{
 		AuthenticationScheme:    authScheme,
-		ClientServerNegotiation: false,
-		CSNegotiationPolicy:     CSNegotiationRequireTCP,
+		ClientServerNegotiation: negotiationRequired,
+		CSNegotiationPolicy:     negotiationPolicy,
 		Host:                    host,
 		Port:                    port,
 		ClientUser:              user,
@@ -77,10 +91,17 @@ func CreateIRODSAccountForTicket(host string, port int, user string, zone string
 func CreateIRODSProxyAccount(host string, port int, clientUser string, clientZone string,
 	proxyUser string, proxyZone string,
 	authScheme AuthScheme, password string) (*IRODSAccount, error) {
+	negotiationRequired := false
+	negotiationPolicy := CSNegotiationRequireTCP
+	if authScheme == AuthSchemePAM {
+		negotiationRequired = true
+		negotiationPolicy = CSNegotiationRequireSSL
+	}
+
 	return &IRODSAccount{
 		AuthenticationScheme:    authScheme,
-		ClientServerNegotiation: false,
-		CSNegotiationPolicy:     CSNegotiationRequireTCP,
+		ClientServerNegotiation: negotiationRequired,
+		CSNegotiationPolicy:     negotiationPolicy,
 		Host:                    host,
 		Port:                    port,
 		ClientUser:              clientUser,
@@ -287,6 +308,12 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 // SetSSLConfiguration sets SSL Configuration
 func (account *IRODSAccount) SetSSLConfiguration(sslConf *IRODSSSLConfig) {
 	account.SSLConfiguration = sslConf
+}
+
+// SetCSNegotiation sets CSNegotiation policy
+func (account *IRODSAccount) SetCSNegotiation(requireNegotiation bool, requirePolicy CSNegotiationRequire) {
+	account.ClientServerNegotiation = requireNegotiation
+	account.CSNegotiationPolicy = requirePolicy
 }
 
 // UseProxyAccess returns whether it uses proxy access or not
