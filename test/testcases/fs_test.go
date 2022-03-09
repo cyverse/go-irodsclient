@@ -19,6 +19,8 @@ func TestFS(t *testing.T) {
 	t.Run("test ListEntriesByMeta", testListEntriesByMeta)
 	t.Run("test ListACLs", testListACLs)
 	t.Run("test ReadWrite", testReadWrite)
+	// Write-Rename test fails since iRODS does not support it.
+	//t.Run("test WriteRename", testWriteRename)
 
 	shutdown()
 }
@@ -150,4 +152,65 @@ func testReadWrite(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.False(t, fs.Exists(newDataObjectPath))
+}
+
+func testWriteRename(t *testing.T) {
+	account := GetTestAccount()
+
+	account.ClientServerNegotiation = false
+
+	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
+
+	fs, err := fs.NewFileSystem(account, fsConfig)
+	assert.NoError(t, err)
+	defer fs.Release()
+
+	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+
+	newDataObjectFilename := "testobj1234"
+	newDataObjectPath := homedir + "/" + newDataObjectFilename
+	newDataObjectPathRenameTarget := homedir + "/" + newDataObjectFilename + "_new"
+
+	text1 := "HELLO"
+	text2 := " WORLD!"
+
+	// create
+	handle, err := fs.CreateFile(newDataObjectPath, "", "w")
+	assert.NoError(t, err)
+
+	// write
+	err = handle.Write([]byte(text1))
+	assert.NoError(t, err)
+
+	// rename
+	err = fs.RenameFile(newDataObjectPath, newDataObjectPathRenameTarget)
+	assert.NoError(t, err)
+
+	// write again
+	err = handle.Write([]byte(text2))
+	assert.NoError(t, err)
+
+	// close
+	err = handle.Close()
+	assert.NoError(t, err)
+
+	assert.True(t, fs.Exists(newDataObjectPathRenameTarget))
+
+	// read
+	newHandle, err := fs.OpenFile(newDataObjectPathRenameTarget, "", "r")
+	assert.NoError(t, err)
+
+	readData, err := newHandle.Read(1024)
+	assert.NoError(t, err)
+
+	err = newHandle.Close()
+	assert.NoError(t, err)
+
+	assert.Equal(t, text1+text2, string(readData))
+
+	// delete
+	err = fs.RemoveFile(newDataObjectPathRenameTarget, true)
+	assert.NoError(t, err)
+
+	assert.False(t, fs.Exists(newDataObjectPathRenameTarget))
 }

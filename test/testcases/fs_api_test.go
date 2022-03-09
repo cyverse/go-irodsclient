@@ -35,6 +35,8 @@ func TestFSAPI(t *testing.T) {
 	t.Run("test CreateDeleteIRODSDataObject", testCreateDeleteIRODSDataObject)
 	t.Run("test ReadWriteIRODSDataObject", testReadWriteIRODSDataObject)
 	t.Run("test TruncateIRODSDataObject", testTruncateIRODSDataObject)
+	// Write-Rename test fails since iRODS does not support it.
+	//t.Run("test WriteRenameIRODSDataObject", testWriteRenameIRODSDataObject)
 	t.Run("test ListIRODSGroupUsers", testListIRODSGroupUsers)
 	t.Run("test SearchDataObjectsByMeta", testSearchDataObjectsByMeta)
 	t.Run("test SearchDataObjectsByMetaWildcard", testSearchDataObjectsByMetaWildcard)
@@ -563,6 +565,81 @@ func testTruncateIRODSDataObject(t *testing.T) {
 
 	// delete
 	err = fs.DeleteDataObject(conn, newDataObjectPath, true)
+	assert.NoError(t, err)
+}
+
+func testWriteRenameIRODSDataObject(t *testing.T) {
+	account := GetTestAccount()
+
+	account.ClientServerNegotiation = false
+
+	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
+	err := conn.Connect()
+	assert.NoError(t, err)
+	defer conn.Disconnect()
+
+	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+
+	// create
+	newDataObjectFilename := "testobjwriterename123"
+	newDataObjectPath := homedir + "/" + newDataObjectFilename
+	newDataObjectFilenameRenameTarget := newDataObjectFilename + "_new"
+	newDataObjectPathRenameTarget := homedir + "/" + newDataObjectFilenameRenameTarget
+
+	collection, err := fs.GetCollection(conn, homedir)
+	assert.NoError(t, err)
+
+	// create
+	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", "w", true)
+	assert.NoError(t, err)
+
+	err = fs.CloseDataObject(conn, handle)
+	assert.NoError(t, err)
+
+	// reopen
+	handle, _, err = fs.OpenDataObject(conn, newDataObjectPath, "", "a")
+	assert.NoError(t, err)
+
+	data1 := "Hello"
+	data2 := " World"
+
+	err = fs.WriteDataObject(conn, handle, []byte(data1))
+	assert.NoError(t, err)
+
+	obj, err := fs.GetDataObject(conn, collection, newDataObjectFilename)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, obj.ID)
+
+	// move
+	err = fs.MoveDataObject(conn, newDataObjectPath, newDataObjectPathRenameTarget)
+	assert.NoError(t, err)
+
+	obj, err = fs.GetDataObject(conn, collection, newDataObjectFilenameRenameTarget)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, obj.ID)
+
+	// continue to write
+	err = fs.WriteDataObject(conn, handle, []byte(data2))
+	assert.NoError(t, err)
+
+	// WARNING!! CLOSE fails for unknown reason
+	err = fs.CloseDataObject(conn, handle)
+	assert.NoError(t, err)
+
+	// read
+	handle, _, err = fs.OpenDataObject(conn, newDataObjectPathRenameTarget, "", "r")
+	assert.NoError(t, err)
+
+	datarecv, err := fs.ReadDataObject(conn, handle, len(data1)+len(data2))
+	assert.NoError(t, err)
+
+	assert.Equal(t, "Hello World", string(datarecv))
+
+	err = fs.CloseDataObject(conn, handle)
+	assert.NoError(t, err)
+
+	// delete
+	err = fs.DeleteDataObject(conn, newDataObjectPathRenameTarget, true)
 	assert.NoError(t, err)
 }
 
