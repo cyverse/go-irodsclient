@@ -11,86 +11,106 @@ import (
 
 // FileHandle ...
 type FileHandle struct {
-	ID          string
-	FileSystem  *FileSystem
-	Connection  *connection.IRODSConnection
-	IRODSHandle *types.IRODSFileHandle
-	Entry       *Entry
-	Offset      int64
-	OpenMode    types.FileOpenMode
-	Mutex       sync.Mutex
+	id              string
+	filesystem      *FileSystem
+	connection      *connection.IRODSConnection
+	irodsfilehandle *types.IRODSFileHandle
+	entry           *Entry
+	offset          int64
+	openmode        types.FileOpenMode
+	mutex           sync.Mutex
+}
+
+// GetID returns ID
+func (handle *FileHandle) GetID() string {
+	return handle.id
 }
 
 // GetOffset returns current offset
 func (handle *FileHandle) GetOffset() int64 {
-	handle.Mutex.Lock()
-	defer handle.Mutex.Unlock()
+	handle.mutex.Lock()
+	defer handle.mutex.Unlock()
 
-	return handle.Offset
+	return handle.offset
+}
+
+// GetOpenMode returns file open mode
+func (handle *FileHandle) GetOpenMode() types.FileOpenMode {
+	return handle.openmode
 }
 
 // IsReadMode returns true if file is opened with read mode
 func (handle *FileHandle) IsReadMode() bool {
-	return types.IsFileOpenFlagRead(handle.OpenMode)
+	return types.IsFileOpenFlagRead(handle.openmode)
 }
 
 // IsWriteMode returns true if file is opened with write mode
 func (handle *FileHandle) IsWriteMode() bool {
-	return types.IsFileOpenFlagWrite(handle.OpenMode)
+	return types.IsFileOpenFlagWrite(handle.openmode)
+}
+
+// GetIRODSFileHandle returns iRODS File Handle file
+func (handle *FileHandle) GetIRODSFileHandle() *types.IRODSFileHandle {
+	return handle.irodsfilehandle
+}
+
+// GetEntry returns Entry info
+func (handle *FileHandle) GetEntry() *Entry {
+	return handle.entry
 }
 
 // Close closes the file
 func (handle *FileHandle) Close() error {
-	handle.Mutex.Lock()
-	defer handle.Mutex.Unlock()
+	handle.mutex.Lock()
+	defer handle.mutex.Unlock()
 
-	defer handle.FileSystem.session.ReturnConnection(handle.Connection)
+	defer handle.filesystem.session.ReturnConnection(handle.connection)
 
 	if handle.IsWriteMode() {
-		handle.FileSystem.invalidateCacheForFileUpdate(handle.Entry.Path)
+		handle.filesystem.invalidateCacheForFileUpdate(handle.entry.Path)
 	}
 
-	handle.FileSystem.mutex.Lock()
-	delete(handle.FileSystem.fileHandles, handle.ID)
-	handle.FileSystem.mutex.Unlock()
+	handle.filesystem.mutex.Lock()
+	delete(handle.filesystem.fileHandles, handle.id)
+	handle.filesystem.mutex.Unlock()
 
-	return irods_fs.CloseDataObject(handle.Connection, handle.IRODSHandle)
+	return irods_fs.CloseDataObject(handle.connection, handle.irodsfilehandle)
 }
 
 // Close closes the file
 func (handle *FileHandle) closeWithoutFSHandleManagement() error {
-	handle.Mutex.Lock()
-	defer handle.Mutex.Unlock()
+	handle.mutex.Lock()
+	defer handle.mutex.Unlock()
 
-	defer handle.FileSystem.session.ReturnConnection(handle.Connection)
+	defer handle.filesystem.session.ReturnConnection(handle.connection)
 
 	if handle.IsWriteMode() {
-		handle.FileSystem.invalidateCacheForFileUpdate(handle.Entry.Path)
+		handle.filesystem.invalidateCacheForFileUpdate(handle.entry.Path)
 	}
 
-	return irods_fs.CloseDataObject(handle.Connection, handle.IRODSHandle)
+	return irods_fs.CloseDataObject(handle.connection, handle.irodsfilehandle)
 }
 
 // Seek moves file pointer
 func (handle *FileHandle) Seek(offset int64, whence types.Whence) (int64, error) {
-	handle.Mutex.Lock()
-	defer handle.Mutex.Unlock()
+	handle.mutex.Lock()
+	defer handle.mutex.Unlock()
 
-	newOffset, err := irods_fs.SeekDataObject(handle.Connection, handle.IRODSHandle, offset, whence)
+	newOffset, err := irods_fs.SeekDataObject(handle.connection, handle.irodsfilehandle, offset, whence)
 	if err != nil {
 		return newOffset, err
 	}
 
-	handle.Offset = newOffset
+	handle.offset = newOffset
 	return newOffset, nil
 }
 
 // Truncate truncates the file
 func (handle *FileHandle) Truncate(size int64) error {
-	handle.Mutex.Lock()
-	defer handle.Mutex.Unlock()
+	handle.mutex.Lock()
+	defer handle.mutex.Unlock()
 
-	err := irods_fs.TruncateDataObjectHandle(handle.Connection, handle.IRODSHandle, size)
+	err := irods_fs.TruncateDataObjectHandle(handle.connection, handle.irodsfilehandle, size)
 	if err != nil {
 		return err
 	}
@@ -100,72 +120,72 @@ func (handle *FileHandle) Truncate(size int64) error {
 
 // Read reads the file
 func (handle *FileHandle) Read(length int) ([]byte, error) {
-	handle.Mutex.Lock()
-	defer handle.Mutex.Unlock()
+	handle.mutex.Lock()
+	defer handle.mutex.Unlock()
 
 	if !handle.IsReadMode() {
-		return nil, fmt.Errorf("file is opened with %s mode", handle.OpenMode)
+		return nil, fmt.Errorf("file is opened with %s mode", handle.openmode)
 	}
 
-	bytes, err := irods_fs.ReadDataObject(handle.Connection, handle.IRODSHandle, length)
+	bytes, err := irods_fs.ReadDataObject(handle.connection, handle.irodsfilehandle, length)
 	if err != nil {
 		return nil, err
 	}
 
-	handle.Offset += int64(len(bytes))
+	handle.offset += int64(len(bytes))
 	return bytes, nil
 }
 
 // ReadAt reads data from given offset
 func (handle *FileHandle) ReadAt(offset int64, length int) ([]byte, error) {
-	handle.Mutex.Lock()
-	defer handle.Mutex.Unlock()
+	handle.mutex.Lock()
+	defer handle.mutex.Unlock()
 
 	if !handle.IsReadMode() {
-		return nil, fmt.Errorf("file is opened with %s mode", handle.OpenMode)
+		return nil, fmt.Errorf("file is opened with %s mode", handle.openmode)
 	}
 
-	if handle.Offset != offset {
-		newOffset, err := irods_fs.SeekDataObject(handle.Connection, handle.IRODSHandle, offset, types.SeekSet)
+	if handle.offset != offset {
+		newOffset, err := irods_fs.SeekDataObject(handle.connection, handle.irodsfilehandle, offset, types.SeekSet)
 		if err != nil {
 			return nil, err
 		}
 
-		handle.Offset = newOffset
+		handle.offset = newOffset
 
 		if newOffset != offset {
 			return nil, fmt.Errorf("failed to seek to %d", offset)
 		}
 	}
 
-	bytes, err := irods_fs.ReadDataObject(handle.Connection, handle.IRODSHandle, length)
+	bytes, err := irods_fs.ReadDataObject(handle.connection, handle.irodsfilehandle, length)
 	if err != nil {
 		return nil, err
 	}
 
-	handle.Offset += int64(len(bytes))
+	handle.offset += int64(len(bytes))
 	return bytes, nil
 }
 
 // Write writes the file
 func (handle *FileHandle) Write(data []byte) error {
-	handle.Mutex.Lock()
-	defer handle.Mutex.Unlock()
+	handle.mutex.Lock()
+	defer handle.mutex.Unlock()
 
 	if !handle.IsWriteMode() {
-		return fmt.Errorf("file is opened with %s mode", handle.OpenMode)
+		return fmt.Errorf("file is opened with %s mode", handle.openmode)
 	}
 
-	err := irods_fs.WriteDataObject(handle.Connection, handle.IRODSHandle, data)
+	err := irods_fs.WriteDataObject(handle.connection, handle.irodsfilehandle, data)
 	if err != nil {
 		return err
 	}
 
-	handle.Offset += int64(len(data))
+	handle.offset += int64(len(data))
 
 	// update
-	if handle.Entry.Size < handle.Offset+int64(len(data)) {
-		handle.Entry.Size = handle.Offset + int64(len(data))
+	if handle.entry.Size < handle.offset+int64(len(data)) {
+		handle.entry.Size = handle.offset + int64(len(data))
 	}
 
 	return nil
@@ -173,36 +193,36 @@ func (handle *FileHandle) Write(data []byte) error {
 
 // WriteAt writes the file to given offset
 func (handle *FileHandle) WriteAt(offset int64, data []byte) error {
-	handle.Mutex.Lock()
-	defer handle.Mutex.Unlock()
+	handle.mutex.Lock()
+	defer handle.mutex.Unlock()
 
 	if !handle.IsWriteMode() {
-		return fmt.Errorf("file is opened with %s mode", handle.OpenMode)
+		return fmt.Errorf("file is opened with %s mode", handle.openmode)
 	}
 
-	if handle.Offset != offset {
-		newOffset, err := irods_fs.SeekDataObject(handle.Connection, handle.IRODSHandle, offset, types.SeekSet)
+	if handle.offset != offset {
+		newOffset, err := irods_fs.SeekDataObject(handle.connection, handle.irodsfilehandle, offset, types.SeekSet)
 		if err != nil {
 			return err
 		}
 
-		handle.Offset = newOffset
+		handle.offset = newOffset
 
 		if newOffset != offset {
 			return fmt.Errorf("failed to seek to %d", offset)
 		}
 	}
 
-	err := irods_fs.WriteDataObject(handle.Connection, handle.IRODSHandle, data)
+	err := irods_fs.WriteDataObject(handle.connection, handle.irodsfilehandle, data)
 	if err != nil {
 		return err
 	}
 
-	handle.Offset += int64(len(data))
+	handle.offset += int64(len(data))
 
 	// update
-	if handle.Entry.Size < handle.Offset+int64(len(data)) {
-		handle.Entry.Size = handle.Offset + int64(len(data))
+	if handle.entry.Size < handle.offset+int64(len(data)) {
+		handle.entry.Size = handle.offset + int64(len(data))
 	}
 
 	return nil
@@ -210,5 +230,5 @@ func (handle *FileHandle) WriteAt(offset int64, data []byte) error {
 
 // ToString stringifies the object
 func (handle *FileHandle) ToString() string {
-	return fmt.Sprintf("<FileHandle %d %s %s %s>", handle.Entry.ID, handle.Entry.Type, handle.Entry.Name, handle.OpenMode)
+	return fmt.Sprintf("<FileHandle %d %s %s %s>", handle.entry.ID, handle.entry.Type, handle.entry.Name, handle.openmode)
 }

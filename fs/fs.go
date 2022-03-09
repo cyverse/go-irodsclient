@@ -1069,17 +1069,17 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 
 	// do not return connection here
 	fileHandle := &FileHandle{
-		ID:          xid.New().String(),
-		FileSystem:  fs,
-		Connection:  conn,
-		IRODSHandle: handle,
-		Entry:       entry,
-		Offset:      offset,
-		OpenMode:    types.FileOpenMode(mode),
+		id:              xid.New().String(),
+		filesystem:      fs,
+		connection:      conn,
+		irodsfilehandle: handle,
+		entry:           entry,
+		offset:          offset,
+		openmode:        types.FileOpenMode(mode),
 	}
 
 	fs.mutex.Lock()
-	fs.fileHandles[fileHandle.ID] = fileHandle
+	fs.fileHandles[fileHandle.id] = fileHandle
 	fs.mutex.Unlock()
 
 	return fileHandle, nil
@@ -1115,17 +1115,17 @@ func (fs *FileSystem) CreateFile(path string, resource string, mode string) (*Fi
 	}
 
 	fileHandle := &FileHandle{
-		ID:          xid.New().String(),
-		FileSystem:  fs,
-		Connection:  conn,
-		IRODSHandle: handle,
-		Entry:       entry,
-		Offset:      0,
-		OpenMode:    types.FileOpenMode(mode),
+		id:              xid.New().String(),
+		filesystem:      fs,
+		connection:      conn,
+		irodsfilehandle: handle,
+		entry:           entry,
+		offset:          0,
+		openmode:        types.FileOpenMode(mode),
 	}
 
 	fs.mutex.Lock()
-	fs.fileHandles[fileHandle.ID] = fileHandle
+	fs.fileHandles[fileHandle.id] = fileHandle
 	fs.mutex.Unlock()
 
 	fs.invalidateCacheForFileCreate(irodsPath)
