@@ -325,15 +325,7 @@ func (conn *IRODSConnection) sslStartup() error {
 	return nil
 }
 
-func (conn *IRODSConnection) loginNative(password string) error {
-	logger := log.WithFields(log.Fields{
-		"package":  "connection",
-		"struct":   "IRODSConnection",
-		"function": "loginNative",
-	})
-
-	logger.Debug("Logging in using native authentication method")
-
+func (conn *IRODSConnection) login(password string) error {
 	// authenticate
 	authRequest := message.NewIRODSMessageAuthRequest()
 	authChallenge := message.IRODSMessageAuthChallenge{}
@@ -352,8 +344,19 @@ func (conn *IRODSConnection) loginNative(password string) error {
 	return conn.RequestAndCheck(authResponse, &authResult)
 }
 
+func (conn *IRODSConnection) loginNative(password string) error {
+	logger := log.WithFields(log.Fields{
+		"package":  "connection",
+		"struct":   "IRODSConnection",
+		"function": "loginNative",
+	})
+
+	logger.Debug("Logging in using native authentication method")
+	return conn.login(password)
+}
+
 func (conn *IRODSConnection) loginGSI() error {
-	return nil
+	return fmt.Errorf("GSI login is not yet implemented")
 }
 
 func (conn *IRODSConnection) loginPAM() error {
@@ -387,7 +390,7 @@ func (conn *IRODSConnection) loginPAM() error {
 	conn.generatedPasswordForPAM = pamAuthResponse.GeneratedPassword
 
 	// retry native auth with generated password
-	return conn.loginNative(conn.generatedPasswordForPAM)
+	return conn.login(conn.generatedPasswordForPAM)
 }
 
 func (conn *IRODSConnection) showTicket() error {
