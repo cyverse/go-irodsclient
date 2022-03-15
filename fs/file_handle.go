@@ -26,6 +26,16 @@ func (handle *FileHandle) GetID() string {
 	return handle.id
 }
 
+// Lock locks the handle
+func (handle *FileHandle) Lock() {
+	handle.mutex.Lock()
+}
+
+// Unlock unlocks the handle
+func (handle *FileHandle) Unlock() {
+	handle.mutex.Unlock()
+}
+
 // GetOffset returns current offset
 func (handle *FileHandle) GetOffset() int64 {
 	handle.mutex.Lock()
@@ -70,10 +80,7 @@ func (handle *FileHandle) Close() error {
 		handle.filesystem.invalidateCacheForFileUpdate(handle.entry.Path)
 	}
 
-	handle.filesystem.mutex.Lock()
-	delete(handle.filesystem.fileHandles, handle.id)
-	handle.filesystem.mutex.Unlock()
-
+	handle.filesystem.fileHandleMap.Remove(handle.id)
 	return irods_fs.CloseDataObject(handle.connection, handle.irodsfilehandle)
 }
 
@@ -225,6 +232,74 @@ func (handle *FileHandle) WriteAt(offset int64, data []byte) error {
 		handle.entry.Size = handle.offset + int64(len(data))
 	}
 
+	return nil
+}
+
+// preprocessRename should be called before the file is renamed
+func (handle *FileHandle) preprocessRename() error {
+	// first, we need to close the file
+	if handle.IsWriteMode() {
+		handle.filesystem.invalidateCacheForFileUpdate(handle.entry.Path)
+	}
+
+	err := irods_fs.CloseDataObject(handle.connection, handle.irodsfilehandle)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// postprocessRename should be called after the file is renamed
+func (handle *FileHandle) postprocessRename(newPath string, newEntry *Entry) error {
+	// apply path change
+	newOpenMode := types.FileOpenModeReadWrite
+	switch handle.openmode {
+	case types.FileOpenModeReadOnly:
+		newOpenMode = handle.openmode
+	case types.FileOpenModeReadWrite:
+		newOpenMode = handle.openmode
+	case types.FileOpenModeWriteOnly:
+		newOpenMode = handle.openmode
+	case types.FileOpenModeWriteTruncate:
+		newOpenMode = types.FileOpenModeWriteOnly
+	case types.FileOpenModeAppend:
+		newOpenMode = handle.openmode
+	case types.FileOpenModeReadAppend:
+		newOpenMode = handle.openmode
+	}
+
+	// reopen
+	newHandle, offset, err := irods_fs.OpenDataObject(handle.connection, newPath, handle.irodsfilehandle.Resource, string(newOpenMode))
+	if err != nil {
+		return err
+	}
+
+	// seek
+	if offset != handle.offset {
+		newOffset, err := irods_fs.SeekDataObject(handle.connection, newHandle, handle.offset, types.SeekSet)
+		if err != nil {
+			return err
+		}
+
+		if handle.offset != newOffset {
+			return fmt.Errorf("failed to seek to %d", handle.offset)
+		}
+
+		fmt.Printf("postprocessRename seeked - %s, offset %d\n", newPath, handle.offset)
+	}
+
+	fileHandle := &FileHandle{
+		id:              handle.id,
+		filesystem:      handle.filesystem,
+		connection:      handle.connection,
+		irodsfilehandle: newHandle, // updated
+		entry:           newEntry,  // updated
+		offset:          handle.offset,
+		openmode:        newOpenMode, // updated
+	}
+
+	handle.filesystem.fileHandleMap.Add(fileHandle)
 	return nil
 }
 

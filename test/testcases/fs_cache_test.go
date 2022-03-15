@@ -10,10 +10,9 @@ import (
 
 func TestFSCache(t *testing.T) {
 	setup()
+	defer shutdown()
 
 	t.Run("test MakeDir", testMakeDir)
-
-	shutdown()
 }
 
 func testMakeDir(t *testing.T) {

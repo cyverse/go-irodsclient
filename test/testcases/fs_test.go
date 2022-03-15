@@ -12,6 +12,7 @@ import (
 
 func TestFS(t *testing.T) {
 	setup()
+	defer shutdown()
 
 	t.Run("test PrepareSamples", testPrepareSamples)
 
@@ -19,10 +20,8 @@ func TestFS(t *testing.T) {
 	t.Run("test ListEntriesByMeta", testListEntriesByMeta)
 	t.Run("test ListACLs", testListACLs)
 	t.Run("test ReadWrite", testReadWrite)
-	// Write-Rename test fails since iRODS does not support it.
-	//t.Run("test WriteRename", testWriteRename)
-
-	shutdown()
+	t.Run("test WriteRename", testWriteRename)
+	t.Run("test WriteRenameDir", testWriteRenameDir)
 }
 
 func testListEntries(t *testing.T) {
@@ -186,6 +185,8 @@ func testWriteRename(t *testing.T) {
 	err = fs.RenameFile(newDataObjectPath, newDataObjectPathRenameTarget)
 	assert.NoError(t, err)
 
+	fmt.Printf("rename - %s done\n", newDataObjectPathRenameTarget)
+
 	// write again
 	err = handle.Write([]byte(text2))
 	assert.NoError(t, err)
@@ -213,4 +214,76 @@ func testWriteRename(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.False(t, fs.Exists(newDataObjectPathRenameTarget))
+}
+
+func testWriteRenameDir(t *testing.T) {
+	account := GetTestAccount()
+
+	account.ClientServerNegotiation = false
+
+	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
+
+	fs, err := fs.NewFileSystem(account, fsConfig)
+	assert.NoError(t, err)
+	defer fs.Release()
+
+	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	newdir := fmt.Sprintf("%s/testdir", homedir)
+
+	err = fs.MakeDir(newdir, true)
+	assert.NoError(t, err)
+
+	newDataObjectFilename := "testobj1234"
+	newDataObjectPath := newdir + "/" + newDataObjectFilename
+
+	newdirRenameTarget := newdir + "_renamed"
+	newDataObjectPathRenameTarget := newdirRenameTarget + "/" + newDataObjectFilename
+
+	text1 := "HELLO"
+	text2 := " WORLD!"
+
+	// create
+	handle, err := fs.CreateFile(newDataObjectPath, "", "w")
+	assert.NoError(t, err)
+
+	// write
+	err = handle.Write([]byte(text1))
+	assert.NoError(t, err)
+
+	// rename
+	err = fs.RenameDir(newdir, newdirRenameTarget)
+	assert.NoError(t, err)
+
+	fmt.Printf("rename dir - %s done\n", newdirRenameTarget)
+
+	// write again
+	err = handle.Write([]byte(text2))
+	assert.NoError(t, err)
+
+	// close
+	err = handle.Close()
+	assert.NoError(t, err)
+
+	assert.True(t, fs.Exists(newDataObjectPathRenameTarget))
+
+	// read
+	newHandle, err := fs.OpenFile(newDataObjectPathRenameTarget, "", "r")
+	assert.NoError(t, err)
+
+	readData, err := newHandle.Read(1024)
+	assert.NoError(t, err)
+
+	err = newHandle.Close()
+	assert.NoError(t, err)
+
+	assert.Equal(t, text1+text2, string(readData))
+
+	// delete
+	err = fs.RemoveFile(newDataObjectPathRenameTarget, true)
+	assert.NoError(t, err)
+
+	assert.False(t, fs.Exists(newDataObjectPathRenameTarget))
+
+	err = fs.RemoveDir(newdirRenameTarget, true, true)
+	assert.NoError(t, err)
 }

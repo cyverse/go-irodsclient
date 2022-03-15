@@ -9,11 +9,10 @@ import (
 
 func TestQuery(t *testing.T) {
 	setup()
+	defer shutdown()
 
 	t.Run("test Query Struct", testQueryStruct)
 	t.Run("test Query Struct with Key and Value", testQueryKeyVal)
-
-	shutdown()
 }
 
 func testQueryStruct(t *testing.T) {

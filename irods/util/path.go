@@ -84,6 +84,11 @@ func GetParentDirs(p string) []string {
 }
 
 // GetRelativePath returns relative path
-func GetRelativePath(p1 string, p2 string) (string, error) {
-	return filepath.Rel(p1, p2)
+func GetRelativePath(base string, target string) (string, error) {
+	return filepath.Rel(base, target)
+}
+
+// GetCleanPath returns clean path
+func GetCleanPath(path string) string {
+	return filepath.Clean(path)
 }

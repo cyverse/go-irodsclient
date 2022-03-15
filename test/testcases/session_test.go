@@ -13,11 +13,10 @@ import (
 
 func TestSession(t *testing.T) {
 	setup()
+	defer shutdown()
 
 	t.Run("test Session", testSession)
 	t.Run("test many Connections", testManyConnections)
-
-	shutdown()
 }
 
 func testSession(t *testing.T) {

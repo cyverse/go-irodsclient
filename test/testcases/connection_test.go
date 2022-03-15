@@ -11,11 +11,10 @@ import (
 
 func TestIRODSConnection(t *testing.T) {
 	setup()
+	defer shutdown()
 
 	t.Run("test IRODS Connection", testIRODSConnection)
 	t.Run("test IRODS Connection with Negotiation", testIRODSConnectionWithNegotiation)
-
-	shutdown()
 }
 
 func testIRODSConnection(t *testing.T) {
