@@ -9,7 +9,7 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/types"
 )
 
-// FileHandle ...
+// FileHandle is a handle for a file opened
 type FileHandle struct {
 	id              string
 	filesystem      *FileSystem
@@ -285,8 +285,6 @@ func (handle *FileHandle) postprocessRename(newPath string, newEntry *Entry) err
 		if handle.offset != newOffset {
 			return fmt.Errorf("failed to seek to %d", handle.offset)
 		}
-
-		fmt.Printf("postprocessRename seeked - %s, offset %d\n", newPath, handle.offset)
 	}
 
 	fileHandle := &FileHandle{

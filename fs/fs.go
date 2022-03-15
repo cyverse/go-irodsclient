@@ -673,8 +673,6 @@ func (fs *FileSystem) preprocessRenameFileHandle(srcPath string) ([]*FileHandle,
 	handles := fs.fileHandleMap.PopByPath(srcPath)
 	handlesLocked := []*FileHandle{}
 
-	fmt.Printf("preprocess rename - %s\n", srcPath)
-
 	errs := []error{}
 	for _, handle := range handles {
 		// lock handles
@@ -717,14 +715,12 @@ func (fs *FileSystem) preprocessRenameFileHandleForDir(srcPath string) ([]*FileH
 }
 
 func (fs *FileSystem) postprocessRenameFileHandle(handles []*FileHandle, conn *connection.IRODSConnection, destPath string) error {
-	newEntry, err := fs.getDataObjectWithConnectin(conn, destPath)
+	newEntry, err := fs.getDataObjectWithConnection(conn, destPath)
 	if err != nil {
 		return err
 	}
 
 	errs := []error{}
-	fmt.Printf("postprocess rename - %s\n", destPath)
-
 	for _, handle := range handles {
 		err := handle.postprocessRename(destPath, newEntry)
 		if err != nil {
@@ -755,7 +751,7 @@ func (fs *FileSystem) postprocessRenameFileHandleForDir(handles []*FileHandle, c
 				errs = append(errs, err)
 			} else {
 				destFullPath := util.JoinPath(destPath, relPath)
-				newEntry, err := fs.getDataObjectWithConnectin(conn, destFullPath)
+				newEntry, err := fs.getDataObjectWithConnection(conn, destFullPath)
 				if err != nil {
 					errs = append(errs, err)
 				} else {
@@ -1181,7 +1177,7 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 	var entry *Entry = nil
 	if types.IsFileOpenFlagOpeningExisting(types.FileOpenMode(mode)) {
 		// file may exists
-		entryExisting, err := fs.getDataObject(irodsPath)
+		entryExisting, err := fs.getDataObjectWithConnection(conn, irodsPath)
 		if err == nil {
 			entry = entryExisting
 		}
@@ -1227,33 +1223,41 @@ func (fs *FileSystem) CreateFile(path string, resource string, mode string) (*Fi
 		return nil, err
 	}
 
+	// create
 	handle, err := irods_fs.CreateDataObject(conn, irodsPath, resource, mode, true)
 	if err != nil {
 		fs.session.ReturnConnection(conn)
 		return nil, err
 	}
 
-	// do not return connection here
-	entry := &Entry{
-		ID:         0,
-		Type:       FileEntry,
-		Name:       util.GetIRODSPathFileName(irodsPath),
-		Path:       irodsPath,
-		Owner:      fs.account.ClientUser,
-		Size:       0,
-		CreateTime: time.Now(),
-		ModifyTime: time.Now(),
-		CheckSum:   "",
-		Internal:   nil,
+	// close - this is required to let other processes see the file existence
+	err = irods_fs.CloseDataObject(conn, handle)
+	if err != nil {
+		fs.session.ReturnConnection(conn)
+		return nil, err
 	}
 
+	entry, err := fs.getDataObjectWithConnectionNoCache(conn, irodsPath)
+	if err != nil {
+		fs.session.ReturnConnection(conn)
+		return nil, err
+	}
+
+	// re-open
+	handle, offset, err := irods_fs.OpenDataObject(conn, irodsPath, resource, mode)
+	if err != nil {
+		fs.session.ReturnConnection(conn)
+		return nil, err
+	}
+
+	// do not return connection here
 	fileHandle := &FileHandle{
 		id:              xid.New().String(),
 		filesystem:      fs,
 		connection:      conn,
 		irodsfilehandle: handle,
 		entry:           entry,
-		offset:          0,
+		offset:          offset,
 		openmode:        types.FileOpenMode(mode),
 	}
 
@@ -1501,31 +1505,18 @@ func (fs *FileSystem) searchEntriesByMeta(metaName string, metaValue string) ([]
 	return entries, nil
 }
 
-// getDataObjectWithConnectin returns an entry for data object
-func (fs *FileSystem) getDataObjectWithConnectin(conn *connection.IRODSConnection, path string) (*Entry, error) {
-	if fs.cache.HasNegativeEntryCache(path) {
-		return nil, types.NewFileNotFoundErrorf("could not find a data object")
-	}
-
-	// check cache first
-	cachedEntry := fs.cache.GetEntryCache(path)
-	if cachedEntry != nil && cachedEntry.Type == FileEntry {
-		return cachedEntry, nil
-	}
-
-	// otherwise, retrieve it and add it to cache
+// getDataObjectWithConnectionNoCache returns an entry for data object
+func (fs *FileSystem) getDataObjectWithConnectionNoCache(conn *connection.IRODSConnection, path string) (*Entry, error) {
+	// retrieve it and add it to cache
 	collection, err := fs.getCollection(util.GetIRODSPathDirname(path))
 	if err != nil {
 		return nil, err
 	}
 
-	fmt.Printf("getDataObjectWithConnectin check data object - %s\n", path)
 	dataobject, err := irods_fs.GetDataObjectMasterReplica(conn, collection.Internal.(*types.IRODSCollection), util.GetIRODSPathFileName(path))
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Printf("getDataObjectWithConnectin check data object found - %s\n", path)
 
 	if dataobject.ID > 0 {
 		entry := &Entry{
@@ -1550,6 +1541,22 @@ func (fs *FileSystem) getDataObjectWithConnectin(conn *connection.IRODSConnectio
 	return nil, types.NewFileNotFoundErrorf("could not find a data object")
 }
 
+// getDataObjectWithConnection returns an entry for data object
+func (fs *FileSystem) getDataObjectWithConnection(conn *connection.IRODSConnection, path string) (*Entry, error) {
+	if fs.cache.HasNegativeEntryCache(path) {
+		return nil, types.NewFileNotFoundErrorf("could not find a data object")
+	}
+
+	// check cache first
+	cachedEntry := fs.cache.GetEntryCache(path)
+	if cachedEntry != nil && cachedEntry.Type == FileEntry {
+		return cachedEntry, nil
+	}
+
+	// otherwise, retrieve it and add it to cache
+	return fs.getDataObjectWithConnectionNoCache(conn, path)
+}
+
 // getDataObjectNoCache returns an entry for data object
 func (fs *FileSystem) getDataObjectNoCache(path string) (*Entry, error) {
 	// retrieve it and add it to cache
@@ -1564,13 +1571,10 @@ func (fs *FileSystem) getDataObjectNoCache(path string) (*Entry, error) {
 	}
 	defer fs.session.ReturnConnection(conn)
 
-	fmt.Printf("getDataObjectNoCache check data object - %s\n", path)
 	dataobject, err := irods_fs.GetDataObjectMasterReplica(conn, collection.Internal.(*types.IRODSCollection), util.GetIRODSPathFileName(path))
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Printf("getDataObjectNoCache check data object found - %s\n", path)
 
 	if dataobject.ID > 0 {
 		entry := &Entry{

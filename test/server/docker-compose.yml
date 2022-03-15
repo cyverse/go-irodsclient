@@ -11,7 +11,7 @@ services:
       POSTGRESQL_USER: "irods"
       POSTGRESQL_DATABASE: "ICAT"
   irods:
-    image: cyverse/irods-test:v4.2.10
+    image: cyverse/irods-test:v4.2.11
     container_name: irods_test
     restart: always
     ports:
