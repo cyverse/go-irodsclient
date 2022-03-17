@@ -1033,6 +1033,12 @@ func ReplicateDataObject(conn *connection.IRODSConnection, path string, resource
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
+	// use default resource when resource param is empty
+	if len(resource) == 0 {
+		account := conn.GetAccount()
+		resource = account.DefaultResource
+	}
+
 	request := message.NewIRODSMessageReplobjRequest(path, resource)
 
 	if update {
@@ -1057,6 +1063,12 @@ func TrimDataObject(conn *connection.IRODSConnection, path string, resource stri
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
+	// use default resource when resource param is empty
+	if len(resource) == 0 {
+		account := conn.GetAccount()
+		resource = account.DefaultResource
+	}
+
 	request := message.NewIRODSMessageTrimobjRequest(path, resource, minCopies, minAgeMinutes)
 
 	if adminFlag {
@@ -1075,6 +1087,12 @@ func TrimDataObject(conn *connection.IRODSConnection, path string, resource stri
 func CreateDataObject(conn *connection.IRODSConnection, path string, resource string, mode string, force bool) (*types.IRODSFileHandle, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
+	}
+
+	// use default resource when resource param is empty
+	if len(resource) == 0 {
+		account := conn.GetAccount()
+		resource = account.DefaultResource
 	}
 
 	fileOpenMode := types.FileOpenMode(mode)
@@ -1101,6 +1119,12 @@ func CreateDataObject(conn *connection.IRODSConnection, path string, resource st
 func OpenDataObject(conn *connection.IRODSConnection, path string, resource string, mode string) (*types.IRODSFileHandle, int64, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, -1, fmt.Errorf("connection is nil or disconnected")
+	}
+
+	// use default resource when resource param is empty
+	if len(resource) == 0 {
+		account := conn.GetAccount()
+		resource = account.DefaultResource
 	}
 
 	fileOpenMode := types.FileOpenMode(mode)
@@ -1145,6 +1169,12 @@ func OpenDataObjectWithReplicaToken(conn *connection.IRODSConnection, path strin
 		return nil, -1, fmt.Errorf("connection is nil or disconnected")
 	}
 
+	// use default resource when resource param is empty
+	if len(resource) == 0 {
+		account := conn.GetAccount()
+		resource = account.DefaultResource
+	}
+
 	fileOpenMode := types.FileOpenMode(mode)
 
 	request := message.NewIRODSMessageOpenobjRequestWithReplicaToken(path, fileOpenMode, resourceHierarchy, replicaToken)
@@ -1183,6 +1213,12 @@ func OpenDataObjectWithReplicaToken(conn *connection.IRODSConnection, path strin
 func OpenDataObjectWithOperation(conn *connection.IRODSConnection, path string, resource string, mode string, oper common.OperationType) (*types.IRODSFileHandle, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
+	}
+
+	// use default resource when resource param is empty
+	if len(resource) == 0 {
+		account := conn.GetAccount()
+		resource = account.DefaultResource
 	}
 
 	fileOpenMode := types.FileOpenMode(mode)

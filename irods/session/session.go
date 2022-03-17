@@ -81,6 +81,11 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 	return &sess, nil
 }
 
+// GetAccount returns an account
+func (sess *IRODSSession) GetAccount() *types.IRODSAccount {
+	return sess.account
+}
+
 // AcquireConnection returns an idle connection
 func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, error) {
 	logger := log.WithFields(log.Fields{

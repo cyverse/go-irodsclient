@@ -14,7 +14,7 @@ const (
 )
 
 // AddUser adds a user.
-func AddUser(conn *connection.IRODSConnection, username, password string) error {
+func AddUser(conn *connection.IRODSConnection, username string, password string) error {
 	// copy the behaviour from setScrambledPw
 	if len(password) > common.MaxPasswordLength {
 		password = password[0:common.MaxPasswordLength]
@@ -47,28 +47,28 @@ func AddGroup(conn *connection.IRODSConnection, group string) error {
 }
 
 // AddChildToResc adds a child to a parent resource
-func AddChildToResc(conn *connection.IRODSConnection, parent, child, options string) error {
+func AddChildToResc(conn *connection.IRODSConnection, parent string, child string, options string) error {
 	req := message.NewIRODSMessageAdminRequest("add", "childtoresc", parent, child, options)
 
 	return conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{})
 }
 
 // AddToGroup adds a user to a group.
-func AddToGroup(conn *connection.IRODSConnection, group, user string) error {
+func AddToGroup(conn *connection.IRODSConnection, group string, user string) error {
 	req := message.NewIRODSMessageUserAdminRequest("modify", "group", group, "add", user)
 
 	return conn.RequestAndCheck(req, &message.IRODSMessageUserAdminResponse{})
 }
 
 // RmFromGroup removes a user from a group.
-func RmFromGroup(conn *connection.IRODSConnection, group, user string) error {
+func RmFromGroup(conn *connection.IRODSConnection, group string, user string) error {
 	req := message.NewIRODSMessageUserAdminRequest("modify", "group", group, "remove", user)
 
 	return conn.RequestAndCheck(req, &message.IRODSMessageUserAdminResponse{})
 }
 
 // ChangeUserType changes the type / role of a user object
-func ChangeUserType(conn *connection.IRODSConnection, user, newType string) error {
+func ChangeUserType(conn *connection.IRODSConnection, user string, newType string) error {
 	req := message.NewIRODSMessageAdminRequest("modify", "user", user, "type", newType)
 
 	return conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{})
@@ -82,14 +82,14 @@ func RmUser(conn *connection.IRODSConnection, user string) error {
 }
 
 // SetUserQuota sets quota for a given user and resource ('total' for global)
-func SetUserQuota(conn *connection.IRODSConnection, user, resource, value string) error {
+func SetUserQuota(conn *connection.IRODSConnection, user string, resource string, value string) error {
 	req := message.NewIRODSMessageAdminRequest("set-quota", "user", user, resource, value)
 
 	return conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{})
 }
 
 // SetGroupQuota sets quota for a given user and resource ('total' for global)
-func SetGroupQuota(conn *connection.IRODSConnection, group, resource, value string) error {
+func SetGroupQuota(conn *connection.IRODSConnection, group string, resource string, value string) error {
 	req := message.NewIRODSMessageAdminRequest("set-quota", "group", group, resource, value)
 
 	return conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{})

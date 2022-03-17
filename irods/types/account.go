@@ -22,17 +22,16 @@ type IRODSAccount struct {
 	ClientZone              string
 	ProxyUser               string
 	ProxyZone               string
-	ServerDN                string
 	Password                string
 	Ticket                  string
+	DefaultResource         string
 	PamTTL                  int
 	SSLConfiguration        *IRODSSSLConfig
 }
 
 // CreateIRODSAccount creates IRODSAccount
 func CreateIRODSAccount(host string, port int, user string, zone string,
-	authScheme AuthScheme, password string,
-	serverDN string) (*IRODSAccount, error) {
+	authScheme AuthScheme, password string, defaultResource string) (*IRODSAccount, error) {
 	negotiationRequired := false
 	negotiationPolicy := CSNegotiationRequireTCP
 	if authScheme == AuthSchemePAM {
@@ -50,9 +49,9 @@ func CreateIRODSAccount(host string, port int, user string, zone string,
 		ClientZone:              zone,
 		ProxyUser:               user,
 		ProxyZone:               zone,
-		ServerDN:                serverDN,
 		Password:                password,
 		Ticket:                  "",
+		DefaultResource:         defaultResource,
 		PamTTL:                  PamTTLDefault,
 		SSLConfiguration:        nil,
 	}, nil
@@ -60,8 +59,7 @@ func CreateIRODSAccount(host string, port int, user string, zone string,
 
 // CreateIRODSAccountForTicket creates IRODSAccount
 func CreateIRODSAccountForTicket(host string, port int, user string, zone string,
-	authScheme AuthScheme, password string, ticket string,
-	serverDN string) (*IRODSAccount, error) {
+	authScheme AuthScheme, password string, ticket string, defaultResource string) (*IRODSAccount, error) {
 	negotiationRequired := false
 	negotiationPolicy := CSNegotiationRequireTCP
 	if authScheme == AuthSchemePAM {
@@ -79,9 +77,9 @@ func CreateIRODSAccountForTicket(host string, port int, user string, zone string
 		ClientZone:              zone,
 		ProxyUser:               user,
 		ProxyZone:               zone,
-		ServerDN:                serverDN,
 		Password:                password,
 		Ticket:                  ticket,
+		DefaultResource:         defaultResource,
 		PamTTL:                  PamTTLDefault,
 		SSLConfiguration:        nil,
 	}, nil
@@ -90,7 +88,7 @@ func CreateIRODSAccountForTicket(host string, port int, user string, zone string
 // CreateIRODSProxyAccount creates IRODSAccount for proxy access
 func CreateIRODSProxyAccount(host string, port int, clientUser string, clientZone string,
 	proxyUser string, proxyZone string,
-	authScheme AuthScheme, password string) (*IRODSAccount, error) {
+	authScheme AuthScheme, password string, defaultResource string) (*IRODSAccount, error) {
 	negotiationRequired := false
 	negotiationPolicy := CSNegotiationRequireTCP
 	if authScheme == AuthSchemePAM {
@@ -109,6 +107,8 @@ func CreateIRODSProxyAccount(host string, port int, clientUser string, clientZon
 		ProxyUser:               proxyUser,
 		ProxyZone:               proxyZone,
 		Password:                password,
+		Ticket:                  "",
+		DefaultResource:         defaultResource,
 		PamTTL:                  PamTTLDefault,
 		SSLConfiguration:        nil,
 	}, nil
@@ -144,11 +144,6 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 		}
 	}
 
-	serverDN := ""
-	if val, ok := y["server_dn"]; ok {
-		serverDN = val.(string)
-	}
-
 	host := make(map[interface{}]interface{})
 	if val, ok := y["host"]; ok {
 		host = val.(map[interface{}]interface{})
@@ -162,6 +157,11 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 	port := 1247
 	if val, ok := host["port"]; ok {
 		port = val.(int)
+	}
+
+	defaultResource := ""
+	if val, ok := y["default_resource"]; ok {
+		defaultResource = val.(string)
 	}
 
 	// proxy user
@@ -297,9 +297,9 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 		ClientZone:              clientZone,
 		ProxyUser:               proxyUsername,
 		ProxyZone:               proxyZone,
-		ServerDN:                serverDN,
 		Password:                proxyPassword,
 		Ticket:                  ticket,
+		DefaultResource:         defaultResource,
 		PamTTL:                  pamTTL,
 		SSLConfiguration:        irodsSSLConfig,
 	}, nil

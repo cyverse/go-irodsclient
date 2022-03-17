@@ -43,6 +43,12 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 		"function": "UploadDataObject",
 	})
 
+	// use default resource when resource param is empty
+	if len(resource) == 0 {
+		account := session.GetAccount()
+		resource = account.DefaultResource
+	}
+
 	_, err := os.Stat(localPath)
 	if err != nil {
 		return err
@@ -124,6 +130,12 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 		"package":  "fs",
 		"function": "UploadDataObjectParallel",
 	})
+
+	// use default resource when resource param is empty
+	if len(resource) == 0 {
+		account := session.GetAccount()
+		resource = account.DefaultResource
+	}
 
 	stat, err := os.Stat(localPath)
 	if err != nil {
@@ -283,6 +295,12 @@ func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPa
 		"package":  "fs",
 		"function": "UploadDataObjectParallelInBlockAsync",
 	})
+
+	// use default resource when resource param is empty
+	if len(resource) == 0 {
+		account := session.GetAccount()
+		resource = account.DefaultResource
+	}
 
 	stat, err := os.Stat(localPath)
 	if err != nil {
@@ -506,6 +524,12 @@ func DownloadDataObject(session *session.IRODSSession, irodsPath string, resourc
 
 	logger.Debugf("download data object - %s\n", irodsPath)
 
+	// use default resource when resource param is empty
+	if len(resource) == 0 {
+		account := session.GetAccount()
+		resource = account.DefaultResource
+	}
+
 	conn, err := session.AcquireConnection()
 	if err != nil {
 		return err
@@ -554,6 +578,12 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 		"package":  "fs",
 		"function": "DownloadDataObjectParallel",
 	})
+
+	// use default resource when resource param is empty
+	if len(resource) == 0 {
+		account := session.GetAccount()
+		resource = account.DefaultResource
+	}
 
 	numTasks := taskNum
 	if numTasks <= 0 {
@@ -669,6 +699,12 @@ func DownloadDataObjectParallelInBlocksAsync(session *session.IRODSSession, irod
 		"package":  "fs",
 		"function": "DownloadDataObjectParallelInBlocksAsync",
 	})
+
+	// use default resource when resource param is empty
+	if len(resource) == 0 {
+		account := session.GetAccount()
+		resource = account.DefaultResource
+	}
 
 	blockSize := blockLength
 	if blockSize <= 0 {
