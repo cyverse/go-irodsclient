@@ -54,14 +54,26 @@ const (
 	O_TRUNC FileOpenFlag = 512
 )
 
-// GetFileOpenFlagSeekToEnd returns file open flag and returns true if file pointer moves to the file end
-func GetFileOpenFlagSeekToEnd(mode FileOpenMode) (int, bool) {
+// GetFlag returns file open flag
+func (mode *FileOpenMode) GetFlag() int {
+	flag, _ := mode.GetFlagSeekToEnd()
+	return flag
+}
+
+// SeekToEnd returns if the mode needs seeking to end
+func (mode *FileOpenMode) SeekToEnd() bool {
+	_, seekToEnd := mode.GetFlagSeekToEnd()
+	return seekToEnd
+}
+
+// GetFlagSeekToEnd returns file open flag and returns true if file pointer moves to the file end
+func (mode *FileOpenMode) GetFlagSeekToEnd() (int, bool) {
 	logger := log.WithFields(log.Fields{
 		"package":  "types",
 		"function": "GetFileOpenFlagSeekToEnd",
 	})
 
-	switch mode {
+	switch *mode {
 	case FileOpenModeReadOnly:
 		return int(O_RDONLY), false
 	case FileOpenModeReadWrite:
@@ -80,80 +92,47 @@ func GetFileOpenFlagSeekToEnd(mode FileOpenMode) (int, bool) {
 	}
 }
 
-// IsFileOpenFlagRead returns true if the file open mode is for read
-func IsFileOpenFlagRead(mode FileOpenMode) bool {
-	logger := log.WithFields(log.Fields{
-		"package":  "types",
-		"function": "IsFileOpenFlagRead",
-	})
-
-	switch mode {
-	case FileOpenModeReadOnly:
-		return true
-	case FileOpenModeReadWrite:
-		return true
-	case FileOpenModeWriteOnly:
-		return false
-	case FileOpenModeWriteTruncate:
-		return false
-	case FileOpenModeAppend:
-		return false
-	case FileOpenModeReadAppend:
+// IsRead returns true if the file open mode is for read
+func (mode *FileOpenMode) IsRead() bool {
+	switch *mode {
+	case FileOpenModeReadOnly, FileOpenModeReadWrite, FileOpenModeReadAppend:
 		return true
 	default:
-		logger.Errorf("Unhandled file open mode %s", mode)
 		return false
 	}
 }
 
-// IsFileOpenFlagWrite returns true if the file open mode is for write
-func IsFileOpenFlagWrite(mode FileOpenMode) bool {
-	logger := log.WithFields(log.Fields{
-		"package":  "types",
-		"function": "IsFileOpenFlagWrite",
-	})
+// IsReadOnly returns true if the file open mode is for read-only
+func (mode *FileOpenMode) IsReadOnly() bool {
+	return *mode == FileOpenModeReadOnly
+}
 
-	switch mode {
-	case FileOpenModeReadOnly:
-		return false
-	case FileOpenModeReadWrite:
-		return true
-	case FileOpenModeWriteOnly:
-		return true
-	case FileOpenModeWriteTruncate:
-		return true
-	case FileOpenModeAppend:
-		return true
-	case FileOpenModeReadAppend:
+// IsWrite returns true if the file open mode is for write
+func (mode *FileOpenMode) IsWrite() bool {
+	switch *mode {
+	case FileOpenModeReadWrite, FileOpenModeWriteOnly, FileOpenModeWriteTruncate, FileOpenModeAppend, FileOpenModeReadAppend:
 		return true
 	default:
-		logger.Errorf("Unhandled file open mode %s", mode)
 		return false
 	}
 }
 
-// IsFileOpenFlagOpeningExisting returns true if the file open mode is for opening existing file
-func IsFileOpenFlagOpeningExisting(mode FileOpenMode) bool {
-	logger := log.WithFields(log.Fields{
-		"package":  "types",
-		"function": "IsFileOpenFlagWrite",
-	})
-
-	switch mode {
-	case FileOpenModeReadOnly:
-		return true
-	case FileOpenModeReadWrite:
-		return true
-	case FileOpenModeWriteOnly:
-		return false
-	case FileOpenModeWriteTruncate:
-		return false
-	case FileOpenModeAppend:
-		return true
-	case FileOpenModeReadAppend:
+// IsWriteOnly returns true if the file open mode is for write-only
+func (mode *FileOpenMode) IsWriteOnly() bool {
+	switch *mode {
+	case FileOpenModeWriteOnly, FileOpenModeWriteTruncate, FileOpenModeAppend:
 		return true
 	default:
-		logger.Errorf("Unhandled file open mode %s", mode)
+		return false
+	}
+}
+
+// IsOpeningExisting returns true if the file open mode is for opening existing file
+func (mode *FileOpenMode) IsOpeningExisting() bool {
+	switch *mode {
+	case FileOpenModeReadOnly, FileOpenModeReadWrite, FileOpenModeReadAppend, FileOpenModeAppend:
+		return true
+	default:
 		return false
 	}
 }

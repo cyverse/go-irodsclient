@@ -1151,9 +1151,8 @@ func OpenDataObject(conn *connection.IRODSConnection, path string, resource stri
 	}
 
 	// handle seek
-	_, seekToEnd := types.GetFileOpenFlagSeekToEnd(fileOpenMode)
 	var offset int64 = 0
-	if seekToEnd {
+	if fileOpenMode.SeekToEnd() {
 		offset, err = SeekDataObject(conn, handle, 0, types.SeekEnd)
 		if err != nil {
 			return handle, -1, fmt.Errorf("could not seek a data object - %v", err)
@@ -1197,9 +1196,8 @@ func OpenDataObjectWithReplicaToken(conn *connection.IRODSConnection, path strin
 	}
 
 	// handle seek
-	_, seekToEnd := types.GetFileOpenFlagSeekToEnd(fileOpenMode)
 	var offset int64 = 0
-	if seekToEnd {
+	if fileOpenMode.SeekToEnd() {
 		offset, err = SeekDataObject(conn, handle, 0, types.SeekEnd)
 		if err != nil {
 			return handle, -1, fmt.Errorf("could not seek a data object - %v", err)
@@ -1243,8 +1241,7 @@ func OpenDataObjectWithOperation(conn *connection.IRODSConnection, path string, 
 	}
 
 	// handle seek
-	_, seekToEnd := types.GetFileOpenFlagSeekToEnd(fileOpenMode)
-	if seekToEnd {
+	if fileOpenMode.SeekToEnd() {
 		_, err = SeekDataObject(conn, handle, 0, types.SeekEnd)
 		if err != nil {
 			return handle, fmt.Errorf("could not seek a data object - %v", err)

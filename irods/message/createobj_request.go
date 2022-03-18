@@ -12,12 +12,11 @@ type IRODSMessageCreateobjRequest IRODSMessageDataObjectRequest
 
 // NewIRODSMessageCreateobjRequest creates a IRODSMessageCreateobjRequest message
 func NewIRODSMessageCreateobjRequest(path string, resource string, mode types.FileOpenMode, force bool) *IRODSMessageCreateobjRequest {
-	flags, _ := types.GetFileOpenFlagSeekToEnd(mode)
-
+	flag := mode.GetFlag()
 	request := &IRODSMessageCreateobjRequest{
 		Path:          path,
 		CreateMode:    0644,
-		OpenFlags:     flags,
+		OpenFlags:     flag,
 		Offset:        0,
 		Size:          -1,
 		Threads:       0,

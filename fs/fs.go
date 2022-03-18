@@ -1175,7 +1175,8 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 	}
 
 	var entry *Entry = nil
-	if types.IsFileOpenFlagOpeningExisting(types.FileOpenMode(mode)) {
+	openMode := types.FileOpenMode(mode)
+	if openMode.IsOpeningExisting() {
 		// file may exists
 		entryExisting, err := fs.getDataObjectWithConnection(conn, irodsPath)
 		if err == nil {

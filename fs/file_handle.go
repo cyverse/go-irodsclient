@@ -51,12 +51,22 @@ func (handle *FileHandle) GetOpenMode() types.FileOpenMode {
 
 // IsReadMode returns true if file is opened with read mode
 func (handle *FileHandle) IsReadMode() bool {
-	return types.IsFileOpenFlagRead(handle.openmode)
+	return handle.openmode.IsRead()
+}
+
+// IsReadOnlyMode returns true if file is opened with read only mode
+func (handle *FileHandle) IsReadOnlyMode() bool {
+	return handle.openmode.IsReadOnly()
 }
 
 // IsWriteMode returns true if file is opened with write mode
 func (handle *FileHandle) IsWriteMode() bool {
-	return types.IsFileOpenFlagWrite(handle.openmode)
+	return handle.openmode.IsWrite()
+}
+
+// IsWriteOnlyMode returns true if file is opened with write only mode
+func (handle *FileHandle) IsWriteOnlyMode() bool {
+	return handle.openmode.IsWriteOnly()
 }
 
 // GetIRODSFileHandle returns iRODS File Handle file

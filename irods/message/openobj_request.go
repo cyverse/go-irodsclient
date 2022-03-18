@@ -12,12 +12,11 @@ type IRODSMessageOpenobjRequest IRODSMessageDataObjectRequest
 
 // NewIRODSMessageOpenobjRequest creates a IRODSMessageOpenobjRequest message
 func NewIRODSMessageOpenobjRequest(path string, resource string, mode types.FileOpenMode) *IRODSMessageOpenobjRequest {
-	flags, _ := types.GetFileOpenFlagSeekToEnd(mode)
-
+	flag := mode.GetFlag()
 	request := &IRODSMessageOpenobjRequest{
 		Path:          path,
 		CreateMode:    0,
-		OpenFlags:     flags,
+		OpenFlags:     flag,
 		Offset:        0,
 		Size:          -1,
 		Threads:       0,
@@ -36,12 +35,11 @@ func NewIRODSMessageOpenobjRequest(path string, resource string, mode types.File
 
 // NewIRODSMessageOpenobjRequestWithOperation ...
 func NewIRODSMessageOpenobjRequestWithOperation(path string, resource string, mode types.FileOpenMode, oper common.OperationType) *IRODSMessageOpenobjRequest {
-	flags, _ := types.GetFileOpenFlagSeekToEnd(mode)
-
+	flag := mode.GetFlag()
 	request := &IRODSMessageOpenobjRequest{
 		Path:          path,
 		CreateMode:    0,
-		OpenFlags:     flags,
+		OpenFlags:     flag,
 		Offset:        0,
 		Size:          -1,
 		Threads:       0,
@@ -60,12 +58,11 @@ func NewIRODSMessageOpenobjRequestWithOperation(path string, resource string, mo
 
 // NewIRODSMessageOpenobjRequestWithReplicaToken creates a IRODSMessageOpenobjRequest message
 func NewIRODSMessageOpenobjRequestWithReplicaToken(path string, mode types.FileOpenMode, resourceHierarchy string, replicaToken string) *IRODSMessageOpenobjRequest {
-	flags, _ := types.GetFileOpenFlagSeekToEnd(mode)
-
+	flag := mode.GetFlag()
 	request := &IRODSMessageOpenobjRequest{
 		Path:          path,
 		CreateMode:    0,
-		OpenFlags:     flags,
+		OpenFlags:     flag,
 		Offset:        0,
 		Size:          -1,
 		Threads:       0,
