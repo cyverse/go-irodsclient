@@ -62,6 +62,11 @@ func shutdown() {
 		"function": "shutdown",
 	})
 
+	// empty global variables
+	account = nil
+	testFiles = []string{}
+	testDirs = []string{}
+
 	err := server.StopServer()
 	if err != nil {
 		logger.Error(err)
