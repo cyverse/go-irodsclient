@@ -26,8 +26,6 @@ type Entry struct {
 	CreateTime time.Time
 	ModifyTime time.Time
 	CheckSum   string
-	//
-	Internal interface{} // IRODSDataObject or IRODSCollection
 }
 
 // ToString stringifies the object

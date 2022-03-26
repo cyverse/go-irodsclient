@@ -450,12 +450,14 @@ func (fs *FileSystem) ListFileACLs(path string) ([]*types.IRODSAccess, error) {
 	}
 	defer fs.session.ReturnConnection(conn)
 
-	collection, err := fs.getCollection(util.GetIRODSPathDirname(irodsPath))
+	collectionEntry, err := fs.getCollection(util.GetIRODSPathDirname(irodsPath))
 	if err != nil {
 		return nil, err
 	}
 
-	accesses, err := irods_fs.ListDataObjectAccess(conn, collection.Internal.(*types.IRODSCollection), util.GetIRODSPathFileName(irodsPath))
+	collection := fs.getCollectionFromEntry(collectionEntry)
+
+	accesses, err := irods_fs.ListDataObjectAccess(conn, collection, util.GetIRODSPathFileName(irodsPath))
 	if err != nil {
 		return nil, err
 	}
@@ -513,12 +515,14 @@ func (fs *FileSystem) ListFileACLsWithGroupUsers(path string) ([]*types.IRODSAcc
 func (fs *FileSystem) List(path string) ([]*Entry, error) {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
-	collection, err := fs.getCollection(irodsPath)
+	collectionEntry, err := fs.getCollection(irodsPath)
 	if err != nil {
 		return nil, err
 	}
 
-	return fs.listEntries(collection.Internal.(*types.IRODSCollection))
+	collection := fs.getCollectionFromEntry(collectionEntry)
+
+	return fs.listEntries(collection)
 }
 
 // SearchByMeta searches all file system entries with given metadata
@@ -1196,7 +1200,6 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 			CreateTime: time.Now(),
 			ModifyTime: time.Now(),
 			CheckSum:   "",
-			Internal:   nil,
 		}
 	}
 
@@ -1293,18 +1296,7 @@ func (fs *FileSystem) getCollectionNoCache(path string) (*Entry, error) {
 	}
 
 	if collection.ID > 0 {
-		entry := &Entry{
-			ID:         collection.ID,
-			Type:       DirectoryEntry,
-			Name:       collection.Name,
-			Path:       collection.Path,
-			Owner:      collection.Owner,
-			Size:       0,
-			CreateTime: collection.CreateTime,
-			ModifyTime: collection.ModifyTime,
-			CheckSum:   "",
-			Internal:   collection,
-		}
+		entry := fs.getEntryFromCollection(collection)
 
 		// cache it
 		fs.cache.RemoveNegativeEntryCache(path)
@@ -1329,6 +1321,46 @@ func (fs *FileSystem) getCollection(path string) (*Entry, error) {
 
 	// otherwise, retrieve it and add it to cache
 	return fs.getCollectionNoCache(path)
+}
+
+// getCollectionFromEntry returns collection from entry
+func (fs *FileSystem) getCollectionFromEntry(entry *Entry) *types.IRODSCollection {
+	return &types.IRODSCollection{
+		ID:         entry.ID,
+		Path:       entry.Path,
+		Name:       entry.Name,
+		Owner:      entry.Owner,
+		CreateTime: entry.CreateTime,
+		ModifyTime: entry.ModifyTime,
+	}
+}
+
+func (fs *FileSystem) getEntryFromCollection(collection *types.IRODSCollection) *Entry {
+	return &Entry{
+		ID:         collection.ID,
+		Type:       DirectoryEntry,
+		Name:       collection.Name,
+		Path:       collection.Path,
+		Owner:      collection.Owner,
+		Size:       0,
+		CreateTime: collection.CreateTime,
+		ModifyTime: collection.ModifyTime,
+		CheckSum:   "",
+	}
+}
+
+func (fs *FileSystem) getEntryFromDataObject(dataobject *types.IRODSDataObject) *Entry {
+	return &Entry{
+		ID:         dataobject.ID,
+		Type:       FileEntry,
+		Name:       dataobject.Name,
+		Path:       dataobject.Path,
+		Owner:      dataobject.Replicas[0].Owner,
+		Size:       dataobject.Size,
+		CreateTime: dataobject.Replicas[0].CreateTime,
+		ModifyTime: dataobject.Replicas[0].ModifyTime,
+		CheckSum:   dataobject.Replicas[0].CheckSum,
+	}
 }
 
 // listEntries lists entries in a collection
@@ -1373,19 +1405,7 @@ func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*Entry, 
 	entries := []*Entry{}
 
 	for _, coll := range collections {
-		entry := &Entry{
-			ID:         coll.ID,
-			Type:       DirectoryEntry,
-			Name:       coll.Name,
-			Path:       coll.Path,
-			Owner:      coll.Owner,
-			Size:       0,
-			CreateTime: coll.CreateTime,
-			ModifyTime: coll.ModifyTime,
-			CheckSum:   "",
-			Internal:   coll,
-		}
-
+		entry := fs.getEntryFromCollection(coll)
 		entries = append(entries, entry)
 
 		// cache it
@@ -1403,21 +1423,7 @@ func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*Entry, 
 			continue
 		}
 
-		replica := dataobject.Replicas[0]
-
-		entry := &Entry{
-			ID:         dataobject.ID,
-			Type:       FileEntry,
-			Name:       dataobject.Name,
-			Path:       dataobject.Path,
-			Owner:      replica.Owner,
-			Size:       dataobject.Size,
-			CreateTime: replica.CreateTime,
-			ModifyTime: replica.ModifyTime,
-			CheckSum:   replica.CheckSum,
-			Internal:   dataobject,
-		}
-
+		entry := fs.getEntryFromDataObject(dataobject)
 		entries = append(entries, entry)
 
 		// cache it
@@ -1451,19 +1457,7 @@ func (fs *FileSystem) searchEntriesByMeta(metaName string, metaValue string) ([]
 	entries := []*Entry{}
 
 	for _, coll := range collections {
-		entry := &Entry{
-			ID:         coll.ID,
-			Type:       DirectoryEntry,
-			Name:       coll.Name,
-			Path:       coll.Path,
-			Owner:      coll.Owner,
-			Size:       0,
-			CreateTime: coll.CreateTime,
-			ModifyTime: coll.ModifyTime,
-			CheckSum:   "",
-			Internal:   coll,
-		}
-
+		entry := fs.getEntryFromCollection(coll)
 		entries = append(entries, entry)
 
 		// cache it
@@ -1481,21 +1475,7 @@ func (fs *FileSystem) searchEntriesByMeta(metaName string, metaValue string) ([]
 			continue
 		}
 
-		replica := dataobject.Replicas[0]
-
-		entry := &Entry{
-			ID:         dataobject.ID,
-			Type:       FileEntry,
-			Name:       dataobject.Name,
-			Path:       dataobject.Path,
-			Owner:      replica.Owner,
-			Size:       dataobject.Size,
-			CreateTime: replica.CreateTime,
-			ModifyTime: replica.ModifyTime,
-			CheckSum:   replica.CheckSum,
-			Internal:   dataobject,
-		}
-
+		entry := fs.getEntryFromDataObject(dataobject)
 		entries = append(entries, entry)
 
 		// cache it
@@ -1509,29 +1489,20 @@ func (fs *FileSystem) searchEntriesByMeta(metaName string, metaValue string) ([]
 // getDataObjectWithConnectionNoCache returns an entry for data object
 func (fs *FileSystem) getDataObjectWithConnectionNoCache(conn *connection.IRODSConnection, path string) (*Entry, error) {
 	// retrieve it and add it to cache
-	collection, err := fs.getCollection(util.GetIRODSPathDirname(path))
+	collectionEntry, err := fs.getCollection(util.GetIRODSPathDirname(path))
 	if err != nil {
 		return nil, err
 	}
 
-	dataobject, err := irods_fs.GetDataObjectMasterReplica(conn, collection.Internal.(*types.IRODSCollection), util.GetIRODSPathFileName(path))
+	collection := fs.getCollectionFromEntry(collectionEntry)
+
+	dataobject, err := irods_fs.GetDataObjectMasterReplica(conn, collection, util.GetIRODSPathFileName(path))
 	if err != nil {
 		return nil, err
 	}
 
 	if dataobject.ID > 0 {
-		entry := &Entry{
-			ID:         dataobject.ID,
-			Type:       FileEntry,
-			Name:       dataobject.Name,
-			Path:       dataobject.Path,
-			Owner:      dataobject.Replicas[0].Owner,
-			Size:       dataobject.Size,
-			CreateTime: dataobject.Replicas[0].CreateTime,
-			ModifyTime: dataobject.Replicas[0].ModifyTime,
-			CheckSum:   dataobject.Replicas[0].CheckSum,
-			Internal:   dataobject,
-		}
+		entry := fs.getEntryFromDataObject(dataobject)
 
 		// cache it
 		fs.cache.RemoveNegativeEntryCache(path)
@@ -1561,10 +1532,12 @@ func (fs *FileSystem) getDataObjectWithConnection(conn *connection.IRODSConnecti
 // getDataObjectNoCache returns an entry for data object
 func (fs *FileSystem) getDataObjectNoCache(path string) (*Entry, error) {
 	// retrieve it and add it to cache
-	collection, err := fs.getCollection(util.GetIRODSPathDirname(path))
+	collectionEntry, err := fs.getCollection(util.GetIRODSPathDirname(path))
 	if err != nil {
 		return nil, err
 	}
+
+	collection := fs.getCollectionFromEntry(collectionEntry)
 
 	conn, err := fs.session.AcquireConnection()
 	if err != nil {
@@ -1572,24 +1545,13 @@ func (fs *FileSystem) getDataObjectNoCache(path string) (*Entry, error) {
 	}
 	defer fs.session.ReturnConnection(conn)
 
-	dataobject, err := irods_fs.GetDataObjectMasterReplica(conn, collection.Internal.(*types.IRODSCollection), util.GetIRODSPathFileName(path))
+	dataobject, err := irods_fs.GetDataObjectMasterReplica(conn, collection, util.GetIRODSPathFileName(path))
 	if err != nil {
 		return nil, err
 	}
 
 	if dataobject.ID > 0 {
-		entry := &Entry{
-			ID:         dataobject.ID,
-			Type:       FileEntry,
-			Name:       dataobject.Name,
-			Path:       dataobject.Path,
-			Owner:      dataobject.Replicas[0].Owner,
-			Size:       dataobject.Size,
-			CreateTime: dataobject.Replicas[0].CreateTime,
-			ModifyTime: dataobject.Replicas[0].ModifyTime,
-			CheckSum:   dataobject.Replicas[0].CheckSum,
-			Internal:   dataobject,
-		}
+		entry := fs.getEntryFromDataObject(dataobject)
 
 		// cache it
 		fs.cache.RemoveNegativeEntryCache(path)
@@ -1641,11 +1603,14 @@ func (fs *FileSystem) ListMetadata(path string) ([]*types.IRODSMeta, error) {
 			return nil, err
 		}
 	} else {
-		collection, err := fs.getCollection(util.GetIRODSPathDirname(path))
+		collectionEntry, err := fs.getCollection(util.GetIRODSPathDirname(path))
 		if err != nil {
 			return nil, err
 		}
-		metadataobjects, err = irods_fs.ListDataObjectMeta(conn, collection.Internal.(*types.IRODSCollection), util.GetIRODSPathFileName(irodsCorrectPath))
+
+		collection := fs.getCollectionFromEntry(collectionEntry)
+
+		metadataobjects, err = irods_fs.ListDataObjectMeta(conn, collection, util.GetIRODSPathFileName(irodsCorrectPath))
 		if err != nil {
 			return nil, err
 		}
