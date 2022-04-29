@@ -15,7 +15,7 @@ const (
 	DirectoryEntry EntryType = "directory"
 )
 
-// Entry ...
+// Entry is a struct for filesystem entry
 type Entry struct {
 	ID         int64
 	Type       EntryType

@@ -15,11 +15,13 @@ import (
 
 // FileSystem provides a file-system like interface
 type FileSystem struct {
-	account       *types.IRODSAccount
-	config        *FileSystemConfig
-	session       *session.IRODSSession
-	cache         *FileSystemCache
-	fileHandleMap *FileHandleMap
+	id               string
+	account          *types.IRODSAccount
+	config           *FileSystemConfig
+	session          *session.IRODSSession
+	cache            *FileSystemCache
+	cachePropagation *FileSystemCachePropagation
+	fileHandleMap    *FileHandleMap
 }
 
 // NewFileSystem creates a new FileSystem
@@ -32,13 +34,19 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*File
 
 	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime, config.CacheTimeoutSettings, config.InvalidateParentEntryCacheImmediately)
 
-	return &FileSystem{
+	fs := &FileSystem{
+		id:            xid.New().String(), // generate a new ID
 		account:       account,
 		config:        config,
 		session:       sess,
 		cache:         cache,
 		fileHandleMap: NewFileHandleMap(),
-	}, nil
+	}
+
+	cachePropagation := NewFileSystemCachePropagation(fs)
+	fs.cachePropagation = cachePropagation
+
+	return fs, nil
 }
 
 // NewFileSystemWithDefault creates a new FileSystem with default configurations
@@ -52,13 +60,19 @@ func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName strin
 
 	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime, config.CacheTimeoutSettings, config.InvalidateParentEntryCacheImmediately)
 
-	return &FileSystem{
+	fs := &FileSystem{
+		id:            xid.New().String(), // generate a new ID
 		account:       account,
 		config:        config,
 		session:       sess,
 		cache:         cache,
 		fileHandleMap: NewFileHandleMap(),
-	}, nil
+	}
+
+	cachePropagation := NewFileSystemCachePropagation(fs)
+	fs.cachePropagation = cachePropagation
+
+	return fs, nil
 }
 
 // NewFileSystemWithSessionConfig creates a new FileSystem with custom session configurations
@@ -71,13 +85,19 @@ func NewFileSystemWithSessionConfig(account *types.IRODSAccount, sessConfig *ses
 
 	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime, config.CacheTimeoutSettings, config.InvalidateParentEntryCacheImmediately)
 
-	return &FileSystem{
+	fs := &FileSystem{
+		id:            xid.New().String(), // generate a new ID
 		account:       account,
 		config:        config,
 		session:       sess,
 		cache:         cache,
 		fileHandleMap: NewFileHandleMap(),
-	}, nil
+	}
+
+	cachePropagation := NewFileSystemCachePropagation(fs)
+	fs.cachePropagation = cachePropagation
+
+	return fs, nil
 }
 
 // Release releases all resources
@@ -87,7 +107,14 @@ func (fs *FileSystem) Release() {
 		handle.closeWithoutFSHandleManagement()
 	}
 
+	fs.cachePropagation.Release()
+
 	fs.session.Release()
+}
+
+// GetID returns file system instance ID
+func (fs *FileSystem) GetID() string {
+	return fs.id
 }
 
 // Connections counts current established connections
@@ -545,8 +572,8 @@ func (fs *FileSystem) RemoveDir(path string, recurse bool, force bool) error {
 		return err
 	}
 
-	fs.cache.AddNegativeEntryCache(irodsPath)
 	fs.invalidateCacheForDirRemove(irodsPath, recurse)
+	fs.cachePropagation.PropagateDirRemove(irodsPath)
 	return nil
 }
 
@@ -565,8 +592,8 @@ func (fs *FileSystem) RemoveFile(path string, force bool) error {
 		return err
 	}
 
-	fs.cache.AddNegativeEntryCache(irodsPath)
 	fs.invalidateCacheForFileRemove(irodsPath)
+	fs.cachePropagation.PropagateFileRemove(irodsPath)
 	return nil
 }
 
@@ -607,12 +634,10 @@ func (fs *FileSystem) RenameDirToDir(srcPath string, destPath string) error {
 		return err
 	}
 
-	// we need to expunge all negatie entry caches under irodsDestPath
-	// since all sub-directories/files are also moved
-	fs.cache.RemoveAllNegativeEntryCacheForPath(irodsSrcPath)
-	fs.cache.AddNegativeEntryCache(irodsSrcPath)
 	fs.invalidateCacheForDirRemove(irodsSrcPath, true)
+	fs.cachePropagation.PropagateDirRemove(irodsSrcPath)
 	fs.invalidateCacheForDirCreate(irodsDestPath)
+	fs.cachePropagation.PropagateDirCreate(irodsDestPath)
 
 	// postprocess
 	err = fs.postprocessRenameFileHandleForDir(handles, conn, irodsSrcPath, irodsDestPath)
@@ -660,9 +685,10 @@ func (fs *FileSystem) RenameFileToFile(srcPath string, destPath string) error {
 		return err
 	}
 
-	fs.cache.AddNegativeEntryCache(irodsSrcPath)
 	fs.invalidateCacheForFileRemove(irodsSrcPath)
+	fs.cachePropagation.PropagateFileRemove(irodsSrcPath)
 	fs.invalidateCacheForFileCreate(irodsDestPath)
+	fs.cachePropagation.PropagateFileCreate(irodsDestPath)
 
 	// postprocess
 	err = fs.postprocessRenameFileHandle(handles, conn, irodsDestPath)
@@ -805,6 +831,7 @@ func (fs *FileSystem) MakeDir(path string, recurse bool) error {
 	}
 
 	fs.invalidateCacheForDirCreate(irodsPath)
+	fs.cachePropagation.PropagateDirCreate(irodsPath)
 	fs.cache.AddDirCache(irodsPath, []string{})
 	return nil
 }
@@ -841,6 +868,7 @@ func (fs *FileSystem) CopyFileToFile(srcPath string, destPath string) error {
 	}
 
 	fs.invalidateCacheForFileCreate(irodsDestPath)
+	fs.cachePropagation.PropagateFileCreate(irodsDestPath)
 	return nil
 }
 
@@ -864,6 +892,7 @@ func (fs *FileSystem) TruncateFile(path string, size int64) error {
 	}
 
 	fs.invalidateCacheForFileUpdate(irodsPath)
+	fs.cachePropagation.PropagateFileUpdate(irodsPath)
 	return nil
 }
 
@@ -883,6 +912,7 @@ func (fs *FileSystem) ReplicateFile(path string, resource string, update bool) e
 	}
 
 	fs.invalidateCacheForFileUpdate(irodsPath)
+	fs.cachePropagation.PropagateFileUpdate(irodsPath)
 	return nil
 }
 
@@ -1052,6 +1082,7 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 	}
 
 	fs.invalidateCacheForFileCreate(irodsFilePath)
+	fs.cachePropagation.PropagateFileCreate(irodsFilePath)
 	return nil
 }
 
@@ -1098,6 +1129,7 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 	}
 
 	fs.invalidateCacheForFileCreate(irodsFilePath)
+	fs.cachePropagation.PropagateFileCreate(irodsFilePath)
 	return nil
 }
 
@@ -1160,6 +1192,7 @@ func (fs *FileSystem) UploadFileParallelInBlocksAsync(localPath string, irodsPat
 	outputChan2, errChan2 := irods_fs.UploadDataObjectParallelInBlockAsync(fs.session, localSrcPath, irodsFilePath, resource, blockLength, taskNum, replicate)
 
 	fs.invalidateCacheForFileCreate(irodsFilePath)
+	fs.cachePropagation.PropagateFileCreate(irodsFilePath)
 	return outputChan2, errChan2
 }
 
@@ -1267,6 +1300,7 @@ func (fs *FileSystem) CreateFile(path string, resource string, mode string) (*Fi
 
 	fs.fileHandleMap.Add(fileHandle)
 	fs.invalidateCacheForFileCreate(irodsPath)
+	fs.cachePropagation.PropagateFileCreate(irodsPath)
 
 	return fileHandle, nil
 }
@@ -1695,9 +1729,9 @@ func (fs *FileSystem) invalidateCacheForFileUpdate(path string) {
 }
 
 // invalidateCacheForRemoveInternal invalidates cache for removal of the given file/dir
-func (fs *FileSystem) invalidateCacheForRemoveInternal(path string, recursive bool) {
+func (fs *FileSystem) invalidateCacheForRemoveInternal(path string, recurse bool) {
 	var entry *Entry
-	if recursive {
+	if recurse {
 		entry = fs.cache.GetEntryCache(path)
 	}
 
@@ -1705,12 +1739,12 @@ func (fs *FileSystem) invalidateCacheForRemoveInternal(path string, recursive bo
 	fs.cache.RemoveFileACLsCache(path)
 	fs.cache.RemoveMetadataCache(path)
 
-	if recursive && entry != nil {
+	if recurse && entry != nil {
 		if entry.Type == DirectoryEntry {
 			dirEntries := fs.cache.GetDirCache(path)
 			for _, dirEntry := range dirEntries {
 				// do it recursively
-				fs.invalidateCacheForRemoveInternal(dirEntry, recursive)
+				fs.invalidateCacheForRemoveInternal(dirEntry, recurse)
 			}
 		}
 	}
@@ -1718,63 +1752,6 @@ func (fs *FileSystem) invalidateCacheForRemoveInternal(path string, recursive bo
 	// remove dircache and dir acl cache even if it is a file or unknown, no harm.
 	fs.cache.RemoveDirCache(path)
 	fs.cache.RemoveDirACLsCache(path)
-}
-
-// invalidateCacheForDirRemove invalidates cache for removal of the given dir
-func (fs *FileSystem) invalidateCacheForDirRemove(path string, recursive bool) {
-	var entry *Entry
-	if recursive {
-		entry = fs.cache.GetEntryCache(path)
-	}
-
-	fs.cache.RemoveEntryCache(path)
-	fs.cache.RemoveMetadataCache(path)
-
-	if recursive && entry != nil {
-		if entry.Type == DirectoryEntry {
-			dirEntries := fs.cache.GetDirCache(path)
-			for _, dirEntry := range dirEntries {
-				// do it recursively
-				fs.invalidateCacheForRemoveInternal(dirEntry, recursive)
-			}
-		}
-	}
-
-	fs.cache.RemoveDirCache(path)
-	fs.cache.RemoveDirACLsCache(path)
-
-	// parent dir's entry also changes
-	fs.cache.RemoveParentDirCache(path)
-	// parent dir's dir entry also changes
-	parentPath := util.GetIRODSPathDirname(path)
-	parentDirEntries := fs.cache.GetDirCache(parentPath)
-	newParentDirEntries := []string{}
-	for _, dirEntry := range parentDirEntries {
-		if dirEntry != path {
-			newParentDirEntries = append(newParentDirEntries, dirEntry)
-		}
-	}
-	fs.cache.AddDirCache(parentPath, newParentDirEntries)
-}
-
-// invalidateCacheForFileRemove invalidates cache for removal of the given file
-func (fs *FileSystem) invalidateCacheForFileRemove(path string) {
-	fs.cache.RemoveEntryCache(path)
-	fs.cache.RemoveFileACLsCache(path)
-	fs.cache.RemoveMetadataCache(path)
-
-	// parent dir's entry also changes
-	fs.cache.RemoveParentDirCache(path)
-	// parent dir's dir entry also changes
-	parentPath := util.GetIRODSPathDirname(path)
-	parentDirEntries := fs.cache.GetDirCache(parentPath)
-	newParentDirEntries := []string{}
-	for _, dirEntry := range parentDirEntries {
-		if dirEntry != path {
-			newParentDirEntries = append(newParentDirEntries, dirEntry)
-		}
-	}
-	fs.cache.AddDirCache(parentPath, newParentDirEntries)
 }
 
 // invalidateCacheForDirCreate invalidates cache for creation of the given dir
@@ -1786,8 +1763,54 @@ func (fs *FileSystem) invalidateCacheForDirCreate(path string) {
 	// parent dir's dir entry also changes
 	parentPath := util.GetIRODSPathDirname(path)
 	parentDirEntries := fs.cache.GetDirCache(parentPath)
-	parentDirEntries = append(parentDirEntries, path)
-	fs.cache.AddDirCache(parentPath, parentDirEntries)
+	if parentDirEntries != nil {
+		parentDirEntries = append(parentDirEntries, path)
+		fs.cache.AddDirCache(parentPath, parentDirEntries)
+	}
+}
+
+// invalidateCacheForDirRemove invalidates cache for removal of the given dir
+func (fs *FileSystem) invalidateCacheForDirRemove(path string, recurse bool) {
+	var entry *Entry
+	if recurse {
+		entry = fs.cache.GetEntryCache(path)
+	}
+
+	// we need to expunge all negatie entry caches under irodsDestPath
+	// since all sub-directories/files are also moved
+	fs.cache.RemoveAllNegativeEntryCacheForPath(path)
+
+	fs.cache.AddNegativeEntryCache(path)
+	fs.cache.RemoveEntryCache(path)
+	fs.cache.RemoveMetadataCache(path)
+
+	if recurse && entry != nil {
+		if entry.Type == DirectoryEntry {
+			dirEntries := fs.cache.GetDirCache(path)
+			for _, dirEntry := range dirEntries {
+				// do it recursively
+				fs.invalidateCacheForRemoveInternal(dirEntry, recurse)
+			}
+		}
+	}
+
+	fs.cache.RemoveDirCache(path)
+	fs.cache.RemoveDirACLsCache(path)
+
+	// parent dir's entry also changes
+	fs.cache.RemoveParentDirCache(path)
+	// parent dir's dir entry also changes
+	parentPath := util.GetIRODSPathDirname(path)
+	parentDirEntries := fs.cache.GetDirCache(parentPath)
+	if parentDirEntries != nil {
+		newParentDirEntries := []string{}
+		for _, dirEntry := range parentDirEntries {
+			if dirEntry != path {
+				newParentDirEntries = append(newParentDirEntries, dirEntry)
+			}
+		}
+		fs.cache.AddDirCache(parentPath, newParentDirEntries)
+	}
 }
 
 // invalidateCacheForFileCreate invalidates cache for creation of the given file
@@ -1799,8 +1822,33 @@ func (fs *FileSystem) invalidateCacheForFileCreate(path string) {
 	// parent dir's dir entry also changes
 	parentPath := util.GetIRODSPathDirname(path)
 	parentDirEntries := fs.cache.GetDirCache(parentPath)
-	parentDirEntries = append(parentDirEntries, path)
-	fs.cache.AddDirCache(parentPath, parentDirEntries)
+	if parentDirEntries != nil {
+		parentDirEntries = append(parentDirEntries, path)
+		fs.cache.AddDirCache(parentPath, parentDirEntries)
+	}
+}
+
+// invalidateCacheForFileRemove invalidates cache for removal of the given file
+func (fs *FileSystem) invalidateCacheForFileRemove(path string) {
+	fs.cache.AddNegativeEntryCache(path)
+	fs.cache.RemoveEntryCache(path)
+	fs.cache.RemoveFileACLsCache(path)
+	fs.cache.RemoveMetadataCache(path)
+
+	// parent dir's entry also changes
+	fs.cache.RemoveParentDirCache(path)
+	// parent dir's dir entry also changes
+	parentPath := util.GetIRODSPathDirname(path)
+	parentDirEntries := fs.cache.GetDirCache(parentPath)
+	if parentDirEntries != nil {
+		newParentDirEntries := []string{}
+		for _, dirEntry := range parentDirEntries {
+			if dirEntry != path {
+				newParentDirEntries = append(newParentDirEntries, dirEntry)
+			}
+		}
+		fs.cache.AddDirCache(parentPath, newParentDirEntries)
+	}
 }
 
 // AddUserMetadata adds a user metadata
