@@ -42,7 +42,7 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 	query.AddCondition(common.ICAT_COLUMN_R_RESC_NAME, rescCondVal)
 
 	queryResult := message.IRODSMessageQueryResult{}
-	err := conn.Request(query, &queryResult)
+	err := conn.Request(query, &queryResult, nil)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive a resource query result message - %v", err)
 	}
@@ -124,7 +124,7 @@ func AddResourceMeta(conn *connection.IRODSConnection, name string, metadata *ty
 
 	request := message.NewIRODSMessageAddMetadataRequest(types.IRODSResourceMetaItemType, name, metadata)
 	response := message.IRODSMessageModMetaResponse{}
-	return conn.RequestAndCheck(request, &response)
+	return conn.RequestAndCheck(request, &response, nil)
 }
 
 // DeleteResourceMeta sets metadata of a resource to the given key values.
@@ -145,5 +145,5 @@ func DeleteResourceMeta(conn *connection.IRODSConnection, name string, metadata 
 	}
 
 	response := message.IRODSMessageModMetaResponse{}
-	return conn.RequestAndCheck(request, &response)
+	return conn.RequestAndCheck(request, &response, nil)
 }

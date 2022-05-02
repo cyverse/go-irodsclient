@@ -33,7 +33,7 @@ func GetGroup(conn *connection.IRODSConnection, group string) (*types.IRODSUser,
 		query.AddCondition(common.ICAT_COLUMN_USER_TYPE, condTypeVal)
 
 		queryResult := message.IRODSMessageQueryResult{}
-		err := conn.Request(query, &queryResult)
+		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a group query result message - %v", err)
 		}
@@ -127,7 +127,7 @@ func ListGroupUsers(conn *connection.IRODSConnection, group string) ([]*types.IR
 		query.AddCondition(common.ICAT_COLUMN_COLL_USER_GROUP_NAME, condNameVal)
 
 		queryResult := message.IRODSMessageQueryResult{}
-		err := conn.Request(query, &queryResult)
+		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a group user query result message - %v", err)
 		}
@@ -222,7 +222,7 @@ func ListGroups(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 		query.AddCondition(common.ICAT_COLUMN_USER_TYPE, condTypeVal)
 
 		queryResult := message.IRODSMessageQueryResult{}
-		err := conn.Request(query, &queryResult)
+		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a group query result message - %v", err)
 		}
@@ -317,7 +317,7 @@ func ListUsers(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 		query.AddCondition(common.ICAT_COLUMN_USER_TYPE, condTypeVal)
 
 		queryResult := message.IRODSMessageQueryResult{}
-		err := conn.Request(query, &queryResult)
+		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a user query result message - %v", err)
 		}
@@ -409,7 +409,7 @@ func ListUserGroupNames(conn *connection.IRODSConnection, user string) ([]string
 		query.AddCondition(common.ICAT_COLUMN_USER_NAME, condTypeVal)
 
 		queryResult := message.IRODSMessageQueryResult{}
-		err := conn.Request(query, &queryResult)
+		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a group query result message - %v", err)
 		}
@@ -480,7 +480,7 @@ func ListUserResourceQuota(conn *connection.IRODSConnection, user string) ([]*ty
 		query.AddCondition(common.ICAT_COLUMN_QUOTA_USER_NAME, condTypeVal)
 
 		queryResult := message.IRODSMessageQueryResult{}
-		err := conn.Request(query, &queryResult)
+		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a quota query result message - %v", err)
 		}
@@ -568,7 +568,7 @@ func GetUserGlobalQuota(conn *connection.IRODSConnection, user string) (*types.I
 		query.AddCondition(common.ICAT_COLUMN_QUOTA_RESC_ID, condTypeVal)
 
 		queryResult := message.IRODSMessageQueryResult{}
-		err := conn.Request(query, &queryResult)
+		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a quota query result message - %v", err)
 		}
@@ -637,7 +637,7 @@ func AddUserMeta(conn *connection.IRODSConnection, user string, metadata *types.
 
 	request := message.NewIRODSMessageAddMetadataRequest(types.IRODSUserMetaItemType, user, metadata)
 	response := message.IRODSMessageModMetaResponse{}
-	return conn.RequestAndCheck(request, &response)
+	return conn.RequestAndCheck(request, &response, nil)
 }
 
 // DeleteUserMeta removes the metadata of a user object.
@@ -658,7 +658,7 @@ func DeleteUserMeta(conn *connection.IRODSConnection, user string, metadata *typ
 	}
 
 	response := message.IRODSMessageModMetaResponse{}
-	return conn.RequestAndCheck(request, &response)
+	return conn.RequestAndCheck(request, &response, nil)
 }
 
 // ListUserMeta returns a user metadata for the path
@@ -682,7 +682,7 @@ func ListUserMeta(conn *connection.IRODSConnection, user string) ([]*types.IRODS
 		query.AddCondition(common.ICAT_COLUMN_USER_NAME, nameCondVal)
 
 		queryResult := message.IRODSMessageQueryResult{}
-		err := conn.Request(query, &queryResult)
+		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a user metadata query result message - %v", err)
 		}

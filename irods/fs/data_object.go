@@ -2,6 +2,7 @@ package fs
 
 import (
 	"fmt"
+	"io"
 	"strconv"
 	"time"
 
@@ -84,7 +85,7 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 		query.AddCondition(common.ICAT_COLUMN_DATA_NAME, pathCondVal)
 
 		queryResult := message.IRODSMessageQueryResult{}
-		err := conn.Request(query, &queryResult)
+		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a data object query result message - %v", err)
 		}
@@ -262,7 +263,7 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 		query.AddCondition(common.ICAT_COLUMN_D_REPL_STATUS, "= '1'")
 
 		queryResult := message.IRODSMessageQueryResult{}
-		err := conn.Request(query, &queryResult)
+		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a data object query result message - %v", err)
 		}
@@ -445,7 +446,7 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, collCondVal)
 
 		queryResult := message.IRODSMessageQueryResult{}
-		err := conn.Request(query, &queryResult)
+		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a data object query result message - %v", err)
 		}
@@ -620,7 +621,7 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 		query.AddCondition(common.ICAT_COLUMN_D_REPL_STATUS, "= '1'")
 
 		queryResult := message.IRODSMessageQueryResult{}
-		err := conn.Request(query, &queryResult)
+		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a data object query result message - %v", err)
 		}
@@ -793,7 +794,7 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, collection *types.IROD
 		query.AddCondition(common.ICAT_COLUMN_DATA_NAME, nameCondVal)
 
 		queryResult := message.IRODSMessageQueryResult{}
-		err := conn.Request(query, &queryResult)
+		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a data object metadata query result message - %v", err)
 		}
@@ -892,7 +893,7 @@ func ListDataObjectAccess(conn *connection.IRODSConnection, collection *types.IR
 		query.AddCondition(common.ICAT_COLUMN_DATA_NAME, nameCondVal)
 
 		queryResult := message.IRODSMessageQueryResult{}
-		err := conn.Request(query, &queryResult)
+		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a data object access query result message - %v", err)
 		}
@@ -973,7 +974,7 @@ func DeleteDataObject(conn *connection.IRODSConnection, path string, force bool)
 
 	request := message.NewIRODSMessageRmobjRequest(path, force)
 	response := message.IRODSMessageRmobjResponse{}
-	err := conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
@@ -990,7 +991,7 @@ func MoveDataObject(conn *connection.IRODSConnection, srcPath string, destPath s
 
 	request := message.NewIRODSMessageMvobjRequest(srcPath, destPath)
 	response := message.IRODSMessageMvobjResponse{}
-	err := conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
@@ -1005,7 +1006,7 @@ func CopyDataObject(conn *connection.IRODSConnection, srcPath string, destPath s
 
 	request := message.NewIRODSMessageCpobjRequest(srcPath, destPath)
 	response := message.IRODSMessageCpobjResponse{}
-	err := conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
@@ -1020,7 +1021,7 @@ func TruncateDataObject(conn *connection.IRODSConnection, path string, size int6
 
 	request := message.NewIRODSMessageTruncobjRequest(path, size)
 	response := message.IRODSMessageTruncobjResponse{}
-	err := conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
@@ -1050,7 +1051,7 @@ func ReplicateDataObject(conn *connection.IRODSConnection, path string, resource
 	}
 
 	response := message.IRODSMessageReplobjResponse{}
-	err := conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
@@ -1076,7 +1077,7 @@ func TrimDataObject(conn *connection.IRODSConnection, path string, resource stri
 	}
 
 	response := message.IRODSMessageTrimobjResponse{}
-	err := conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
@@ -1101,7 +1102,7 @@ func CreateDataObject(conn *connection.IRODSConnection, path string, resource st
 
 	request := message.NewIRODSMessageCreateobjRequest(path, resource, fileOpenMode, force)
 	response := message.IRODSMessageCreateobjResponse{}
-	err := conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -1133,7 +1134,7 @@ func OpenDataObject(conn *connection.IRODSConnection, path string, resource stri
 
 	request := message.NewIRODSMessageOpenobjRequest(path, resource, fileOpenMode)
 	response := message.IRODSMessageOpenobjResponse{}
-	err := conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return nil, -1, types.NewFileNotFoundErrorf("could not find a data object")
@@ -1178,7 +1179,7 @@ func OpenDataObjectWithReplicaToken(conn *connection.IRODSConnection, path strin
 
 	request := message.NewIRODSMessageOpenobjRequestWithReplicaToken(path, fileOpenMode, resourceHierarchy, replicaToken)
 	response := message.IRODSMessageOpenobjResponse{}
-	err := conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return nil, -1, types.NewFileNotFoundErrorf("could not find a data object")
@@ -1223,7 +1224,7 @@ func OpenDataObjectWithOperation(conn *connection.IRODSConnection, path string, 
 
 	request := message.NewIRODSMessageOpenobjRequestWithOperation(path, resource, fileOpenMode, oper)
 	response := message.IRODSMessageOpenobjResponse{}
-	err := conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return nil, types.NewFileNotFoundErrorf("could not find a data object")
@@ -1259,7 +1260,7 @@ func GetReplicaAccessInfo(conn *connection.IRODSConnection, handle *types.IRODSF
 
 	request := message.NewIRODSMessageDescriptorInfoRequest(handle.FileDescriptor)
 	response := message.IRODSMessageDescriptorInfoResponse{}
-	err := conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return "", "", types.NewFileNotFoundErrorf("could not find a data object")
@@ -1279,7 +1280,7 @@ func SeekDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHan
 
 	request := message.NewIRODSMessageSeekobjRequest(handle.FileDescriptor, offset, whence)
 	response := message.IRODSMessageSeekobjResponse{}
-	err := conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return -1, types.NewFileNotFoundErrorf("could not find a data object")
@@ -1292,25 +1293,31 @@ func SeekDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHan
 }
 
 // ReadDataObject reads data from a data object
-func ReadDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHandle, length int) ([]byte, error) {
+func ReadDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHandle, buffer []byte) (int, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, fmt.Errorf("connection is nil or disconnected")
+		return 0, fmt.Errorf("connection is nil or disconnected")
 	}
 
 	conn.IncreaseDataObjectMetricsRead(1)
 
-	request := message.NewIRODSMessageReadobjRequest(handle.FileDescriptor, length)
+	request := message.NewIRODSMessageReadobjRequest(handle.FileDescriptor, len(buffer))
 	response := message.IRODSMessageReadobjResponse{}
-	err := conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response, buffer)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, types.NewFileNotFoundErrorf("could not find a data object")
+			return 0, types.NewFileNotFoundErrorf("could not find a data object")
 		}
 
-		return nil, err
+		return 0, err
 	}
 
-	return response.Data, nil
+	readLen := len(response.Data)
+	if readLen < len(buffer) {
+		// EOF
+		return readLen, io.EOF
+	}
+
+	return readLen, nil
 }
 
 // WriteDataObject writes data to a data object
@@ -1323,7 +1330,7 @@ func WriteDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHa
 
 	request := message.NewIRODSMessageWriteobjRequest(handle.FileDescriptor, data)
 	response := message.IRODSMessageWriteobjResponse{}
-	err := conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
@@ -1350,7 +1357,7 @@ func TruncateDataObjectHandle(conn *connection.IRODSConnection, handle *types.IR
 	// close
 	request1 := message.NewIRODSMessageCloseobjRequest(handle.FileDescriptor)
 	response1 := message.IRODSMessageCloseobjResponse{}
-	err = conn.RequestAndCheck(request1, &response1)
+	err = conn.RequestAndCheck(request1, &response1, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
@@ -1358,7 +1365,7 @@ func TruncateDataObjectHandle(conn *connection.IRODSConnection, handle *types.IR
 	// truncate
 	request2 := message.NewIRODSMessageTruncobjRequest(handle.Path, size)
 	response2 := message.IRODSMessageTruncobjResponse{}
-	err = conn.RequestAndCheck(request2, &response2)
+	err = conn.RequestAndCheck(request2, &response2, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
@@ -1366,7 +1373,7 @@ func TruncateDataObjectHandle(conn *connection.IRODSConnection, handle *types.IR
 	// reopen
 	request3 := message.NewIRODSMessageOpenobjRequestWithOperation(handle.Path, handle.Resource, handle.OpenMode, handle.Oper)
 	response3 := message.IRODSMessageOpenobjResponse{}
-	err = conn.RequestAndCheck(request3, &response3)
+	err = conn.RequestAndCheck(request3, &response3, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return types.NewFileNotFoundErrorf("could not find a data object")
@@ -1380,7 +1387,7 @@ func TruncateDataObjectHandle(conn *connection.IRODSConnection, handle *types.IR
 	// seek
 	request4 := message.NewIRODSMessageSeekobjRequest(handle.FileDescriptor, offset, types.SeekSet)
 	response4 := message.IRODSMessageSeekobjResponse{}
-	err = conn.RequestAndCheck(request4, &response4)
+	err = conn.RequestAndCheck(request4, &response4, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return types.NewFileNotFoundErrorf("could not find a data object")
@@ -1400,7 +1407,7 @@ func CloseDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHa
 
 	request := message.NewIRODSMessageCloseobjRequest(handle.FileDescriptor)
 	response := message.IRODSMessageCloseobjResponse{}
-	err := conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
@@ -1418,7 +1425,7 @@ func AddDataObjectMeta(conn *connection.IRODSConnection, path string, metadata *
 
 	request := message.NewIRODSMessageAddMetadataRequest(types.IRODSDataObjectMetaItemType, path, metadata)
 	response := message.IRODSMessageModMetaResponse{}
-	err := conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
@@ -1445,7 +1452,7 @@ func DeleteDataObjectMeta(conn *connection.IRODSConnection, path string, metadat
 	}
 
 	response := message.IRODSMessageModMetaResponse{}
-	err := conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
@@ -1490,7 +1497,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 		query.AddCondition(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, metaValueCondVal)
 
 		queryResult := message.IRODSMessageQueryResult{}
-		err := conn.Request(query, &queryResult)
+		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a data object query result message - %v", err)
 		}
@@ -1685,7 +1692,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 		query.AddCondition(common.ICAT_COLUMN_D_REPL_STATUS, "= '1'")
 
 		queryResult := message.IRODSMessageQueryResult{}
-		err := conn.Request(query, &queryResult)
+		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a data object query result message - %v", err)
 		}
@@ -1888,7 +1895,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 		query.AddCondition(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, metaValueCondVal)
 
 		queryResult := message.IRODSMessageQueryResult{}
-		err := conn.Request(query, &queryResult)
+		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a data object query result message - %v", err)
 		}
@@ -2084,7 +2091,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 		query.AddCondition(common.ICAT_COLUMN_D_REPL_STATUS, "= '1'")
 
 		queryResult := message.IRODSMessageQueryResult{}
-		err := conn.Request(query, &queryResult)
+		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a data object query result message - %v", err)
 		}
@@ -2258,7 +2265,7 @@ func ChangeAccessControlDataObject(conn *connection.IRODSConnection, path string
 
 	request := message.NewIRODSMessageModAccessRequest(access.ChmodString(), userName, zoneName, path, false, adminFlag)
 	response := message.IRODSMessageModAccessResponse{}
-	err := conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a data object")
 	}

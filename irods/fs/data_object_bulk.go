@@ -29,7 +29,7 @@ func CloseDataObjectReplica(conn *connection.IRODSConnection, handle *types.IROD
 
 	request := message.NewIRODSMessageClosereplicaRequest(handle.FileDescriptor, false, false, false, false)
 	response := message.IRODSMessageClosereplicaResponse{}
-	err := conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
@@ -552,21 +552,21 @@ func DownloadDataObject(session *session.IRODSSession, irodsPath string, resourc
 	}
 	defer f.Close()
 
+	buffer := make([]byte, common.ReadWriteBufferSize)
 	// copy
 	for {
-		buffer, err := ReadDataObject(conn, handle, common.ReadWriteBufferSize)
-		if err != nil {
+		readLen, err := ReadDataObject(conn, handle, buffer)
+		if err != nil && err != io.EOF {
 			return err
 		}
 
-		if len(buffer) == 0 {
-			// EOF
+		_, err2 := f.Write(buffer[:readLen])
+		if err2 != nil {
+			return err2
+		}
+
+		if err == io.EOF {
 			return nil
-		}
-
-		_, err = f.Write(buffer)
-		if err != nil {
-			return err
 		}
 	}
 }
@@ -644,30 +644,32 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 		taskRemain := taskLength
 
 		// copy
+		buffer := make([]byte, common.ReadWriteBufferSize)
 		for taskRemain > 0 {
 			toCopy := taskRemain
 			if toCopy >= int64(common.ReadWriteBufferSize) {
 				toCopy = int64(common.ReadWriteBufferSize)
 			}
 
-			buffer, taskErr := ReadDataObject(taskConn, taskHandle, int(toCopy))
-			if taskErr != nil {
+			readLen, taskErr := ReadDataObject(taskConn, taskHandle, buffer[:toCopy])
+			if readLen > 0 {
+				_, taskErr2 := f.WriteAt(buffer[:readLen], taskOffset+(taskLength-taskRemain))
+				if taskErr2 != nil {
+					errChan <- taskErr2
+					return
+				}
+				taskRemain -= int64(readLen)
+			}
+
+			if taskErr != nil && taskErr != io.EOF {
 				errChan <- taskErr
 				return
 			}
 
-			if len(buffer) == 0 {
+			if taskErr == io.EOF {
 				// EOF
 				return
 			}
-
-			_, taskErr = f.WriteAt(buffer, taskOffset+(taskLength-taskRemain))
-			if taskErr != nil {
-				errChan <- taskErr
-				return
-			}
-
-			taskRemain -= int64(len(buffer))
 		}
 	}
 
@@ -776,15 +778,16 @@ func DownloadDataObjectParallelInBlocksAsync(session *session.IRODSSession, irod
 		}
 		defer f.Close()
 
+		buffer := make([]byte, common.ReadWriteBufferSize)
 		for {
 			taskOffset, ok := <-inputChan
 			if !ok {
 				break
 			}
 
-			taskNewOffset, err := SeekDataObject(taskConn, taskHandle, taskOffset, types.SeekSet)
-			if err != nil {
-				errChan <- fmt.Errorf("could not seek a data object - %v", err)
+			taskNewOffset, readErr := SeekDataObject(taskConn, taskHandle, taskOffset, types.SeekSet)
+			if readErr != nil {
+				errChan <- fmt.Errorf("could not seek a data object - %v", readErr)
 				return
 			}
 
@@ -802,23 +805,24 @@ func DownloadDataObjectParallelInBlocksAsync(session *session.IRODSSession, irod
 					toCopy = int64(common.ReadWriteBufferSize)
 				}
 
-				buffer, err := ReadDataObject(taskConn, taskHandle, int(toCopy))
-				if err != nil {
-					errChan <- err
+				readLen, readErr := ReadDataObject(taskConn, taskHandle, buffer[:toCopy])
+				if readLen > 0 {
+					_, readErr2 := f.WriteAt(buffer[:readLen], taskOffset+(blockSize-taskRemain))
+					if readErr2 != nil {
+						errChan <- readErr2
+						return
+					}
+					taskRemain -= int64(readLen)
+				}
+
+				if readErr != nil && readErr != io.EOF {
+					errChan <- readErr
 					return
 				}
 
-				if len(buffer) == 0 {
+				if readErr == io.EOF {
 					// EOF
-					break
-				} else {
-					_, err = f.WriteAt(buffer, taskOffset+(blockSize-taskRemain))
-					if err != nil {
-						errChan <- err
-						return
-					}
-
-					taskRemain -= int64(len(buffer))
+					return
 				}
 			}
 

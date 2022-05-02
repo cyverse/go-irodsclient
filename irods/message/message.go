@@ -37,7 +37,7 @@ type IRODSMessage struct {
 // IRODSMessageSerializationInterface is an interface for serializaing/deserializing of message
 type IRODSMessageSerializationInterface interface {
 	GetBytes() ([]byte, error)
-	FromBytes([]byte) error
+	FromBytes(bodyBytes []byte, bsBytes []byte) error
 }
 
 // MakeIRODSMessageHeader makes a message header
@@ -82,19 +82,23 @@ func (body *IRODSMessageBody) GetBytes() ([]byte, error) {
 }
 
 // FromBytes returns struct from bytes
-func (body *IRODSMessageBody) FromBytes(header *IRODSMessageHeader, bytes []byte) error {
-	if len(bytes) < (int(header.MessageLen) + int(header.ErrorLen) + int(header.BsLen)) {
-		return fmt.Errorf("bytes given is too short to be parsed")
+func (body *IRODSMessageBody) FromBytes(header *IRODSMessageHeader, bodyBytes []byte, bsBytes []byte) error {
+	if len(bodyBytes) < (int(header.MessageLen) + int(header.ErrorLen)) {
+		return fmt.Errorf("bodyBytes given is too short to be parsed")
+	}
+
+	if len(bsBytes) < int(header.BsLen) {
+		return fmt.Errorf("bsBytes given is too short to be parsed")
 	}
 
 	offset := 0
-	body.Message = bytes[offset : offset+int(header.MessageLen)]
+	body.Message = bodyBytes[offset : offset+int(header.MessageLen)]
 
 	offset += int(header.MessageLen)
-	body.Error = bytes[offset : offset+int(header.ErrorLen)]
+	body.Error = bodyBytes[offset : offset+int(header.ErrorLen)]
 
 	offset += int(header.ErrorLen)
-	body.Bs = bytes[offset : offset+int(header.BsLen)]
+	body.Bs = bsBytes[:int(header.BsLen)]
 
 	return nil
 }

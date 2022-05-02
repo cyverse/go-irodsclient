@@ -4,6 +4,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"testing"
 
 	"github.com/cyverse/go-irodsclient/fs"
@@ -139,13 +140,14 @@ func testReadWrite(t *testing.T) {
 	newHandle, err := filesystem.OpenFile(newDataObjectPath, "", "r")
 	assert.NoError(t, err)
 
-	readData, err := newHandle.Read(1024)
-	assert.NoError(t, err)
+	buffer := make([]byte, 1024)
+	readLen, err := newHandle.Read(buffer)
+	assert.Equal(t, io.EOF, err)
 
 	err = newHandle.Close()
 	assert.NoError(t, err)
 
-	assert.Equal(t, text, string(readData))
+	assert.Equal(t, text, string(buffer[:readLen]))
 
 	// delete
 	err = filesystem.RemoveFile(newDataObjectPath, true)
@@ -196,13 +198,14 @@ func testCreateStat(t *testing.T) {
 	newHandle, err := filesystem.OpenFile(newDataObjectPath, "", "r")
 	assert.NoError(t, err)
 
-	readData, err := newHandle.Read(1024)
-	assert.NoError(t, err)
+	buffer := make([]byte, 1024)
+	readLen, err := newHandle.Read(buffer)
+	assert.Equal(t, io.EOF, err)
 
 	err = newHandle.Close()
 	assert.NoError(t, err)
 
-	assert.Equal(t, text, string(readData))
+	assert.Equal(t, text, string(buffer[:readLen]))
 
 	// delete
 	err = filesystem.RemoveFile(newDataObjectPath, true)
@@ -257,13 +260,14 @@ func testWriteRename(t *testing.T) {
 	newHandle, err := filesystem.OpenFile(newDataObjectPathRenameTarget, "", "r")
 	assert.NoError(t, err)
 
-	readData, err := newHandle.Read(1024)
-	assert.NoError(t, err)
+	buffer := make([]byte, 1024)
+	readLen, err := newHandle.Read(buffer)
+	assert.Equal(t, io.EOF, err)
 
 	err = newHandle.Close()
 	assert.NoError(t, err)
 
-	assert.Equal(t, text1+text2, string(readData))
+	assert.Equal(t, text1+text2, string(buffer[:readLen]))
 
 	// delete
 	err = filesystem.RemoveFile(newDataObjectPathRenameTarget, true)
@@ -324,13 +328,14 @@ func testWriteRenameDir(t *testing.T) {
 	newHandle, err := filesystem.OpenFile(newDataObjectPathRenameTarget, "", "r")
 	assert.NoError(t, err)
 
-	readData, err := newHandle.Read(1024)
-	assert.NoError(t, err)
+	buffer := make([]byte, 1024)
+	readLen, err := newHandle.Read(buffer)
+	assert.Equal(t, io.EOF, err)
 
 	err = newHandle.Close()
 	assert.NoError(t, err)
 
-	assert.Equal(t, text1+text2, string(readData))
+	assert.Equal(t, text1+text2, string(buffer[:readLen]))
 
 	// delete
 	err = filesystem.RemoveFile(newDataObjectPathRenameTarget, true)

@@ -135,53 +135,53 @@ func (handle *FileHandle) Truncate(size int64) error {
 	return nil
 }
 
-// Read reads the file
-func (handle *FileHandle) Read(length int) ([]byte, error) {
+// Read reads the file, implements io.Reader.Read
+func (handle *FileHandle) Read(buffer []byte) (int, error) {
 	handle.mutex.Lock()
 	defer handle.mutex.Unlock()
 
 	if !handle.IsReadMode() {
-		return nil, fmt.Errorf("file is opened with %s mode", handle.openmode)
+		return 0, fmt.Errorf("file is opened with %s mode", handle.openmode)
 	}
 
-	bytes, err := irods_fs.ReadDataObject(handle.connection, handle.irodsfilehandle, length)
-	if err != nil {
-		return nil, err
+	readLen, err := irods_fs.ReadDataObject(handle.connection, handle.irodsfilehandle, buffer)
+	if readLen > 0 {
+		handle.offset += int64(readLen)
 	}
 
-	handle.offset += int64(len(bytes))
-	return bytes, nil
+	// it is possible to return readLen + EOF
+	return readLen, err
 }
 
 // ReadAt reads data from given offset
-func (handle *FileHandle) ReadAt(offset int64, length int) ([]byte, error) {
+func (handle *FileHandle) ReadAt(buffer []byte, offset int64) (int, error) {
 	handle.mutex.Lock()
 	defer handle.mutex.Unlock()
 
 	if !handle.IsReadMode() {
-		return nil, fmt.Errorf("file is opened with %s mode", handle.openmode)
+		return 0, fmt.Errorf("file is opened with %s mode", handle.openmode)
 	}
 
 	if handle.offset != offset {
 		newOffset, err := irods_fs.SeekDataObject(handle.connection, handle.irodsfilehandle, offset, types.SeekSet)
 		if err != nil {
-			return nil, err
+			return 0, err
 		}
 
 		handle.offset = newOffset
 
 		if newOffset != offset {
-			return nil, fmt.Errorf("failed to seek to %d", offset)
+			return 0, fmt.Errorf("failed to seek to %d", offset)
 		}
 	}
 
-	bytes, err := irods_fs.ReadDataObject(handle.connection, handle.irodsfilehandle, length)
-	if err != nil {
-		return nil, err
+	readLen, err := irods_fs.ReadDataObject(handle.connection, handle.irodsfilehandle, buffer)
+	if readLen > 0 {
+		handle.offset += int64(readLen)
 	}
 
-	handle.offset += int64(len(bytes))
-	return bytes, nil
+	// it is possible to return readLen + EOF
+	return readLen, err
 }
 
 // Write writes the file

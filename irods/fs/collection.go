@@ -57,7 +57,7 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 	query.AddCondition(common.ICAT_COLUMN_COLL_NAME, condVal)
 
 	queryResult := message.IRODSMessageQueryResult{}
-	err := conn.Request(query, &queryResult)
+	err := conn.Request(query, &queryResult, nil)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive a collection query result message - %v", err)
 	}
@@ -158,7 +158,7 @@ func ListCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types
 		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, condVal)
 
 		queryResult := message.IRODSMessageQueryResult{}
-		err := conn.Request(query, &queryResult)
+		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a collection metadata query result message - %v", err)
 		}
@@ -255,7 +255,7 @@ func ListCollectionAccess(conn *connection.IRODSConnection, path string) ([]*typ
 		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, condVal)
 
 		queryResult := message.IRODSMessageQueryResult{}
-		err := conn.Request(query, &queryResult)
+		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a collection access query result message - %v", err)
 		}
@@ -350,7 +350,7 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 		query.AddCondition(common.ICAT_COLUMN_COLL_PARENT_NAME, condVal)
 
 		queryResult := message.IRODSMessageQueryResult{}
-		err := conn.Request(query, &queryResult)
+		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a collection query result message - %v", err)
 		}
@@ -447,7 +447,7 @@ func CreateCollection(conn *connection.IRODSConnection, path string, recurse boo
 
 	request := message.NewIRODSMessageMkcolRequest(path, recurse)
 	response := message.IRODSMessageMkcolResponse{}
-	return conn.RequestAndCheck(request, &response)
+	return conn.RequestAndCheck(request, &response, nil)
 }
 
 // DeleteCollection deletes a collection for the path
@@ -460,7 +460,7 @@ func DeleteCollection(conn *connection.IRODSConnection, path string, recurse boo
 
 	request := message.NewIRODSMessageRmcolRequest(path, recurse, force)
 	response := message.IRODSMessageRmcolResponse{}
-	err := conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return types.NewFileNotFoundErrorf("could not find a collection")
@@ -481,7 +481,7 @@ func DeleteCollection(conn *connection.IRODSConnection, path string, recurse boo
 			return fmt.Errorf("could not reply to a collection deletion response message - %v", err)
 		}
 
-		responseMessageReply, err := conn.ReadMessage()
+		responseMessageReply, err := conn.ReadMessage(nil)
 		if err != nil {
 			return fmt.Errorf("could not receive a collection deletion response message - %v", err)
 		}
@@ -502,7 +502,7 @@ func MoveCollection(conn *connection.IRODSConnection, srcPath string, destPath s
 
 	request := message.NewIRODSMessageMvcolRequest(srcPath, destPath)
 	response := message.IRODSMessageMvcolResponse{}
-	err := conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a collection")
 	}
@@ -520,7 +520,7 @@ func AddCollectionMeta(conn *connection.IRODSConnection, path string, metadata *
 
 	request := message.NewIRODSMessageAddMetadataRequest(types.IRODSCollectionMetaItemType, path, metadata)
 	response := message.IRODSMessageModMetaResponse{}
-	return conn.RequestAndCheck(request, &response)
+	return conn.RequestAndCheck(request, &response, nil)
 }
 
 // DeleteCollectionMeta sets metadata of a data object for the path to the given key values.
@@ -543,7 +543,7 @@ func DeleteCollectionMeta(conn *connection.IRODSConnection, path string, metadat
 	}
 
 	response := message.IRODSMessageModMetaResponse{}
-	err := conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a collection")
 	}
@@ -576,7 +576,7 @@ func SearchCollectionsByMeta(conn *connection.IRODSConnection, metaName string, 
 		query.AddCondition(common.ICAT_COLUMN_META_COLL_ATTR_VALUE, metaValueCondVal)
 
 		queryResult := message.IRODSMessageQueryResult{}
-		err := conn.Request(query, &queryResult)
+		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a collection query result message - %v", err)
 		}
@@ -690,7 +690,7 @@ func SearchCollectionsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 		query.AddCondition(common.ICAT_COLUMN_META_COLL_ATTR_VALUE, metaValueCondVal)
 
 		queryResult := message.IRODSMessageQueryResult{}
-		err := conn.Request(query, &queryResult)
+		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a collection query result message - %v", err)
 		}
@@ -794,7 +794,7 @@ func ChangeAccessControlCollection(conn *connection.IRODSConnection, path string
 
 	request := message.NewIRODSMessageModAccessRequest(access.ChmodString(), userName, zoneName, path, recursive, adminFlag)
 	response := message.IRODSMessageModAccessResponse{}
-	err := conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a collection")
 	}
@@ -817,7 +817,7 @@ func SetInheritAccessControl(conn *connection.IRODSConnection, path string, inhe
 
 	request := message.NewIRODSMessageModAccessRequest(inheritStr, "", "", path, recursive, adminFlag)
 	response := message.IRODSMessageModAccessResponse{}
-	err := conn.RequestAndCheck(request, &response)
+	err := conn.RequestAndCheck(request, &response, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a collection")
 	}

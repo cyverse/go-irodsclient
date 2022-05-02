@@ -87,6 +87,39 @@ func GetTestDirs() []string {
 	return testDirs
 }
 
+func createLocalTestFile(name string, size int64) (string, error) {
+	testval := "abcdefghijklmnop" // 16
+	// fill
+	dataBuf := make([]byte, 1024)
+	i := 0
+	for i < len(dataBuf) {
+		copy(dataBuf[i:], testval)
+		i += len(testval)
+	}
+
+	f, err := ioutil.TempFile("", name)
+	if err != nil {
+		return "", err
+	}
+
+	tempPath := f.Name()
+
+	defer f.Close()
+
+	totalWriteLen := int64(0)
+	for totalWriteLen < size {
+		writeLen, err := f.Write(dataBuf)
+		if err != nil {
+			os.Remove(tempPath)
+			return "", err
+		}
+
+		totalWriteLen += int64(writeLen)
+	}
+
+	return tempPath, nil
+}
+
 func testPrepareSamples(t *testing.T) {
 	account := GetTestAccount()
 

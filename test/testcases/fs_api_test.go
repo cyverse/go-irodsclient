@@ -4,6 +4,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"testing"
@@ -500,10 +501,12 @@ func testReadWriteIRODSDataObject(t *testing.T) {
 	handle, _, err = fs.OpenDataObject(conn, newDataObjectPath, "", "r")
 	assert.NoError(t, err)
 
-	datarecv, err := fs.ReadDataObject(conn, handle, len(data))
+	buf := make([]byte, len(data))
+	recvLen, err := fs.ReadDataObject(conn, handle, buf)
 	assert.NoError(t, err)
 
-	assert.Equal(t, data, string(datarecv))
+	assert.Equal(t, len(data), recvLen)
+	assert.Equal(t, data, string(buf))
 
 	err = fs.CloseDataObject(conn, handle)
 	assert.NoError(t, err)
@@ -553,10 +556,12 @@ func testTruncateIRODSDataObject(t *testing.T) {
 	handle, _, err = fs.OpenDataObject(conn, newDataObjectPath, "", "r")
 	assert.NoError(t, err)
 
-	datarecv, err := fs.ReadDataObject(conn, handle, len(data))
-	assert.NoError(t, err)
+	buf := make([]byte, len(data))
+	recvLen, err := fs.ReadDataObject(conn, handle, buf)
+	assert.Equal(t, io.EOF, err)
 
-	assert.Equal(t, "Hello World", string(datarecv))
+	assert.Equal(t, 11, recvLen)
+	assert.Equal(t, "Hello World", string(buf[:recvLen]))
 
 	err = fs.CloseDataObject(conn, handle)
 	assert.NoError(t, err)

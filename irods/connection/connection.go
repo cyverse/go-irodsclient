@@ -158,18 +158,13 @@ func (conn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, er
 	logger.Debug("Start up a connection with CS Negotiation")
 
 	startup := message.NewIRODSMessageStartupPack(conn.account, conn.applicationName, true)
-	startupMessage, err := startup.GetMessage()
+	err := conn.RequestWithoutResponse(startup)
 	if err != nil {
-		return nil, fmt.Errorf("could not make a startup message - %v", err)
-	}
-
-	err = conn.SendMessage(startupMessage)
-	if err != nil {
-		return nil, fmt.Errorf("could not send a startup message - %v", err)
+		return nil, fmt.Errorf("could not send a startup - %v", err)
 	}
 
 	// Server responds with negotiation response
-	negotiationMessage, err := conn.ReadMessage()
+	negotiationMessage, err := conn.ReadMessage(nil)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive a negotiation message - %v", err)
 	}
@@ -216,7 +211,7 @@ func (conn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, er
 		// Send negotiation result to server
 		negotiationResult := message.NewIRODSMessageCSNegotiation(policyResult)
 		version := message.IRODSMessageVersion{}
-		err = conn.Request(negotiationResult, &version)
+		err = conn.Request(negotiationResult, &version, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a version message - %v", err)
 		}
@@ -247,7 +242,7 @@ func (conn *IRODSConnection) connectWithoutCSNegotiation() (*types.IRODSVersion,
 
 	startup := message.NewIRODSMessageStartupPack(conn.account, conn.applicationName, false)
 	version := message.IRODSMessageVersion{}
-	err := conn.Request(startup, &version)
+	err := conn.Request(startup, &version, nil)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive a version message - %v", err)
 	}
@@ -300,24 +295,14 @@ func (conn *IRODSConnection) sslStartup() error {
 
 	// Send a ssl setting
 	sslSetting := message.NewIRODSMessageSSLSettings(irodsSSLConfig.EncryptionAlgorithm, irodsSSLConfig.EncryptionKeySize, irodsSSLConfig.SaltSize, irodsSSLConfig.HashRounds)
-	sslSettingMessage, err := sslSetting.GetMessage()
-	if err != nil {
-		return fmt.Errorf("could not make a ssl setting message - %v", err)
-	}
-
-	err = conn.SendMessage(sslSettingMessage)
+	err = conn.RequestWithoutResponse(sslSetting)
 	if err != nil {
 		return fmt.Errorf("could not send a ssl setting message - %v", err)
 	}
 
 	// Send a shared secret
 	sslSharedSecret := message.NewIRODSMessageSSLSharedSecret(encryptionKey)
-	sslSharedSecretMessage, err := sslSharedSecret.GetMessage()
-	if err != nil {
-		return fmt.Errorf("could not make a ssl shared secret message - %v", err)
-	}
-
-	err = conn.SendMessage(sslSharedSecretMessage)
+	err = conn.RequestWithoutResponse(sslSharedSecret)
 	if err != nil {
 		return fmt.Errorf("could not send a ssl shared secret message - %v", err)
 	}
@@ -329,7 +314,7 @@ func (conn *IRODSConnection) login(password string) error {
 	// authenticate
 	authRequest := message.NewIRODSMessageAuthRequest()
 	authChallenge := message.IRODSMessageAuthChallenge{}
-	err := conn.Request(authRequest, &authChallenge)
+	err := conn.Request(authRequest, &authChallenge, nil)
 	if err != nil {
 		return fmt.Errorf("could not receive an authentication challenge message body")
 	}
@@ -341,7 +326,7 @@ func (conn *IRODSConnection) login(password string) error {
 
 	authResponse := message.NewIRODSMessageAuthResponse(encodedPassword, conn.account.ProxyUser)
 	authResult := message.IRODSMessageAuthResult{}
-	return conn.RequestAndCheck(authResponse, &authResult)
+	return conn.RequestAndCheck(authResponse, &authResult, nil)
 }
 
 func (conn *IRODSConnection) loginNative(password string) error {
@@ -381,7 +366,7 @@ func (conn *IRODSConnection) loginPAM() error {
 	// authenticate
 	pamAuthRequest := message.NewIRODSMessagePamAuthRequest(conn.account.ClientUser, conn.account.Password, ttl)
 	pamAuthResponse := message.IRODSMessagePamAuthResponse{}
-	err := conn.Request(pamAuthRequest, &pamAuthResponse)
+	err := conn.Request(pamAuthRequest, &pamAuthResponse, nil)
 	if err != nil {
 		return fmt.Errorf("could not receive an authentication challenge message")
 	}
@@ -406,7 +391,7 @@ func (conn *IRODSConnection) showTicket() error {
 		// show the ticket
 		ticketRequest := message.NewIRODSMessageTicketAdminRequest("session", conn.account.Ticket)
 		ticketResult := message.IRODSMessageTicketAdminResponse{}
-		return conn.RequestAndCheck(ticketRequest, &ticketResult)
+		return conn.RequestAndCheck(ticketRequest, &ticketResult, nil)
 	}
 	return nil
 }
@@ -433,14 +418,9 @@ func (conn *IRODSConnection) Disconnect() error {
 	logger.Debug("Disconnecting the connection")
 
 	disconnect := message.NewIRODSMessageDisconnect()
-	disconnectMessage, err := disconnect.GetMessage()
+	err := conn.RequestWithoutResponse(disconnect)
 	if err != nil {
-		return fmt.Errorf("could not make a disconnect request message - %v", err)
-	}
-
-	err = conn.SendMessage(disconnectMessage)
-	if err != nil {
-		return fmt.Errorf("could not send a disconnect request message - %v", err)
+		return fmt.Errorf("could not send a disconnect request - %v", err)
 	}
 
 	conn.lastSuccessfulAccess = time.Now()
@@ -589,7 +569,7 @@ func (conn *IRODSConnection) SendMessage(msg *message.IRODSMessage) error {
 }
 
 // readMessageHeader reads data from the given connection and returns iRODSMessageHeader
-func (conn *IRODSConnection) ReadMessageHeader() (*message.IRODSMessageHeader, error) {
+func (conn *IRODSConnection) readMessageHeader() (*message.IRODSMessageHeader, error) {
 	// read header size
 	headerLenBuffer := make([]byte, 4)
 	readLen, err := conn.Recv(headerLenBuffer, 4)
@@ -625,26 +605,41 @@ func (conn *IRODSConnection) ReadMessageHeader() (*message.IRODSMessageHeader, e
 }
 
 // ReadMessage reads data from the given socket and returns IRODSMessage
-func (conn *IRODSConnection) ReadMessage() (*message.IRODSMessage, error) {
-	header, err := conn.ReadMessageHeader()
+// if bsBuffer is given, bs data will be written directly to the bsBuffer
+// if not given, a new buffer will be allocated.
+func (conn *IRODSConnection) ReadMessage(bsBuffer []byte) (*message.IRODSMessage, error) {
+	header, err := conn.readMessageHeader()
 	if err != nil {
 		return nil, err
 	}
 
 	// read body
-	bodyLen := header.MessageLen + header.ErrorLen + header.BsLen
+	bodyLen := header.MessageLen + header.ErrorLen
 	bodyBuffer := make([]byte, bodyLen)
+	if bsBuffer == nil {
+		bsBuffer = make([]byte, int(header.BsLen))
+	} else if len(bsBuffer) < int(header.BsLen) {
+		return nil, fmt.Errorf("provided bs buffer is too short, %d size is given, but %d size is required", len(bsBuffer), int(header.BsLen))
+	}
 
-	readLen, err := conn.Recv(bodyBuffer, int(bodyLen))
+	bodyReadLen, err := conn.Recv(bodyBuffer, int(bodyLen))
 	if err != nil {
 		return nil, fmt.Errorf("could not read body - %v", err)
 	}
-	if readLen != int(bodyLen) {
-		return nil, fmt.Errorf("could not read body fully - %d requested but %d read", bodyLen, readLen)
+	if bodyReadLen != int(bodyLen) {
+		return nil, fmt.Errorf("could not read body fully - %d requested but %d read", bodyLen, bodyReadLen)
+	}
+
+	bsReadLen, err := conn.Recv(bsBuffer, int(header.BsLen))
+	if err != nil {
+		return nil, fmt.Errorf("could not read body (BS) - %v", err)
+	}
+	if bsReadLen != int(header.BsLen) {
+		return nil, fmt.Errorf("could not read body (BS) fully - %d requested but %d read", int(header.BsLen), bsReadLen)
 	}
 
 	body := message.IRODSMessageBody{}
-	err = body.FromBytes(header, bodyBuffer)
+	err = body.FromBytes(header, bodyBuffer, bsBuffer[:int(header.BsLen)])
 	if err != nil {
 		return nil, err
 	}
@@ -684,59 +679,19 @@ func (conn *IRODSConnection) PoorMansRollback() error {
 
 func (conn *IRODSConnection) endTransaction(commit bool) error {
 	request := message.NewIRODSMessageEndTransactionRequest(commit)
-	requestMessage, err := request.GetMessage()
-	if err != nil {
-		return fmt.Errorf("could not make a end transaction request message - %v", err)
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		return fmt.Errorf("could not send a end transaction request message - %v", err)
-	}
-
-	// Server responds with results
-	responseMessage, err := conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("could not receive a end transaction response message - %v", err)
-	}
-
 	response := message.IRODSMessageEndTransactionResponse{}
-	err = response.FromMessage(responseMessage)
-	if err != nil {
-		return fmt.Errorf("could not receive a end transaction response message - %v", err)
-	}
-
-	err = response.CheckError()
-	return err
+	return conn.RequestAndCheck(request, &response, nil)
 }
 
 func (conn *IRODSConnection) poorMansEndTransaction(dummyCol string, commit bool) error {
 	request := message.NewIRODSMessageModColRequest(dummyCol)
-
 	if commit {
 		request.AddKeyVal(common.COLLECTION_TYPE_KW, "NULL_SPECIAL_VALUE")
 	}
-
-	requestMessage, err := request.GetMessage()
-	if err != nil {
-		return fmt.Errorf("could not make a poor mans end transaction request message - %v", err)
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		return fmt.Errorf("could not send a poor mans end transaction request message - %v", err)
-	}
-
-	// Server responds with results
-	responseMessage, err := conn.ReadMessage()
-	if err != nil {
-		return fmt.Errorf("could not receive a poor mans end transaction response message - %v", err)
-	}
-
 	response := message.IRODSMessageModColResponse{}
-	err = response.FromMessage(responseMessage)
+	err := conn.Request(request, &response, nil)
 	if err != nil {
-		return fmt.Errorf("could not receive a poor mans end transaction response message - %v", err)
+		return fmt.Errorf("could not make a poor mans end transaction - %v", err)
 	}
 
 	if !commit {

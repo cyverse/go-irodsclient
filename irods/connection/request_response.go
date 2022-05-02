@@ -23,7 +23,8 @@ type CheckErrorResponse interface {
 }
 
 // Request sends a request and expects a response.
-func (conn *IRODSConnection) Request(request Request, response Response) error {
+// bsBuffer is optional
+func (conn *IRODSConnection) Request(request Request, response Response, bsBuffer []byte) error {
 	requestMessage, err := request.GetMessage()
 	if err != nil {
 		return fmt.Errorf("could not make a request message - %v", err)
@@ -41,7 +42,8 @@ func (conn *IRODSConnection) Request(request Request, response Response) error {
 	}
 
 	// Server responds with results
-	responseMessage, err := conn.ReadMessage()
+	// external bs buffer
+	responseMessage, err := conn.ReadMessage(bsBuffer)
 	if err != nil {
 		return fmt.Errorf("could not receive a response message - %v", err)
 	}
@@ -60,9 +62,30 @@ func (conn *IRODSConnection) Request(request Request, response Response) error {
 	return nil
 }
 
+// RequestWithoutResponse sends a request but does not wait for a response.
+func (conn *IRODSConnection) RequestWithoutResponse(request Request) error {
+	requestMessage, err := request.GetMessage()
+	if err != nil {
+		return fmt.Errorf("could not make a request message - %v", err)
+	}
+
+	// translate xml.Marshal XML into irods-understandable XML (among others, replace &#34; by &quot;)
+	err = conn.PreprocessMessage(requestMessage)
+	if err != nil {
+		return fmt.Errorf("could not send preprocess message - %v", err)
+	}
+
+	err = conn.SendMessage(requestMessage)
+	if err != nil {
+		return fmt.Errorf("could not send a request message - %v", err)
+	}
+
+	return nil
+}
+
 // RequestAndCheck sends a request and expects a CheckErrorResponse, on which the error is already checked.
-func (conn *IRODSConnection) RequestAndCheck(request Request, response CheckErrorResponse) error {
-	if err := conn.Request(request, response); err != nil {
+func (conn *IRODSConnection) RequestAndCheck(request Request, response CheckErrorResponse, bsBuffer []byte) error {
+	if err := conn.Request(request, response, bsBuffer); err != nil {
 		return err
 	}
 
