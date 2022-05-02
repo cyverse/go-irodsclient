@@ -81,6 +81,20 @@ func (body *IRODSMessageBody) GetBytes() ([]byte, error) {
 	return messageBuffer.Bytes(), nil
 }
 
+// GetBytesWithoutBS returns byte array of body without BS
+func (body *IRODSMessageBody) GetBytesWithoutBS() ([]byte, error) {
+	messageBuffer := new(bytes.Buffer)
+	if body.Message != nil {
+		messageBuffer.Write(body.Message)
+	}
+
+	if body.Error != nil {
+		messageBuffer.Write(body.Error)
+	}
+
+	return messageBuffer.Bytes(), nil
+}
+
 // FromBytes returns struct from bytes
 func (body *IRODSMessageBody) FromBytes(header *IRODSMessageHeader, bodyBytes []byte, bsBytes []byte) error {
 	if len(bodyBytes) < (int(header.MessageLen) + int(header.ErrorLen)) {

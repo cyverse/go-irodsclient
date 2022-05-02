@@ -109,11 +109,11 @@ func (handle *FileHandle) closeWithoutFSHandleManagement() error {
 }
 
 // Seek moves file pointer
-func (handle *FileHandle) Seek(offset int64, whence types.Whence) (int64, error) {
+func (handle *FileHandle) Seek(offset int64, whence int) (int64, error) {
 	handle.mutex.Lock()
 	defer handle.mutex.Unlock()
 
-	newOffset, err := irods_fs.SeekDataObject(handle.connection, handle.irodsfilehandle, offset, whence)
+	newOffset, err := irods_fs.SeekDataObject(handle.connection, handle.irodsfilehandle, offset, types.Whence(whence))
 	if err != nil {
 		return newOffset, err
 	}
@@ -185,17 +185,17 @@ func (handle *FileHandle) ReadAt(buffer []byte, offset int64) (int, error) {
 }
 
 // Write writes the file
-func (handle *FileHandle) Write(data []byte) error {
+func (handle *FileHandle) Write(data []byte) (int, error) {
 	handle.mutex.Lock()
 	defer handle.mutex.Unlock()
 
 	if !handle.IsWriteMode() {
-		return fmt.Errorf("file is opened with %s mode", handle.openmode)
+		return 0, fmt.Errorf("file is opened with %s mode", handle.openmode)
 	}
 
 	err := irods_fs.WriteDataObject(handle.connection, handle.irodsfilehandle, data)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	handle.offset += int64(len(data))
@@ -205,34 +205,34 @@ func (handle *FileHandle) Write(data []byte) error {
 		handle.entry.Size = handle.offset + int64(len(data))
 	}
 
-	return nil
+	return len(data), nil
 }
 
 // WriteAt writes the file to given offset
-func (handle *FileHandle) WriteAt(offset int64, data []byte) error {
+func (handle *FileHandle) WriteAt(data []byte, offset int64) (int, error) {
 	handle.mutex.Lock()
 	defer handle.mutex.Unlock()
 
 	if !handle.IsWriteMode() {
-		return fmt.Errorf("file is opened with %s mode", handle.openmode)
+		return 0, fmt.Errorf("file is opened with %s mode", handle.openmode)
 	}
 
 	if handle.offset != offset {
 		newOffset, err := irods_fs.SeekDataObject(handle.connection, handle.irodsfilehandle, offset, types.SeekSet)
 		if err != nil {
-			return err
+			return 0, err
 		}
 
 		handle.offset = newOffset
 
 		if newOffset != offset {
-			return fmt.Errorf("failed to seek to %d", offset)
+			return 0, fmt.Errorf("failed to seek to %d", offset)
 		}
 	}
 
 	err := irods_fs.WriteDataObject(handle.connection, handle.irodsfilehandle, data)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	handle.offset += int64(len(data))
@@ -242,7 +242,7 @@ func (handle *FileHandle) WriteAt(offset int64, data []byte) error {
 		handle.entry.Size = handle.offset + int64(len(data))
 	}
 
-	return nil
+	return len(data), nil
 }
 
 // preprocessRename should be called before the file is renamed

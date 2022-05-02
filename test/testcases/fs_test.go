@@ -128,7 +128,7 @@ func testReadWrite(t *testing.T) {
 	handle, err := filesystem.CreateFile(newDataObjectPath, "", "w")
 	assert.NoError(t, err)
 
-	err = handle.Write([]byte(text))
+	_, err = handle.Write([]byte(text))
 	assert.NoError(t, err)
 
 	err = handle.Close()
@@ -185,7 +185,7 @@ func testCreateStat(t *testing.T) {
 	assert.Equal(t, fs.FileEntry, stat.Type)
 
 	// write
-	err = handle.Write([]byte(text))
+	_, err = handle.Write([]byte(text))
 	assert.NoError(t, err)
 
 	// close
@@ -239,7 +239,7 @@ func testWriteRename(t *testing.T) {
 	assert.NoError(t, err)
 
 	// write
-	err = handle.Write([]byte(text1))
+	_, err = handle.Write([]byte(text1))
 	assert.NoError(t, err)
 
 	// rename
@@ -247,7 +247,7 @@ func testWriteRename(t *testing.T) {
 	assert.NoError(t, err)
 
 	// write again
-	err = handle.Write([]byte(text2))
+	_, err = handle.Write([]byte(text2))
 	assert.NoError(t, err)
 
 	// close
@@ -307,7 +307,7 @@ func testWriteRenameDir(t *testing.T) {
 	assert.NoError(t, err)
 
 	// write
-	err = handle.Write([]byte(text1))
+	_, err = handle.Write([]byte(text1))
 	assert.NoError(t, err)
 
 	// rename
@@ -315,7 +315,7 @@ func testWriteRenameDir(t *testing.T) {
 	assert.NoError(t, err)
 
 	// write again
-	err = handle.Write([]byte(text2))
+	_, err = handle.Write([]byte(text2))
 	assert.NoError(t, err)
 
 	// close

@@ -553,7 +553,7 @@ func (conn *IRODSConnection) SendMessage(msg *message.IRODSMessage) error {
 	messageBuffer.Write(headerBytes)
 
 	if msg.Body != nil {
-		bodyBytes, err := msg.Body.GetBytes()
+		bodyBytes, err := msg.Body.GetBytesWithoutBS()
 		if err != nil {
 			return err
 		}
@@ -565,6 +565,13 @@ func (conn *IRODSConnection) SendMessage(msg *message.IRODSMessage) error {
 	// send
 	bytes := messageBuffer.Bytes()
 	conn.Send(bytes, len(bytes))
+
+	// send body-bs
+	if msg.Body != nil {
+		if msg.Body.Bs != nil {
+			conn.Send(msg.Body.Bs, len(msg.Body.Bs))
+		}
+	}
 	return nil
 }
 
