@@ -1,4 +1,4 @@
-package auth
+package icommands
 
 import (
 	"io/ioutil"
@@ -40,7 +40,7 @@ var (
 	//v2Prefix              string = "A.ObfV2"
 )
 
-// DecodePasswordString decodes password string in .irodsA file
+// DecodePasswordFile decodes password string in .irodsA file
 func DecodePasswordFile(path string, uid int) (string, error) {
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -48,6 +48,12 @@ func DecodePasswordFile(path string, uid int) (string, error) {
 	}
 
 	return DecodePasswordString(string(content), uid), nil
+}
+
+// EncodePasswordFile encodes password string and store in .irodsA file
+func EncodePasswordFile(path string, s string, uid int) error {
+	content := EncodePasswordString(s, uid)
+	return ioutil.WriteFile(path, []byte(content), 0664)
 }
 
 // DecodePasswordString decodes password string in .irodsA file
@@ -115,7 +121,7 @@ func DecodePasswordString(encodedPassword string, uid int) string {
 	return string(decodedString)
 }
 
-// EncodePasswordString encods password string to be stored in .irodsA file
+// EncodePasswordString encodes password string to be stored in .irodsA file
 func EncodePasswordString(s string, uid int) string {
 	// mtime & 65535 needs to be within 20 seconds of the
 	// .irodsA file's mtime & 65535
