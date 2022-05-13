@@ -66,6 +66,11 @@ func CreateICommandsEnvironmentFromJSON(jsonBytes []byte) (*ICommandsEnvironment
 
 // ToIRODSAccount creates IRODSAccount
 func (env *ICommandsEnvironment) ToIRODSAccount() *types.IRODSAccount {
+	authScheme := types.AuthSchemeNative
+	if len(env.AuthenticationScheme) > 0 {
+		authScheme = types.AuthScheme(env.AuthenticationScheme)
+	}
+
 	negotiationRequired := false
 	negotiationPolicy := types.CSNegotiationRequireTCP
 	if types.AuthScheme(env.AuthenticationScheme) == types.AuthSchemePAM {
@@ -78,7 +83,7 @@ func (env *ICommandsEnvironment) ToIRODSAccount() *types.IRODSAccount {
 	}
 
 	return &types.IRODSAccount{
-		AuthenticationScheme:    types.AuthScheme(env.AuthenticationScheme),
+		AuthenticationScheme:    authScheme,
 		ClientServerNegotiation: negotiationRequired,
 		CSNegotiationPolicy:     negotiationPolicy,
 		Host:                    env.Host,
