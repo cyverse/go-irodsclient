@@ -102,7 +102,7 @@ func (env *ICommandsEnvironment) ToIRODSAccount() *types.IRODSAccount {
 
 // ToJSON converts to JSON bytes
 func (env *ICommandsEnvironment) ToJSON() ([]byte, error) {
-	jsonBytes, err := json.Marshal(env)
+	jsonBytes, err := json.MarshalIndent(env, "", "    ")
 	if err != nil {
 		return nil, fmt.Errorf("JSON Marshal Error - %v", err)
 	}
