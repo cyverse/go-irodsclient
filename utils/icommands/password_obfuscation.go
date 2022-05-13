@@ -125,7 +125,7 @@ func DecodePasswordString(encodedPassword string, uid int) string {
 func EncodePasswordString(s string, uid int) string {
 	// mtime & 65535 needs to be within 20 seconds of the
 	// .irodsA file's mtime & 65535
-	mtime := (time.Now().UnixMicro() / 1000) & 0xf
+	mtime := time.Now().Unix()
 
 	// How much we bitshift seq by when we use it
 	// Referred to as "addin_i" in the C code
