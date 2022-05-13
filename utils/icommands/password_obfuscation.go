@@ -53,7 +53,7 @@ func DecodePasswordFile(path string, uid int) (string, error) {
 // EncodePasswordFile encodes password string and store in .irodsA file
 func EncodePasswordFile(path string, s string, uid int) error {
 	content := EncodePasswordString(s, uid)
-	return ioutil.WriteFile(path, []byte(content), 0664)
+	return ioutil.WriteFile(path, []byte(content), 0600)
 }
 
 // DecodePasswordString decodes password string in .irodsA file
@@ -125,7 +125,7 @@ func DecodePasswordString(encodedPassword string, uid int) string {
 func EncodePasswordString(s string, uid int) string {
 	// mtime & 65535 needs to be within 20 seconds of the
 	// .irodsA file's mtime & 65535
-	mtime := time.Now().UnixMicro() & 0xf
+	mtime := (time.Now().UnixMicro() / 1000) & 0xf
 
 	// How much we bitshift seq by when we use it
 	// Referred to as "addin_i" in the C code
