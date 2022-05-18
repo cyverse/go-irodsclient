@@ -33,6 +33,7 @@ func NewFileHandleMap() *FileHandleMap {
 		fileHandles:        map[string]*FileHandle{},
 		filePathID:         map[string][]string{},
 		closeEventHandlers: map[string][]*FileHandleMapEventHandlerWrap{},
+		eventHandlerIDPath: map[string]string{},
 	}
 }
 
