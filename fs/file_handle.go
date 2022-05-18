@@ -90,8 +90,11 @@ func (handle *FileHandle) Close() error {
 		handle.filesystem.invalidateCacheForFileUpdate(handle.entry.Path)
 	}
 
-	handle.filesystem.fileHandleMap.Remove(handle.id)
-	return irods_fs.CloseDataObject(handle.connection, handle.irodsfilehandle)
+	err := irods_fs.CloseDataObject(handle.connection, handle.irodsfilehandle)
+	if err != nil {
+		handle.filesystem.fileHandleMap.Remove(handle.id)
+	}
+	return err
 }
 
 // Close closes the file

@@ -4,20 +4,90 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+
+	"github.com/rs/xid"
 )
 
+// FileHandleMapEventHandler is a event handler for FileHandleMap
+type FileHandleMapEventHandler func(path string, id string, empty bool)
+
+type FileHandleMapEventHandlerWrap struct {
+	id      string
+	path    string
+	handler FileHandleMapEventHandler
+}
+
+// FileHandleMap manages File Handles opened
 type FileHandleMap struct {
-	mutex       sync.Mutex
-	fileHandles map[string]*FileHandle // ID-handle mapping
-	filePathID  map[string][]string    // path-IDs mappings
+	mutex              sync.Mutex
+	fileHandles        map[string]*FileHandle                      // ID-handle mapping
+	filePathID         map[string][]string                         // path-IDs mappings
+	closeEventHandlers map[string][]*FileHandleMapEventHandlerWrap // path-eventhandler mapping
+	eventHandlerIDPath map[string]string                           // eventhandlerID-path mappings
 }
 
 // NewFileHandleMap creates a new FileHandleMap
 func NewFileHandleMap() *FileHandleMap {
 	return &FileHandleMap{
-		mutex:       sync.Mutex{},
-		fileHandles: map[string]*FileHandle{},
-		filePathID:  map[string][]string{},
+		mutex:              sync.Mutex{},
+		fileHandles:        map[string]*FileHandle{},
+		filePathID:         map[string][]string{},
+		closeEventHandlers: map[string][]*FileHandleMapEventHandlerWrap{},
+	}
+}
+
+// AddCloseEventHandler registers an event handler for file close
+func (fileHandleMap *FileHandleMap) AddCloseEventHandler(path string, handler FileHandleMapEventHandler) string {
+	fileHandleMap.mutex.Lock()
+	defer fileHandleMap.mutex.Unlock()
+
+	handlerID := xid.New().String()
+
+	handlerWrap := FileHandleMapEventHandlerWrap{
+		id:      handlerID,
+		path:    path,
+		handler: handler,
+	}
+
+	if handlers, ok := fileHandleMap.closeEventHandlers[path]; ok {
+		fileHandleMap.closeEventHandlers[path] = append(handlers, &handlerWrap)
+	} else {
+		fileHandleMap.closeEventHandlers[path] = []*FileHandleMapEventHandlerWrap{&handlerWrap}
+	}
+
+	fileHandleMap.eventHandlerIDPath[handlerID] = path
+
+	// if there's no files?
+	// raise event with empty id string
+	if _, ok := fileHandleMap.filePathID[path]; !ok {
+		go handler(path, "", true)
+	}
+
+	return handlerID
+}
+
+// RemoveCloseEventHandler deregisters an event handler for file close
+func (fileHandleMap *FileHandleMap) RemoveCloseEventHandler(handlerID string) {
+	fileHandleMap.mutex.Lock()
+	defer fileHandleMap.mutex.Unlock()
+
+	if path, ok := fileHandleMap.eventHandlerIDPath[handlerID]; ok {
+		delete(fileHandleMap.eventHandlerIDPath, handlerID)
+
+		newEventHandlers := []*FileHandleMapEventHandlerWrap{}
+		if handlers, ok2 := fileHandleMap.closeEventHandlers[path]; ok2 {
+			for _, handler := range handlers {
+				if handler.id != handlerID {
+					newEventHandlers = append(newEventHandlers, handler)
+				}
+			}
+
+			if len(newEventHandlers) > 0 {
+				fileHandleMap.closeEventHandlers[path] = newEventHandlers
+			} else {
+				delete(fileHandleMap.closeEventHandlers, path)
+			}
+		}
 	}
 }
 
@@ -43,7 +113,9 @@ func (fileHandleMap *FileHandleMap) Remove(id string) {
 	if handle != nil {
 		delete(fileHandleMap.fileHandles, id)
 
+		emptyHandles := true
 		if ids, ok := fileHandleMap.filePathID[handle.entry.Path]; ok {
+			emptyHandles = false
 			newIDs := []string{}
 			for _, handleID := range ids {
 				if handleID != id {
@@ -55,6 +127,13 @@ func (fileHandleMap *FileHandleMap) Remove(id string) {
 				fileHandleMap.filePathID[handle.entry.Path] = newIDs
 			} else {
 				delete(fileHandleMap.filePathID, handle.entry.Path)
+				emptyHandles = true
+			}
+		}
+
+		if handlers, ok := fileHandleMap.closeEventHandlers[handle.entry.Path]; ok {
+			for _, handler := range handlers {
+				go handler.handler(handle.entry.Path, id, emptyHandles)
 			}
 		}
 	}
