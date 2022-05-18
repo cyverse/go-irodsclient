@@ -16,21 +16,21 @@ const (
 
 // ICommandsEnvironmentManager is a struct that manages icommands environment files
 type ICommandsEnvironmentManager struct {
-	dirPath     string
-	uid         int
-	password    string
-	environment *ICommandsEnvironment
-	session     *ICommandsEnvironment
+	DirPath     string
+	UID         int
+	Password    string
+	Environment *ICommandsEnvironment
+	Session     *ICommandsEnvironment
 }
 
 // CreateIcommandsEnvironmentManager creates ICommandsEnvironmentManager
 func CreateIcommandsEnvironmentManager(envDirPath string, uid int) (*ICommandsEnvironmentManager, error) {
 	return &ICommandsEnvironmentManager{
-		dirPath:     envDirPath,
-		uid:         uid,
-		password:    "",
-		environment: &ICommandsEnvironment{},
-		session:     &ICommandsEnvironment{},
+		DirPath:     envDirPath,
+		UID:         uid,
+		Password:    "",
+		Environment: &ICommandsEnvironment{},
+		Session:     &ICommandsEnvironment{},
 	}, nil
 }
 
@@ -84,11 +84,11 @@ func CreateIcommandsEnvironmentManagerFromIRODSAccount(envDirPath string, uid in
 	}
 
 	return &ICommandsEnvironmentManager{
-		dirPath:     envDirPath,
-		uid:         uid,
-		password:    account.Password,
-		environment: &environment,
-		session:     &ICommandsEnvironment{},
+		DirPath:     envDirPath,
+		UID:         uid,
+		Password:    account.Password,
+		Environment: &environment,
+		Session:     &ICommandsEnvironment{},
 	}, nil
 }
 
@@ -112,41 +112,41 @@ func (mgr *ICommandsEnvironmentManager) Load() error {
 		return err
 	}
 
-	mgr.environment = env
+	mgr.Environment = env
 
 	session, err := mgr.readSession()
 	if err != nil {
 		return err
 	}
 
-	mgr.session = session
+	mgr.Session = session
 
 	password, err := mgr.readPassword()
 	if err != nil {
 		return err
 	}
 
-	mgr.password = password
+	mgr.Password = password
 	return nil
 }
 
 // readEnvironment reads environment
 func (mgr *ICommandsEnvironmentManager) readEnvironment() (*ICommandsEnvironment, error) {
-	environmentFilePath := filepath.Join(mgr.dirPath, environmentFile)
+	environmentFilePath := filepath.Join(mgr.DirPath, environmentFile)
 	return CreateICommandsEnvironmentFromFile(environmentFilePath)
 }
 
 // readPassword decyphers password file (.irodsA)
 func (mgr *ICommandsEnvironmentManager) readPassword() (string, error) {
-	passwordFilePath := filepath.Join(mgr.dirPath, passwordFile)
-	return DecodePasswordFile(passwordFilePath, mgr.uid)
+	passwordFilePath := filepath.Join(mgr.DirPath, passwordFile)
+	return DecodePasswordFile(passwordFilePath, mgr.UID)
 }
 
 // readSession reads session
 func (mgr *ICommandsEnvironmentManager) readSession() (*ICommandsEnvironment, error) {
 	ppid := os.Getppid()
 	sessionFilename := fmt.Sprintf("%s.%d", environmentFile, ppid)
-	sessionFilePath := filepath.Join(mgr.dirPath, sessionFilename)
+	sessionFilePath := filepath.Join(mgr.DirPath, sessionFilename)
 
 	_, err := os.Stat(sessionFilePath)
 	if err != nil {
@@ -162,21 +162,21 @@ func (mgr *ICommandsEnvironmentManager) readSession() (*ICommandsEnvironment, er
 }
 
 func (mgr *ICommandsEnvironmentManager) ToIRODSAccount() (*types.IRODSAccount, error) {
-	if mgr.environment == nil {
+	if mgr.Environment == nil {
 		return nil, fmt.Errorf("environment is not set")
 	}
 
-	account := mgr.environment.ToIRODSAccount()
-	account.Password = mgr.password
+	account := mgr.Environment.ToIRODSAccount()
+	account.Password = mgr.Password
 	return account, nil
 }
 
 // makeDir makes a directory for environment files
 func (mgr *ICommandsEnvironmentManager) makeDir() error {
-	st, err := os.Stat(mgr.dirPath)
+	st, err := os.Stat(mgr.DirPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			err := os.MkdirAll(mgr.dirPath, 0700)
+			err := os.MkdirAll(mgr.DirPath, 0700)
 			if err != nil {
 				return err
 			}
@@ -187,7 +187,7 @@ func (mgr *ICommandsEnvironmentManager) makeDir() error {
 	}
 
 	if !st.IsDir() {
-		return fmt.Errorf("path %s is not a directory", mgr.dirPath)
+		return fmt.Errorf("path %s is not a directory", mgr.DirPath)
 	}
 
 	return nil
@@ -200,18 +200,18 @@ func (mgr *ICommandsEnvironmentManager) Save() error {
 		return err
 	}
 
-	if mgr.environment == nil {
+	if mgr.Environment == nil {
 		return fmt.Errorf("environment is not set")
 	}
 
-	environmentFilePath := filepath.Join(mgr.dirPath, environmentFile)
-	err = mgr.environment.ToFile(environmentFilePath)
+	environmentFilePath := filepath.Join(mgr.DirPath, environmentFile)
+	err = mgr.Environment.ToFile(environmentFilePath)
 	if err != nil {
 		return err
 	}
 
-	passwordFilePath := filepath.Join(mgr.dirPath, passwordFile)
-	return EncodePasswordFile(passwordFilePath, mgr.password, mgr.uid)
+	passwordFilePath := filepath.Join(mgr.DirPath, passwordFile)
+	return EncodePasswordFile(passwordFilePath, mgr.Password, mgr.UID)
 }
 
 // SaveSession saves session to a dir
@@ -221,37 +221,12 @@ func (mgr *ICommandsEnvironmentManager) SaveSession() error {
 		return err
 	}
 
-	if mgr.session == nil {
+	if mgr.Session == nil {
 		return nil
 	}
 
 	ppid := os.Getppid()
 	sessionFilename := fmt.Sprintf("%s.%d", environmentFile, ppid)
-	sessionFilePath := filepath.Join(mgr.dirPath, sessionFilename)
-	return mgr.session.ToFile(sessionFilePath)
-}
-
-// GetDirPath returns dir path for environment
-func (mgr *ICommandsEnvironmentManager) GetDirPath() string {
-	return mgr.dirPath
-}
-
-// GetUID returns uid for environment
-func (mgr *ICommandsEnvironmentManager) GetUID() int {
-	return mgr.uid
-}
-
-// GetPassword returns password for environment
-func (mgr *ICommandsEnvironmentManager) GetPassword() string {
-	return mgr.password
-}
-
-// GetEnvironment returns environment
-func (mgr *ICommandsEnvironmentManager) GetEnvironment() *ICommandsEnvironment {
-	return mgr.environment
-}
-
-// GetSession returns environment session
-func (mgr *ICommandsEnvironmentManager) GetSession() *ICommandsEnvironment {
-	return mgr.session
+	sessionFilePath := filepath.Join(mgr.DirPath, sessionFilename)
+	return mgr.Session.ToFile(sessionFilePath)
 }

@@ -34,12 +34,12 @@ func testSaveAndLoadEnv(t *testing.T) {
 
 	envMgr2.Load()
 
-	env2 := envMgr2.GetEnvironment()
+	env2 := envMgr2.Environment
 	assert.Equal(t, account.Host, env2.Host)
 	assert.Equal(t, account.Port, env2.Port)
 	assert.Equal(t, account.ClientZone, env2.Zone)
 	assert.Equal(t, account.ClientUser, env2.Username)
-	assert.Equal(t, account.Password, envMgr2.GetPassword())
+	assert.Equal(t, account.Password, envMgr2.Password)
 
 	err = os.RemoveAll(newEnvDir)
 	assert.NoError(t, err)
@@ -58,7 +58,7 @@ func testSaveAndLoadEnvSession(t *testing.T) {
 
 	testWorkingDir := "/test/working/dir"
 
-	envMgr.GetSession().CurrentWorkingDir = testWorkingDir
+	envMgr.Session.CurrentWorkingDir = testWorkingDir
 
 	err = envMgr.Save()
 	assert.NoError(t, err)
@@ -70,14 +70,14 @@ func testSaveAndLoadEnvSession(t *testing.T) {
 
 	envMgr2.Load()
 
-	env2 := envMgr2.GetEnvironment()
+	env2 := envMgr2.Environment
 	assert.Equal(t, account.Host, env2.Host)
 	assert.Equal(t, account.Port, env2.Port)
 	assert.Equal(t, account.ClientZone, env2.Zone)
 	assert.Equal(t, account.ClientUser, env2.Username)
-	assert.Equal(t, account.Password, envMgr2.GetPassword())
+	assert.Equal(t, account.Password, envMgr2.Password)
 
-	sess2 := envMgr2.GetSession()
+	sess2 := envMgr2.Session
 	t.Logf("%v", sess2)
 	assert.Equal(t, testWorkingDir, sess2.CurrentWorkingDir)
 

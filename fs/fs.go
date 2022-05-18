@@ -3,6 +3,7 @@ package fs
 import (
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/connection"
@@ -587,13 +588,32 @@ func (fs *FileSystem) RemoveFile(path string, force bool) error {
 	}
 	defer fs.session.ReturnConnection(conn)
 
-	err = irods_fs.DeleteDataObject(conn, irodsPath, force)
-	if err != nil {
-		return err
+	// if file handle is opened, wg
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+
+	eventHandlerID := fs.fileHandleMap.AddCloseEventHandler(irodsPath, func(path, id string, empty bool) {
+		if empty {
+			wg.Done()
+		}
+	})
+
+	defer fs.fileHandleMap.RemoveCloseEventHandler(eventHandlerID)
+
+	if waitTimeout(&wg, fs.config.OperationTimeout) {
+		// timed out
+		return fmt.Errorf("failed to remove file, there are files still opened")
+	} else {
+		// wait done
+		err = irods_fs.DeleteDataObject(conn, irodsPath, force)
+		if err != nil {
+			return err
+		}
+
+		fs.invalidateCacheForFileRemove(irodsPath)
+		fs.cachePropagation.PropagateFileRemove(irodsPath)
 	}
 
-	fs.invalidateCacheForFileRemove(irodsPath)
-	fs.cachePropagation.PropagateFileRemove(irodsPath)
 	return nil
 }
 
@@ -1927,4 +1947,21 @@ func (fs *FileSystem) GetTicketForAnonymousAccess(ticket string) (*types.IRODSTi
 	}
 
 	return ticketInfo, err
+}
+
+// waitTimeout waits for the waitgroup for the specified max timeout.
+// Returns true if waiting timed out.
+func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		wg.Wait()
+	}()
+
+	select {
+	case <-c:
+		return false // completed normally
+	case <-time.After(timeout):
+		return true // timed out
+	}
 }
