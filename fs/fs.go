@@ -591,6 +591,7 @@ func (fs *FileSystem) RemoveFile(path string, force bool) error {
 	// if file handle is opened, wg
 	wg := sync.WaitGroup{}
 	wg.Add(1)
+
 	eventHandlerID := fs.fileHandleMap.AddCloseEventHandler(irodsPath, func(path, id string, empty bool) {
 		if empty {
 			wg.Done()

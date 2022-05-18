@@ -61,7 +61,7 @@ func (fileHandleMap *FileHandleMap) AddCloseEventHandler(path string, handler Fi
 	// if there's no files?
 	// raise event with empty id string
 	if _, ok := fileHandleMap.filePathID[path]; !ok {
-		go handler(path, "", true)
+		handler(path, "", true)
 	}
 
 	return handlerID
@@ -134,7 +134,7 @@ func (fileHandleMap *FileHandleMap) Remove(id string) {
 
 		if handlers, ok := fileHandleMap.closeEventHandlers[handle.entry.Path]; ok {
 			for _, handler := range handlers {
-				go handler.handler(handle.entry.Path, id, emptyHandles)
+				handler.handler(handle.entry.Path, id, emptyHandles)
 			}
 		}
 	}

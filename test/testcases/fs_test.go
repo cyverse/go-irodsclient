@@ -5,7 +5,9 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/cyverse/go-irodsclient/fs"
 	"github.com/stretchr/testify/assert"
@@ -24,6 +26,7 @@ func TestFS(t *testing.T) {
 	t.Run("test CreateStat", testCreateStat)
 	t.Run("test WriteRename", testWriteRename)
 	t.Run("test WriteRenameDir", testWriteRenameDir)
+	t.Run("test RemoveClose", testRemoveClose)
 }
 
 func testListEntries(t *testing.T) {
@@ -345,4 +348,54 @@ func testWriteRenameDir(t *testing.T) {
 
 	err = filesystem.RemoveDir(newdirRenameTarget, true, true)
 	assert.NoError(t, err)
+}
+
+func testRemoveClose(t *testing.T) {
+	account := GetTestAccount()
+
+	account.ClientServerNegotiation = false
+
+	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
+
+	filesystem, err := fs.NewFileSystem(account, fsConfig)
+	assert.NoError(t, err)
+	defer filesystem.Release()
+
+	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+
+	newDataObjectFilename := "testobj1234"
+	newDataObjectPath := homedir + "/" + newDataObjectFilename
+
+	text := "HELLO WORLD!"
+
+	// create
+	handle, err := filesystem.CreateFile(newDataObjectPath, "", "w")
+	assert.NoError(t, err)
+
+	// write
+	_, err = handle.Write([]byte(text))
+	assert.NoError(t, err)
+
+	// remove
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+
+	go func() {
+		//t.Logf("calling remove - %s\n", newDataObjectPath)
+		err = filesystem.RemoveFile(newDataObjectPath, true)
+		assert.NoError(t, err)
+		wg.Done()
+	}()
+
+	go func() {
+		time.Sleep(3 * time.Second)
+		// close
+		//t.Logf("calling close - %s\n", newDataObjectPath)
+		err = handle.Close()
+		assert.NoError(t, err)
+		wg.Done()
+	}()
+
+	wg.Wait()
+	assert.False(t, filesystem.Exists(newDataObjectPath))
 }

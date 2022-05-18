@@ -91,7 +91,7 @@ func (handle *FileHandle) Close() error {
 	}
 
 	err := irods_fs.CloseDataObject(handle.connection, handle.irodsfilehandle)
-	if err != nil {
+	if err == nil {
 		handle.filesystem.fileHandleMap.Remove(handle.id)
 	}
 	return err
