@@ -120,9 +120,13 @@ func createLocalTestFile(name string, size int64) (string, error) {
 	return tempPath, nil
 }
 
-func testPrepareSamples(t *testing.T) {
+func getHomeDir(testID string) string {
 	account := GetTestAccount()
+	return fmt.Sprintf("/%s/home/%s/%s", account.ClientZone, account.ClientUser, testID)
+}
 
+func makeHomeDir(t *testing.T, testID string) {
+	account := GetTestAccount()
 	account.ClientServerNegotiation = false
 
 	sessionConfig := session.NewIRODSSessionConfigWithDefault("go-irodsclient-test")
@@ -135,7 +139,26 @@ func testPrepareSamples(t *testing.T) {
 	conn, err := sess.AcquireConnection()
 	assert.NoError(t, err)
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(testID)
+	err = fs.CreateCollection(conn, homedir, true)
+	assert.NoError(t, err)
+}
+
+func prepareSamples(t *testing.T, testID string) {
+	account := GetTestAccount()
+	account.ClientServerNegotiation = false
+
+	sessionConfig := session.NewIRODSSessionConfigWithDefault("go-irodsclient-test")
+
+	sess, err := session.NewIRODSSession(account, sessionConfig)
+	assert.NoError(t, err)
+	defer sess.Release()
+
+	// first
+	conn, err := sess.AcquireConnection()
+	assert.NoError(t, err)
+
+	homedir := getHomeDir(testID)
 
 	collection, err := fs.GetCollection(conn, homedir)
 	assert.NoError(t, err)

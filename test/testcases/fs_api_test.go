@@ -3,7 +3,6 @@ package testcases
 import (
 	"crypto/sha1"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"os"
 	"path"
@@ -14,14 +13,21 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/fs"
 	"github.com/cyverse/go-irodsclient/irods/session"
 	"github.com/cyverse/go-irodsclient/irods/types"
+	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
+)
+
+var (
+	fsAPITestID = xid.New().String()
 )
 
 func TestFSAPI(t *testing.T) {
 	setup()
 	defer shutdown()
 
-	t.Run("test PrepareSamples", testPrepareSamples)
+	makeHomeDir(t, fsAPITestID)
+
+	t.Run("test PrepareSamples", testPrepareSamplesForFSAPI)
 	t.Run("test GetIRODSCollection", testGetIRODSCollection)
 	t.Run("test ListIRODSCollections", testListIRODSCollections)
 	t.Run("test ListIRODSCollectionMeta", testListIRODSCollectionMeta)
@@ -43,6 +49,10 @@ func TestFSAPI(t *testing.T) {
 	t.Run("test ParallelUploadAndDownloadDataObject", testParallelUploadAndDownloadDataObject)
 }
 
+func testPrepareSamplesForFSAPI(t *testing.T) {
+	prepareSamples(t, fsAPITestID)
+}
+
 func testGetIRODSCollection(t *testing.T) {
 	account := GetTestAccount()
 
@@ -53,7 +63,7 @@ func testGetIRODSCollection(t *testing.T) {
 	assert.NoError(t, err)
 	defer conn.Disconnect()
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(fsAPITestID)
 
 	collection, err := fs.GetCollection(conn, homedir)
 	assert.NoError(t, err)
@@ -72,7 +82,7 @@ func testListIRODSCollections(t *testing.T) {
 	assert.NoError(t, err)
 	defer conn.Disconnect()
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(fsAPITestID)
 
 	collections, err := fs.ListSubCollections(conn, homedir)
 	assert.NoError(t, err)
@@ -98,7 +108,7 @@ func testListIRODSCollectionMeta(t *testing.T) {
 	assert.NoError(t, err)
 	defer conn.Disconnect()
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(fsAPITestID)
 
 	metas, err := fs.ListCollectionMeta(conn, homedir)
 	assert.NoError(t, err)
@@ -118,7 +128,7 @@ func testListIRODSCollectionAccess(t *testing.T) {
 	assert.NoError(t, err)
 	defer conn.Disconnect()
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(fsAPITestID)
 
 	accesses, err := fs.ListCollectionAccess(conn, homedir)
 	assert.NoError(t, err)
@@ -139,7 +149,7 @@ func testListIRODSDataObjects(t *testing.T) {
 	assert.NoError(t, err)
 	defer conn.Disconnect()
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(fsAPITestID)
 
 	collection, err := fs.GetCollection(conn, homedir)
 	assert.NoError(t, err)
@@ -173,7 +183,7 @@ func testListIRODSDataObjectsMasterReplica(t *testing.T) {
 	assert.NoError(t, err)
 	defer conn.Disconnect()
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(fsAPITestID)
 
 	collection, err := fs.GetCollection(conn, homedir)
 	assert.NoError(t, err)
@@ -209,7 +219,7 @@ func testGetIRODSDataObject(t *testing.T) {
 	assert.NoError(t, err)
 	defer conn.Disconnect()
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(fsAPITestID)
 
 	collection, err := fs.GetCollection(conn, homedir)
 	assert.NoError(t, err)
@@ -243,7 +253,7 @@ func testGetIRODSDataObjectMasterReplica(t *testing.T) {
 	assert.NoError(t, err)
 	defer conn.Disconnect()
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(fsAPITestID)
 
 	collection, err := fs.GetCollection(conn, homedir)
 	assert.NoError(t, err)
@@ -278,7 +288,7 @@ func testListIRODSDataObjectMeta(t *testing.T) {
 	assert.NoError(t, err)
 	defer conn.Disconnect()
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(fsAPITestID)
 
 	collection, err := fs.GetCollection(conn, homedir)
 	assert.NoError(t, err)
@@ -308,7 +318,7 @@ func testListIRODSDataObjectAccess(t *testing.T) {
 	assert.NoError(t, err)
 	defer conn.Disconnect()
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(fsAPITestID)
 
 	collection, err := fs.GetCollection(conn, homedir)
 	assert.NoError(t, err)
@@ -339,7 +349,7 @@ func testCreateDeleteIRODSCollection(t *testing.T) {
 	assert.NoError(t, err)
 	defer conn.Disconnect()
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(fsAPITestID)
 
 	// create
 	newCollectionPath := homedir + "/test123"
@@ -379,7 +389,7 @@ func testCreateMoveDeleteIRODSCollection(t *testing.T) {
 	assert.NoError(t, err)
 	defer conn.Disconnect()
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(fsAPITestID)
 
 	// create
 	newCollectionPath := homedir + "/test123"
@@ -430,7 +440,7 @@ func testCreateDeleteIRODSDataObject(t *testing.T) {
 	assert.NoError(t, err)
 	defer conn.Disconnect()
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(fsAPITestID)
 
 	// create
 	newDataObjectFilename := "testobj123"
@@ -474,7 +484,7 @@ func testReadWriteIRODSDataObject(t *testing.T) {
 	assert.NoError(t, err)
 	defer conn.Disconnect()
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(fsAPITestID)
 
 	// create
 	newDataObjectFilename := "testobjwrite123"
@@ -526,7 +536,7 @@ func testTruncateIRODSDataObject(t *testing.T) {
 	assert.NoError(t, err)
 	defer conn.Disconnect()
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(fsAPITestID)
 
 	// create
 	newDataObjectFilename := "testobjtruncate123"
@@ -673,7 +683,7 @@ func testParallelUploadAndDownloadDataObject(t *testing.T) {
 		return
 	}
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(fsAPITestID)
 
 	// gen very large file
 	testval := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" // 62

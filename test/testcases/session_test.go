@@ -1,19 +1,25 @@
 package testcases
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/fs"
 	"github.com/cyverse/go-irodsclient/irods/session"
 	"github.com/cyverse/go-irodsclient/irods/types"
+	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
+)
+
+var (
+	fsSessionTestID = xid.New().String()
 )
 
 func TestSession(t *testing.T) {
 	setup()
 	defer shutdown()
+
+	makeHomeDir(t, fsSessionTestID)
 
 	t.Run("test Session", testSession)
 	t.Run("test many Connections", testManyConnections)
@@ -35,7 +41,7 @@ func testSession(t *testing.T) {
 	conn, err := sess.AcquireConnection()
 	assert.NoError(t, err)
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(fsSessionTestID)
 
 	collection, err := fs.GetCollection(conn, homedir)
 	if err != nil {
@@ -62,13 +68,13 @@ func testManyConnections(t *testing.T) {
 	assert.NoError(t, err)
 	defer sess.Release()
 
+	homedir := getHomeDir(fsSessionTestID)
+
 	connections := []*connection.IRODSConnection{}
 
 	for i := 0; i < 30; i++ {
 		conn, err := sess.AcquireConnection()
 		assert.NoError(t, err)
-
-		homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
 
 		collection, err := fs.GetCollection(conn, homedir)
 		assert.NoError(t, err)

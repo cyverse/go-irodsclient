@@ -10,15 +10,21 @@ import (
 	"time"
 
 	"github.com/cyverse/go-irodsclient/fs"
+	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
+)
+
+var (
+	fsTestID = xid.New().String()
 )
 
 func TestFS(t *testing.T) {
 	setup()
 	defer shutdown()
 
-	t.Run("test PrepareSamples", testPrepareSamples)
+	makeHomeDir(t, fsTestID)
 
+	t.Run("test PrepareSamples", testPrepareSamplesForFS)
 	t.Run("test ListEntries", testListEntries)
 	t.Run("test ListEntriesByMeta", testListEntriesByMeta)
 	t.Run("test ListACLs", testListACLs)
@@ -27,6 +33,10 @@ func TestFS(t *testing.T) {
 	t.Run("test WriteRename", testWriteRename)
 	t.Run("test WriteRenameDir", testWriteRenameDir)
 	t.Run("test RemoveClose", testRemoveClose)
+}
+
+func testPrepareSamplesForFS(t *testing.T) {
+	prepareSamples(t, fsTestID)
 }
 
 func testListEntries(t *testing.T) {
@@ -40,7 +50,7 @@ func testListEntries(t *testing.T) {
 	assert.NoError(t, err)
 	defer filesystem.Release()
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(fsTestID)
 
 	collections, err := filesystem.List(homedir)
 	assert.NoError(t, err)
@@ -120,7 +130,7 @@ func testReadWrite(t *testing.T) {
 	assert.NoError(t, err)
 	defer filesystem.Release()
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(fsTestID)
 
 	newDataObjectFilename := "testobj123"
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
@@ -170,7 +180,7 @@ func testCreateStat(t *testing.T) {
 	assert.NoError(t, err)
 	defer filesystem.Release()
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(fsTestID)
 
 	newDataObjectFilename := "testobj_create1234"
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
@@ -228,7 +238,7 @@ func testWriteRename(t *testing.T) {
 	assert.NoError(t, err)
 	defer filesystem.Release()
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(fsTestID)
 
 	newDataObjectFilename := "testobj1234"
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
@@ -290,7 +300,7 @@ func testWriteRenameDir(t *testing.T) {
 	assert.NoError(t, err)
 	defer filesystem.Release()
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(fsTestID)
 	newdir := fmt.Sprintf("%s/testdir", homedir)
 
 	err = filesystem.MakeDir(newdir, true)
@@ -361,7 +371,7 @@ func testRemoveClose(t *testing.T) {
 	assert.NoError(t, err)
 	defer filesystem.Release()
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(fsTestID)
 
 	newDataObjectFilename := "testobj1234"
 	newDataObjectPath := homedir + "/" + newDataObjectFilename

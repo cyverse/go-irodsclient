@@ -5,12 +5,19 @@ import (
 	"testing"
 
 	"github.com/cyverse/go-irodsclient/fs"
+	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
+)
+
+var (
+	fsCacheTestID = xid.New().String()
 )
 
 func TestFSCache(t *testing.T) {
 	setup()
 	defer shutdown()
+
+	makeHomeDir(t, fsCacheTestID)
 
 	t.Run("test MakeDir", testMakeDir)
 }
@@ -26,7 +33,7 @@ func testMakeDir(t *testing.T) {
 	assert.NoError(t, err)
 	defer fs.Release()
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(fsCacheTestID)
 
 	for i := 0; i < 10; i++ {
 		newdir := fmt.Sprintf("%s/test_dir_%d", homedir, i)

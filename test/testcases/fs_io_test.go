@@ -9,12 +9,19 @@ import (
 	"time"
 
 	"github.com/cyverse/go-irodsclient/fs"
+	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
+)
+
+var (
+	fsIOTestID = xid.New().String()
 )
 
 func TestFSIO(t *testing.T) {
 	setup()
 	defer shutdown()
+
+	makeHomeDir(t, fsIOTestID)
 
 	t.Run("test UpDownMBFiles", testUpDownMBFiles)
 }
@@ -30,7 +37,7 @@ func testUpDownMBFiles(t *testing.T) {
 	assert.NoError(t, err)
 	defer fs.Release()
 
-	homedir := fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	homedir := getHomeDir(fsIOTestID)
 
 	fileSize := int64(100 * 1024 * 1024) // 100MB
 	localPath, err := createLocalTestFile("test_file_", fileSize)
