@@ -300,17 +300,9 @@ func (handle *FileHandle) postprocessRename(newPath string, newEntry *Entry) err
 		}
 	}
 
-	fileHandle := &FileHandle{
-		id:              handle.id,
-		filesystem:      handle.filesystem,
-		connection:      handle.connection,
-		irodsfilehandle: newHandle, // updated
-		entry:           newEntry,  // updated
-		offset:          handle.offset,
-		openmode:        newOpenMode, // updated
-	}
-
-	handle.filesystem.fileHandleMap.Add(fileHandle)
+	handle.irodsfilehandle = newHandle
+	handle.entry = newEntry
+	handle.openmode = newOpenMode
 	return nil
 }
 
