@@ -86,14 +86,13 @@ func (handle *FileHandle) Close() error {
 
 	defer handle.filesystem.session.ReturnConnection(handle.connection)
 
+	err := irods_fs.CloseDataObject(handle.connection, handle.irodsfilehandle)
+	handle.filesystem.fileHandleMap.Remove(handle.id)
+
 	if handle.IsWriteMode() {
 		handle.filesystem.invalidateCacheForFileUpdate(handle.entry.Path)
 	}
 
-	err := irods_fs.CloseDataObject(handle.connection, handle.irodsfilehandle)
-	if err == nil {
-		handle.filesystem.fileHandleMap.Remove(handle.id)
-	}
 	return err
 }
 
@@ -104,11 +103,14 @@ func (handle *FileHandle) closeWithoutFSHandleManagement() error {
 
 	defer handle.filesystem.session.ReturnConnection(handle.connection)
 
+	err := irods_fs.CloseDataObject(handle.connection, handle.irodsfilehandle)
+	handle.filesystem.fileHandleMap.Remove(handle.id)
+
 	if handle.IsWriteMode() {
 		handle.filesystem.invalidateCacheForFileUpdate(handle.entry.Path)
 	}
 
-	return irods_fs.CloseDataObject(handle.connection, handle.irodsfilehandle)
+	return err
 }
 
 // Seek moves file pointer
@@ -251,16 +253,13 @@ func (handle *FileHandle) WriteAt(data []byte, offset int64) (int, error) {
 // preprocessRename should be called before the file is renamed
 func (handle *FileHandle) preprocessRename() error {
 	// first, we need to close the file
+	err := irods_fs.CloseDataObject(handle.connection, handle.irodsfilehandle)
+
 	if handle.IsWriteMode() {
 		handle.filesystem.invalidateCacheForFileUpdate(handle.entry.Path)
 	}
 
-	err := irods_fs.CloseDataObject(handle.connection, handle.irodsfilehandle)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 // postprocessRename should be called after the file is renamed
