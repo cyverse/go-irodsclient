@@ -106,7 +106,7 @@ func CreateIcommandsEnvironmentManagerFromIRODSAccountWithDefault(account *types
 }
 
 // Load loads from environment dir
-func (mgr *ICommandsEnvironmentManager) Load() error {
+func (mgr *ICommandsEnvironmentManager) Load(processID int) error {
 	env, err := mgr.readEnvironment()
 	if err != nil {
 		return err
@@ -114,7 +114,7 @@ func (mgr *ICommandsEnvironmentManager) Load() error {
 
 	mgr.Environment = env
 
-	session, err := mgr.readSession()
+	session, err := mgr.readSession(processID)
 	if err != nil {
 		return err
 	}
@@ -143,9 +143,8 @@ func (mgr *ICommandsEnvironmentManager) readPassword() (string, error) {
 }
 
 // readSession reads session
-func (mgr *ICommandsEnvironmentManager) readSession() (*ICommandsEnvironment, error) {
-	ppid := os.Getppid()
-	sessionFilename := fmt.Sprintf("%s.%d", environmentFile, ppid)
+func (mgr *ICommandsEnvironmentManager) readSession(processID int) (*ICommandsEnvironment, error) {
+	sessionFilename := fmt.Sprintf("%s.%d", environmentFile, processID)
 	sessionFilePath := filepath.Join(mgr.DirPath, sessionFilename)
 
 	_, err := os.Stat(sessionFilePath)
@@ -215,7 +214,7 @@ func (mgr *ICommandsEnvironmentManager) Save() error {
 }
 
 // SaveSession saves session to a dir
-func (mgr *ICommandsEnvironmentManager) SaveSession() error {
+func (mgr *ICommandsEnvironmentManager) SaveSession(processID int) error {
 	err := mgr.makeDir()
 	if err != nil {
 		return err
@@ -225,8 +224,7 @@ func (mgr *ICommandsEnvironmentManager) SaveSession() error {
 		return nil
 	}
 
-	ppid := os.Getppid()
-	sessionFilename := fmt.Sprintf("%s.%d", environmentFile, ppid)
+	sessionFilename := fmt.Sprintf("%s.%d", environmentFile, processID)
 	sessionFilePath := filepath.Join(mgr.DirPath, sessionFilename)
 	return mgr.Session.ToFile(sessionFilePath)
 }
