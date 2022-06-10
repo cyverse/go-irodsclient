@@ -32,7 +32,7 @@ func testSaveAndLoadEnv(t *testing.T) {
 	envMgr2, err := icommands.CreateIcommandsEnvironmentManager(newEnvDir, 0)
 	assert.NoError(t, err)
 
-	envMgr2.Load()
+	envMgr2.Load(os.Getppid())
 
 	env2 := envMgr2.Environment
 	assert.Equal(t, account.Host, env2.Host)
@@ -62,13 +62,13 @@ func testSaveAndLoadEnvSession(t *testing.T) {
 
 	err = envMgr.Save()
 	assert.NoError(t, err)
-	err = envMgr.SaveSession()
+	err = envMgr.SaveSession(os.Getppid())
 	assert.NoError(t, err)
 
 	envMgr2, err := icommands.CreateIcommandsEnvironmentManager(newEnvDir, 0)
 	assert.NoError(t, err)
 
-	envMgr2.Load()
+	envMgr2.Load(os.Getppid())
 
 	env2 := envMgr2.Environment
 	assert.Equal(t, account.Host, env2.Host)
