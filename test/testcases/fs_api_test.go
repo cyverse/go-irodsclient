@@ -130,7 +130,7 @@ func testListIRODSCollectionAccess(t *testing.T) {
 
 	homedir := getHomeDir(fsAPITestID)
 
-	accesses, err := fs.ListCollectionAccess(conn, homedir)
+	accesses, err := fs.ListCollectionAccesses(conn, homedir)
 	assert.NoError(t, err)
 
 	for _, access := range accesses {
@@ -329,7 +329,7 @@ func testListIRODSDataObjectAccess(t *testing.T) {
 		dirpath := path.Dir(filepath)
 		assert.Equal(t, dirpath, homedir)
 
-		accesses, err := fs.ListDataObjectAccess(conn, collection, filename)
+		accesses, err := fs.ListDataObjectAccesses(conn, collection, filename)
 		assert.NoError(t, err)
 
 		for _, access := range accesses {

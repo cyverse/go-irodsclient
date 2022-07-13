@@ -360,6 +360,20 @@ func (fs *FileSystem) ListACLs(path string) ([]*types.IRODSAccess, error) {
 	return nil, fmt.Errorf("unknown type - %s", stat.Type)
 }
 
+// ListACLsForEntries returns ACLs for entries in a collection
+func (fs *FileSystem) ListACLsForEntries(path string) ([]*types.IRODSAccess, error) {
+	irodsPath := util.GetCorrectIRODSPath(path)
+
+	collectionEntry, err := fs.getCollection(irodsPath)
+	if err != nil {
+		return nil, err
+	}
+
+	collection := fs.getCollectionFromEntry(collectionEntry)
+
+	return fs.listACLsForEntries(collection)
+}
+
 // ListACLsWithGroupUsers returns ACLs
 func (fs *FileSystem) ListACLsWithGroupUsers(path string) ([]*types.IRODSAccess, error) {
 	stat, err := fs.Stat(path)
@@ -394,7 +408,7 @@ func (fs *FileSystem) ListDirACLs(path string) ([]*types.IRODSAccess, error) {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
 	// check cache first
-	cachedAccesses := fs.cache.GetDirACLsCache(irodsPath)
+	cachedAccesses := fs.cache.GetACLsCache(irodsPath)
 	if cachedAccesses != nil {
 		return cachedAccesses, nil
 	}
@@ -406,13 +420,13 @@ func (fs *FileSystem) ListDirACLs(path string) ([]*types.IRODSAccess, error) {
 	}
 	defer fs.session.ReturnConnection(conn)
 
-	accesses, err := irods_fs.ListCollectionAccess(conn, irodsPath)
+	accesses, err := irods_fs.ListCollectionAccesses(conn, irodsPath)
 	if err != nil {
 		return nil, err
 	}
 
 	// cache it
-	fs.cache.AddDirACLsCache(irodsPath, accesses)
+	fs.cache.AddACLsCache(irodsPath, accesses)
 
 	return accesses, nil
 }
@@ -466,7 +480,7 @@ func (fs *FileSystem) ListFileACLs(path string) ([]*types.IRODSAccess, error) {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
 	// check cache first
-	cachedAccesses := fs.cache.GetFileACLsCache(irodsPath)
+	cachedAccesses := fs.cache.GetACLsCache(irodsPath)
 	if cachedAccesses != nil {
 		return cachedAccesses, nil
 	}
@@ -485,13 +499,13 @@ func (fs *FileSystem) ListFileACLs(path string) ([]*types.IRODSAccess, error) {
 
 	collection := fs.getCollectionFromEntry(collectionEntry)
 
-	accesses, err := irods_fs.ListDataObjectAccess(conn, collection, util.GetIRODSPathFileName(irodsPath))
+	accesses, err := irods_fs.ListDataObjectAccesses(conn, collection, util.GetIRODSPathFileName(irodsPath))
 	if err != nil {
 		return nil, err
 	}
 
 	// cache it
-	fs.cache.AddFileACLsCache(irodsPath, accesses)
+	fs.cache.AddACLsCache(irodsPath, accesses)
 
 	return accesses, nil
 }
@@ -1327,8 +1341,7 @@ func (fs *FileSystem) CreateFile(path string, resource string, mode string) (*Fi
 
 // ClearCache clears all file system caches
 func (fs *FileSystem) ClearCache() {
-	fs.cache.ClearDirACLsCache()
-	fs.cache.ClearFileACLsCache()
+	fs.cache.ClearACLsCache()
 	fs.cache.ClearMetadataCache()
 	fs.cache.ClearEntryCache()
 	fs.cache.ClearNegativeEntryCache()
@@ -1493,6 +1506,61 @@ func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*Entry, 
 	fs.cache.AddDirCache(collection.Path, dirEntryPaths)
 
 	return entries, nil
+}
+
+// listACLsForEntries lists ACLs for entries in a collection
+func (fs *FileSystem) listACLsForEntries(collection *types.IRODSCollection) ([]*types.IRODSAccess, error) {
+	// check cache first
+	cachedAccesses := []*types.IRODSAccess{}
+	useCached := false
+
+	cachedDirEntryPaths := fs.cache.GetDirCache(collection.Path)
+	if cachedDirEntryPaths != nil {
+		useCached = true
+		for _, cachedDirEntryPath := range cachedDirEntryPaths {
+			cachedAccess := fs.cache.GetACLsCache(cachedDirEntryPath)
+			if cachedAccess != nil {
+				cachedAccesses = append(cachedAccesses, cachedAccess...)
+			} else {
+				useCached = false
+			}
+		}
+	}
+
+	if useCached {
+		return cachedAccesses, nil
+	}
+
+	// otherwise, retrieve it and add it to cache
+	conn, err := fs.session.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.session.ReturnConnection(conn)
+
+	collectionAccesses, err := irods_fs.ListAccessesForSubCollections(conn, collection.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	accesses := []*types.IRODSAccess{}
+
+	accesses = append(accesses, collectionAccesses...)
+
+	// cache it
+	fs.cache.AddACLsCacheMulti(collectionAccesses)
+
+	dataobjectAccesses, err := irods_fs.ListAccessesForDataObjects(conn, collection)
+	if err != nil {
+		return nil, err
+	}
+
+	accesses = append(accesses, dataobjectAccesses...)
+
+	// cache it
+	fs.cache.AddACLsCacheMulti(dataobjectAccesses)
+
+	return accesses, nil
 }
 
 // searchEntriesByMeta searches entries by meta
@@ -1756,7 +1824,7 @@ func (fs *FileSystem) invalidateCacheForRemoveInternal(path string, recurse bool
 	}
 
 	fs.cache.RemoveEntryCache(path)
-	fs.cache.RemoveFileACLsCache(path)
+	fs.cache.RemoveACLsCache(path)
 	fs.cache.RemoveMetadataCache(path)
 
 	if recurse && entry != nil {
@@ -1771,7 +1839,6 @@ func (fs *FileSystem) invalidateCacheForRemoveInternal(path string, recurse bool
 
 	// remove dircache and dir acl cache even if it is a file or unknown, no harm.
 	fs.cache.RemoveDirCache(path)
-	fs.cache.RemoveDirACLsCache(path)
 }
 
 // invalidateCacheForDirCreate invalidates cache for creation of the given dir
@@ -1815,7 +1882,7 @@ func (fs *FileSystem) invalidateCacheForDirRemove(path string, recurse bool) {
 	}
 
 	fs.cache.RemoveDirCache(path)
-	fs.cache.RemoveDirACLsCache(path)
+	fs.cache.RemoveACLsCache(path)
 
 	// parent dir's entry also changes
 	fs.cache.RemoveParentDirCache(path)
@@ -1852,7 +1919,7 @@ func (fs *FileSystem) invalidateCacheForFileCreate(path string) {
 func (fs *FileSystem) invalidateCacheForFileRemove(path string) {
 	fs.cache.AddNegativeEntryCache(path)
 	fs.cache.RemoveEntryCache(path)
-	fs.cache.RemoveFileACLsCache(path)
+	fs.cache.RemoveACLsCache(path)
 	fs.cache.RemoveMetadataCache(path)
 
 	// parent dir's entry also changes

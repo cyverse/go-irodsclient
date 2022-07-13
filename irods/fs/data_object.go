@@ -868,8 +868,8 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, collection *types.IROD
 	return metas, nil
 }
 
-// ListDataObjectAccess returns data object accesses for the path
-func ListDataObjectAccess(conn *connection.IRODSConnection, collection *types.IRODSCollection, filename string) ([]*types.IRODSAccess, error) {
+// ListDataObjectAccesses returns data object accesses for the path
+func ListDataObjectAccesses(conn *connection.IRODSConnection, collection *types.IRODSCollection, filename string) ([]*types.IRODSAccess, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
@@ -939,6 +939,103 @@ func ListDataObjectAccess(conn *connection.IRODSConnection, collection *types.IR
 				}
 
 				switch sqlResult.AttributeIndex {
+				case int(common.ICAT_COLUMN_DATA_ACCESS_NAME):
+					pagenatedAccesses[row].AccessLevel = types.IRODSAccessLevelType(value)
+				case int(common.ICAT_COLUMN_USER_TYPE):
+					pagenatedAccesses[row].UserType = types.IRODSUserType(value)
+				case int(common.ICAT_COLUMN_USER_NAME):
+					pagenatedAccesses[row].UserName = value
+				case int(common.ICAT_COLUMN_USER_ZONE):
+					pagenatedAccesses[row].UserZone = value
+				default:
+					// ignore
+				}
+			}
+		}
+
+		accesses = append(accesses, pagenatedAccesses...)
+
+		continueIndex = queryResult.ContinueIndex
+		if continueIndex == 0 {
+			continueQuery = false
+		}
+	}
+
+	return accesses, nil
+}
+
+// ListAccessesForDataObjects returns data object accesses for data objects in the given path
+func ListAccessesForDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCollection) ([]*types.IRODSAccess, error) {
+	if conn == nil || !conn.IsConnected() {
+		return nil, fmt.Errorf("connection is nil or disconnected")
+	}
+
+	conn.IncreaseDataObjectMetricsMeta(1)
+
+	accesses := []*types.IRODSAccess{}
+
+	continueQuery := true
+	continueIndex := 0
+	for continueQuery {
+		query := message.NewIRODSMessageQuery(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddSelect(common.ICAT_COLUMN_DATA_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_DATA_ACCESS_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_USER_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_USER_ZONE, 1)
+		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
+
+		collCondVal := fmt.Sprintf("= '%s'", collection.Path)
+		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, collCondVal)
+
+		queryResult := message.IRODSMessageQueryResult{}
+		err := conn.Request(query, &queryResult, nil)
+		if err != nil {
+			return nil, fmt.Errorf("could not receive a data object access query result message - %v", err)
+		}
+
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return accesses, nil
+			}
+
+			return nil, fmt.Errorf("received a data object access query error - %v", err)
+		}
+
+		if queryResult.RowCount == 0 {
+			break
+		}
+
+		if queryResult.AttributeCount > len(queryResult.SQLResult) {
+			return nil, fmt.Errorf("could not receive data object access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+		}
+
+		pagenatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount)
+
+		for attr := 0; attr < queryResult.AttributeCount; attr++ {
+			sqlResult := queryResult.SQLResult[attr]
+			if len(sqlResult.Values) != queryResult.RowCount {
+				return nil, fmt.Errorf("could not receive data object access rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+			}
+
+			for row := 0; row < queryResult.RowCount; row++ {
+				value := sqlResult.Values[row]
+
+				if pagenatedAccesses[row] == nil {
+					// create a new
+					pagenatedAccesses[row] = &types.IRODSAccess{
+						Path:        "",
+						UserName:    "",
+						UserZone:    "",
+						AccessLevel: types.IRODSAccessLevelNone,
+						UserType:    types.IRODSUserRodsUser,
+					}
+				}
+
+				switch sqlResult.AttributeIndex {
+				case int(common.ICAT_COLUMN_DATA_NAME):
+					pagenatedAccesses[row].Path = util.MakeIRODSPath(collection.Path, value)
 				case int(common.ICAT_COLUMN_DATA_ACCESS_NAME):
 					pagenatedAccesses[row].AccessLevel = types.IRODSAccessLevelType(value)
 				case int(common.ICAT_COLUMN_USER_TYPE):
@@ -2255,8 +2352,8 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 	return mergedDataObjects, nil
 }
 
-// ChangeAccessControlDataObject changes access control on a data object.
-func ChangeAccessControlDataObject(conn *connection.IRODSConnection, path string, access types.IRODSAccessLevelType, userName, zoneName string, adminFlag bool) error {
+// ChangeDataObjectAccess changes access control on a data object.
+func ChangeDataObjectAccess(conn *connection.IRODSConnection, path string, access types.IRODSAccessLevelType, userName, zoneName string, adminFlag bool) error {
 	if conn == nil || !conn.IsConnected() {
 		return fmt.Errorf("connection is nil or disconnected")
 	}
