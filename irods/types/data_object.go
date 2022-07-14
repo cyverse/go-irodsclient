@@ -14,13 +14,13 @@ type IRODSDataObject struct {
 	Name string
 	// Size has the file size
 	Size int64
-	// Attributes has attributes
-	//Attributes string
+	// DataType has the type of the file,
+	DataType string
 	// Replicas has replication information
 	Replicas []*IRODSReplica
 }
 
 // ToString stringifies the object
 func (obj *IRODSDataObject) ToString() string {
-	return fmt.Sprintf("<IRODSDataObject %d %s %d>", obj.ID, obj.Path, obj.Size)
+	return fmt.Sprintf("<IRODSDataObject %d %s %d %s>", obj.ID, obj.Path, obj.Size, obj.DataType)
 }

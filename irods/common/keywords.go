@@ -5,9 +5,10 @@ type KeyWord string
 
 // reserved keywords
 const (
-	ZONE_KW            KeyWord = "zone"
-	RECURSIVE_OPR_KW   KeyWord = "recursiveOpr"
-	FORCE_FLAG_KW      KeyWord = "forceFlag"
+	ZONE_KW          KeyWord = "zone"
+	RECURSIVE_OPR_KW KeyWord = "recursiveOpr"
+	FORCE_FLAG_KW    KeyWord = "forceFlag"
+	//ALL_KW           KeyWord = "all"
 	DEST_RESC_NAME_KW  KeyWord = "destRescName"
 	DATA_TYPE_KW       KeyWord = "dataType"
 	OPR_TYPE_KW        KeyWord = "oprType"

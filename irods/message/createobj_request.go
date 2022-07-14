@@ -26,7 +26,7 @@ func NewIRODSMessageCreateobjRequest(path string, resource string, mode types.Fi
 		},
 	}
 
-	request.KeyVals.Add(string(common.DATA_TYPE_KW), "generic")
+	request.KeyVals.Add(string(common.DATA_TYPE_KW), string(common.GENERIC_DT))
 
 	if len(resource) > 0 {
 		request.KeyVals.Add(string(common.DEST_RESC_NAME_KW), resource)
@@ -34,6 +34,42 @@ func NewIRODSMessageCreateobjRequest(path string, resource string, mode types.Fi
 
 	if force {
 		request.KeyVals.Add(string(common.FORCE_FLAG_KW), "")
+	}
+
+	return request
+}
+
+// NewIRODSMessageCreateobjRequestWithKeyVals creates a IRODSMessageCreateobjRequest message with given keyvals
+func NewIRODSMessageCreateobjRequestWithKeyVals(path string, resource string, mode types.FileOpenMode, force bool, keyvals map[string]string) *IRODSMessageCreateobjRequest {
+	flag := mode.GetFlag()
+	request := &IRODSMessageCreateobjRequest{
+		Path:          path,
+		CreateMode:    0644,
+		OpenFlags:     flag,
+		Offset:        0,
+		Size:          -1,
+		Threads:       0,
+		OperationType: 0,
+		KeyVals: IRODSMessageSSKeyVal{
+			Length: 0,
+		},
+	}
+
+	// if data type is not set
+	if _, ok := keyvals[string(common.DATA_TYPE_KW)]; !ok {
+		request.KeyVals.Add(string(common.DATA_TYPE_KW), string(common.GENERIC_DT))
+	}
+
+	if len(resource) > 0 {
+		request.KeyVals.Add(string(common.DEST_RESC_NAME_KW), resource)
+	}
+
+	if force {
+		request.KeyVals.Add(string(common.FORCE_FLAG_KW), "")
+	}
+
+	for key, val := range keyvals {
+		request.KeyVals.Add(key, val)
 	}
 
 	return request

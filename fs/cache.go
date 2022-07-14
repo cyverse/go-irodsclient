@@ -32,8 +32,7 @@ type FileSystemCache struct {
 	userGroupsCache                       *gocache.Cache
 	groupsCache                           *gocache.Cache
 	usersCache                            *gocache.Cache
-	dirACLsCache                          *gocache.Cache
-	fileACLsCache                         *gocache.Cache
+	aclCache                              *gocache.Cache
 }
 
 // NewFileSystemCache creates a new FileSystemCache
@@ -46,8 +45,7 @@ func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration, cache
 	userGroupsCache := gocache.New(cacheTimeout, cleanup)
 	groupsCache := gocache.New(cacheTimeout, cleanup)
 	usersCache := gocache.New(cacheTimeout, cleanup)
-	dirACLsCache := gocache.New(cacheTimeout, cleanup)
-	fileACLsCache := gocache.New(cacheTimeout, cleanup)
+	aclCache := gocache.New(cacheTimeout, cleanup)
 
 	if cacheTimeoutSettings == nil {
 		cacheTimeoutSettings = []MetadataCacheTimeoutSetting{}
@@ -73,8 +71,7 @@ func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration, cache
 		userGroupsCache:                       userGroupsCache,
 		groupsCache:                           groupsCache,
 		usersCache:                            usersCache,
-		dirACLsCache:                          dirACLsCache,
-		fileACLsCache:                         fileACLsCache,
+		aclCache:                              aclCache,
 	}
 }
 
@@ -314,20 +311,41 @@ func (cache *FileSystemCache) GetUsersCache() []*types.IRODSUser {
 	return nil
 }
 
-// AddDirACLsCache adds a Dir ACLs cache
-func (cache *FileSystemCache) AddDirACLsCache(path string, accesses []*types.IRODSAccess) {
+// AddACLsCache adds a ACLs cache
+func (cache *FileSystemCache) AddACLsCache(path string, accesses []*types.IRODSAccess) {
 	ttl := cache.getCacheTTLForPath(path)
-	cache.dirACLsCache.Set(path, accesses, ttl)
+	cache.aclCache.Set(path, accesses, ttl)
 }
 
-// RemoveDirACLsCache removes a Dir ACLs cache
-func (cache *FileSystemCache) RemoveDirACLsCache(path string) {
-	cache.dirACLsCache.Delete(path)
+// AddACLsCache adds multiple ACLs caches
+func (cache *FileSystemCache) AddACLsCacheMulti(accesses []*types.IRODSAccess) {
+	m := map[string][]*types.IRODSAccess{}
+
+	for _, access := range accesses {
+		if existingAccesses, ok := m[access.Path]; ok {
+			// has it, add
+			existingAccesses = append(existingAccesses, access)
+			m[access.Path] = existingAccesses
+		} else {
+			// create it
+			m[access.Path] = []*types.IRODSAccess{access}
+		}
+	}
+
+	for path, access := range m {
+		ttl := cache.getCacheTTLForPath(path)
+		cache.aclCache.Set(path, access, ttl)
+	}
 }
 
-// GetDirACLsCache retrives a Dir ACLs cache
-func (cache *FileSystemCache) GetDirACLsCache(path string) []*types.IRODSAccess {
-	data, exist := cache.dirACLsCache.Get(path)
+// RemoveACLsCache removes a ACLs cache
+func (cache *FileSystemCache) RemoveACLsCache(path string) {
+	cache.aclCache.Delete(path)
+}
+
+// GetACLsCache retrives a ACLs cache
+func (cache *FileSystemCache) GetACLsCache(path string) []*types.IRODSAccess {
+	data, exist := cache.aclCache.Get(path)
 	if exist {
 		if entries, ok := data.([]*types.IRODSAccess); ok {
 			return entries
@@ -336,34 +354,7 @@ func (cache *FileSystemCache) GetDirACLsCache(path string) []*types.IRODSAccess 
 	return nil
 }
 
-// ClearDirACLsCache clears all Dir ACLs caches
-func (cache *FileSystemCache) ClearDirACLsCache() {
-	cache.dirACLsCache.Flush()
-}
-
-// AddFileACLsCache adds a File ACLs cache
-func (cache *FileSystemCache) AddFileACLsCache(path string, accesses []*types.IRODSAccess) {
-	ttl := cache.getCacheTTLForPath(path)
-	cache.fileACLsCache.Set(path, accesses, ttl)
-}
-
-// RemoveFileACLsCache removes a File ACLs cache
-func (cache *FileSystemCache) RemoveFileACLsCache(path string) {
-	cache.fileACLsCache.Delete(path)
-}
-
-// GetFileACLsCache retrives a File ACLs cache
-func (cache *FileSystemCache) GetFileACLsCache(path string) []*types.IRODSAccess {
-	data, exist := cache.fileACLsCache.Get(path)
-	if exist {
-		if entries, ok := data.([]*types.IRODSAccess); ok {
-			return entries
-		}
-	}
-	return nil
-}
-
-// ClearFileACLsCache clears all File ACLs caches
-func (cache *FileSystemCache) ClearFileACLsCache() {
-	cache.fileACLsCache.Flush()
+// ClearACLsCache clears all ACLs caches
+func (cache *FileSystemCache) ClearACLsCache() {
+	cache.aclCache.Flush()
 }

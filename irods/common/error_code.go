@@ -119,6 +119,7 @@ const (
 	SYS_LINK_CNT_EXCEEDED_ERR                ErrorCode = -108000
 	SYS_CROSS_ZONE_MV_NOT_SUPPORTED          ErrorCode = -109000
 	SYS_RESC_QUOTA_EXCEEDED                  ErrorCode = -110000
+	SYS_INVALID_INPUT_PARAM                  ErrorCode = -130000
 	USER_AUTH_SCHEME_ERR                     ErrorCode = -300000
 	USER_AUTH_STRING_EMPTY                   ErrorCode = -301000
 	USER_RODS_HOST_EMPTY                     ErrorCode = -302000
@@ -565,6 +566,7 @@ func init() {
 	errorCodeDescriptionTable[SYS_LINK_CNT_EXCEEDED_ERR] = "SYS_LINK_CNT_EXCEEDED_ERR"
 	errorCodeDescriptionTable[SYS_CROSS_ZONE_MV_NOT_SUPPORTED] = "SYS_CROSS_ZONE_MV_NOT_SUPPORTED"
 	errorCodeDescriptionTable[SYS_RESC_QUOTA_EXCEEDED] = "SYS_RESC_QUOTA_EXCEEDED"
+	errorCodeDescriptionTable[SYS_INVALID_INPUT_PARAM] = "SYS_INVALID_INPUT_PARAM"
 	errorCodeDescriptionTable[USER_AUTH_SCHEME_ERR] = "USER_AUTH_SCHEME_ERR"
 	errorCodeDescriptionTable[USER_AUTH_STRING_EMPTY] = "USER_AUTH_STRING_EMPTY"
 	errorCodeDescriptionTable[USER_RODS_HOST_EMPTY] = "USER_RODS_HOST_EMPTY"

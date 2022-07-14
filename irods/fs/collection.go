@@ -232,8 +232,8 @@ func ListCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types
 	return metas, nil
 }
 
-// ListCollectionAccess returns collection accesses for the path
-func ListCollectionAccess(conn *connection.IRODSConnection, path string) ([]*types.IRODSAccess, error) {
+// ListCollectionAccesses returns collection accesses for the path
+func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*types.IRODSAccess, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
@@ -301,6 +301,103 @@ func ListCollectionAccess(conn *connection.IRODSConnection, path string) ([]*typ
 				}
 
 				switch sqlResult.AttributeIndex {
+				case int(common.ICAT_COLUMN_COLL_ACCESS_NAME):
+					pagenatedAccesses[row].AccessLevel = types.IRODSAccessLevelType(value)
+				case int(common.ICAT_COLUMN_USER_TYPE):
+					pagenatedAccesses[row].UserType = types.IRODSUserType(value)
+				case int(common.ICAT_COLUMN_USER_NAME):
+					pagenatedAccesses[row].UserName = value
+				case int(common.ICAT_COLUMN_USER_ZONE):
+					pagenatedAccesses[row].UserZone = value
+				default:
+					// ignore
+				}
+			}
+		}
+
+		accesses = append(accesses, pagenatedAccesses...)
+
+		continueIndex = queryResult.ContinueIndex
+		if continueIndex == 0 {
+			continueQuery = false
+		}
+	}
+
+	return accesses, nil
+}
+
+// ListAccessesForSubCollections returns collection accesses for subcollections in the given path
+func ListAccessesForSubCollections(conn *connection.IRODSConnection, path string) ([]*types.IRODSAccess, error) {
+	if conn == nil || !conn.IsConnected() {
+		return nil, fmt.Errorf("connection is nil or disconnected")
+	}
+
+	conn.IncreaseCollectionMetricsMeta(1)
+
+	accesses := []*types.IRODSAccess{}
+
+	continueQuery := true
+	continueIndex := 0
+	for continueQuery {
+		query := message.NewIRODSMessageQuery(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_COLL_ACCESS_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_USER_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_USER_ZONE, 1)
+		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
+
+		condVal := fmt.Sprintf("= '%s'", path)
+		query.AddCondition(common.ICAT_COLUMN_COLL_PARENT_NAME, condVal)
+
+		queryResult := message.IRODSMessageQueryResult{}
+		err := conn.Request(query, &queryResult, nil)
+		if err != nil {
+			return nil, fmt.Errorf("could not receive a collection access query result message - %v", err)
+		}
+
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return accesses, nil
+			}
+
+			return nil, fmt.Errorf("received a collection access query error - %v", err)
+		}
+
+		if queryResult.RowCount == 0 {
+			break
+		}
+
+		if queryResult.AttributeCount > len(queryResult.SQLResult) {
+			return nil, fmt.Errorf("could not receive collection access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+		}
+
+		pagenatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount)
+
+		for attr := 0; attr < queryResult.AttributeCount; attr++ {
+			sqlResult := queryResult.SQLResult[attr]
+			if len(sqlResult.Values) != queryResult.RowCount {
+				return nil, fmt.Errorf("could not receive collection access rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+			}
+
+			for row := 0; row < queryResult.RowCount; row++ {
+				value := sqlResult.Values[row]
+
+				if pagenatedAccesses[row] == nil {
+					// create a new
+					pagenatedAccesses[row] = &types.IRODSAccess{
+						Path:        "",
+						UserName:    "",
+						UserZone:    "",
+						AccessLevel: types.IRODSAccessLevelNone,
+						UserType:    types.IRODSUserRodsUser,
+					}
+				}
+
+				switch sqlResult.AttributeIndex {
+				case int(common.ICAT_COLUMN_COLL_NAME):
+					pagenatedAccesses[row].Path = value
 				case int(common.ICAT_COLUMN_COLL_ACCESS_NAME):
 					pagenatedAccesses[row].AccessLevel = types.IRODSAccessLevelType(value)
 				case int(common.ICAT_COLUMN_USER_TYPE):
@@ -784,8 +881,8 @@ func SearchCollectionsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 	return collections, nil
 }
 
-// ChangeAccessControlCollection changes access control on a data object.
-func ChangeAccessControlCollection(conn *connection.IRODSConnection, path string, access types.IRODSAccessLevelType, userName, zoneName string, recursive, adminFlag bool) error {
+// ChangeCollectionAccess changes access on a collection.
+func ChangeCollectionAccess(conn *connection.IRODSConnection, path string, access types.IRODSAccessLevelType, userName, zoneName string, recursive bool, adminFlag bool) error {
 	if conn == nil || !conn.IsConnected() {
 		return fmt.Errorf("connection is nil or disconnected")
 	}
@@ -801,8 +898,8 @@ func ChangeAccessControlCollection(conn *connection.IRODSConnection, path string
 	return err
 }
 
-// SetInheritAccessControl sets the inherit bit on a collection.
-func SetInheritAccessControl(conn *connection.IRODSConnection, path string, inherit, recursive, adminFlag bool) error {
+// SetAccessInherit sets the inherit bit on a collection.
+func SetAccessInherit(conn *connection.IRODSConnection, path string, inherit, recursive, adminFlag bool) error {
 	if conn == nil || !conn.IsConnected() {
 		return fmt.Errorf("connection is nil or disconnected")
 	}
