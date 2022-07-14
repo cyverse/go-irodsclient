@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/fs"
 	"github.com/cyverse/go-irodsclient/irods/session"
@@ -164,6 +165,8 @@ func testListIRODSDataObjects(t *testing.T) {
 		dataobjectPaths = append(dataobjectPaths, dataobject.Path)
 		assert.NotEmpty(t, dataobject.ID)
 
+		assert.Equal(t, string(common.GENERIC_DT), dataobject.DataType)
+
 		for _, replica := range dataobject.Replicas {
 			assert.NotEmpty(t, replica.Path)
 		}
@@ -197,6 +200,8 @@ func testListIRODSDataObjectsMasterReplica(t *testing.T) {
 	for _, dataobject := range dataobjects {
 		dataobjectPaths = append(dataobjectPaths, dataobject.Path)
 		assert.NotEmpty(t, dataobject.ID)
+
+		assert.Equal(t, string(common.GENERIC_DT), dataobject.DataType)
 
 		assert.Equal(t, 1, len(dataobject.Replicas))
 		for _, replica := range dataobject.Replicas {
@@ -237,6 +242,8 @@ func testGetIRODSDataObject(t *testing.T) {
 
 		assert.NotEmpty(t, dataobject.ID)
 
+		assert.Equal(t, string(common.GENERIC_DT), dataobject.DataType)
+
 		for _, replica := range dataobject.Replicas {
 			assert.NotEmpty(t, replica.Path)
 		}
@@ -270,6 +277,8 @@ func testGetIRODSDataObjectMasterReplica(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.NotEmpty(t, dataobject.ID)
+
+		assert.Equal(t, string(common.GENERIC_DT), dataobject.DataType)
 
 		assert.Equal(t, 1, len(dataobject.Replicas))
 		for _, replica := range dataobject.Replicas {

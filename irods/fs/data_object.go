@@ -66,6 +66,7 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 		query.AddSelect(common.ICAT_COLUMN_D_DATA_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_DATA_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_DATA_SIZE, 1)
+		query.AddSelect(common.ICAT_COLUMN_DATA_TYPE_NAME, 1)
 
 		// replica
 		query.AddSelect(common.ICAT_COLUMN_DATA_REPL_NUM, 1)
@@ -137,6 +138,7 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 						Path:     "",
 						Name:     "",
 						Size:     0,
+						DataType: "",
 						Replicas: []*types.IRODSReplica{replica},
 					}
 				}
@@ -157,6 +159,8 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 						return nil, fmt.Errorf("could not parse data object size - %s", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
+				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
+					pagenatedDataObjects[row].DataType = value
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
@@ -244,6 +248,7 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 		query.AddSelect(common.ICAT_COLUMN_D_DATA_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_DATA_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_DATA_SIZE, 1)
+		query.AddSelect(common.ICAT_COLUMN_DATA_TYPE_NAME, 1)
 
 		// replica
 		query.AddSelect(common.ICAT_COLUMN_DATA_REPL_NUM, 1)
@@ -315,6 +320,7 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 						Path:     "",
 						Name:     "",
 						Size:     0,
+						DataType: "",
 						Replicas: []*types.IRODSReplica{replica},
 					}
 				}
@@ -335,6 +341,8 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 						return nil, fmt.Errorf("could not parse data object size - %s", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
+				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
+					pagenatedDataObjects[row].DataType = value
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
@@ -430,6 +438,7 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 		query.AddSelect(common.ICAT_COLUMN_D_DATA_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_DATA_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_DATA_SIZE, 1)
+		query.AddSelect(common.ICAT_COLUMN_DATA_TYPE_NAME, 1)
 
 		// replica
 		query.AddSelect(common.ICAT_COLUMN_DATA_REPL_NUM, 1)
@@ -500,6 +509,7 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 						Path:         "",
 						Name:         "",
 						Size:         0,
+						DataType:     "",
 						Replicas:     []*types.IRODSReplica{replica},
 					}
 				}
@@ -520,6 +530,8 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 						return nil, fmt.Errorf("could not parse data object size - %s", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
+				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
+					pagenatedDataObjects[row].DataType = value
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
@@ -604,6 +616,7 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 		query.AddSelect(common.ICAT_COLUMN_D_DATA_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_DATA_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_DATA_SIZE, 1)
+		query.AddSelect(common.ICAT_COLUMN_DATA_TYPE_NAME, 1)
 
 		// replica
 		query.AddSelect(common.ICAT_COLUMN_DATA_REPL_NUM, 1)
@@ -675,6 +688,7 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 						Path:         "",
 						Name:         "",
 						Size:         0,
+						DataType:     "",
 						Replicas:     []*types.IRODSReplica{replica},
 					}
 				}
@@ -695,6 +709,8 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 						return nil, fmt.Errorf("could not parse data object size - %s", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
+				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
+					pagenatedDataObjects[row].DataType = value
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
@@ -1576,6 +1592,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 		query.AddSelect(common.ICAT_COLUMN_D_DATA_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_DATA_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_DATA_SIZE, 1)
+		query.AddSelect(common.ICAT_COLUMN_DATA_TYPE_NAME, 1)
 
 		// replica
 		query.AddSelect(common.ICAT_COLUMN_DATA_REPL_NUM, 1)
@@ -1648,6 +1665,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 						Path:         "",
 						Name:         "",
 						Size:         0,
+						DataType:     "",
 						Replicas:     []*types.IRODSReplica{replica},
 					}
 				}
@@ -1684,6 +1702,8 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 						return nil, fmt.Errorf("could not parse data object size - %s", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
+				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
+					pagenatedDataObjects[row].DataType = value
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
@@ -1770,6 +1790,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 		query.AddSelect(common.ICAT_COLUMN_D_DATA_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_DATA_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_DATA_SIZE, 1)
+		query.AddSelect(common.ICAT_COLUMN_DATA_TYPE_NAME, 1)
 
 		// replica
 		query.AddSelect(common.ICAT_COLUMN_DATA_REPL_NUM, 1)
@@ -1843,6 +1864,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 						Path:         "",
 						Name:         "",
 						Size:         0,
+						DataType:     "",
 						Replicas:     []*types.IRODSReplica{replica},
 					}
 				}
@@ -1879,6 +1901,8 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 						return nil, fmt.Errorf("could not parse data object size - %s", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
+				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
+					pagenatedDataObjects[row].DataType = value
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
@@ -1974,6 +1998,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 		query.AddSelect(common.ICAT_COLUMN_D_DATA_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_DATA_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_DATA_SIZE, 1)
+		query.AddSelect(common.ICAT_COLUMN_DATA_TYPE_NAME, 1)
 
 		// replica
 		query.AddSelect(common.ICAT_COLUMN_DATA_REPL_NUM, 1)
@@ -2046,6 +2071,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 						Path:         "",
 						Name:         "",
 						Size:         0,
+						DataType:     "",
 						Replicas:     []*types.IRODSReplica{replica},
 					}
 				}
@@ -2082,6 +2108,8 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 						return nil, fmt.Errorf("could not parse data object size - %s", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
+				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
+					pagenatedDataObjects[row].DataType = value
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
@@ -2169,6 +2197,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 		query.AddSelect(common.ICAT_COLUMN_D_DATA_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_DATA_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_DATA_SIZE, 1)
+		query.AddSelect(common.ICAT_COLUMN_DATA_TYPE_NAME, 1)
 
 		// replica
 		query.AddSelect(common.ICAT_COLUMN_DATA_REPL_NUM, 1)
@@ -2242,6 +2271,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 						Path:         "",
 						Name:         "",
 						Size:         0,
+						DataType:     "",
 						Replicas:     []*types.IRODSReplica{replica},
 					}
 				}
@@ -2278,6 +2308,8 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 						return nil, fmt.Errorf("could not parse data object size - %s", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
+				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
+					pagenatedDataObjects[row].DataType = value
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {

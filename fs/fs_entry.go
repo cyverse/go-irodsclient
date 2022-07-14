@@ -23,6 +23,7 @@ type Entry struct {
 	Path       string
 	Owner      string
 	Size       int64
+	DataType   string
 	CreateTime time.Time
 	ModifyTime time.Time
 	CheckSum   string
@@ -30,5 +31,5 @@ type Entry struct {
 
 // ToString stringifies the object
 func (entry *Entry) ToString() string {
-	return fmt.Sprintf("<Entry %d %s %s %s %d %s %s>", entry.ID, entry.Type, entry.Path, entry.Owner, entry.Size, entry.CreateTime, entry.ModifyTime)
+	return fmt.Sprintf("<Entry %d %s %s %s %d %s %s %s>", entry.ID, entry.Type, entry.Path, entry.Owner, entry.Size, entry.DataType, entry.CreateTime, entry.ModifyTime)
 }
