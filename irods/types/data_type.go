@@ -1,4 +1,4 @@
-package common
+package types
 
 // DataType is a type for data type
 type DataType string

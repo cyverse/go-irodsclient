@@ -26,7 +26,7 @@ func NewIRODSMessageCreateobjRequest(path string, resource string, mode types.Fi
 		},
 	}
 
-	request.KeyVals.Add(string(common.DATA_TYPE_KW), string(common.GENERIC_DT))
+	request.KeyVals.Add(string(common.DATA_TYPE_KW), string(types.GENERIC_DT))
 
 	if len(resource) > 0 {
 		request.KeyVals.Add(string(common.DEST_RESC_NAME_KW), resource)
@@ -57,7 +57,7 @@ func NewIRODSMessageCreateobjRequestWithKeyVals(path string, resource string, mo
 
 	// if data type is not set
 	if _, ok := keyvals[string(common.DATA_TYPE_KW)]; !ok {
-		request.KeyVals.Add(string(common.DATA_TYPE_KW), string(common.GENERIC_DT))
+		request.KeyVals.Add(string(common.DATA_TYPE_KW), string(types.GENERIC_DT))
 	}
 
 	if len(resource) > 0 {
