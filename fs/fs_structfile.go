@@ -9,7 +9,7 @@ import (
 // ExtractStructFile extracts a struct file
 func (fs *FileSystem) ExtractStructFile(path string, targetCollection string, resource string, dataType types.DataType, force bool) error {
 	irodsPath := util.GetCorrectIRODSPath(path)
-	targetIrodsPath := util.GetCorrectIRODSPath(path)
+	targetIrodsPath := util.GetCorrectIRODSPath(targetCollection)
 
 	conn, err := fs.session.AcquireConnection()
 	if err != nil {
