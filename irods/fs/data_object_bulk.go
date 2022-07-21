@@ -84,6 +84,9 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 	}
 
 	totalBytesUploaded := int64(0)
+	if callback != nil {
+		callback(totalBytesUploaded, fileLength)
+	}
 
 	// copy
 	buffer := make([]byte, common.ReadWriteBufferSize)
@@ -280,6 +283,10 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 	}
 
 	offset := int64(0)
+	if callback != nil {
+		callback(totalBytesUploaded, fileLength)
+	}
+
 	for i := 0; i < numTasks; i++ {
 		taskWaitGroup.Add(1)
 
@@ -714,6 +721,10 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 	}
 
 	offset := int64(0)
+	if callback != nil {
+		callback(totalBytesDownloaded, dataObjectLength)
+	}
+
 	for i := 0; i < numTasks; i++ {
 		taskWaitGroup.Add(1)
 
