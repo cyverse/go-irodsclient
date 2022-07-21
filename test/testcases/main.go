@@ -186,7 +186,7 @@ func prepareSamples(t *testing.T, testID string) {
 		assert.NoError(t, err)
 
 		irodsPath := homedir + "/" + filename
-		err = fs.UploadDataObject(sess, filename, irodsPath, "", false)
+		err = fs.UploadDataObject(sess, filename, irodsPath, "", false, nil)
 		assert.NoError(t, err)
 
 		conn, err := sess.AcquireConnection()

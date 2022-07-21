@@ -64,7 +64,7 @@ func main() {
 		panic(err)
 	}
 
-	err = filesystem.UploadFile(srcPath, destPath, "", false)
+	err = filesystem.UploadFile(srcPath, destPath, "", false, nil)
 	if err != nil {
 		logger.Errorf("err - %v", err)
 		panic(err)

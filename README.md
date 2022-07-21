@@ -65,7 +65,7 @@ if !filesystem.ExistsFile("/iplant/home/iychoi/test") {
 
 Downloading a file.
 ```go
-err = filesystem.DownloadFile("/iplant/home/iychoi/test", "", "/opt") // download a file from default resource ("") to /opt local dir
+err = filesystem.DownloadFile("/iplant/home/iychoi/test", "", "/opt", nil) // download a file from default resource ("") to /opt local dir
 if err != nil {
     logger.Errorf("err - %v", err)
     panic(err)

@@ -49,14 +49,14 @@ func testUpDownMBFiles(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		start := time.Now()
-		err = fs.UploadFile(localPath, iRODSPath, "", false)
+		err = fs.UploadFile(localPath, iRODSPath, "", false, nil)
 		duration := time.Since(start)
 
 		t.Logf("upload a file in size %d took time - %v", fileSize, duration)
 		assert.NoError(t, err)
 
 		start = time.Now()
-		err = fs.DownloadFile(iRODSPath, "", localDownloadPath)
+		err = fs.DownloadFile(iRODSPath, "", localDownloadPath, nil)
 		duration = time.Since(start)
 
 		t.Logf("download a file in size %d took time - %v", fileSize, duration)

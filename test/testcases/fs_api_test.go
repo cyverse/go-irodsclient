@@ -720,7 +720,7 @@ func testParallelUploadAndDownloadDataObject(t *testing.T) {
 
 	// upload
 	irodsPath := homedir + "/" + filename
-	err = fs.UploadDataObjectParallel(sess, filename, irodsPath, "", 4, false)
+	err = fs.UploadDataObjectParallel(sess, filename, irodsPath, "", 4, false, nil)
 	assert.NoError(t, err)
 
 	err = os.Remove(filename)

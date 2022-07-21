@@ -64,7 +64,7 @@ func main() {
 		panic(err)
 	}
 
-	err = filesystem.DownloadFile(srcPath, "", destPath)
+	err = filesystem.DownloadFile(srcPath, "", destPath, nil)
 	if err != nil {
 		logger.Errorf("err - %v", err)
 		panic(err)
