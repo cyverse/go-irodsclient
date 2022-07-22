@@ -34,6 +34,8 @@ func NewIRODSMessageExtractstructfileRequest(path string, targetCollection strin
 		request.KeyVals.Add(string(common.FORCE_FLAG_KW), "")
 	}
 
+	request.KeyVals.Add(string(common.BULK_OPR_KW), "")
+
 	return request
 }
 

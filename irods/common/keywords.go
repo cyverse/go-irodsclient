@@ -8,6 +8,7 @@ const (
 	ZONE_KW          KeyWord = "zone"
 	RECURSIVE_OPR_KW KeyWord = "recursiveOpr"
 	FORCE_FLAG_KW    KeyWord = "forceFlag"
+	BULK_OPR_KW      KeyWord = "bulkOpr"
 	//ALL_KW           KeyWord = "all"
 	DEST_RESC_NAME_KW  KeyWord = "destRescName"
 	DATA_TYPE_KW       KeyWord = "dataType"
