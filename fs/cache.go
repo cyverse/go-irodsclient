@@ -83,7 +83,7 @@ func (cache *FileSystemCache) getCacheTTLForPath(path string) time.Duration {
 	}
 
 	// check inherit
-	parentPaths := util.GetParentDirs(path)
+	parentPaths := util.GetParentIRODSDirs(path)
 	for i := len(parentPaths) - 1; i >= 0; i-- {
 		parentPath := parentPaths[i]
 

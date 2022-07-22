@@ -2,6 +2,7 @@ package fs
 
 import (
 	"fmt"
+	"path"
 	"sync"
 	"time"
 
@@ -128,8 +129,8 @@ func (fs *FileSystem) GetTransferMetrics() types.TransferMetrics {
 }
 
 // Stat returns file status
-func (fs *FileSystem) Stat(path string) (*Entry, error) {
-	irodsPath := util.GetCorrectIRODSPath(path)
+func (fs *FileSystem) Stat(p string) (*Entry, error) {
+	irodsPath := util.GetCorrectIRODSPath(p)
 
 	// check if a negative cache for the given path exists
 	if fs.cache.HasNegativeEntryCache(irodsPath) {
@@ -144,7 +145,7 @@ func (fs *FileSystem) Stat(path string) (*Entry, error) {
 	}
 
 	// check if a cached dir Entry for the given path exists
-	parentPath := util.GetDirname(irodsPath)
+	parentPath := path.Dir(irodsPath)
 	cachedDirEntryPaths := fs.cache.GetDirCache(parentPath)
 	dirEntryExist := false
 	if cachedDirEntryPaths != nil {
@@ -481,11 +482,11 @@ func (fs *FileSystem) postprocessRenameFileHandleForDir(handles []*FileHandle, c
 		if _, ok := entryMap[handle.entry.Path]; !ok {
 			// mapping not exist
 			// make full destPath
-			relPath, err := util.GetRelativePath(srcPath, handle.entry.Path)
+			relPath, err := util.GetRelativeIRODSPath(srcPath, handle.entry.Path)
 			if err != nil {
 				errs = append(errs, err)
 			} else {
-				destFullPath := util.JoinPath(destPath, relPath)
+				destFullPath := path.Join(destPath, relPath)
 				newEntry, err := fs.getDataObjectWithConnection(conn, destFullPath)
 				if err != nil {
 					errs = append(errs, err)

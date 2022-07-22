@@ -44,7 +44,7 @@ func testUpDownMBFiles(t *testing.T) {
 	assert.NoError(t, err)
 
 	iRODSPath := fmt.Sprintf("%s/%s", homedir, path.Base(localPath))
-	localDownloadPath, err := filepath.Abs(fmt.Sprintf("./%s", path.Base(localPath)))
+	localDownloadPath, err := filepath.Abs(fmt.Sprintf("./%s", filepath.Base(localPath)))
 	assert.NoError(t, err)
 
 	for i := 0; i < 3; i++ {

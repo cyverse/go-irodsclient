@@ -2,8 +2,10 @@ package util
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -17,17 +19,17 @@ func MakeIRODSPath(collectionPath string, dataobjectName string) string {
 
 // SplitIRODSPath splits the path into dir and file
 func SplitIRODSPath(p string) (string, string) {
-	return filepath.Split(p)
+	return path.Split(p)
 }
 
 // GetIRODSPathDirname returns the dir of the path
 func GetIRODSPathDirname(p string) string {
-	return filepath.Dir(p)
+	return path.Dir(p)
 }
 
 // GetIRODSPathFileName returns the filename of the path
 func GetIRODSPathFileName(p string) string {
-	return filepath.Base(p)
+	return path.Base(p)
 }
 
 // GetIRODSZone returns the zone of the path
@@ -59,4 +61,63 @@ func GetCorrectIRODSPath(p string) string {
 		newPath = path.Clean(newPath)
 	}
 	return newPath
+}
+
+// GetIRODSPathDepth returns depth of the path
+// "/" returns 0
+// "abc" returns -1
+// "/abc" returns 0
+// "/a/b" returns 1
+// "/a/b/c" returns 2
+func GetIRODSPathDepth(p string) int {
+	if !strings.HasPrefix(p, "/") {
+		return -1
+	}
+
+	cleanPath := path.Clean(p)
+
+	if cleanPath == "/" {
+		return 0
+	}
+
+	pArr := strings.Split(p[1:], "/")
+	return len(pArr) - 1
+}
+
+// GetParentDirs returns all parent dirs
+func GetParentIRODSDirs(p string) []string {
+	parents := []string{}
+
+	if p == "/" {
+		return parents
+	}
+
+	curPath := p
+	for len(curPath) > 0 && curPath != "/" {
+		curDir := path.Dir(curPath)
+		if len(curDir) > 0 {
+			parents = append(parents, curDir)
+		}
+
+		curPath = curDir
+	}
+
+	// sort
+	sort.Slice(parents, func(i int, j int) bool {
+		return len(parents[i]) < len(parents[j])
+	})
+
+	return parents
+}
+
+// GetRelativePath returns relative path
+func GetRelativeIRODSPath(base string, target string) (string, error) {
+	osBase := strings.ReplaceAll(base, "/", string(os.PathSeparator))
+	osTarget := strings.ReplaceAll(target, "/", string(os.PathSeparator))
+
+	rel, err := filepath.Rel(osBase, osTarget)
+	if err != nil {
+		return "", err
+	}
+	return filepath.ToSlash(rel), nil
 }
