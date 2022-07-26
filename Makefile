@@ -15,6 +15,7 @@ format:
 .PHONY: examples
 examples:
 	CGO_ENABLED=0 GOOS=linux go build -o ./examples/list_dir/list_dir.out ./examples/list_dir/list_dir.go
+	CGO_ENABLED=0 GOOS=linux go build -o ./examples/list_acls/list_acls.out ./examples/list_acls/list_acls.go
 	CGO_ENABLED=0 GOOS=linux go build -o ./examples/upload/upload.out ./examples/upload/upload.go
 	CGO_ENABLED=0 GOOS=linux go build -o ./examples/upload_parallel/upload_parallel.out ./examples/upload_parallel/upload_parallel.go
 	CGO_ENABLED=0 GOOS=linux go build -o ./examples/upload_parallel_async/upload_parallel_async.out ./examples/upload_parallel_async/upload_parallel_async.go
