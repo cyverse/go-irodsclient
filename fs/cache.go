@@ -76,6 +76,11 @@ func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration, cache
 }
 
 func (cache *FileSystemCache) getCacheTTLForPath(path string) time.Duration {
+	if len(cache.cacheTimeoutPathMap) == 0 {
+		// no data
+		return 0
+	}
+
 	// check map first
 	if timeoutSetting, ok := cache.cacheTimeoutPathMap[path]; ok {
 		// exact match
