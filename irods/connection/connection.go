@@ -302,7 +302,7 @@ func (conn *IRODSConnection) sslStartup() error {
 
 	// Send a shared secret
 	sslSharedSecret := message.NewIRODSMessageSSLSharedSecret(encryptionKey)
-	err = conn.RequestWithoutResponse(sslSharedSecret)
+	err = conn.RequestWithoutResponseNoXML(sslSharedSecret)
 	if err != nil {
 		return fmt.Errorf("could not send a ssl shared secret message - %v", err)
 	}

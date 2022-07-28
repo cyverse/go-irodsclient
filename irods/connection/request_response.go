@@ -83,6 +83,21 @@ func (conn *IRODSConnection) RequestWithoutResponse(request Request) error {
 	return nil
 }
 
+// RequestWithoutResponseNoXML sends a request but does not wait for a response.
+func (conn *IRODSConnection) RequestWithoutResponseNoXML(request Request) error {
+	requestMessage, err := request.GetMessage()
+	if err != nil {
+		return fmt.Errorf("could not make a request message - %v", err)
+	}
+
+	err = conn.SendMessage(requestMessage)
+	if err != nil {
+		return fmt.Errorf("could not send a request message - %v", err)
+	}
+
+	return nil
+}
+
 // RequestAndCheck sends a request and expects a CheckErrorResponse, on which the error is already checked.
 func (conn *IRODSConnection) RequestAndCheck(request Request, response CheckErrorResponse, bsBuffer []byte) error {
 	if err := conn.Request(request, response, bsBuffer); err != nil {
