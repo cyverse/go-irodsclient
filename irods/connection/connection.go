@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/auth"
@@ -33,6 +34,8 @@ type IRODSConnection struct {
 	creationTime            time.Time
 	lastSuccessfulAccess    time.Time
 	transferMetrics         types.TransferMetrics
+	mutex                   sync.Mutex
+	locked                  bool // true if mutex is locked
 }
 
 // NewIRODSConnection create a IRODSConnection
@@ -44,6 +47,18 @@ func NewIRODSConnection(account *types.IRODSAccount, requestTimeout time.Duratio
 
 		creationTime: time.Now(),
 	}
+}
+
+// Lock locks connection
+func (conn *IRODSConnection) Lock() {
+	conn.mutex.Lock()
+	conn.locked = true
+}
+
+// Unlock unlocks connection
+func (conn *IRODSConnection) Unlock() {
+	conn.locked = false
+	conn.mutex.Unlock()
 }
 
 // GetAccount returns iRODSAccount
@@ -89,6 +104,10 @@ func (conn *IRODSConnection) Connect() error {
 	})
 
 	conn.connected = false
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
 
 	server := fmt.Sprintf("%s:%d", conn.account.Host, conn.account.Port)
 	logger.Debugf("Connecting to %s", server)
@@ -417,6 +436,10 @@ func (conn *IRODSConnection) Disconnect() error {
 
 	logger.Debug("Disconnecting the connection")
 
+	// lock the connection
+	conn.mutex.Lock()
+	defer conn.mutex.Unlock()
+
 	disconnect := message.NewIRODSMessageDisconnect()
 	err := conn.RequestWithoutResponse(disconnect)
 	if err != nil {
@@ -443,6 +466,10 @@ func (conn *IRODSConnection) Send(buffer []byte, size int) error {
 
 	if conn.socket == nil {
 		return fmt.Errorf("unable to send data - socket closed")
+	}
+
+	if !conn.locked {
+		return fmt.Errorf("connection must be locked before use")
 	}
 
 	// use sslSocket
@@ -479,6 +506,10 @@ func (conn *IRODSConnection) Recv(buffer []byte, size int) (int, error) {
 		return 0, fmt.Errorf("unable to receive data - socket closed")
 	}
 
+	if !conn.locked {
+		return 0, fmt.Errorf("connection must be locked before use")
+	}
+
 	if conn.requestTimeout > 0 {
 		conn.socket.SetReadDeadline(time.Now().Add(conn.requestTimeout))
 	}
@@ -502,6 +533,10 @@ func (conn *IRODSConnection) Recv(buffer []byte, size int) (int, error) {
 
 // SendMessage makes the message into bytes
 func (conn *IRODSConnection) SendMessage(msg *message.IRODSMessage) error {
+	if !conn.locked {
+		return fmt.Errorf("connection must be locked before use")
+	}
+
 	messageBuffer := new(bytes.Buffer)
 
 	if msg.Header == nil && msg.Body == nil {
@@ -615,6 +650,10 @@ func (conn *IRODSConnection) readMessageHeader() (*message.IRODSMessageHeader, e
 // if bsBuffer is given, bs data will be written directly to the bsBuffer
 // if not given, a new buffer will be allocated.
 func (conn *IRODSConnection) ReadMessage(bsBuffer []byte) (*message.IRODSMessage, error) {
+	if !conn.locked {
+		return nil, fmt.Errorf("connection must be locked before use")
+	}
+
 	header, err := conn.readMessageHeader()
 	if err != nil {
 		return nil, err
@@ -663,6 +702,10 @@ func (conn *IRODSConnection) ReadMessage(bsBuffer []byte) (*message.IRODSMessage
 // Commit a transaction. This is useful in combination with the NO_COMMIT_FLAG.
 // Usage is limited to privileged accounts.
 func (conn *IRODSConnection) Commit() error {
+	if !conn.locked {
+		return fmt.Errorf("connection must be locked before use")
+	}
+
 	return conn.endTransaction(true)
 }
 
@@ -671,6 +714,10 @@ func (conn *IRODSConnection) Commit() error {
 // just to refresh the view on the database for future queries.
 // Usage is limited to privileged accounts.
 func (conn *IRODSConnection) Rollback() error {
+	if !conn.locked {
+		return fmt.Errorf("connection must be locked before use")
+	}
+
 	return conn.endTransaction(false)
 }
 
@@ -679,6 +726,10 @@ func (conn *IRODSConnection) Rollback() error {
 // The usage for this function, is that rolling back the current database transaction still will start
 // a new one, so that future queries will see all changes that where made up to calling this function.
 func (conn *IRODSConnection) PoorMansRollback() error {
+	if !conn.locked {
+		return fmt.Errorf("connection must be locked before use")
+	}
+
 	dummyCol := fmt.Sprintf("/%s/home/%s", conn.account.ClientZone, conn.account.ClientUser)
 
 	return conn.poorMansEndTransaction(dummyCol, false)

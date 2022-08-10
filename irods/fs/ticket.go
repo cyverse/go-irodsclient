@@ -20,6 +20,10 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticket string
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	query := message.NewIRODSMessageQuery(common.MaxQueryRows, 0, 0, 0)
 	query.AddSelect(common.ICAT_COLUMN_TICKET_ID, 1)
 	query.AddSelect(common.ICAT_COLUMN_TICKET_TYPE, 1)

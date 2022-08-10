@@ -15,6 +15,10 @@ func ExtractStructFile(conn *connection.IRODSConnection, path string, target str
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	switch dataType {
 	case types.TAR_FILE_DT, types.GZIP_TAR_DT, types.BZIP2_TAR_DT, types.ZIP_FILE_DT:
 		// pass

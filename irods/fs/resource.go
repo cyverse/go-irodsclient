@@ -25,6 +25,10 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	// query with AUTO_CLOSE option
 	query := message.NewIRODSMessageQuery(1, 0, 0, 0x100)
 	query.AddSelect(common.ICAT_COLUMN_R_RESC_ID, 1)
@@ -122,6 +126,10 @@ func AddResourceMeta(conn *connection.IRODSConnection, name string, metadata *ty
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	request := message.NewIRODSMessageAddMetadataRequest(types.IRODSResourceMetaItemType, name, metadata)
 	response := message.IRODSMessageModMetaResponse{}
 	return conn.RequestAndCheck(request, &response, nil)
@@ -133,6 +141,10 @@ func DeleteResourceMeta(conn *connection.IRODSConnection, name string, metadata 
 	if conn == nil || !conn.IsConnected() {
 		return fmt.Errorf("connection is nil or disconnected")
 	}
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
 
 	var request *message.IRODSMessageModMetaRequest
 

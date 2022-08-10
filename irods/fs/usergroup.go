@@ -16,6 +16,10 @@ func GetGroup(conn *connection.IRODSConnection, group string) (*types.IRODSUser,
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	users := []*types.IRODSUser{}
 
 	continueQuery := true
@@ -112,6 +116,10 @@ func ListGroupUsers(conn *connection.IRODSConnection, group string) ([]*types.IR
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	users := []*types.IRODSUser{}
 
 	continueQuery := true
@@ -206,6 +214,10 @@ func ListGroups(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
 
 	groups := []*types.IRODSUser{}
 
@@ -302,6 +314,10 @@ func ListUsers(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	users := []*types.IRODSUser{}
 
 	continueQuery := true
@@ -397,6 +413,10 @@ func ListUserGroupNames(conn *connection.IRODSConnection, user string) ([]string
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	var groups []string
 
 	continueQuery := true
@@ -466,6 +486,10 @@ func ListUserResourceQuota(conn *connection.IRODSConnection, user string) ([]*ty
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
 
 	quota := []*types.IRODSQuota{}
 
@@ -554,6 +578,10 @@ func GetUserGlobalQuota(conn *connection.IRODSConnection, user string) (*types.I
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	quota := []*types.IRODSQuota{}
 
 	continueQuery := true
@@ -635,6 +663,10 @@ func AddUserMeta(conn *connection.IRODSConnection, user string, metadata *types.
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	request := message.NewIRODSMessageAddMetadataRequest(types.IRODSUserMetaItemType, user, metadata)
 	response := message.IRODSMessageModMetaResponse{}
 	return conn.RequestAndCheck(request, &response, nil)
@@ -646,6 +678,10 @@ func DeleteUserMeta(conn *connection.IRODSConnection, user string, metadata *typ
 	if conn == nil || !conn.IsConnected() {
 		return fmt.Errorf("connection is nil or disconnected")
 	}
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
 
 	var request *message.IRODSMessageModMetaRequest
 
@@ -666,6 +702,10 @@ func ListUserMeta(conn *connection.IRODSConnection, user string) ([]*types.IRODS
 	if conn == nil || !conn.IsConnected() {
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
 
 	metas := []*types.IRODSMeta{}
 

@@ -46,6 +46,10 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 
 	conn.IncreaseCollectionMetricsStat(1)
 
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	query := message.NewIRODSMessageQuery(common.MaxQueryRows, 0, 0, 0)
 	query.AddSelect(common.ICAT_COLUMN_COLL_ID, 1)
 	query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
@@ -142,6 +146,10 @@ func ListCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types
 	}
 
 	conn.IncreaseCollectionMetricsStat(1)
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
 
 	metas := []*types.IRODSMeta{}
 
@@ -240,6 +248,10 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 
 	conn.IncreaseCollectionMetricsMeta(1)
 
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	accesses := []*types.IRODSAccess{}
 
 	continueQuery := true
@@ -333,6 +345,10 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, path string
 	}
 
 	conn.IncreaseCollectionMetricsMeta(1)
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
 
 	accesses := []*types.IRODSAccess{}
 
@@ -430,6 +446,10 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 	}
 
 	conn.IncreaseCollectionMetricsList(1)
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
 
 	collections := []*types.IRODSCollection{}
 
@@ -542,6 +562,10 @@ func CreateCollection(conn *connection.IRODSConnection, path string, recurse boo
 
 	conn.IncreaseCollectionMetricsCreate(1)
 
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	request := message.NewIRODSMessageMkcolRequest(path, recurse)
 	response := message.IRODSMessageMkcolResponse{}
 	return conn.RequestAndCheck(request, &response, nil)
@@ -554,6 +578,10 @@ func DeleteCollection(conn *connection.IRODSConnection, path string, recurse boo
 	}
 
 	conn.IncreaseCollectionMetricsDelete(1)
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
 
 	request := message.NewIRODSMessageRmcolRequest(path, recurse, force)
 	response := message.IRODSMessageRmcolResponse{}
@@ -597,6 +625,10 @@ func MoveCollection(conn *connection.IRODSConnection, srcPath string, destPath s
 
 	conn.IncreaseCollectionMetricsRename(1)
 
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	request := message.NewIRODSMessageMvcolRequest(srcPath, destPath)
 	response := message.IRODSMessageMvcolResponse{}
 	err := conn.RequestAndCheck(request, &response, nil)
@@ -615,6 +647,10 @@ func AddCollectionMeta(conn *connection.IRODSConnection, path string, metadata *
 
 	conn.IncreaseCollectionMetricsMeta(1)
 
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	request := message.NewIRODSMessageAddMetadataRequest(types.IRODSCollectionMetaItemType, path, metadata)
 	response := message.IRODSMessageModMetaResponse{}
 	return conn.RequestAndCheck(request, &response, nil)
@@ -628,6 +664,10 @@ func DeleteCollectionMeta(conn *connection.IRODSConnection, path string, metadat
 	}
 
 	conn.IncreaseCollectionMetricsMeta(1)
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
 
 	var request *message.IRODSMessageModMetaRequest
 
@@ -654,6 +694,10 @@ func SearchCollectionsByMeta(conn *connection.IRODSConnection, metaName string, 
 	}
 
 	conn.IncreaseCollectionMetricsMeta(1)
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
 
 	collections := []*types.IRODSCollection{}
 
@@ -768,6 +812,10 @@ func SearchCollectionsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 	}
 
 	conn.IncreaseCollectionMetricsMeta(1)
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
 
 	collections := []*types.IRODSCollection{}
 
@@ -889,6 +937,10 @@ func ChangeCollectionAccess(conn *connection.IRODSConnection, path string, acces
 
 	conn.IncreaseCollectionMetricsMeta(1)
 
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	request := message.NewIRODSMessageModAccessRequest(access.ChmodString(), userName, zoneName, path, recursive, adminFlag)
 	response := message.IRODSMessageModAccessResponse{}
 	err := conn.RequestAndCheck(request, &response, nil)
@@ -905,6 +957,10 @@ func SetAccessInherit(conn *connection.IRODSConnection, path string, inherit, re
 	}
 
 	conn.IncreaseCollectionMetricsMeta(1)
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
 
 	inheritStr := "inherit"
 

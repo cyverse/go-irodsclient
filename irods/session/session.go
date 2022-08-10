@@ -66,7 +66,9 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 			return nil, err
 		}
 
+		conn.Lock()
 		err = conn.PoorMansRollback()
+		conn.Unlock()
 		if err != nil {
 			logger.Warnf("could not perform poor man rollback for the connection, disabling poor mans rollback - %v", err)
 			pool.Discard(conn)
@@ -122,7 +124,9 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 				return nil, err
 			}
 		} else {
+			conn.Lock()
 			err = conn.PoorMansRollback()
+			conn.Unlock()
 			if err != nil {
 				logger.Warnf("could not perform poor man rollback for the connection, creating a new connection - %v", err)
 				sess.connectionPool.Discard(conn)

@@ -15,6 +15,10 @@ const (
 
 // AddUser adds a user.
 func AddUser(conn *connection.IRODSConnection, username string, password string) error {
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	// copy the behaviour from setScrambledPw
 	if len(password) > common.MaxPasswordLength {
 		password = password[0:common.MaxPasswordLength]
@@ -41,6 +45,10 @@ func AddUser(conn *connection.IRODSConnection, username string, password string)
 
 // AddGroup adds a group.
 func AddGroup(conn *connection.IRODSConnection, group string) error {
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	req := message.NewIRODSMessageUserAdminRequest("mkgroup", group, string(types.IRODSUserRodsGroup))
 
 	return conn.RequestAndCheck(req, &message.IRODSMessageUserAdminResponse{}, nil)
@@ -48,6 +56,10 @@ func AddGroup(conn *connection.IRODSConnection, group string) error {
 
 // AddChildToResc adds a child to a parent resource
 func AddChildToResc(conn *connection.IRODSConnection, parent string, child string, options string) error {
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	req := message.NewIRODSMessageAdminRequest("add", "childtoresc", parent, child, options)
 
 	return conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
@@ -55,6 +67,10 @@ func AddChildToResc(conn *connection.IRODSConnection, parent string, child strin
 
 // AddToGroup adds a user to a group.
 func AddToGroup(conn *connection.IRODSConnection, group string, user string) error {
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	req := message.NewIRODSMessageUserAdminRequest("modify", "group", group, "add", user)
 
 	return conn.RequestAndCheck(req, &message.IRODSMessageUserAdminResponse{}, nil)
@@ -62,6 +78,10 @@ func AddToGroup(conn *connection.IRODSConnection, group string, user string) err
 
 // RmFromGroup removes a user from a group.
 func RmFromGroup(conn *connection.IRODSConnection, group string, user string) error {
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	req := message.NewIRODSMessageUserAdminRequest("modify", "group", group, "remove", user)
 
 	return conn.RequestAndCheck(req, &message.IRODSMessageUserAdminResponse{}, nil)
@@ -69,6 +89,10 @@ func RmFromGroup(conn *connection.IRODSConnection, group string, user string) er
 
 // ChangeUserType changes the type / role of a user object
 func ChangeUserType(conn *connection.IRODSConnection, user string, newType string) error {
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	req := message.NewIRODSMessageAdminRequest("modify", "user", user, "type", newType)
 
 	return conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
@@ -76,6 +100,10 @@ func ChangeUserType(conn *connection.IRODSConnection, user string, newType strin
 
 // RmUser removes a user or a group.
 func RmUser(conn *connection.IRODSConnection, user string) error {
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	req := message.NewIRODSMessageAdminRequest("rm", "user", user)
 
 	return conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
@@ -83,6 +111,10 @@ func RmUser(conn *connection.IRODSConnection, user string) error {
 
 // SetUserQuota sets quota for a given user and resource ('total' for global)
 func SetUserQuota(conn *connection.IRODSConnection, user string, resource string, value string) error {
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	req := message.NewIRODSMessageAdminRequest("set-quota", "user", user, resource, value)
 
 	return conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
@@ -90,6 +122,10 @@ func SetUserQuota(conn *connection.IRODSConnection, user string, resource string
 
 // SetGroupQuota sets quota for a given user and resource ('total' for global)
 func SetGroupQuota(conn *connection.IRODSConnection, group string, resource string, value string) error {
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	req := message.NewIRODSMessageAdminRequest("set-quota", "group", group, resource, value)
 
 	return conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)

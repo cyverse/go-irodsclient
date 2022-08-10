@@ -25,6 +25,10 @@ func CloseDataObjectReplica(conn *connection.IRODSConnection, handle *types.IROD
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
 	if !SupportParallUpload(conn) {
 		// serial upload
 		return fmt.Errorf("does not support close replica in current iRODS Version")
