@@ -34,13 +34,13 @@ func main() {
 	// Read account configuration from YAML file
 	yaml, err := ioutil.ReadFile("account.yml")
 	if err != nil {
-		logger.Errorf("err - %v", err)
+		logger.Error(err)
 		panic(err)
 	}
 
 	account, err := types.CreateIRODSAccountFromYAML(yaml)
 	if err != nil {
-		logger.Errorf("err - %v", err)
+		logger.Error(err)
 		panic(err)
 	}
 
@@ -50,7 +50,7 @@ func main() {
 	appName := "make_dir"
 	filesystem, err := fs.NewFileSystemWithDefault(account, appName)
 	if err != nil {
-		logger.Errorf("err - %v", err)
+		logger.Error(err)
 		panic(err)
 	}
 
@@ -58,7 +58,7 @@ func main() {
 
 	err = filesystem.MakeDir(inputPath, recurse)
 	if err != nil {
-		logger.Errorf("err - %v", err)
+		logger.Error(err)
 		panic(err)
 	}
 

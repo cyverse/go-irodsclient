@@ -35,13 +35,13 @@ func main() {
 	// Read account configuration from YAML file
 	yaml, err := ioutil.ReadFile("account.yml")
 	if err != nil {
-		logger.Errorf("err - %v", err)
+		logger.Error(err)
 		panic(err)
 	}
 
 	account, err := types.CreateIRODSAccountFromYAML(yaml)
 	if err != nil {
-		logger.Errorf("err - %v", err)
+		logger.Error(err)
 		panic(err)
 	}
 
@@ -51,7 +51,7 @@ func main() {
 	appName := "download"
 	filesystem, err := fs.NewFileSystemWithDefault(account, appName)
 	if err != nil {
-		logger.Errorf("err - %v", err)
+		logger.Error(err)
 		panic(err)
 	}
 
@@ -60,7 +60,7 @@ func main() {
 	// convert dest path into absolute path
 	destPath, err = filepath.Abs(destPath)
 	if err != nil {
-		logger.Errorf("err - %v", err)
+		logger.Error(err)
 		panic(err)
 	}
 
@@ -77,7 +77,7 @@ func main() {
 			}
 		case err, ok := <-errChan:
 			if ok {
-				logger.Errorf("err - %v", err)
+				logger.Error(err)
 				panic(err)
 			} else {
 				errDone = true
@@ -87,7 +87,7 @@ func main() {
 
 	fsinfo, err := os.Stat(destPath)
 	if err != nil {
-		logger.Errorf("err - %v", err)
+		logger.Error(err)
 		panic(err)
 	}
 
@@ -98,7 +98,7 @@ func main() {
 
 		fsinfo2, err := os.Stat(destFilePath)
 		if err != nil {
-			logger.Errorf("err - %v", err)
+			logger.Error(err)
 			panic(err)
 		}
 

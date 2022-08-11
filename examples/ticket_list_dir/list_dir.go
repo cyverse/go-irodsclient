@@ -32,13 +32,13 @@ func main() {
 	// Read account configuration from YAML file
 	yaml, err := ioutil.ReadFile("account.yml")
 	if err != nil {
-		logger.Errorf("err - %v", err)
+		logger.Error(err)
 		panic(err)
 	}
 
 	account, err := types.CreateIRODSAccountFromYAML(yaml)
 	if err != nil {
-		logger.Errorf("err - %v", err)
+		logger.Error(err)
 		panic(err)
 	}
 
@@ -48,7 +48,7 @@ func main() {
 	appName := "list_dir_ticket"
 	filesystem, err := fs.NewFileSystemWithDefault(account, appName)
 	if err != nil {
-		logger.Errorf("err - %v", err)
+		logger.Error(err)
 		panic(err)
 	}
 
@@ -56,7 +56,7 @@ func main() {
 
 	entries, err := filesystem.List(inputPath)
 	if err != nil {
-		logger.Errorf("err - %v", err)
+		logger.Error(err)
 		panic(err)
 	}
 
