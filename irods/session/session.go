@@ -41,7 +41,7 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 
 	pool, err := NewConnectionPool(&poolConfig)
 	if err != nil {
-		logger.Errorf("cannot create a new connection pool - %v", err)
+		logger.WithError(err).Error("cannot create a new connection pool")
 		return nil, err
 	}
 
@@ -61,7 +61,7 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 
 		conn, _, err := pool.Get()
 		if err != nil {
-			logger.Errorf("failed to get a test connection - %v", err)
+			logger.WithError(err).Error("failed to get a test connection")
 			pool.Release()
 			return nil, err
 		}
@@ -70,7 +70,7 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 		err = conn.PoorMansRollback()
 		conn.Unlock()
 		if err != nil {
-			logger.Warnf("could not perform poor man rollback for the connection, disabling poor mans rollback - %v", err)
+			logger.WithError(err).Warn("could not perform poor man rollback for the connection, disabling poor mans rollback")
 			pool.Discard(conn)
 			sess.poormansRollbackFail = true
 		} else {
@@ -99,7 +99,7 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 	// get a conenction
 	conn, isNewConn, err := sess.connectionPool.Get()
 	if err != nil {
-		logger.Errorf("failed to get an idle connection - %v", err)
+		logger.WithError(err).Error("failed to get an idle connection")
 		return nil, err
 	}
 
@@ -120,7 +120,7 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 
 			conn, err = sess.connectionPool.GetNew()
 			if err != nil {
-				logger.Errorf("failed to get a new connection - %v", err)
+				logger.WithError(err).Error("failed to get a new connection")
 				return nil, err
 			}
 		} else {
@@ -128,13 +128,13 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 			err = conn.PoorMansRollback()
 			conn.Unlock()
 			if err != nil {
-				logger.Warnf("could not perform poor man rollback for the connection, creating a new connection - %v", err)
+				logger.WithError(err).Warn("could not perform poor man rollback for the connection, creating a new connection")
 				sess.connectionPool.Discard(conn)
 				sess.poormansRollbackFail = true
 
 				conn, err = sess.connectionPool.GetNew()
 				if err != nil {
-					logger.Errorf("failed to get a new connection - %v", err)
+					logger.WithError(err).Error("failed to get a new connection")
 					return nil, err
 				}
 			}
@@ -165,7 +165,7 @@ func (sess *IRODSSession) ReturnConnection(conn *connection.IRODSConnection) err
 
 	err := sess.connectionPool.Return(conn)
 	if err != nil {
-		logger.Errorf("failed to return an idle connection - %v", err)
+		logger.WithError(err).Error("failed to return an idle connection")
 		return err
 	}
 	return nil

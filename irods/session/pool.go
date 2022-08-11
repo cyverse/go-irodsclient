@@ -143,29 +143,14 @@ func (pool *ConnectionPool) init() error {
 		newConn := connection.NewIRODSConnection(pool.config.Account, pool.config.OperationTimeout, pool.config.ApplicationName)
 		err := newConn.Connect()
 		if err != nil {
-			logger.Errorf("failed to create a new connection - %v", err)
+			logger.WithError(err).Error("failed to create a new connection")
 			return err
 		}
 
 		pool.idleConnections.PushBack(newConn)
 	}
 
-	pool.warnExceedsMaxCap()
 	return nil
-}
-
-func (pool *ConnectionPool) warnExceedsMaxCap() {
-	logger := log.WithFields(log.Fields{
-		"package":  "session",
-		"struct":   "ConnectionPool",
-		"function": "warnExceedsMaxCap",
-	})
-
-	// do not lock here since it's used internally
-	currentConn := len(pool.occupiedConnections) + pool.idleConnections.Len()
-	if currentConn > pool.config.MaxCap {
-		logger.Warnf("the number of opened connections %d exceeded maxCap %d", currentConn, pool.config.MaxCap)
-	}
 }
 
 // Get gets a new or an idle connection out of the pool
@@ -179,6 +164,10 @@ func (pool *ConnectionPool) Get() (*connection.IRODSConnection, bool, error) {
 
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
+
+	if len(pool.occupiedConnections) >= pool.config.MaxCap {
+		return nil, false, fmt.Errorf("failed to create a new connection, reached to cap %d", pool.config.MaxCap)
+	}
 
 	var err error
 	// check if there's idle connection
@@ -205,13 +194,12 @@ func (pool *ConnectionPool) Get() (*connection.IRODSConnection, bool, error) {
 	newConn := connection.NewIRODSConnection(pool.config.Account, pool.config.OperationTimeout, pool.config.ApplicationName)
 	err = newConn.Connect()
 	if err != nil {
-		logger.Errorf("failed to create a new connection - %v", err)
+		logger.WithError(err).Error("failed to create a new connection")
 		return nil, false, err
 	}
 
 	pool.occupiedConnections[newConn] = true
-	pool.warnExceedsMaxCap()
-	logger.Debug("Create a new connection")
+	logger.Debug("Created a new connection")
 
 	return newConn, true, nil
 }
@@ -227,18 +215,41 @@ func (pool *ConnectionPool) GetNew() (*connection.IRODSConnection, error) {
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
 
-	newConn := connection.NewIRODSConnection(pool.config.Account, pool.config.OperationTimeout, pool.config.ApplicationName)
-	err := newConn.Connect()
-	if err != nil {
-		logger.Errorf("failed to create a new connection - %v", err)
-		return nil, err
+	if len(pool.occupiedConnections) >= pool.config.MaxCap {
+		return nil, fmt.Errorf("failed to create a new connection, reached to cap %d", pool.config.MaxCap)
 	}
 
-	pool.occupiedConnections[newConn] = true
-	pool.warnExceedsMaxCap()
-	logger.Debug("Create a new connection")
+	// full - close an idle connection and create a new one
+	if pool.idleConnections.Len() > 0 {
+		// close
+		elem := pool.idleConnections.Front()
+		if elem != nil {
+			idleConnObj := pool.idleConnections.Remove(elem)
+			if idleConn, ok := idleConnObj.(*connection.IRODSConnection); ok {
+				if idleConn.IsConnected() {
+					idleConn.Disconnect()
+				}
+			}
+		}
+	}
 
-	return newConn, nil
+	// create a new one
+	if len(pool.occupiedConnections)+pool.idleConnections.Len() < pool.config.MaxCap {
+		// create a new one
+		newConn := connection.NewIRODSConnection(pool.config.Account, pool.config.OperationTimeout, pool.config.ApplicationName)
+		err := newConn.Connect()
+		if err != nil {
+			logger.WithError(err).Error("failed to create a new connection")
+			return nil, err
+		}
+
+		pool.occupiedConnections[newConn] = true
+		logger.Debug("Created a new connection")
+
+		return newConn, nil
+	}
+
+	return nil, fmt.Errorf("failed to create a new connection, no idle connections")
 }
 
 // Return returns the connection after use
@@ -289,7 +300,6 @@ func (pool *ConnectionPool) Return(conn *connection.IRODSConnection) error {
 		}
 	}
 
-	pool.warnExceedsMaxCap()
 	logger.Debug("Returning a connection")
 
 	return nil
