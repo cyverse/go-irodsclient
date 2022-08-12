@@ -629,6 +629,10 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 		numTasks = util.GetNumTasksForParallelTransfer(dataObjectLength)
 	}
 
+	if numTasks > session.GetConfig().ConnectionMax {
+		numTasks = session.GetConfig().ConnectionMax
+	}
+
 	logger.Debugf("download data object in parallel - %s, size(%d), threads(%d)\n", irodsPath, dataObjectLength, numTasks)
 
 	// create an empty file
@@ -643,13 +647,15 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 
 	totalBytesDownloaded := int64(0)
 
-	downloadTask := func(taskOffset int64, taskLength int64) {
+	// get connections
+	connections, err := session.AcquireConnectionsMulti(numTasks)
+	if err != nil {
+		return err
+	}
+
+	downloadTask := func(taskConn *connection.IRODSConnection, taskOffset int64, taskLength int64) {
 		defer taskWaitGroup.Done()
 
-		taskConn, taskErr := session.AcquireConnection()
-		if taskErr != nil {
-			errChan <- taskErr
-		}
 		defer session.ReturnConnection(taskConn)
 
 		if taskConn == nil || !taskConn.IsConnected() {
@@ -732,7 +738,7 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 	for i := 0; i < numTasks; i++ {
 		taskWaitGroup.Add(1)
 
-		go downloadTask(offset, lengthPerThread)
+		go downloadTask(connections[i], offset, lengthPerThread)
 		offset += lengthPerThread
 	}
 
@@ -769,6 +775,10 @@ func DownloadDataObjectParallelInBlocksAsync(session *session.IRODSSession, irod
 		numTasks = util.GetNumTasksForParallelTransfer(dataObjectLength)
 	}
 
+	if numTasks > session.GetConfig().ConnectionMax {
+		numTasks = session.GetConfig().ConnectionMax
+	}
+
 	if numTasks == 1 {
 		blockSize = dataObjectLength
 	}
@@ -801,13 +811,16 @@ func DownloadDataObjectParallelInBlocksAsync(session *session.IRODSSession, irod
 
 	taskWaitGroup := sync.WaitGroup{}
 
-	downloadTask := func() {
+	// get connections
+	connections, err := session.AcquireConnectionsMulti(numTasks)
+	if err != nil {
+		errChan <- err
+		return outputChan, errChan
+	}
+
+	downloadTask := func(taskConn *connection.IRODSConnection) {
 		defer taskWaitGroup.Done()
 
-		taskConn, taskErr := session.AcquireConnection()
-		if taskErr != nil {
-			errChan <- taskErr
-		}
 		defer session.ReturnConnection(taskConn)
 
 		if taskConn == nil || !taskConn.IsConnected() {
@@ -884,7 +897,7 @@ func DownloadDataObjectParallelInBlocksAsync(session *session.IRODSSession, irod
 
 	for i := 0; i < numTasks; i++ {
 		taskWaitGroup.Add(1)
-		go downloadTask()
+		go downloadTask(connections[i])
 	}
 
 	go func() {

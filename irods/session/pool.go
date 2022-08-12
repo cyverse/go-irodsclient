@@ -27,7 +27,7 @@ type ConnectionPoolConfig struct {
 // ConnectionPool is a struct for connection pool
 type ConnectionPool struct {
 	config              *ConnectionPoolConfig
-	idleConnections     *list.List
+	idleConnections     *list.List // list of *connection.IRODSConnection
 	occupiedConnections map[*connection.IRODSConnection]bool
 	mutex               sync.Mutex
 	terminateChan       chan bool
@@ -340,4 +340,12 @@ func (pool *ConnectionPool) IdleConnections() int {
 	defer pool.mutex.Unlock()
 
 	return pool.idleConnections.Len()
+}
+
+// AvailableConnections returns connections that are available to use
+func (pool *ConnectionPool) AvailableConnections() int {
+	pool.mutex.Lock()
+	defer pool.mutex.Unlock()
+
+	return pool.config.MaxCap - len(pool.occupiedConnections)
 }

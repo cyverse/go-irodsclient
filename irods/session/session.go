@@ -1,6 +1,9 @@
 package session
 
 import (
+	"fmt"
+	"sync"
+
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	log "github.com/sirupsen/logrus"
@@ -11,9 +14,11 @@ type IRODSSession struct {
 	account              *types.IRODSAccount
 	config               *IRODSSessionConfig
 	connectionPool       *ConnectionPool
+	sharedConnections    map[*connection.IRODSConnection]int
 	startNewTransaction  bool
 	poormansRollbackFail bool
 	transferMetrics      types.TransferMetrics
+	mutex                sync.Mutex
 }
 
 // NewIRODSSession create a IRODSSession
@@ -24,8 +29,17 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 	})
 
 	sess := IRODSSession{
-		account: account,
-		config:  config,
+		account:           account,
+		config:            config,
+		sharedConnections: map[*connection.IRODSConnection]int{},
+
+		// transaction
+		startNewTransaction:  config.StartNewTransaction,
+		poormansRollbackFail: false,
+
+		transferMetrics: types.TransferMetrics{},
+
+		mutex: sync.Mutex{},
 	}
 
 	poolConfig := ConnectionPoolConfig{
@@ -44,10 +58,7 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 		logger.WithError(err).Error("cannot create a new connection pool")
 		return nil, err
 	}
-
-	// transaction
-	sess.startNewTransaction = config.StartNewTransaction
-	sess.poormansRollbackFail = false
+	sess.connectionPool = pool
 
 	// when the user is anonymous, we cannot use transaction since we don't have access to home dir
 	if sess.account.ClientUser == "anonymous" {
@@ -79,8 +90,12 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 		}
 	}
 
-	sess.connectionPool = pool
 	return &sess, nil
+}
+
+// GetConfig returns a configuration
+func (sess *IRODSSession) GetConfig() *IRODSSessionConfig {
+	return sess.config
 }
 
 // GetAccount returns an account
@@ -88,18 +103,18 @@ func (sess *IRODSSession) GetAccount() *types.IRODSAccount {
 	return sess.account
 }
 
-// AcquireConnection returns an idle connection
-func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, error) {
+// getConnectionFromPool returns an idle connection from pool
+func (sess *IRODSSession) getConnectionFromPool() (*connection.IRODSConnection, error) {
 	logger := log.WithFields(log.Fields{
 		"package":  "session",
 		"struct":   "IRODSSession",
-		"function": "AcquireConnection",
+		"function": "getConnectionFromPool",
 	})
 
-	// get a conenction
+	// get a connection from pool
 	conn, isNewConn, err := sess.connectionPool.Get()
 	if err != nil {
-		logger.WithError(err).Error("failed to get an idle connection")
+		logger.WithError(err).Error("failed to get a connection from the pool")
 		return nil, err
 	}
 
@@ -120,7 +135,7 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 
 			conn, err = sess.connectionPool.GetNew()
 			if err != nil {
-				logger.WithError(err).Error("failed to get a new connection")
+				logger.WithError(err).Error("failed to create a new connection")
 				return nil, err
 			}
 		} else {
@@ -134,7 +149,7 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 
 				conn, err = sess.connectionPool.GetNew()
 				if err != nil {
-					logger.WithError(err).Error("failed to get a new connection")
+					logger.WithError(err).Error("failed to create a new connection")
 					return nil, err
 				}
 			}
@@ -142,6 +157,130 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 	}
 
 	return conn, nil
+}
+
+// AcquireConnection returns an idle connection
+func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, error) {
+	logger := log.WithFields(log.Fields{
+		"package":  "session",
+		"struct":   "IRODSSession",
+		"function": "AcquireConnection",
+	})
+
+	sess.mutex.Lock()
+	defer sess.mutex.Unlock()
+
+	// check if there are available connections in the pool
+	if sess.connectionPool.AvailableConnections() > 0 {
+		// try to get it from the pool
+		conn, err := sess.getConnectionFromPool()
+		if err != nil {
+			logger.WithError(err).Error("failed to get a connection from the pool")
+			// fall through
+		} else {
+			// put to share
+			if shares, ok := sess.sharedConnections[conn]; ok {
+				shares++
+				sess.sharedConnections[conn] = shares
+			} else {
+				sess.sharedConnections[conn] = 1
+			}
+
+			return conn, nil
+		}
+	}
+
+	// failed to get connection from pool
+	// find a connection from shared connection list that has minimum share count
+	logger.Debug("Share an in-use connection as it cannot create a new connection")
+	minShare := 0
+	var minShareConn *connection.IRODSConnection
+	for sharedConn, shareCount := range sess.sharedConnections {
+		if minShare == 0 || shareCount < minShare {
+			minShare = shareCount
+			minShareConn = sharedConn
+		}
+
+		if minShare == 1 {
+			// can't be smaller
+			break
+		}
+	}
+
+	if minShareConn == nil {
+		return nil, fmt.Errorf("failed to get a shared connection")
+	}
+
+	// update
+	minShare++
+	sess.sharedConnections[minShareConn] = minShare
+
+	return minShareConn, nil
+}
+
+// AcquireConnectionsMulti returns idle connections
+func (sess *IRODSSession) AcquireConnectionsMulti(number int) ([]*connection.IRODSConnection, error) {
+	logger := log.WithFields(log.Fields{
+		"package":  "session",
+		"struct":   "IRODSSession",
+		"function": "AcquireConnectionsMulti",
+	})
+
+	sess.mutex.Lock()
+	defer sess.mutex.Unlock()
+
+	connections := map[*connection.IRODSConnection]bool{}
+
+	// check if there are available connections in the pool
+	for i := 0; i < number; i++ {
+		if sess.connectionPool.AvailableConnections() > 0 {
+			// try to get it from the pool
+			conn, err := sess.getConnectionFromPool()
+			if err != nil {
+				logger.WithError(err).Error("failed to get a connection from the pool")
+				// fall through
+				break
+			} else {
+				connections[conn] = true
+
+				// put to share
+				if shares, ok := sess.sharedConnections[conn]; ok {
+					shares++
+					sess.sharedConnections[conn] = shares
+				} else {
+					sess.sharedConnections[conn] = 1
+				}
+			}
+		} else {
+			break
+		}
+	}
+
+	connectionsInNeed := number - len(connections)
+
+	// failed to get connection from pool
+	// find a connection from shared connection
+	logger.Debug("Share an in-use connection as it cannot create a new connection")
+	for connectionsInNeed > 0 {
+		for sharedConn, shareCount := range sess.sharedConnections {
+			shareCount++
+
+			connections[sharedConn] = true
+			sess.sharedConnections[sharedConn] = shareCount
+
+			connectionsInNeed--
+			if connectionsInNeed <= 0 {
+				break
+			}
+		}
+	}
+
+	acquiredConnections := []*connection.IRODSConnection{}
+	for conn, _ := range connections {
+		acquiredConnections = append(acquiredConnections, conn)
+	}
+
+	return acquiredConnections, nil
 }
 
 // ReturnConnection returns an idle connection
@@ -157,39 +296,77 @@ func (sess *IRODSSession) ReturnConnection(conn *connection.IRODSConnection) err
 	sess.sumUpMetrics(&metrics)
 	conn.ClearTransferMetrics()
 
-	if sess.startNewTransaction && sess.poormansRollbackFail {
-		// discard, since we cannot reuse the connection
-		sess.connectionPool.Discard(conn)
-		return nil
+	sess.mutex.Lock()
+	defer sess.mutex.Unlock()
+
+	if share, ok := sess.sharedConnections[conn]; ok {
+		share--
+		if share <= 0 {
+			// no share
+			delete(sess.sharedConnections, conn)
+
+			if sess.startNewTransaction && sess.poormansRollbackFail {
+				// discard, since we cannot reuse the connection
+				sess.connectionPool.Discard(conn)
+				return nil
+			}
+
+			err := sess.connectionPool.Return(conn)
+			if err != nil {
+				logger.WithError(err).Error("failed to return an idle connection")
+				return err
+			}
+		} else {
+			sess.sharedConnections[conn] = share
+		}
 	}
 
-	err := sess.connectionPool.Return(conn)
-	if err != nil {
-		logger.WithError(err).Error("failed to return an idle connection")
-		return err
-	}
 	return nil
 }
 
 // DiscardConnection discards a connection
 func (sess *IRODSSession) DiscardConnection(conn *connection.IRODSConnection) error {
-
 	// add up metrics
 	metrics := conn.GetTransferMetrics()
 	sess.sumUpMetrics(&metrics)
 	conn.ClearTransferMetrics()
 
-	sess.connectionPool.Discard(conn)
+	sess.mutex.Lock()
+	defer sess.mutex.Unlock()
+
+	if share, ok := sess.sharedConnections[conn]; ok {
+		share--
+		if share <= 0 {
+			// no share
+			delete(sess.sharedConnections, conn)
+
+			sess.connectionPool.Discard(conn)
+			return nil
+		} else {
+			sess.sharedConnections[conn] = share
+		}
+	}
+
 	return nil
 }
 
 // Release releases all connections
 func (sess *IRODSSession) Release() {
+	sess.mutex.Lock()
+	defer sess.mutex.Unlock()
+
+	// we don't disconnect connections here,
+	// we will disconnect it when calling pool.Release
+	sess.sharedConnections = map[*connection.IRODSConnection]int{}
+
 	sess.connectionPool.Release()
 }
 
 // Connections returns the number of connections in the pool
 func (sess *IRODSSession) Connections() int {
+	sess.mutex.Lock()
+	defer sess.mutex.Unlock()
+
 	return sess.connectionPool.OpenConnections()
 }
 

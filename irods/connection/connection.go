@@ -46,6 +46,7 @@ func NewIRODSConnection(account *types.IRODSAccount, requestTimeout time.Duratio
 		applicationName: applicationName,
 
 		creationTime: time.Now(),
+		mutex:        sync.Mutex{},
 	}
 }
 
