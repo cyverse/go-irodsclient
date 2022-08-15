@@ -27,6 +27,7 @@ examples:
 	CGO_ENABLED=0 GOOS=linux go build -o ./examples/make_dir/make_dir.out ./examples/make_dir/make_dir.go
 	CGO_ENABLED=0 GOOS=linux go build -o ./examples/get_ticket/get_ticket.out ./examples/get_ticket/get_ticket.go
 	CGO_ENABLED=0 GOOS=linux go build -o ./examples/get_ticket_anon/get_ticket_anon.out ./examples/get_ticket_anon/get_ticket_anon.go
+	CGO_ENABLED=0 GOOS=linux go build -o ./examples/version/version.out ./examples/version/version.go
 
 .PHONY: test
 test:
