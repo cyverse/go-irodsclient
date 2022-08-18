@@ -30,6 +30,7 @@ func TestFS(t *testing.T) {
 	t.Run("test ListACLs", testListACLs)
 	t.Run("test ReadWrite", testReadWrite)
 	t.Run("test CreateStat", testCreateStat)
+	t.Run("test SpecialCharInName", testSpecialCharInName)
 	t.Run("test WriteRename", testWriteRename)
 	t.Run("test WriteRenameDir", testWriteRenameDir)
 	t.Run("test RemoveClose", testRemoveClose)
@@ -196,6 +197,58 @@ func testCreateStat(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, stat.ID)
 	assert.Equal(t, fs.FileEntry, stat.Type)
+
+	// write
+	_, err = handle.Write([]byte(text))
+	assert.NoError(t, err)
+
+	// close
+	err = handle.Close()
+	assert.NoError(t, err)
+
+	assert.True(t, filesystem.Exists(newDataObjectPath))
+
+	// read
+	newHandle, err := filesystem.OpenFile(newDataObjectPath, "", "r")
+	assert.NoError(t, err)
+
+	buffer := make([]byte, 1024)
+	readLen, err := newHandle.Read(buffer)
+	assert.Equal(t, io.EOF, err)
+
+	err = newHandle.Close()
+	assert.NoError(t, err)
+
+	assert.Equal(t, text, string(buffer[:readLen]))
+
+	// delete
+	err = filesystem.RemoveFile(newDataObjectPath, true)
+	assert.NoError(t, err)
+
+	assert.False(t, filesystem.Exists(newDataObjectPath))
+}
+
+func testSpecialCharInName(t *testing.T) {
+	account := GetTestAccount()
+
+	account.ClientServerNegotiation = false
+
+	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
+
+	filesystem, err := fs.NewFileSystem(account, fsConfig)
+	assert.NoError(t, err)
+	defer filesystem.Release()
+
+	homedir := getHomeDir(fsTestID)
+
+	newDataObjectFilename := "testobj_special_char_&@#^%_1234"
+	newDataObjectPath := homedir + "/" + newDataObjectFilename
+
+	text := "HELLO WORLD"
+
+	// create
+	handle, err := filesystem.CreateFile(newDataObjectPath, "", "w")
+	assert.NoError(t, err)
 
 	// write
 	_, err = handle.Write([]byte(text))

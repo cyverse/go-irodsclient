@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
+	"github.com/cyverse/go-irodsclient/irods/util"
 )
 
 // IRODSMessageQuery stores query
@@ -44,12 +45,14 @@ func (msg *IRODSMessageQuery) AddSelect(key common.ICATColumnNumber, val int) {
 
 // AddCondition adds a condition
 func (msg *IRODSMessageQuery) AddCondition(key common.ICATColumnNumber, val string) {
-	msg.Conditions.Add(int(key), val)
+	escapedVal := util.EscapeXMLSpecialChars(val)
+	msg.Conditions.Add(int(key), escapedVal)
 }
 
 // AddKeyVal adds a key-value pair
 func (msg *IRODSMessageQuery) AddKeyVal(key common.KeyWord, val string) {
-	msg.KeyVals.Add(string(key), val)
+	escapedVal := util.EscapeXMLSpecialChars(val)
+	msg.KeyVals.Add(string(key), escapedVal)
 }
 
 // GetBytes returns byte array
