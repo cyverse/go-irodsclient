@@ -12,8 +12,8 @@ import (
 
 var (
 	// escapes from xml.Encode
-	escQuot = []byte("&#34;") // shorter than "&quot;"
-	escApos = []byte("&#39;") // shorter than "&apos;"
+	escQuot = []byte("&#34;") // shorter than "&quot;", \"
+	escApos = []byte("&#39;") // shorter than "&apos;", \'
 	escTab  = []byte("&#x9;")
 	escNL   = []byte("&#xA;")
 	escCR   = []byte("&#xD;")
@@ -78,9 +78,9 @@ func (conn *IRODSConnection) PostprocessXML(in []byte) (out []byte, err error) {
 			out = append(out, '`')
 			buf = buf[len(irodsEscQuot):]
 
-		// turn ' into &quot;
+		// turn ' into &apos;
 		case buf[0] == '\'' && !conn.talksCorrectXML():
-			out = append(out, escQuot...)
+			out = append(out, escApos...)
 			buf = buf[1:]
 
 		// check utf8 characters for validity
