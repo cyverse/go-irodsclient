@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/cyverse/go-irodsclient/irods/message"
+	log "github.com/sirupsen/logrus"
 )
 
 // A Request to send to irods.
@@ -25,38 +26,50 @@ type CheckErrorResponse interface {
 // Request sends a request and expects a response.
 // bsBuffer is optional
 func (conn *IRODSConnection) Request(request Request, response Response, bsBuffer []byte) error {
+	logger := log.WithFields(log.Fields{
+		"package":  "connection",
+		"struct":   "IRODSConnection",
+		"function": "Request",
+	})
+
 	requestMessage, err := request.GetMessage()
 	if err != nil {
-		return fmt.Errorf("could not make a request message - %v", err)
+		logger.Error(err)
+		return fmt.Errorf("could not make a request message")
 	}
 
 	// translate xml.Marshal XML into irods-understandable XML (among others, replace &#34; by &quot;)
 	err = conn.PreprocessMessage(requestMessage)
 	if err != nil {
-		return fmt.Errorf("could not send preprocess message - %v", err)
+		logger.Error(err)
+		return fmt.Errorf("could not send preprocess message")
 	}
 
 	err = conn.SendMessage(requestMessage)
 	if err != nil {
-		return fmt.Errorf("could not send a request message - %v", err)
+		logger.Error(err)
+		return fmt.Errorf("could not send a request message")
 	}
 
 	// Server responds with results
 	// external bs buffer
 	responseMessage, err := conn.ReadMessage(bsBuffer)
 	if err != nil {
-		return fmt.Errorf("could not receive a response message - %v", err)
+		logger.Error(err)
+		return fmt.Errorf("could not receive a response message")
 	}
 
 	// translate irods-dialect XML into valid XML
 	err = conn.PostprocessMessage(responseMessage)
 	if err != nil {
-		return fmt.Errorf("could not send postprocess message - %v", err)
+		logger.Error(err)
+		return fmt.Errorf("could not send postprocess message")
 	}
 
 	err = response.FromMessage(responseMessage)
 	if err != nil {
-		return fmt.Errorf("could not parse a response message - %v", err)
+		logger.Error(err)
+		return fmt.Errorf("could not parse a response message")
 	}
 
 	return nil
@@ -64,20 +77,29 @@ func (conn *IRODSConnection) Request(request Request, response Response, bsBuffe
 
 // RequestWithoutResponse sends a request but does not wait for a response.
 func (conn *IRODSConnection) RequestWithoutResponse(request Request) error {
+	logger := log.WithFields(log.Fields{
+		"package":  "connection",
+		"struct":   "IRODSConnection",
+		"function": "RequestWithoutResponse",
+	})
+
 	requestMessage, err := request.GetMessage()
 	if err != nil {
-		return fmt.Errorf("could not make a request message - %v", err)
+		logger.Error(err)
+		return fmt.Errorf("could not make a request message")
 	}
 
 	// translate xml.Marshal XML into irods-understandable XML (among others, replace &#34; by &quot;)
 	err = conn.PreprocessMessage(requestMessage)
 	if err != nil {
-		return fmt.Errorf("could not send preprocess message - %v", err)
+		logger.Error(err)
+		return fmt.Errorf("could not send preprocess message")
 	}
 
 	err = conn.SendMessage(requestMessage)
 	if err != nil {
-		return fmt.Errorf("could not send a request message - %v", err)
+		logger.Error(err)
+		return fmt.Errorf("could not send a request message")
 	}
 
 	return nil
@@ -85,14 +107,22 @@ func (conn *IRODSConnection) RequestWithoutResponse(request Request) error {
 
 // RequestWithoutResponseNoXML sends a request but does not wait for a response.
 func (conn *IRODSConnection) RequestWithoutResponseNoXML(request Request) error {
+	logger := log.WithFields(log.Fields{
+		"package":  "connection",
+		"struct":   "IRODSConnection",
+		"function": "RequestWithoutResponseNoXML",
+	})
+
 	requestMessage, err := request.GetMessage()
 	if err != nil {
-		return fmt.Errorf("could not make a request message - %v", err)
+		logger.Error(err)
+		return fmt.Errorf("could not make a request message")
 	}
 
 	err = conn.SendMessage(requestMessage)
 	if err != nil {
-		return fmt.Errorf("could not send a request message - %v", err)
+		logger.Error(err)
+		return fmt.Errorf("could not send a request message")
 	}
 
 	return nil
@@ -100,7 +130,14 @@ func (conn *IRODSConnection) RequestWithoutResponseNoXML(request Request) error 
 
 // RequestAndCheck sends a request and expects a CheckErrorResponse, on which the error is already checked.
 func (conn *IRODSConnection) RequestAndCheck(request Request, response CheckErrorResponse, bsBuffer []byte) error {
+	logger := log.WithFields(log.Fields{
+		"package":  "connection",
+		"struct":   "IRODSConnection",
+		"function": "RequestAndCheck",
+	})
+
 	if err := conn.Request(request, response, bsBuffer); err != nil {
+		logger.Error(err)
 		return err
 	}
 
