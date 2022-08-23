@@ -43,6 +43,7 @@ func TestFSAPI(t *testing.T) {
 	t.Run("test CreateDeleteIRODSDataObject", testCreateDeleteIRODSDataObject)
 	t.Run("test ReadWriteIRODSDataObject", testReadWriteIRODSDataObject)
 	t.Run("test ReadWriteIRODSDataObjectWithSingleConnection", testReadWriteIRODSDataObjectWithSingleConnection)
+	t.Run("test MixedReadWriteIRODSDataObjectWithSingleConnection", testMixedReadWriteIRODSDataObjectWithSingleConnection)
 	t.Run("test TruncateIRODSDataObject", testTruncateIRODSDataObject)
 	t.Run("test ListIRODSGroupUsers", testListIRODSGroupUsers)
 	t.Run("test SearchDataObjectsByMeta", testSearchDataObjectsByMeta)
@@ -361,7 +362,7 @@ func testCreateDeleteIRODSCollection(t *testing.T) {
 	homedir := getHomeDir(fsAPITestID)
 
 	// create
-	newCollectionPath := homedir + "/test123"
+	newCollectionPath := homedir + "/testdir_" + xid.New().String()
 
 	err = fs.CreateCollection(conn, newCollectionPath, true)
 	assert.NoError(t, err)
@@ -401,7 +402,7 @@ func testCreateMoveDeleteIRODSCollection(t *testing.T) {
 	homedir := getHomeDir(fsAPITestID)
 
 	// create
-	newCollectionPath := homedir + "/test123"
+	newCollectionPath := homedir + "/testdir_" + xid.New().String()
 
 	err = fs.CreateCollection(conn, newCollectionPath, true)
 	assert.NoError(t, err)
@@ -413,7 +414,7 @@ func testCreateMoveDeleteIRODSCollection(t *testing.T) {
 	assert.NotEmpty(t, collection.ID)
 
 	// move
-	new2CollectionPath := newCollectionPath + "_new"
+	new2CollectionPath := homedir + "/testdir_" + xid.New().String()
 	err = fs.MoveCollection(conn, newCollectionPath, new2CollectionPath)
 	assert.NoError(t, err)
 
@@ -452,7 +453,7 @@ func testCreateDeleteIRODSDataObject(t *testing.T) {
 	homedir := getHomeDir(fsAPITestID)
 
 	// create
-	newDataObjectFilename := "testobj123"
+	newDataObjectFilename := "testobj_" + xid.New().String()
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
 	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", "w", true)
 	assert.NoError(t, err)
@@ -496,7 +497,7 @@ func testReadWriteIRODSDataObject(t *testing.T) {
 	homedir := getHomeDir(fsAPITestID)
 
 	// create
-	newDataObjectFilename := "testobjwrite123"
+	newDataObjectFilename := "testobj_" + xid.New().String()
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
 
 	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", "w", true)
@@ -548,7 +549,78 @@ func testReadWriteIRODSDataObjectWithSingleConnection(t *testing.T) {
 	homedir := getHomeDir(fsAPITestID)
 
 	// create
-	newDataObjectFilename := "testobjwrite123"
+	newDataObjectFilename := "testobj_" + xid.New().String()
+	newDataObjectPath := homedir + "/" + newDataObjectFilename
+
+	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", "w", true)
+	assert.NoError(t, err)
+
+	data := "Hello World"
+	err = fs.WriteDataObject(conn, handle, []byte(data))
+	assert.NoError(t, err)
+
+	err = fs.CloseDataObject(conn, handle)
+	assert.NoError(t, err)
+
+	collection, err := fs.GetCollection(conn, homedir)
+	assert.NoError(t, err)
+
+	obj, err := fs.GetDataObject(conn, collection, newDataObjectFilename)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, obj.ID)
+
+	// read 1
+	handle1, _, err := fs.OpenDataObject(conn, newDataObjectPath, "", "r")
+	assert.NoError(t, err)
+
+	// read 2
+	handle2, _, err := fs.OpenDataObject(conn, newDataObjectPath, "", "r")
+	assert.NoError(t, err)
+
+	buf1 := make([]byte, len(data))
+	recvLen1, err := fs.ReadDataObject(conn, handle1, buf1[:5])
+	assert.NoError(t, err)
+
+	buf2 := make([]byte, len(data))
+	recvLen2, err := fs.ReadDataObject(conn, handle2, buf2[:4])
+	assert.NoError(t, err)
+
+	recvLen3, err := fs.ReadDataObject(conn, handle1, buf1[5:])
+	assert.NoError(t, err)
+
+	recvLen4, err := fs.ReadDataObject(conn, handle2, buf2[4:])
+	assert.NoError(t, err)
+
+	err = fs.CloseDataObject(conn, handle1)
+	assert.NoError(t, err)
+
+	err = fs.CloseDataObject(conn, handle2)
+	assert.NoError(t, err)
+
+	assert.Equal(t, len(data), recvLen1+recvLen3)
+	assert.Equal(t, len(data), recvLen2+recvLen4)
+	assert.Equal(t, data, string(buf1))
+	assert.Equal(t, data, string(buf2))
+
+	// delete
+	err = fs.DeleteDataObject(conn, newDataObjectPath, true)
+	assert.NoError(t, err)
+}
+
+func testMixedReadWriteIRODSDataObjectWithSingleConnection(t *testing.T) {
+	account := GetTestAccount()
+
+	account.ClientServerNegotiation = false
+
+	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
+	err := conn.Connect()
+	assert.NoError(t, err)
+	defer conn.Disconnect()
+
+	homedir := getHomeDir(fsAPITestID)
+
+	// create
+	newDataObjectFilename := "testobj_" + xid.New().String()
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
 
 	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", "w", true)
@@ -619,7 +691,7 @@ func testTruncateIRODSDataObject(t *testing.T) {
 	homedir := getHomeDir(fsAPITestID)
 
 	// create
-	newDataObjectFilename := "testobjtruncate123"
+	newDataObjectFilename := "testobj_" + xid.New().String()
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
 
 	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", "w", true)

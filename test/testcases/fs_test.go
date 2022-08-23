@@ -133,7 +133,7 @@ func testReadWrite(t *testing.T) {
 
 	homedir := getHomeDir(fsTestID)
 
-	newDataObjectFilename := "testobj123"
+	newDataObjectFilename := "testobj_" + xid.New().String()
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
 
 	text := "HELLO WORLD!<?!'\">"
@@ -183,7 +183,7 @@ func testCreateStat(t *testing.T) {
 
 	homedir := getHomeDir(fsTestID)
 
-	newDataObjectFilename := "testobj_create1234"
+	newDataObjectFilename := "testobj_" + xid.New().String()
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
 
 	text := "HELLO WORLD"
@@ -241,7 +241,7 @@ func testSpecialCharInName(t *testing.T) {
 
 	homedir := getHomeDir(fsTestID)
 
-	newDataObjectFilename := "testobj_special_char_&@#^%\\_1234"
+	newDataObjectFilename := "testobj_special_char_&@#^%\\_" + xid.New().String()
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
 
 	text := "HELLO WORLD"
@@ -293,9 +293,11 @@ func testWriteRename(t *testing.T) {
 
 	homedir := getHomeDir(fsTestID)
 
-	newDataObjectFilename := "testobj1234"
+	newDataObjectFilename := "testobj_" + xid.New().String()
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
-	newDataObjectPathRenameTarget := homedir + "/" + newDataObjectFilename + "_new"
+
+	newDataObjectPathRenamed := "testobj_" + xid.New().String()
+	newDataObjectPathRenameTarget := homedir + "/" + newDataObjectPathRenamed
 
 	text1 := "HELLO"
 	text2 := " WORLD!"
@@ -354,15 +356,15 @@ func testWriteRenameDir(t *testing.T) {
 	defer filesystem.Release()
 
 	homedir := getHomeDir(fsTestID)
-	newdir := fmt.Sprintf("%s/testdir", homedir)
+	newdir := fmt.Sprintf("%s/testdir_%s", homedir, xid.New().String())
 
 	err = filesystem.MakeDir(newdir, true)
 	assert.NoError(t, err)
 
-	newDataObjectFilename := "testobj1234"
+	newDataObjectFilename := "testobj_" + xid.New().String()
 	newDataObjectPath := newdir + "/" + newDataObjectFilename
 
-	newdirRenameTarget := newdir + "_renamed"
+	newdirRenameTarget := fmt.Sprintf("%s/testdir_%s", homedir, xid.New().String())
 	newDataObjectPathRenameTarget := newdirRenameTarget + "/" + newDataObjectFilename
 
 	text1 := "HELLO"
@@ -426,7 +428,7 @@ func testRemoveClose(t *testing.T) {
 
 	homedir := getHomeDir(fsTestID)
 
-	newDataObjectFilename := "testobj1234"
+	newDataObjectFilename := "testobj_" + xid.New().String()
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
 
 	text := "HELLO WORLD!"
