@@ -460,8 +460,8 @@ func (conn *IRODSConnection) Disconnect() error {
 	logger.Debug("Disconnecting the connection")
 
 	// lock the connection
-	conn.mutex.Lock()
-	defer conn.mutex.Unlock()
+	conn.Lock()
+	defer conn.Unlock()
 
 	disconnect := message.NewIRODSMessageDisconnect()
 	err := conn.RequestWithoutResponse(disconnect)
