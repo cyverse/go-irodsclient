@@ -241,7 +241,7 @@ func testSpecialCharInName(t *testing.T) {
 
 	homedir := getHomeDir(fsTestID)
 
-	newDataObjectFilename := "testobj_special_char_&@#^%_1234"
+	newDataObjectFilename := "testobj_special_char_&@#^%\\_1234"
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
 
 	text := "HELLO WORLD"
