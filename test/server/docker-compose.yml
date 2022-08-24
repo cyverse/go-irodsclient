@@ -1,28 +1,14 @@
 version: '3.7' 
 services:
-  db:
-    image: centos/postgresql-10-centos7
-    container_name: irods_db_test
+  dbms:
+    image: cyverse/irods-test-postgres
     restart: always
-    expose:
-      - 5432
-    environment:
-      POSTGRESQL_PASSWORD: "irods_pass"
-      POSTGRESQL_USER: "irods"
-      POSTGRESQL_DATABASE: "ICAT"
+
   irods:
-    image: cyverse/irods-test:v4.2.11
-    container_name: irods_test
+    image: "cyverse/irods-test:v$IRODS_VER"
+    hostname: "$IRODS_CONF_HOST"
     restart: always
     ports:
       - 1247:1247
-    environment:
-      POSTGRES_PASSWORD: "irods_pass"
-      POSTGRES_USER: "irods"
-      POSTGRES_DB: "ICAT"
-      POSTGRES_HOSTNAME: "db"
-      IRODS_ZONE: "test_zone"
-      IRODS_ADMIN_USER: "rods"
-      IRODS_ADMIN_PASSWORD: "irods_pass"
-    links:
-      - db
+    depends_on:
+      - dbms

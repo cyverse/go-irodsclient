@@ -15,6 +15,8 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
+
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -24,6 +26,8 @@ var (
 func TestFSAPI(t *testing.T) {
 	setup()
 	defer shutdown()
+
+	log.SetLevel(log.DebugLevel)
 
 	makeHomeDir(t, fsAPITestID)
 
@@ -619,6 +623,13 @@ func testMixedReadWriteIRODSDataObjectWithSingleConnection(t *testing.T) {
 
 	homedir := getHomeDir(fsAPITestID)
 
+	// create a new side file
+	newSideDataObjectFilename := "testobj_" + xid.New().String()
+	newSideDataObjectPath := homedir + "/" + newSideDataObjectFilename
+
+	handleSide, err := fs.CreateDataObject(conn, newSideDataObjectPath, "", "w", true)
+	assert.NoError(t, err)
+
 	// create
 	newDataObjectFilename := "testobj_" + xid.New().String()
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
@@ -648,6 +659,21 @@ func testMixedReadWriteIRODSDataObjectWithSingleConnection(t *testing.T) {
 	handle2, _, err := fs.OpenDataObject(conn, newDataObjectPath, "", "r")
 	assert.NoError(t, err)
 
+	// write to side file
+	err = fs.WriteDataObject(conn, handleSide, []byte(data))
+	assert.NoError(t, err)
+
+	err = fs.CloseDataObject(conn, handleSide)
+	assert.NoError(t, err)
+
+	// rollback test
+	// this causes operation error, rollbacks the transaction
+	conn.Lock()
+	err = conn.PoorMansRollback()
+	conn.Unlock()
+	assert.NoError(t, err)
+
+	// continue reading
 	buf1 := make([]byte, len(data))
 	recvLen1, err := fs.ReadDataObject(conn, handle1, buf1[:5])
 	assert.NoError(t, err)
@@ -659,10 +685,10 @@ func testMixedReadWriteIRODSDataObjectWithSingleConnection(t *testing.T) {
 	recvLen3, err := fs.ReadDataObject(conn, handle1, buf1[5:])
 	assert.NoError(t, err)
 
-	recvLen4, err := fs.ReadDataObject(conn, handle2, buf2[4:])
+	err = fs.CloseDataObject(conn, handle1)
 	assert.NoError(t, err)
 
-	err = fs.CloseDataObject(conn, handle1)
+	recvLen4, err := fs.ReadDataObject(conn, handle2, buf2[4:])
 	assert.NoError(t, err)
 
 	err = fs.CloseDataObject(conn, handle2)

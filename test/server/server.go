@@ -7,6 +7,7 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/types"
 	log "github.com/sirupsen/logrus"
@@ -17,8 +18,8 @@ const (
 	testServerHost          string = "localhost"
 	testServerPort          int    = 1247
 	testServerAdminUser     string = "rods"
-	testServerAdminPassword string = "irods_pass"
-	testServerZone          string = "test_zone"
+	testServerAdminPassword string = "test_rods_password"
+	testServerZone          string = "cyverse"
 )
 
 func startServerExec() error {
@@ -55,7 +56,9 @@ func startServerExec() error {
 	for {
 		if subOutputScanner.Scan() {
 			outputMsg := strings.TrimSpace(subOutputScanner.Text())
-			if strings.Contains(outputMsg, "irods_test |") && strings.Contains(outputMsg, "iRODS is up...") {
+			if strings.Contains(outputMsg, "Creating irods_test_irods_1 ") && strings.Contains(outputMsg, "done") {
+				// wait for 3 sec to be avilable
+				time.Sleep(3 * time.Second)
 				logger.Info("Successfully started iRODS test server")
 				return nil
 			} else {
