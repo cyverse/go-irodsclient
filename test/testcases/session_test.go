@@ -85,6 +85,8 @@ func testManyConnections(t *testing.T) {
 		assert.NotEmpty(t, collection.ID)
 	}
 
+	assert.Equal(t, sessionConfig.ConnectionMax, sess.Connections())
+
 	for _, conn := range connections {
 		err = sess.ReturnConnection(conn)
 		assert.NoError(t, err)
