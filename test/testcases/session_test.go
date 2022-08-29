@@ -23,6 +23,8 @@ func TestSession(t *testing.T) {
 
 	t.Run("test Session", testSession)
 	t.Run("test many Connections", testManyConnections)
+	t.Run("test Connection Metrics", testConnectionMetrics)
+
 }
 
 func testSession(t *testing.T) {
@@ -91,4 +93,50 @@ func testManyConnections(t *testing.T) {
 		err = sess.ReturnConnection(conn)
 		assert.NoError(t, err)
 	}
+}
+
+func testConnectionMetrics(t *testing.T) {
+	account := GetTestAccount()
+
+	account.ClientServerNegotiation = false
+	account.CSNegotiationPolicy = types.CSNegotiationDontCare
+
+	sessionConfig := session.NewIRODSSessionConfigWithDefault("go-irodsclient-test")
+
+	sess, err := session.NewIRODSSession(account, sessionConfig)
+	assert.NoError(t, err)
+	defer sess.Release()
+
+	metrics := sess.GetMetrics()
+	assert.Equal(t, uint64(sessionConfig.ConnectionInitNumber), metrics.GetConnectionsOpened())
+	assert.Equal(t, uint64(0), metrics.GetConnectionsOccupied())
+
+	homedir := getHomeDir(fsSessionTestID)
+
+	connections := []*connection.IRODSConnection{}
+
+	for i := 0; i < 30; i++ {
+		conn, err := sess.AcquireConnection()
+		assert.NoError(t, err)
+
+		collection, err := fs.GetCollection(conn, homedir)
+		assert.NoError(t, err)
+
+		connections = append(connections, conn)
+
+		assert.Equal(t, homedir, collection.Path)
+		assert.NotEmpty(t, collection.ID)
+	}
+
+	assert.Equal(t, sessionConfig.ConnectionMax, sess.ConnectionTotal())
+	assert.Equal(t, uint64(sessionConfig.ConnectionMax), metrics.GetConnectionsOpened())
+	assert.Equal(t, uint64(sessionConfig.ConnectionMax), metrics.GetConnectionsOccupied())
+
+	for _, conn := range connections {
+		err = sess.ReturnConnection(conn)
+		assert.NoError(t, err)
+	}
+
+	assert.Equal(t, uint64(sessionConfig.ConnectionMaxIdle), metrics.GetConnectionsOpened())
+	assert.Equal(t, uint64(0), metrics.GetConnectionsOccupied())
 }
