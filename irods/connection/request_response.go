@@ -35,6 +35,9 @@ func (conn *IRODSConnection) Request(request Request, response Response, bsBuffe
 	requestMessage, err := request.GetMessage()
 	if err != nil {
 		logger.Error(err)
+		if conn.metrics != nil {
+			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		}
 		return fmt.Errorf("could not make a request message")
 	}
 
@@ -42,12 +45,18 @@ func (conn *IRODSConnection) Request(request Request, response Response, bsBuffe
 	err = conn.PreprocessMessage(requestMessage)
 	if err != nil {
 		logger.Error(err)
+		if conn.metrics != nil {
+			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		}
 		return fmt.Errorf("could not send preprocess message")
 	}
 
 	err = conn.SendMessage(requestMessage)
 	if err != nil {
 		logger.Error(err)
+		if conn.metrics != nil {
+			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		}
 		return fmt.Errorf("could not send a request message")
 	}
 
@@ -56,6 +65,9 @@ func (conn *IRODSConnection) Request(request Request, response Response, bsBuffe
 	responseMessage, err := conn.ReadMessage(bsBuffer)
 	if err != nil {
 		logger.Error(err)
+		if conn.metrics != nil {
+			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		}
 		return fmt.Errorf("could not receive a response message")
 	}
 
@@ -63,12 +75,18 @@ func (conn *IRODSConnection) Request(request Request, response Response, bsBuffe
 	err = conn.PostprocessMessage(responseMessage)
 	if err != nil {
 		logger.Error(err)
+		if conn.metrics != nil {
+			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		}
 		return fmt.Errorf("could not send postprocess message")
 	}
 
 	err = response.FromMessage(responseMessage)
 	if err != nil {
 		logger.Error(err)
+		if conn.metrics != nil {
+			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		}
 		return fmt.Errorf("could not parse a response message")
 	}
 
@@ -86,6 +104,9 @@ func (conn *IRODSConnection) RequestWithoutResponse(request Request) error {
 	requestMessage, err := request.GetMessage()
 	if err != nil {
 		logger.Error(err)
+		if conn.metrics != nil {
+			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		}
 		return fmt.Errorf("could not make a request message")
 	}
 
@@ -93,12 +114,18 @@ func (conn *IRODSConnection) RequestWithoutResponse(request Request) error {
 	err = conn.PreprocessMessage(requestMessage)
 	if err != nil {
 		logger.Error(err)
+		if conn.metrics != nil {
+			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		}
 		return fmt.Errorf("could not send preprocess message")
 	}
 
 	err = conn.SendMessage(requestMessage)
 	if err != nil {
 		logger.Error(err)
+		if conn.metrics != nil {
+			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		}
 		return fmt.Errorf("could not send a request message")
 	}
 
@@ -116,12 +143,18 @@ func (conn *IRODSConnection) RequestWithoutResponseNoXML(request Request) error 
 	requestMessage, err := request.GetMessage()
 	if err != nil {
 		logger.Error(err)
+		if conn.metrics != nil {
+			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		}
 		return fmt.Errorf("could not make a request message")
 	}
 
 	err = conn.SendMessage(requestMessage)
 	if err != nil {
 		logger.Error(err)
+		if conn.metrics != nil {
+			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		}
 		return fmt.Errorf("could not send a request message")
 	}
 
@@ -138,6 +171,9 @@ func (conn *IRODSConnection) RequestAndCheck(request Request, response CheckErro
 
 	if err := conn.Request(request, response, bsBuffer); err != nil {
 		logger.Error(err)
+		if conn.metrics != nil {
+			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		}
 		return err
 	}
 

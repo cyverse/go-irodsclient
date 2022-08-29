@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/cyverse/go-irodsclient/irods/connection"
+	"github.com/cyverse/go-irodsclient/irods/metrics"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	log "github.com/sirupsen/logrus"
 )
@@ -17,7 +18,7 @@ type IRODSSession struct {
 	sharedConnections    map[*connection.IRODSConnection]int
 	startNewTransaction  bool
 	poormansRollbackFail bool
-	transferMetrics      types.TransferMetrics
+	metrics              metrics.IRODSMetrics
 	mutex                sync.Mutex
 }
 
@@ -37,7 +38,7 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 		startNewTransaction:  config.StartNewTransaction,
 		poormansRollbackFail: false,
 
-		transferMetrics: types.TransferMetrics{},
+		metrics: metrics.IRODSMetrics{},
 
 		mutex: sync.Mutex{},
 	}
@@ -53,7 +54,7 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 		OperationTimeout: config.OperationTimeout,
 	}
 
-	pool, err := NewConnectionPool(&poolConfig)
+	pool, err := NewConnectionPool(&poolConfig, &sess.metrics)
 	if err != nil {
 		logger.WithError(err).Error("cannot create a new connection pool")
 		return nil, err
@@ -174,9 +175,12 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 	if sess.connectionPool.AvailableConnections() > 0 {
 		// try to get it from the pool
 		conn, err := sess.getConnectionFromPool()
+		// ignore error this happens when connections in the pool are all occupied
 		if err != nil {
-			logger.WithError(err).Error("failed to get a connection from the pool")
-			// fall through
+			if err != ErrConnectionPoolFull {
+				logger.WithError(err).Error("failed to get a connection from the pool")
+				// fall below
+			}
 		} else {
 			// put to share
 			if shares, ok := sess.sharedConnections[conn]; ok {
@@ -208,6 +212,7 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 	}
 
 	if minShareConn == nil {
+		sess.metrics.IncreaseCounterForConnectionPoolFailures(1)
 		return nil, fmt.Errorf("failed to get a shared connection")
 	}
 
@@ -237,7 +242,10 @@ func (sess *IRODSSession) AcquireConnectionsMulti(number int) ([]*connection.IRO
 			// try to get it from the pool
 			conn, err := sess.getConnectionFromPool()
 			if err != nil {
-				logger.WithError(err).Error("failed to get a connection from the pool")
+				if err != ErrConnectionPoolFull {
+					logger.WithError(err).Error("failed to get a connection from the pool")
+				}
+
 				// fall through
 				break
 			} else {
@@ -276,7 +284,7 @@ func (sess *IRODSSession) AcquireConnectionsMulti(number int) ([]*connection.IRO
 	}
 
 	acquiredConnections := []*connection.IRODSConnection{}
-	for conn, _ := range connections {
+	for conn := range connections {
 		acquiredConnections = append(acquiredConnections, conn)
 	}
 
@@ -290,11 +298,6 @@ func (sess *IRODSSession) ReturnConnection(conn *connection.IRODSConnection) err
 		"struct":   "IRODSSession",
 		"function": "ReturnConnection",
 	})
-
-	// add up metrics
-	metrics := conn.GetTransferMetrics()
-	sess.sumUpMetrics(&metrics)
-	conn.ClearTransferMetrics()
 
 	sess.mutex.Lock()
 	defer sess.mutex.Unlock()
@@ -326,11 +329,6 @@ func (sess *IRODSSession) ReturnConnection(conn *connection.IRODSConnection) err
 
 // DiscardConnection discards a connection
 func (sess *IRODSSession) DiscardConnection(conn *connection.IRODSConnection) error {
-	// add up metrics
-	metrics := conn.GetTransferMetrics()
-	sess.sumUpMetrics(&metrics)
-	conn.ClearTransferMetrics()
-
 	sess.mutex.Lock()
 	defer sess.mutex.Unlock()
 
@@ -363,39 +361,14 @@ func (sess *IRODSSession) Release() {
 }
 
 // Connections returns the number of connections in the pool
-func (sess *IRODSSession) Connections() int {
+func (sess *IRODSSession) ConnectionTotal() int {
 	sess.mutex.Lock()
 	defer sess.mutex.Unlock()
 
 	return sess.connectionPool.OpenConnections()
 }
 
-// sumUpMetrics adds up transfer metrics
-func (sess *IRODSSession) sumUpMetrics(metrics *types.TransferMetrics) {
-	if metrics == nil {
-		return
-	}
-
-	sess.transferMetrics.BytesReceived += metrics.BytesReceived
-	sess.transferMetrics.BytesSent += metrics.BytesSent
-
-	sess.transferMetrics.CollectionIO.Stat += metrics.CollectionIO.Stat
-	sess.transferMetrics.CollectionIO.List += metrics.CollectionIO.List
-	sess.transferMetrics.CollectionIO.Create += metrics.CollectionIO.Create
-	sess.transferMetrics.CollectionIO.Delete += metrics.CollectionIO.Delete
-	sess.transferMetrics.CollectionIO.Rename += metrics.CollectionIO.Rename
-	sess.transferMetrics.CollectionIO.Meta += metrics.CollectionIO.Meta
-
-	sess.transferMetrics.DataObjectIO.Stat += metrics.DataObjectIO.Stat
-	sess.transferMetrics.DataObjectIO.Create += metrics.DataObjectIO.Create
-	sess.transferMetrics.DataObjectIO.Delete += metrics.DataObjectIO.Delete
-	sess.transferMetrics.DataObjectIO.Rename += metrics.DataObjectIO.Rename
-	sess.transferMetrics.DataObjectIO.Meta += metrics.DataObjectIO.Meta
-	sess.transferMetrics.DataObjectIO.Read += metrics.DataObjectIO.Read
-	sess.transferMetrics.DataObjectIO.Write += metrics.DataObjectIO.Write
-}
-
-// GetTransferMetrics returns transfer metrics
-func (sess *IRODSSession) GetTransferMetrics() types.TransferMetrics {
-	return sess.transferMetrics
+// GetMetrics returns metrics
+func (sess *IRODSSession) GetMetrics() *metrics.IRODSMetrics {
+	return &sess.metrics
 }

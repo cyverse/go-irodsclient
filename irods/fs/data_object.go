@@ -54,7 +54,10 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseDataObjectMetricsStat(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForStat(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -240,7 +243,10 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseDataObjectMetricsStat(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForStat(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -434,7 +440,10 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseCollectionMetricsList(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForList(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -616,7 +625,10 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseCollectionMetricsList(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForList(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -807,7 +819,10 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, collection *types.IROD
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseDataObjectMetricsMeta(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForMetadataList(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -910,7 +925,10 @@ func ListDataObjectAccesses(conn *connection.IRODSConnection, collection *types.
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseDataObjectMetricsMeta(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForAccessList(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -1010,7 +1028,10 @@ func ListAccessesForDataObjects(conn *connection.IRODSConnection, collection *ty
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseDataObjectMetricsMeta(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForAccessList(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -1111,7 +1132,10 @@ func DeleteDataObject(conn *connection.IRODSConnection, path string, force bool)
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseDataObjectMetricsDelete(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForDataObjectDelete(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -1132,7 +1156,10 @@ func MoveDataObject(conn *connection.IRODSConnection, srcPath string, destPath s
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseDataObjectMetricsRename(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForDataObjectRename(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -1151,6 +1178,11 @@ func MoveDataObject(conn *connection.IRODSConnection, srcPath string, destPath s
 func CopyDataObject(conn *connection.IRODSConnection, srcPath string, destPath string) error {
 	if conn == nil || !conn.IsConnected() {
 		return fmt.Errorf("connection is nil or disconnected")
+	}
+
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForDataObjectRename(1)
 	}
 
 	// lock the connection
@@ -1172,6 +1204,11 @@ func TruncateDataObject(conn *connection.IRODSConnection, path string, size int6
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForDataObjectUpdate(1)
+	}
+
 	// lock the connection
 	conn.Lock()
 	defer conn.Unlock()
@@ -1189,6 +1226,11 @@ func TruncateDataObject(conn *connection.IRODSConnection, path string, size int6
 func ReplicateDataObject(conn *connection.IRODSConnection, path string, resource string, update bool, adminFlag bool) error {
 	if conn == nil || !conn.IsConnected() {
 		return fmt.Errorf("connection is nil or disconnected")
+	}
+
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForDataObjectUpdate(1)
 	}
 
 	// lock the connection
@@ -1225,6 +1267,11 @@ func TrimDataObject(conn *connection.IRODSConnection, path string, resource stri
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForDataObjectUpdate(1)
+	}
+
 	// lock the connection
 	conn.Lock()
 	defer conn.Unlock()
@@ -1255,6 +1302,11 @@ func CreateDataObject(conn *connection.IRODSConnection, path string, resource st
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForDataObjectCreate(1)
+	}
+
 	// lock the connection
 	conn.Lock()
 	defer conn.Unlock()
@@ -1266,8 +1318,6 @@ func CreateDataObject(conn *connection.IRODSConnection, path string, resource st
 	}
 
 	fileOpenMode := types.FileOpenMode(mode)
-
-	conn.IncreaseDataObjectMetricsCreate(1)
 
 	request := message.NewIRODSMessageCreateobjRequest(path, resource, fileOpenMode, force)
 	response := message.IRODSMessageCreateobjResponse{}
@@ -1291,6 +1341,11 @@ func OpenDataObject(conn *connection.IRODSConnection, path string, resource stri
 		return nil, -1, fmt.Errorf("connection is nil or disconnected")
 	}
 
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForDataObjectOpen(1)
+	}
+
 	// lock the connection
 	conn.Lock()
 	defer conn.Unlock()
@@ -1302,8 +1357,6 @@ func OpenDataObject(conn *connection.IRODSConnection, path string, resource stri
 	}
 
 	fileOpenMode := types.FileOpenMode(mode)
-
-	conn.IncreaseDataObjectMetricsCreate(1)
 
 	request := message.NewIRODSMessageOpenobjRequest(path, resource, fileOpenMode)
 	response := message.IRODSMessageOpenobjResponse{}
@@ -1340,6 +1393,11 @@ func OpenDataObject(conn *connection.IRODSConnection, path string, resource stri
 func OpenDataObjectWithReplicaToken(conn *connection.IRODSConnection, path string, resource string, mode string, replicaToken string, resourceHierarchy string) (*types.IRODSFileHandle, int64, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, -1, fmt.Errorf("connection is nil or disconnected")
+	}
+
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForDataObjectOpen(1)
 	}
 
 	// lock the connection
@@ -1391,6 +1449,11 @@ func OpenDataObjectWithOperation(conn *connection.IRODSConnection, path string, 
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForDataObjectOpen(1)
+	}
+
 	// lock the connection
 	conn.Lock()
 	defer conn.Unlock()
@@ -1437,6 +1500,11 @@ func OpenDataObjectWithOperation(conn *connection.IRODSConnection, path string, 
 func GetReplicaAccessInfo(conn *connection.IRODSConnection, handle *types.IRODSFileHandle) (string, string, error) {
 	if conn == nil || !conn.IsConnected() {
 		return "", "", fmt.Errorf("connection is nil or disconnected")
+	}
+
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForStat(1)
 	}
 
 	// lock the connection
@@ -1491,7 +1559,10 @@ func ReadDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHan
 		return 0, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseDataObjectMetricsRead(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForDataObjectRead(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -1523,7 +1594,10 @@ func WriteDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHa
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseDataObjectMetricsWrite(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForDataObjectWrite(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -1544,7 +1618,10 @@ func TruncateDataObjectHandle(conn *connection.IRODSConnection, handle *types.IR
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseDataObjectMetricsWrite(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForDataObjectUpdate(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -1610,6 +1687,11 @@ func CloseDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHa
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForDataObjectClose(1)
+	}
+
 	// lock the connection
 	conn.Lock()
 	defer conn.Unlock()
@@ -1630,7 +1712,10 @@ func AddDataObjectMeta(conn *connection.IRODSConnection, path string, metadata *
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseDataObjectMetricsMeta(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForMetadataCreate(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -1652,7 +1737,10 @@ func DeleteDataObjectMeta(conn *connection.IRODSConnection, path string, metadat
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseDataObjectMetricsMeta(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForMetadataDelete(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -1682,7 +1770,10 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseDataObjectMetricsMeta(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForSearch(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -1884,7 +1975,10 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseDataObjectMetricsMeta(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForSearch(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -2096,7 +2190,10 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseDataObjectMetricsMeta(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForSearch(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -2299,7 +2396,10 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseDataObjectMetricsMeta(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForSearch(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -2510,7 +2610,10 @@ func ChangeDataObjectAccess(conn *connection.IRODSConnection, path string, acces
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseDataObjectMetricsMeta(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForAccessUpdate(1)
+	}
 
 	// lock the connection
 	conn.Lock()

@@ -44,7 +44,10 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseCollectionMetricsStat(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForStat(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -145,7 +148,10 @@ func ListCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseCollectionMetricsStat(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForMetadataList(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -246,7 +252,10 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseCollectionMetricsMeta(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForAccessList(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -344,7 +353,10 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, path string
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseCollectionMetricsMeta(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForAccessList(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -445,7 +457,10 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseCollectionMetricsList(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForList(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -560,7 +575,10 @@ func CreateCollection(conn *connection.IRODSConnection, path string, recurse boo
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseCollectionMetricsCreate(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForCollectionCreate(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -577,7 +595,10 @@ func DeleteCollection(conn *connection.IRODSConnection, path string, recurse boo
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseCollectionMetricsDelete(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForCollectionDelete(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -623,7 +644,10 @@ func MoveCollection(conn *connection.IRODSConnection, srcPath string, destPath s
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseCollectionMetricsRename(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForCollectionRename(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -645,7 +669,10 @@ func AddCollectionMeta(conn *connection.IRODSConnection, path string, metadata *
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseCollectionMetricsMeta(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForMetadataCreate(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -663,7 +690,10 @@ func DeleteCollectionMeta(conn *connection.IRODSConnection, path string, metadat
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseCollectionMetricsMeta(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForMetadataDelete(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -693,7 +723,10 @@ func SearchCollectionsByMeta(conn *connection.IRODSConnection, metaName string, 
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseCollectionMetricsMeta(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForSearch(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -811,7 +844,10 @@ func SearchCollectionsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 		return nil, fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseCollectionMetricsMeta(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForSearch(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -935,7 +971,10 @@ func ChangeCollectionAccess(conn *connection.IRODSConnection, path string, acces
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseCollectionMetricsMeta(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForAccessUpdate(1)
+	}
 
 	// lock the connection
 	conn.Lock()
@@ -956,7 +995,10 @@ func SetAccessInherit(conn *connection.IRODSConnection, path string, inherit, re
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
-	conn.IncreaseCollectionMetricsMeta(1)
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForAccessUpdate(1)
+	}
 
 	// lock the connection
 	conn.Lock()

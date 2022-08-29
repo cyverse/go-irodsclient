@@ -14,6 +14,7 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/auth"
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/message"
+	"github.com/cyverse/go-irodsclient/irods/metrics"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
 
@@ -26,16 +27,16 @@ type IRODSConnection struct {
 	requestTimeout  time.Duration
 	applicationName string
 
-	// internal
 	connected               bool
 	socket                  net.Conn
 	serverVersion           *types.IRODSVersion
 	generatedPasswordForPAM string // used for PAM auth
 	creationTime            time.Time
 	lastSuccessfulAccess    time.Time
-	transferMetrics         types.TransferMetrics
 	mutex                   sync.Mutex
 	locked                  bool // true if mutex is locked
+
+	metrics *metrics.IRODSMetrics
 }
 
 // NewIRODSConnection create a IRODSConnection
@@ -47,6 +48,22 @@ func NewIRODSConnection(account *types.IRODSAccount, requestTimeout time.Duratio
 
 		creationTime: time.Now(),
 		mutex:        sync.Mutex{},
+
+		metrics: &metrics.IRODSMetrics{},
+	}
+}
+
+// NewIRODSConnectionWithMetrics create a IRODSConnection
+func NewIRODSConnectionWithMetrics(account *types.IRODSAccount, requestTimeout time.Duration, applicationName string, metrics *metrics.IRODSMetrics) *IRODSConnection {
+	return &IRODSConnection{
+		account:         account,
+		requestTimeout:  requestTimeout,
+		applicationName: applicationName,
+
+		creationTime: time.Now(),
+		mutex:        sync.Mutex{},
+
+		metrics: metrics,
 	}
 }
 
@@ -116,7 +133,14 @@ func (conn *IRODSConnection) Connect() error {
 	socket, err := net.Dial("tcp", server)
 	if err != nil {
 		logger.WithError(err).Errorf("could not connect to specified host and port (%s:%d)", conn.account.Host, conn.account.Port)
+		if conn.metrics != nil {
+			conn.metrics.IncreaseCounterForConnectionFailures(1)
+		}
 		return err
+	}
+
+	if conn.metrics != nil {
+		conn.metrics.IncreaseConnectionsOpened(1)
 	}
 
 	conn.socket = socket
@@ -132,6 +156,9 @@ func (conn *IRODSConnection) Connect() error {
 	if err != nil {
 		logger.WithError(err).Errorf("failed to startup an iRODS connection to %s:%d", conn.account.Host, conn.account.Port)
 		_ = conn.disconnectNow()
+		if conn.metrics != nil {
+			conn.metrics.IncreaseCounterForConnectionFailures(1)
+		}
 		return err
 	}
 
@@ -446,6 +473,11 @@ func (conn *IRODSConnection) disconnectNow() error {
 		err = conn.socket.Close()
 		conn.socket = nil
 	}
+
+	if conn.metrics != nil {
+		conn.metrics.DecreaseConnectionsOpened(1)
+	}
+
 	return err
 }
 
@@ -467,17 +499,24 @@ func (conn *IRODSConnection) Disconnect() error {
 	err := conn.RequestWithoutResponse(disconnect)
 	if err != nil {
 		logger.Error(err)
-		return fmt.Errorf("could not send a disconnect request")
 	}
 
 	conn.lastSuccessfulAccess = time.Now()
 
-	return conn.disconnectNow()
+	err2 := conn.disconnectNow()
+	if err2 != nil {
+		return err2
+	}
+
+	return err
 }
 
 func (conn *IRODSConnection) socketFail() {
-	conn.connected = false
-	conn.socket = nil
+	if conn.metrics != nil {
+		conn.metrics.IncreaseCounterForConnectionFailures(1)
+	}
+
+	conn.disconnectNow()
 }
 
 // Send sends data
@@ -510,7 +549,9 @@ func (conn *IRODSConnection) Send(buffer []byte, size int) error {
 	}
 
 	if size > 0 {
-		conn.IncreaseTransferMetricsBytesSent(uint64(size))
+		if conn.metrics != nil {
+			conn.metrics.IncreaseBytesSent(uint64(size))
+		}
 	}
 
 	conn.lastSuccessfulAccess = time.Now()
@@ -547,7 +588,9 @@ func (conn *IRODSConnection) Recv(buffer []byte, size int) (int, error) {
 	}
 
 	if readLen > 0 {
-		conn.IncreaseTransferMetricsBytesReceived(uint64(readLen))
+		if conn.metrics != nil {
+			conn.metrics.IncreaseBytesReceived(uint64(readLen))
+		}
 	}
 
 	conn.lastSuccessfulAccess = time.Now()
@@ -830,92 +873,7 @@ func (conn *IRODSConnection) RawBind(socket net.Conn) {
 	conn.socket = socket
 }
 
-/*
- * Metrics related functions
- */
-
-// GetTransferMetrics returns transfer metrics
-func (conn *IRODSConnection) GetTransferMetrics() types.TransferMetrics {
-	// returns a copy of metrics
-	return conn.transferMetrics
-}
-
-// ClearTransferMetrics clears transfer metrics
-func (conn *IRODSConnection) ClearTransferMetrics() {
-	conn.transferMetrics = types.TransferMetrics{}
-}
-
-// IncreaseTransferMetricsBytesSent increases bytes sent metrics
-func (conn *IRODSConnection) IncreaseTransferMetricsBytesSent(n uint64) {
-	conn.transferMetrics.BytesSent += n
-}
-
-// IncreaseTransferMetricsBytesReceived increases bytes received metrics
-func (conn *IRODSConnection) IncreaseTransferMetricsBytesReceived(n uint64) {
-	conn.transferMetrics.BytesReceived += n
-}
-
-// IncreaseDataObjectMetricsStat increases stat data object metrics
-func (conn *IRODSConnection) IncreaseDataObjectMetricsStat(n uint64) {
-	conn.transferMetrics.DataObjectIO.Stat += n
-}
-
-// IncreaseDataObjectMetricsCreate increases create data object metrics
-func (conn *IRODSConnection) IncreaseDataObjectMetricsCreate(n uint64) {
-	conn.transferMetrics.DataObjectIO.Create += n
-}
-
-// IncreaseDataObjectMetricsDelete increases delete data object metrics
-func (conn *IRODSConnection) IncreaseDataObjectMetricsDelete(n uint64) {
-	conn.transferMetrics.DataObjectIO.Delete += n
-}
-
-// IncreaseDataObjectMetricsWrite increases write data object metrics
-func (conn *IRODSConnection) IncreaseDataObjectMetricsWrite(n uint64) {
-	conn.transferMetrics.DataObjectIO.Write += n
-}
-
-// IncreaseDataObjectMetricsRead increases read data object metrics
-func (conn *IRODSConnection) IncreaseDataObjectMetricsRead(n uint64) {
-	conn.transferMetrics.DataObjectIO.Read += n
-}
-
-// IncreaseDataObjectMetricsRename increases rename data object metrics
-func (conn *IRODSConnection) IncreaseDataObjectMetricsRename(n uint64) {
-	conn.transferMetrics.DataObjectIO.Rename += n
-}
-
-// IncreaseDataObjectMetricsMeta increases meta data object metrics
-func (conn *IRODSConnection) IncreaseDataObjectMetricsMeta(n uint64) {
-	conn.transferMetrics.DataObjectIO.Meta += n
-}
-
-// IncreaseCollectionMetricsStat increases stat collection metrics
-func (conn *IRODSConnection) IncreaseCollectionMetricsStat(n uint64) {
-	conn.transferMetrics.CollectionIO.Stat += n
-}
-
-// IncreaseCollectionMetricsList increases list collection metrics
-func (conn *IRODSConnection) IncreaseCollectionMetricsList(n uint64) {
-	conn.transferMetrics.CollectionIO.List += n
-}
-
-// IncreaseCollectionMetricsCreate increases create collection metrics
-func (conn *IRODSConnection) IncreaseCollectionMetricsCreate(n uint64) {
-	conn.transferMetrics.CollectionIO.Create += n
-}
-
-// IncreaseCollectionMetricsDelete increases delete collection metrics
-func (conn *IRODSConnection) IncreaseCollectionMetricsDelete(n uint64) {
-	conn.transferMetrics.CollectionIO.Delete += n
-}
-
-// IncreaseCollectionMetricsRename increases rename collection metrics
-func (conn *IRODSConnection) IncreaseCollectionMetricsRename(n uint64) {
-	conn.transferMetrics.CollectionIO.Rename += n
-}
-
-// IncreaseCollectionMetricsMeta increases meta collection metrics
-func (conn *IRODSConnection) IncreaseCollectionMetricsMeta(n uint64) {
-	conn.transferMetrics.CollectionIO.Meta += n
+// GetMetrics returns metrics
+func (conn *IRODSConnection) GetMetrics() *metrics.IRODSMetrics {
+	return conn.metrics
 }

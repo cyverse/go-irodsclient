@@ -8,6 +8,7 @@ import (
 
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	irods_fs "github.com/cyverse/go-irodsclient/irods/fs"
+	"github.com/cyverse/go-irodsclient/irods/metrics"
 	"github.com/cyverse/go-irodsclient/irods/session"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
@@ -118,14 +119,14 @@ func (fs *FileSystem) GetID() string {
 	return fs.id
 }
 
-// Connections counts current established connections
-func (fs *FileSystem) Connections() int {
-	return fs.session.Connections()
+// ConnectionTotal counts current established connections
+func (fs *FileSystem) ConnectionTotal() int {
+	return fs.session.ConnectionTotal()
 }
 
-// GetTransferMetrics returns transfer metrics
-func (fs *FileSystem) GetTransferMetrics() types.TransferMetrics {
-	return fs.session.GetTransferMetrics()
+// GetMetrics returns metrics
+func (fs *FileSystem) GetMetrics() *metrics.IRODSMetrics {
+	return fs.session.GetMetrics()
 }
 
 // Stat returns file status
