@@ -1377,6 +1377,10 @@ func OpenDataObject(conn *connection.IRODSConnection, path string, resource stri
 		Oper:           common.OPER_TYPE_NONE,
 	}
 
+	if metrics != nil {
+		metrics.IncreaseCounterForOpenFileHandles(1)
+	}
+
 	// handle seek
 	var offset int64 = 0
 	if fileOpenMode.SeekToEnd() {
@@ -1431,6 +1435,10 @@ func OpenDataObjectWithReplicaToken(conn *connection.IRODSConnection, path strin
 		Oper:           common.OPER_TYPE_NONE,
 	}
 
+	if metrics != nil {
+		metrics.IncreaseCounterForOpenFileHandles(1)
+	}
+
 	// handle seek
 	var offset int64 = 0
 	if fileOpenMode.SeekToEnd() {
@@ -1483,6 +1491,10 @@ func OpenDataObjectWithOperation(conn *connection.IRODSConnection, path string, 
 		OpenMode:       fileOpenMode,
 		Resource:       resource,
 		Oper:           oper,
+	}
+
+	if metrics != nil {
+		metrics.IncreaseCounterForOpenFileHandles(1)
 	}
 
 	// handle seek
@@ -1702,6 +1714,11 @@ func CloseDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHa
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a data object")
 	}
+
+	if metrics != nil {
+		metrics.DecreaseCounterForOpenFileHandles(1)
+	}
+
 	return err
 }
 
