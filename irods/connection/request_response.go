@@ -42,7 +42,77 @@ func (conn *IRODSConnection) Request(request Request, response Response, bsBuffe
 	}
 
 	// translate xml.Marshal XML into irods-understandable XML (among others, replace &#34; by &quot;)
-	err = conn.PreprocessMessage(requestMessage)
+	err = conn.PreprocessMessage(requestMessage, false)
+	if err != nil {
+		logger.Error(err)
+		if conn.metrics != nil {
+			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		}
+		return fmt.Errorf("could not send preprocess message")
+	}
+
+	err = conn.SendMessage(requestMessage)
+	if err != nil {
+		logger.Error(err)
+		if conn.metrics != nil {
+			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		}
+		return fmt.Errorf("could not send a request message")
+	}
+
+	// Server responds with results
+	// external bs buffer
+	responseMessage, err := conn.ReadMessage(bsBuffer)
+	if err != nil {
+		logger.Error(err)
+		if conn.metrics != nil {
+			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		}
+		return fmt.Errorf("could not receive a response message")
+	}
+
+	// translate irods-dialect XML into valid XML
+	err = conn.PostprocessMessage(responseMessage)
+	if err != nil {
+		logger.Error(err)
+		if conn.metrics != nil {
+			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		}
+		return fmt.Errorf("could not send postprocess message")
+	}
+
+	err = response.FromMessage(responseMessage)
+	if err != nil {
+		logger.Error(err)
+		if conn.metrics != nil {
+			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		}
+		return fmt.Errorf("could not parse a response message")
+	}
+
+	return nil
+}
+
+// RequestForPassword sends a request and expects a response. XML escape only for '&'
+// bsBuffer is optional
+func (conn *IRODSConnection) RequestForPassword(request Request, response Response, bsBuffer []byte) error {
+	logger := log.WithFields(log.Fields{
+		"package":  "connection",
+		"struct":   "IRODSConnection",
+		"function": "RequestForPassword",
+	})
+
+	requestMessage, err := request.GetMessage()
+	if err != nil {
+		logger.Error(err)
+		if conn.metrics != nil {
+			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		}
+		return fmt.Errorf("could not make a request message")
+	}
+
+	// translate xml.Marshal XML into irods-understandable XML (among others, replace &#34; by &quot;)
+	err = conn.PreprocessMessage(requestMessage, true)
 	if err != nil {
 		logger.Error(err)
 		if conn.metrics != nil {
@@ -111,7 +181,7 @@ func (conn *IRODSConnection) RequestWithoutResponse(request Request) error {
 	}
 
 	// translate xml.Marshal XML into irods-understandable XML (among others, replace &#34; by &quot;)
-	err = conn.PreprocessMessage(requestMessage)
+	err = conn.PreprocessMessage(requestMessage, false)
 	if err != nil {
 		logger.Error(err)
 		if conn.metrics != nil {
@@ -170,6 +240,26 @@ func (conn *IRODSConnection) RequestAndCheck(request Request, response CheckErro
 	})
 
 	if err := conn.Request(request, response, bsBuffer); err != nil {
+		logger.Error(err)
+		if conn.metrics != nil {
+			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		}
+		return err
+	}
+
+	return response.CheckError()
+}
+
+// RequestAndCheckForPassword sends a request and expects a CheckErrorResponse, on which the error is already checked.
+// Only escape '&'
+func (conn *IRODSConnection) RequestAndCheckForPassword(request Request, response CheckErrorResponse, bsBuffer []byte) error {
+	logger := log.WithFields(log.Fields{
+		"package":  "connection",
+		"struct":   "IRODSConnection",
+		"function": "RequestAndCheckForPassword",
+	})
+
+	if err := conn.RequestForPassword(request, response, bsBuffer); err != nil {
 		logger.Error(err)
 		if conn.metrics != nil {
 			conn.metrics.IncreaseCounterForRequestResponseFailures(1)

@@ -3,7 +3,6 @@ package auth
 import (
 	"crypto/md5"
 	"encoding/base64"
-	"fmt"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
 )
@@ -14,17 +13,12 @@ const (
 )
 
 // GenerateAuthResponse returns auth response
-func GenerateAuthResponse(challenge string, password string) (string, error) {
-	challengeBytes, err := base64.StdEncoding.DecodeString(challenge)
-	if err != nil {
-		return "", fmt.Errorf("could not decode an authentication challenge")
-	}
-
-	paddedPassword := make([]byte, common.MaxPasswordLength, common.MaxPasswordLength)
+func GenerateAuthResponse(challenge []byte, password string) string {
+	paddedPassword := make([]byte, common.MaxPasswordLength)
 	copy(paddedPassword, []byte(password))
 
 	m := md5.New()
-	m.Write(challengeBytes[:challengeLen])
+	m.Write(challenge[:challengeLen])
 	m.Write(paddedPassword)
 	encodedPassword := m.Sum(nil)
 
@@ -36,5 +30,5 @@ func GenerateAuthResponse(challenge string, password string) (string, error) {
 	}
 
 	b64encodedPassword := base64.StdEncoding.EncodeToString(encodedPassword[:authResponseLen])
-	return b64encodedPassword, nil
+	return b64encodedPassword
 }

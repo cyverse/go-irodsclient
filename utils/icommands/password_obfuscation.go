@@ -34,10 +34,6 @@ var (
 		'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
 		'!', '"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '-', '.', '/',
 	}
-
-	//defaultPasswordKey    string = "a9_3fker"
-	//defaultScramblePrefix string = ".E_"
-	//v2Prefix              string = "A.ObfV2"
 )
 
 // DecodePasswordFile decodes password string in .irodsA file

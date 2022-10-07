@@ -1,6 +1,7 @@
 package message
 
 import (
+	"encoding/base64"
 	"encoding/xml"
 	"fmt"
 
@@ -59,4 +60,14 @@ func (msg *IRODSMessageAuthChallenge) FromMessage(msgIn *IRODSMessage) error {
 
 	err := msg.FromBytes(msgIn.Body.Message)
 	return err
+}
+
+// GetChallenge returns challenge bytes
+func (msg *IRODSMessageAuthChallenge) GetChallenge() ([]byte, error) {
+	challengeBytes, err := base64.StdEncoding.DecodeString(msg.Challenge)
+	if err != nil {
+		return nil, fmt.Errorf("could not decode an authentication challenge")
+	}
+
+	return challengeBytes, nil
 }

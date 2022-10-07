@@ -108,14 +108,19 @@ func (conn *IRODSConnection) PostprocessXML(in []byte) (out []byte, err error) {
 }
 
 // PreprocessMessage modifies a request message to use irods dialect for XML.
-func (conn *IRODSConnection) PreprocessMessage(msg *message.IRODSMessage) error {
+func (conn *IRODSConnection) PreprocessMessage(msg *message.IRODSMessage, forPassword bool) error {
 	if msg.Body == nil || msg.Body.Message == nil {
 		return nil
 	}
 
 	var err error
 
-	msg.Body.Message, err = conn.PreprocessXML(msg.Body.Message)
+	if forPassword {
+		msg.Body.Message, err = conn.PreprocessXMLForPassword(msg.Body.Message)
+	} else {
+		msg.Body.Message, err = conn.PreprocessXML(msg.Body.Message)
+	}
+
 	msg.Header.MessageLen = uint32(len(msg.Body.Message))
 
 	return err
@@ -160,6 +165,56 @@ func (conn *IRODSConnection) PreprocessXML(in []byte) (out []byte, err error) {
 		case buf[0] == '`' && !conn.talksCorrectXML():
 			out = append(out, irodsEscApos...)
 			buf = buf[1:]
+
+		// pass utf8 characters
+		default:
+			r, size := utf8.DecodeRune(buf)
+
+			if r == utf8.RuneError && size == 1 {
+				err = ErrInvalidUTF8
+				out = in
+
+				return
+			}
+
+			out = append(out, buf[:size]...)
+			buf = buf[size:]
+		}
+	}
+
+	return
+}
+
+// PreprocessXMLForPassword translates output of xml.Marshal into XML that IRODS understands.
+func (conn *IRODSConnection) PreprocessXMLForPassword(in []byte) (out []byte, err error) {
+	buf := in
+
+	for len(buf) > 0 {
+		switch {
+		// turn &#34; into \"
+		case bytes.HasPrefix(buf, escQuot):
+			out = append(out, '"')
+			buf = buf[len(escQuot):]
+
+		// turn &#39; into \'
+		case bytes.HasPrefix(buf, escApos):
+			out = append(out, '\'')
+			buf = buf[len(escApos):]
+
+		// irods does not decode encoded tabs
+		case bytes.HasPrefix(buf, escTab):
+			out = append(out, '\t')
+			buf = buf[len(escTab):]
+
+		// irods does not decode encoded carriage returns
+		case bytes.HasPrefix(buf, escCR):
+			out = append(out, '\r')
+			buf = buf[len(escCR):]
+
+		// irods does not decode encoded newlines
+		case bytes.HasPrefix(buf, escNL):
+			out = append(out, '\n')
+			buf = buf[len(escNL):]
 
 		// pass utf8 characters
 		default:

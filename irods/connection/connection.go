@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"sync"
@@ -33,6 +34,7 @@ type IRODSConnection struct {
 	generatedPasswordForPAM string // used for PAM auth
 	creationTime            time.Time
 	lastSuccessfulAccess    time.Time
+	clientSignature         string
 	mutex                   sync.Mutex
 	locked                  bool // true if mutex is locked
 
@@ -46,8 +48,9 @@ func NewIRODSConnection(account *types.IRODSAccount, requestTimeout time.Duratio
 		requestTimeout:  requestTimeout,
 		applicationName: applicationName,
 
-		creationTime: time.Now(),
-		mutex:        sync.Mutex{},
+		creationTime:    time.Now(),
+		clientSignature: "",
+		mutex:           sync.Mutex{},
 
 		metrics: &metrics.IRODSMetrics{},
 	}
@@ -60,8 +63,9 @@ func NewIRODSConnectionWithMetrics(account *types.IRODSAccount, requestTimeout t
 		requestTimeout:  requestTimeout,
 		applicationName: applicationName,
 
-		creationTime: time.Now(),
-		mutex:        sync.Mutex{},
+		creationTime:    time.Now(),
+		clientSignature: "",
+		mutex:           sync.Mutex{},
 
 		metrics: metrics,
 	}
@@ -111,6 +115,11 @@ func (conn *IRODSConnection) GetCreationTime() time.Time {
 // GetLastSuccessfulAccess returns last successful access time
 func (conn *IRODSConnection) GetLastSuccessfulAccess() time.Time {
 	return conn.lastSuccessfulAccess
+}
+
+// GetClientSignature returns client signature to be used in password obfuscation
+func (conn *IRODSConnection) GetClientSignature() string {
+	return conn.clientSignature
 }
 
 // Connect connects to iRODS
@@ -387,11 +396,16 @@ func (conn *IRODSConnection) login(password string) error {
 		return fmt.Errorf("could not receive an authentication challenge message body")
 	}
 
-	encodedPassword, err := auth.GenerateAuthResponse(authChallenge.Challenge, password)
+	challengeBytes, err := authChallenge.GetChallenge()
 	if err != nil {
 		logger.Error(err)
-		return fmt.Errorf("could not generate an authentication response")
+		return err
 	}
+
+	// save client signature
+	conn.clientSignature = conn.createClientSignature(challengeBytes)
+
+	encodedPassword := auth.GenerateAuthResponse(challengeBytes, password)
 
 	authResponse := message.NewIRODSMessageAuthResponse(encodedPassword, conn.account.ProxyUser)
 	authResult := message.IRODSMessageAuthResult{}
@@ -876,4 +890,14 @@ func (conn *IRODSConnection) RawBind(socket net.Conn) {
 // GetMetrics returns metrics
 func (conn *IRODSConnection) GetMetrics() *metrics.IRODSMetrics {
 	return conn.metrics
+}
+
+// createClientSignature creates a client signature from auth challenge
+func (conn *IRODSConnection) createClientSignature(challenge []byte) string {
+	if len(challenge) > 16 {
+		challenge = challenge[:16]
+	}
+
+	signature := hex.EncodeToString(challenge)
+	return signature
 }

@@ -1,55 +1,102 @@
 package fs
 
 import (
-	"github.com/cyverse/go-irodsclient/irods/common"
+	"fmt"
+
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/message"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
 )
 
-// Very secret key that is part of the public cpp code of irods
-const (
-	scramblePadding string = "1gCBizHWbwIYyWLoysGzTe6SyzqFKMniZX05faZHWAwQKXf6Fs"
-)
-
-// AddUser adds a user.
-func AddUser(conn *connection.IRODSConnection, username string, password string) error {
+// CreateUser creates a user.
+func CreateUser(conn *connection.IRODSConnection, username string, zone string, userType string) error {
 	// lock the connection
 	conn.Lock()
 	defer conn.Unlock()
 
-	// copy the behaviour from setScrambledPw
-	if len(password) > common.MaxPasswordLength {
-		password = password[0:common.MaxPasswordLength]
-	}
+	userZoneName := fmt.Sprintf("%s#%s", username, zone)
 
-	if lencopy := common.MaxPasswordLength - 10 - len(password); lencopy > 15 {
-		password = password + scramblePadding[0:lencopy]
-	}
+	req := message.NewIRODSMessageAdminRequest("add", "user", userZoneName, userType, zone)
+
+	return conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+}
+
+// ChangeUserPassword changes the password of a user object
+func ChangeUserPassword(conn *connection.IRODSConnection, username string, zone string, newPassword string) error {
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	userZoneName := fmt.Sprintf("%s#%s", username, zone)
 
 	account := conn.GetAccount()
 
-	adminPassword := account.Password
-
+	oldPassword := account.Password
 	if account.AuthenticationScheme == types.AuthSchemePAM {
-		adminPassword = conn.GetGeneratedPasswordForPAMAuth()
+		oldPassword = conn.GetGeneratedPasswordForPAMAuth()
 	}
 
-	scrambledPassword := util.Scramble(password, adminPassword)
+	scrambledPassword := util.ObfuscateNewPassword(newPassword, oldPassword, conn.GetClientSignature())
 
-	req := message.NewIRODSMessageUserAdminRequest("mkuser", username, scrambledPassword)
+	req := message.NewIRODSMessageAdminRequest("modify", "user", userZoneName, "password", scrambledPassword, zone)
+
+	return conn.RequestAndCheckForPassword(req, &message.IRODSMessageAdminResponse{}, nil)
+}
+
+// ChangeUserType changes the type / role of a user object
+func ChangeUserType(conn *connection.IRODSConnection, username string, zone string, newType string) error {
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	userZoneName := fmt.Sprintf("%s#%s", username, zone)
+
+	req := message.NewIRODSMessageAdminRequest("modify", "user", userZoneName, "type", newType, zone)
+
+	return conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+}
+
+// RemoveUser removes a user or a group.
+func RemoveUser(conn *connection.IRODSConnection, username string, zone string) error {
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	req := message.NewIRODSMessageAdminRequest("rm", "user", username, zone)
+
+	return conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+}
+
+// CreateGroup creates a group.
+func CreateGroup(conn *connection.IRODSConnection, groupname string, groupType string) error {
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	req := message.NewIRODSMessageAdminRequest("add", "user", groupname, groupType)
 
 	return conn.RequestAndCheck(req, &message.IRODSMessageUserAdminResponse{}, nil)
 }
 
-// AddGroup adds a group.
-func AddGroup(conn *connection.IRODSConnection, group string) error {
+// AddGroupMember adds a user to a group.
+func AddGroupMember(conn *connection.IRODSConnection, groupname string, username string, zone string) error {
 	// lock the connection
 	conn.Lock()
 	defer conn.Unlock()
 
-	req := message.NewIRODSMessageUserAdminRequest("mkgroup", group, string(types.IRODSUserRodsGroup))
+	req := message.NewIRODSMessageAdminRequest("modify", "group", groupname, "add", username, zone)
+
+	return conn.RequestAndCheck(req, &message.IRODSMessageUserAdminResponse{}, nil)
+}
+
+// RemoveGroupMember removes a user from a group.
+func RemoveGroupMember(conn *connection.IRODSConnection, groupname string, username string, zone string) error {
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	req := message.NewIRODSMessageAdminRequest("modify", "group", groupname, "remove", username, zone)
 
 	return conn.RequestAndCheck(req, &message.IRODSMessageUserAdminResponse{}, nil)
 }
@@ -61,50 +108,6 @@ func AddChildToResc(conn *connection.IRODSConnection, parent string, child strin
 	defer conn.Unlock()
 
 	req := message.NewIRODSMessageAdminRequest("add", "childtoresc", parent, child, options)
-
-	return conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
-}
-
-// AddToGroup adds a user to a group.
-func AddToGroup(conn *connection.IRODSConnection, group string, user string) error {
-	// lock the connection
-	conn.Lock()
-	defer conn.Unlock()
-
-	req := message.NewIRODSMessageUserAdminRequest("modify", "group", group, "add", user)
-
-	return conn.RequestAndCheck(req, &message.IRODSMessageUserAdminResponse{}, nil)
-}
-
-// RmFromGroup removes a user from a group.
-func RmFromGroup(conn *connection.IRODSConnection, group string, user string) error {
-	// lock the connection
-	conn.Lock()
-	defer conn.Unlock()
-
-	req := message.NewIRODSMessageUserAdminRequest("modify", "group", group, "remove", user)
-
-	return conn.RequestAndCheck(req, &message.IRODSMessageUserAdminResponse{}, nil)
-}
-
-// ChangeUserType changes the type / role of a user object
-func ChangeUserType(conn *connection.IRODSConnection, user string, newType string) error {
-	// lock the connection
-	conn.Lock()
-	defer conn.Unlock()
-
-	req := message.NewIRODSMessageAdminRequest("modify", "user", user, "type", newType)
-
-	return conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
-}
-
-// RmUser removes a user or a group.
-func RmUser(conn *connection.IRODSConnection, user string) error {
-	// lock the connection
-	conn.Lock()
-	defer conn.Unlock()
-
-	req := message.NewIRODSMessageAdminRequest("rm", "user", user)
 
 	return conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
 }
