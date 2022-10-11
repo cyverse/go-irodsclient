@@ -15,7 +15,10 @@ func (fs *FileSystem) ExtractStructFile(path string, targetCollection string, re
 	if err != nil {
 		return err
 	}
-	defer fs.session.ReturnConnection(conn)
+
+	// we do not return the connection for reuse. This does not clear file descriptors, causing SYS_OUT_OF_FILE_DESC error
+	//defer fs.session.ReturnConnection(conn)
+	defer fs.session.DiscardConnection(conn)
 
 	err = irods_fs.ExtractStructFile(conn, irodsPath, targetIrodsPath, resource, dataType, force)
 	if err != nil {
