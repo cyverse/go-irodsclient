@@ -6,49 +6,53 @@ import (
 	"path/filepath"
 
 	"github.com/cyverse/go-irodsclient/irods/types"
+	"github.com/cyverse/go-irodsclient/irods/util"
 )
 
 const (
-	environmentDir  string = ".irods"
-	passwordFile    string = ".irodsA"
-	environmentFile string = "irods_environment.json"
+	environmentDirDefault string = "~/.irods"
+	passwordFilename      string = ".irodsA"
+	environmentFilename   string = "irods_environment.json"
 )
 
 // ICommandsEnvironmentManager is a struct that manages icommands environment files
 type ICommandsEnvironmentManager struct {
-	DirPath     string
-	UID         int
-	Password    string
-	Environment *ICommandsEnvironment
-	Session     *ICommandsEnvironment
+	HomeEnvironmentDirPath string
+	EnvironmentDirPath     string
+	EnvironmentFilename    string
+	UID                    int
+	Password               string
+	Environment            *ICommandsEnvironment
+	Session                *ICommandsEnvironment
 }
 
 // CreateIcommandsEnvironmentManager creates ICommandsEnvironmentManager
-func CreateIcommandsEnvironmentManager(envDirPath string, uid int) (*ICommandsEnvironmentManager, error) {
-	return &ICommandsEnvironmentManager{
-		DirPath:     envDirPath,
-		UID:         uid,
-		Password:    "",
-		Environment: &ICommandsEnvironment{},
-		Session:     &ICommandsEnvironment{},
-	}, nil
-}
+func CreateIcommandsEnvironmentManager() (*ICommandsEnvironmentManager, error) {
+	uid := os.Getuid()
 
-// CreateIcommandsEnvironmentManagerWithDefault creates ICommandsEnvironmentManager
-func CreateIcommandsEnvironmentManagerWithDefault() (*ICommandsEnvironmentManager, error) {
-	homedir, err := os.UserHomeDir()
+	envDirPath, err := util.ExpandHomeDir(environmentDirDefault)
 	if err != nil {
 		return nil, err
 	}
-	irodsEnvDir := filepath.Join(homedir, environmentDir)
 
-	uid := os.Getuid()
-
-	return CreateIcommandsEnvironmentManager(irodsEnvDir, uid)
+	return &ICommandsEnvironmentManager{
+		HomeEnvironmentDirPath: envDirPath,
+		EnvironmentDirPath:     envDirPath,
+		EnvironmentFilename:    environmentFilename,
+		UID:                    uid,
+		Password:               "",
+		Environment:            &ICommandsEnvironment{},
+		Session:                &ICommandsEnvironment{},
+	}, nil
 }
 
 // CreateIcommandsEnvironmentManagerFromIRODSAccount creates ICommandsEnvironmentManager from IRODSAccount
-func CreateIcommandsEnvironmentManagerFromIRODSAccount(envDirPath string, uid int, account *types.IRODSAccount) (*ICommandsEnvironmentManager, error) {
+func CreateIcommandsEnvironmentManagerFromIRODSAccount(account *types.IRODSAccount) (*ICommandsEnvironmentManager, error) {
+	manager, err := CreateIcommandsEnvironmentManager()
+	if err != nil {
+		return nil, err
+	}
+
 	csNegotiation := ""
 	if account.ClientServerNegotiation {
 		csNegotiation = "request_server_negotiation"
@@ -64,7 +68,7 @@ func CreateIcommandsEnvironmentManagerFromIRODSAccount(envDirPath string, uid in
 		zone = account.ProxyZone
 	}
 
-	environment := ICommandsEnvironment{
+	manager.Environment = &ICommandsEnvironment{
 		AuthenticationScheme:    string(account.AuthenticationScheme),
 		ClientServerNegotiation: csNegotiation,
 		ClientServerPolicy:      string(account.CSNegotiationPolicy),
@@ -76,155 +80,138 @@ func CreateIcommandsEnvironmentManagerFromIRODSAccount(envDirPath string, uid in
 	}
 
 	if account.SSLConfiguration != nil {
-		environment.SSLCACertificateFile = account.SSLConfiguration.CACertificateFile
-		environment.EncryptionKeySize = account.SSLConfiguration.EncryptionKeySize
-		environment.EncryptionAlgorithm = account.SSLConfiguration.EncryptionAlgorithm
-		environment.EncryptionSaltSize = account.SSLConfiguration.SaltSize
-		environment.EncryptionNumHashRounds = account.SSLConfiguration.HashRounds
+		manager.Environment.SSLCACertificateFile = account.SSLConfiguration.CACertificateFile
+		manager.Environment.EncryptionKeySize = account.SSLConfiguration.EncryptionKeySize
+		manager.Environment.EncryptionAlgorithm = account.SSLConfiguration.EncryptionAlgorithm
+		manager.Environment.EncryptionSaltSize = account.SSLConfiguration.SaltSize
+		manager.Environment.EncryptionNumHashRounds = account.SSLConfiguration.HashRounds
 	}
 
-	return &ICommandsEnvironmentManager{
-		DirPath:     envDirPath,
-		UID:         uid,
-		Password:    account.Password,
-		Environment: &environment,
-		Session:     &ICommandsEnvironment{},
-	}, nil
+	manager.Password = account.Password
+
+	return manager, nil
 }
 
-// CreateIcommandsEnvironmentManagerFromIRODSAccountWithDefault creates ICommandsEnvironmentManager
-func CreateIcommandsEnvironmentManagerFromIRODSAccountWithDefault(account *types.IRODSAccount) (*ICommandsEnvironmentManager, error) {
-	homedir, err := os.UserHomeDir()
-	if err != nil {
-		return nil, err
+func (manager *ICommandsEnvironmentManager) SetEnvironmentFilePath(envFilePath string) error {
+	if len(envFilePath) > 0 {
+		envFilePath, err := util.ExpandHomeDir(envFilePath)
+		if err != nil {
+			return err
+		}
+
+		manager.EnvironmentDirPath = filepath.Dir(envFilePath)
+		manager.EnvironmentFilename = filepath.Base(envFilePath)
 	}
-	irodsEnvDir := filepath.Join(homedir, environmentDir)
-
-	uid := os.Getuid()
-
-	return CreateIcommandsEnvironmentManagerFromIRODSAccount(irodsEnvDir, uid, account)
-}
-
-// Load loads from environment dir
-func (mgr *ICommandsEnvironmentManager) Load(processID int) error {
-	env, err := mgr.readEnvironment()
-	if err != nil {
-		return err
-	}
-
-	mgr.Environment = env
-
-	session, err := mgr.readSession(processID)
-	if err != nil {
-		return err
-	}
-
-	mgr.Session = session
-
-	password, err := mgr.readPassword()
-	if err != nil {
-		return err
-	}
-
-	mgr.Password = password
 	return nil
 }
 
-// readEnvironment reads environment
-func (mgr *ICommandsEnvironmentManager) readEnvironment() (*ICommandsEnvironment, error) {
-	environmentFilePath := filepath.Join(mgr.DirPath, environmentFile)
-	return CreateICommandsEnvironmentFromFile(environmentFilePath)
+func (manager *ICommandsEnvironmentManager) SetUID(uid int) {
+	manager.UID = uid
 }
 
-// readPassword decyphers password file (.irodsA)
-func (mgr *ICommandsEnvironmentManager) readPassword() (string, error) {
-	passwordFilePath := filepath.Join(mgr.DirPath, passwordFile)
-	return DecodePasswordFile(passwordFilePath, mgr.UID)
+// GetEnvironmentFilePath returns environment file (irods_environment.json) path
+func (manager *ICommandsEnvironmentManager) GetEnvironmentFilePath() string {
+	return filepath.Join(manager.EnvironmentDirPath, manager.EnvironmentFilename)
 }
 
-// readSession reads session
-func (mgr *ICommandsEnvironmentManager) readSession(processID int) (*ICommandsEnvironment, error) {
-	sessionFilename := fmt.Sprintf("%s.%d", environmentFile, processID)
-	sessionFilePath := filepath.Join(mgr.DirPath, sessionFilename)
-
-	_, err := os.Stat(sessionFilePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return &ICommandsEnvironment{}, nil
-		} else {
-			return nil, err
-		}
+// GetSessionFilePath returns session file (irods_environment.json.<sessionid>) path
+func (manager *ICommandsEnvironmentManager) GetSessionFilePath(processID int) string {
+	if manager.EnvironmentDirPath == manager.HomeEnvironmentDirPath &&
+		manager.EnvironmentFilename == environmentFilename {
+		// default .irods dir
+		sessionFilename := fmt.Sprintf("%s.%d", manager.EnvironmentFilename, processID)
+		return filepath.Join(manager.EnvironmentDirPath, sessionFilename)
 	}
 
-	return CreateICommandsEnvironmentFromFile(sessionFilePath)
-
+	// custom irods config dir
+	// creates .cwd file
+	sessionFilename := fmt.Sprintf("%s.cwd", manager.EnvironmentFilename)
+	return filepath.Join(manager.EnvironmentDirPath, sessionFilename)
 }
 
-func (mgr *ICommandsEnvironmentManager) ToIRODSAccount() (*types.IRODSAccount, error) {
-	if mgr.Environment == nil {
+// GetPasswordFilePath returns password file (.irodsA) path
+func (manager *ICommandsEnvironmentManager) GetPasswordFilePath() string {
+	return filepath.Join(manager.HomeEnvironmentDirPath, passwordFilename)
+}
+
+// Load loads from environment file
+func (manager *ICommandsEnvironmentManager) Load(processID int) error {
+	environmentFilePath := manager.GetEnvironmentFilePath()
+	env, err := CreateICommandsEnvironmentFromFile(environmentFilePath)
+	if err != nil {
+		return err
+	}
+
+	manager.Environment = env
+
+	// read session
+	sessionFilePath := manager.GetSessionFilePath(processID)
+	if util.ExistFile(sessionFilePath) {
+		session, err := CreateICommandsEnvironmentFromFile(sessionFilePath)
+		if err != nil {
+			return err
+		}
+
+		manager.Session = session
+	}
+
+	// read password (.irodsA)
+	passwordFilePath := manager.GetPasswordFilePath()
+	password, err := DecodePasswordFile(passwordFilePath, manager.UID)
+	if err != nil {
+		return err
+	}
+
+	manager.Password = password
+	return nil
+}
+
+func (manager *ICommandsEnvironmentManager) ToIRODSAccount() (*types.IRODSAccount, error) {
+	if manager.Environment == nil {
 		return nil, fmt.Errorf("environment is not set")
 	}
 
-	account := mgr.Environment.ToIRODSAccount()
-	account.Password = mgr.Password
+	account := manager.Environment.ToIRODSAccount()
+	account.Password = manager.Password
 	return account, nil
 }
 
-// makeDir makes a directory for environment files
-func (mgr *ICommandsEnvironmentManager) makeDir() error {
-	st, err := os.Stat(mgr.DirPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			err := os.MkdirAll(mgr.DirPath, 0700)
-			if err != nil {
-				return err
-			}
-			return nil
-		} else {
-			return err
-		}
-	}
-
-	if !st.IsDir() {
-		return fmt.Errorf("path %s is not a directory", mgr.DirPath)
-	}
-
-	return nil
-}
-
-// Save saves to a dir
-func (mgr *ICommandsEnvironmentManager) Save() error {
-	err := mgr.makeDir()
-	if err != nil {
-		return err
-	}
-
-	if mgr.Environment == nil {
+// SaveEnvironment saves environment
+func (manager *ICommandsEnvironmentManager) SaveEnvironment() error {
+	if manager.Environment == nil {
 		return fmt.Errorf("environment is not set")
 	}
 
-	environmentFilePath := filepath.Join(mgr.DirPath, environmentFile)
-	err = mgr.Environment.ToFile(environmentFilePath)
+	environmentFilePath := manager.GetEnvironmentFilePath()
+
+	// make dir first if not exist
+	err := os.MkdirAll(filepath.Dir(environmentFilePath), 0700)
 	if err != nil {
 		return err
 	}
 
-	passwordFilePath := filepath.Join(mgr.DirPath, passwordFile)
-	return EncodePasswordFile(passwordFilePath, mgr.Password, mgr.UID)
+	err = manager.Environment.ToFile(environmentFilePath)
+	if err != nil {
+		return err
+	}
+
+	passwordFilePath := filepath.Join(manager.HomeEnvironmentDirPath, passwordFilename)
+	return EncodePasswordFile(passwordFilePath, manager.Password, manager.UID)
 }
 
 // SaveSession saves session to a dir
-func (mgr *ICommandsEnvironmentManager) SaveSession(processID int) error {
-	err := mgr.makeDir()
+func (manager *ICommandsEnvironmentManager) SaveSession(processID int) error {
+	if manager.Session == nil {
+		return nil
+	}
+
+	sessionFilePath := manager.GetSessionFilePath(processID)
+
+	// make dir first if not exist
+	err := os.MkdirAll(filepath.Dir(sessionFilePath), 0700)
 	if err != nil {
 		return err
 	}
 
-	if mgr.Session == nil {
-		return nil
-	}
-
-	sessionFilename := fmt.Sprintf("%s.%d", environmentFile, processID)
-	sessionFilePath := filepath.Join(mgr.DirPath, sessionFilename)
-	return mgr.Session.ToFile(sessionFilePath)
+	return manager.Session.ToFile(sessionFilePath)
 }
