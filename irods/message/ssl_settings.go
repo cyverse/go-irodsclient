@@ -64,3 +64,4 @@ func (msg *IRODSMessageSSLSettings) FromMessage(msgIn *IRODSMessage) error {
 
 	return nil
 }
+

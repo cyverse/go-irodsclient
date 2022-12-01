@@ -51,3 +51,29 @@ func (msg *IRODSMessageQueryResult) FromMessage(msgIn *IRODSMessage) error {
 	msg.Result = int(msgIn.Body.IntInfo)
 	return err
 }
+
+// GetMessage builds a message
+func (msg *IRODSMessageQueryResult) GetMessage() (*IRODSMessage, error) {
+	bytes, err := msg.GetBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	msgBody := IRODSMessageBody{
+		Type:    RODS_MESSAGE_API_REPLY_TYPE,
+		Message: bytes,
+		Error:   nil,
+		Bs:      nil,
+		IntInfo: int32(msg.Result),
+	}
+
+	msgHeader, err := msgBody.BuildHeader()
+	if err != nil {
+		return nil, err
+	}
+
+	return &IRODSMessage{
+		Header: msgHeader,
+		Body:   &msgBody,
+	}, nil
+}
