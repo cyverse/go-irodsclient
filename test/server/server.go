@@ -1,20 +1,18 @@
 package server
 
 import (
-	"bufio"
 	"fmt"
 	"os/exec"
 	"path"
 	"runtime"
-	"strings"
-	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/types"
 	log "github.com/sirupsen/logrus"
 )
 
 const (
-	// must have the same information as in `docker-compose.yml`
+	// must have the same information as in `docker-compose.yml` and `config.inc`
+	testServerContainer     string = "irods_test-irods-1"
 	testServerHost          string = "localhost"
 	testServerPort          int    = 1247
 	testServerAdminUser     string = "rods"
@@ -37,42 +35,15 @@ func startServerExec() error {
 	cmd := exec.Command(scriptPath)
 	cmd.Dir = serverDir
 
-	subStdout, err := cmd.StdoutPipe()
-	if err != nil {
-		logger.Error(err)
-		return err
-	}
-
-	cmd.Stderr = cmd.Stdout
-
-	err = cmd.Start()
+	err := cmd.Start()
 	if err != nil {
 		logger.WithError(err).Errorf("failed to start iRODS test server")
 		return err
 	}
 
-	// receive output from child
-	subOutputScanner := bufio.NewScanner(subStdout)
-	for {
-		if subOutputScanner.Scan() {
-			outputMsg := strings.TrimSpace(subOutputScanner.Text())
-			if strings.Contains(outputMsg, "Creating irods_test_irods_1 ") && strings.Contains(outputMsg, "done") {
-				// wait for 3 sec to be avilable
-				time.Sleep(3 * time.Second)
-				logger.Info("Successfully started iRODS test server")
-				return nil
-			} else {
-				// wait until the server is ready
-				logger.Info(outputMsg)
-			}
-		} else {
-			// check err
-			if subOutputScanner.Err() != nil {
-				logger.Error(subOutputScanner.Err().Error())
-				return subOutputScanner.Err()
-			}
-		}
-	}
+	cmd.Wait()
+
+	return nil
 }
 
 func stopServerExec() error {
