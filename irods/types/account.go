@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 
+	"github.com/cyverse/go-irodsclient/irods/common"
 	"gopkg.in/yaml.v2"
 )
 
@@ -332,4 +333,37 @@ func (account *IRODSAccount) MaskSensitiveData() *IRODSAccount {
 	maskedAccount.Password = "<password masked>"
 	maskedAccount.Ticket = "<ticket masked>"
 	return &maskedAccount
+}
+
+// Validate validates iRODS account
+func (account *IRODSAccount) Validate() error {
+	if len(account.Host) == 0 {
+		return fmt.Errorf("empty iRODS host")
+	}
+
+	if account.Port <= 0 {
+		return fmt.Errorf("empty iRODS port")
+	}
+
+	if len(account.ProxyUser) == 0 {
+		return fmt.Errorf("empty iRODS user")
+	}
+
+	if len(account.ProxyUser) > common.MaxNameLength {
+		return fmt.Errorf("iRODS user exceeded max name length")
+	}
+
+	if len(account.ClientUser) > common.MaxNameLength {
+		return fmt.Errorf("iRODS user exceeded max name length")
+	}
+
+	if len(account.ProxyZone) == 0 {
+		return fmt.Errorf("empty iRODS zone")
+	}
+
+	if len(account.AuthenticationScheme) == 0 {
+		return fmt.Errorf("empty authentication scheme")
+	}
+
+	return nil
 }

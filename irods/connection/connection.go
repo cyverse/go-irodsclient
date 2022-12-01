@@ -132,6 +132,11 @@ func (conn *IRODSConnection) Connect() error {
 
 	conn.connected = false
 
+	err := conn.account.Validate()
+	if err != nil {
+		return err
+	}
+
 	// lock the connection
 	conn.Lock()
 	defer conn.Unlock()
