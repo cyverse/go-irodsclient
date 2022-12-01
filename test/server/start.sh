@@ -22,8 +22,13 @@ main()
 
   . "$baseDir/$cfg"
 
-  docker-compose --file "$baseDir"/docker-compose.yml --project-name "$ENV_NAME" down --remove-orphans
-  docker-compose --file "$baseDir"/docker-compose.yml --project-name "$ENV_NAME" up -d
+  if ! command -v docker-compose > /dev/null; then
+    docker compose --file "$baseDir"/docker-compose.yml --project-name "$ENV_NAME" down --remove-orphans
+    docker compose --file "$baseDir"/docker-compose.yml --project-name "$ENV_NAME" up -d
+  else
+    docker-compose --file "$baseDir"/docker-compose.yml --project-name "$ENV_NAME" down --remove-orphans
+    docker-compose --file "$baseDir"/docker-compose.yml --project-name "$ENV_NAME" up -d
+  fi
 }
 
 
