@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"regexp"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"gopkg.in/yaml.v2"
@@ -9,7 +10,8 @@ import (
 
 const (
 	// PamTTLDefault is a default value for Pam TTL
-	PamTTLDefault int = 1
+	PamTTLDefault       int    = 1
+	UsernameRegexString string = "^((\\w|[-.@])+)$"
 )
 
 // IRODSAccount contains irods login information
@@ -354,9 +356,11 @@ func (account *IRODSAccount) Validate() error {
 		return err
 	}
 
-	err = account.validateUsername(account.ClientUser)
-	if err != nil {
-		return err
+	if len(account.ClientUser) > 0 {
+		err = account.validateUsername(account.ClientUser)
+		if err != nil {
+			return err
+		}
 	}
 
 	if len(account.ProxyZone) == 0 {
@@ -371,10 +375,21 @@ func (account *IRODSAccount) Validate() error {
 }
 
 func (account *IRODSAccount) validateUsername(username string) error {
-	if len(username) > common.MaxNameLength {
+	if len(username) >= common.MaxNameLength {
 		return fmt.Errorf("iRODS user exceeded max name length")
 	}
 
-	// TODO: we may need to filter out some special characters here?
+	if username == "." || username == ".." {
+		return fmt.Errorf("invalid iRODS user")
+	}
+
+	usernameRegEx, err := regexp.Compile(UsernameRegexString)
+	if err != nil {
+		return err
+	}
+
+	if !usernameRegEx.Match([]byte(username)) {
+		return fmt.Errorf("invalid iRODS user, containing invalid chars")
+	}
 	return nil
 }

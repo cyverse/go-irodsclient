@@ -1,6 +1,7 @@
 package testcases
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -14,6 +15,7 @@ func TestIRODSConnection(t *testing.T) {
 	defer shutdown()
 
 	t.Run("test IRODS Connection", testIRODSConnection)
+	t.Run("test IRODS Invalid Username", testIRODSInvalidUsername)
 	t.Run("test IRODS Connection with Negotiation", testIRODSConnectionWithNegotiation)
 }
 
@@ -31,6 +33,21 @@ func testIRODSConnection(t *testing.T) {
 	ver := conn.GetVersion()
 	verMajor, _, _ := ver.GetReleaseVersion()
 	assert.GreaterOrEqual(t, 4, verMajor)
+}
+
+func testIRODSInvalidUsername(t *testing.T) {
+	account := GetTestAccount()
+
+	account.ClientServerNegotiation = false
+	account.CSNegotiationPolicy = types.CSNegotiationDontCare
+	account.ProxyUser = "test$def"
+	account.ClientUser = ""
+
+	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
+	err := conn.Connect()
+	assert.Error(t, err)
+	fmt.Println(err.Error())
+	defer conn.Disconnect()
 }
 
 func testIRODSConnectionWithNegotiation(t *testing.T) {
