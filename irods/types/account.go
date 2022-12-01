@@ -349,12 +349,14 @@ func (account *IRODSAccount) Validate() error {
 		return fmt.Errorf("empty iRODS user")
 	}
 
-	if len(account.ProxyUser) > common.MaxNameLength {
-		return fmt.Errorf("iRODS user exceeded max name length")
+	err := account.validateUsername(account.ProxyUser)
+	if err != nil {
+		return err
 	}
 
-	if len(account.ClientUser) > common.MaxNameLength {
-		return fmt.Errorf("iRODS user exceeded max name length")
+	err = account.validateUsername(account.ClientUser)
+	if err != nil {
+		return err
 	}
 
 	if len(account.ProxyZone) == 0 {
@@ -365,5 +367,14 @@ func (account *IRODSAccount) Validate() error {
 		return fmt.Errorf("empty authentication scheme")
 	}
 
+	return nil
+}
+
+func (account *IRODSAccount) validateUsername(username string) error {
+	if len(username) > common.MaxNameLength {
+		return fmt.Errorf("iRODS user exceeded max name length")
+	}
+
+	// TODO: we may need to filter out some special characters here?
 	return nil
 }
