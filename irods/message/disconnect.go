@@ -30,3 +30,8 @@ func (msg *IRODSMessageDisconnect) GetMessage() (*IRODSMessage, error) {
 		Body:   nil,
 	}, nil
 }
+
+// FromMessage returns struct from IRODSMessage
+func (msg *IRODSMessageDisconnect) FromMessage(msgIn *IRODSMessage) error {
+	return nil
+}
