@@ -53,7 +53,7 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 	conn.Lock()
 	defer conn.Unlock()
 
-	query := message.NewIRODSMessageQuery(common.MaxQueryRows, 0, 0, 0)
+	query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, 0, 0, 0)
 	query.AddSelect(common.ICAT_COLUMN_COLL_ID, 1)
 	query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
 	query.AddSelect(common.ICAT_COLUMN_COLL_OWNER_NAME, 1)
@@ -63,7 +63,7 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 	condVal := fmt.Sprintf("= '%s'", path)
 	query.AddCondition(common.ICAT_COLUMN_COLL_NAME, condVal)
 
-	queryResult := message.IRODSMessageQueryResult{}
+	queryResult := message.IRODSMessageQueryResponse{}
 	err := conn.Request(query, &queryResult, nil)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive a collection query result message - %v", err)
@@ -162,7 +162,7 @@ func ListCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
-		query := message.NewIRODSMessageQuery(common.MaxQueryRows, continueIndex, 0, 0)
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
 		query.AddSelect(common.ICAT_COLUMN_META_COLL_ATTR_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_META_COLL_ATTR_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_META_COLL_ATTR_VALUE, 1)
@@ -171,7 +171,7 @@ func ListCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types
 		condVal := fmt.Sprintf("= '%s'", path)
 		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, condVal)
 
-		queryResult := message.IRODSMessageQueryResult{}
+		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a collection metadata query result message - %v", err)
@@ -266,7 +266,7 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
-		query := message.NewIRODSMessageQuery(common.MaxQueryRows, continueIndex, 0, 0)
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
 		query.AddSelect(common.ICAT_COLUMN_COLL_ACCESS_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_ZONE, 1)
@@ -275,7 +275,7 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 		condVal := fmt.Sprintf("= '%s'", path)
 		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, condVal)
 
-		queryResult := message.IRODSMessageQueryResult{}
+		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a collection access query result message - %v", err)
@@ -367,7 +367,7 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, path string
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
-		query := message.NewIRODSMessageQuery(common.MaxQueryRows, continueIndex, 0, 0)
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
 		query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_ACCESS_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_NAME, 1)
@@ -377,7 +377,7 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, path string
 		condVal := fmt.Sprintf("= '%s'", path)
 		query.AddCondition(common.ICAT_COLUMN_COLL_PARENT_NAME, condVal)
 
-		queryResult := message.IRODSMessageQueryResult{}
+		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a collection access query result message - %v", err)
@@ -471,7 +471,7 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
-		query := message.NewIRODSMessageQuery(common.MaxQueryRows, continueIndex, 0, 0)
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
 		query.AddSelect(common.ICAT_COLUMN_COLL_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_OWNER_NAME, 1)
@@ -481,7 +481,7 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 		condVal := fmt.Sprintf("= '%s'", path)
 		query.AddCondition(common.ICAT_COLUMN_COLL_PARENT_NAME, condVal)
 
-		queryResult := message.IRODSMessageQueryResult{}
+		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a collection query result message - %v", err)
@@ -584,8 +584,8 @@ func CreateCollection(conn *connection.IRODSConnection, path string, recurse boo
 	conn.Lock()
 	defer conn.Unlock()
 
-	request := message.NewIRODSMessageMkcolRequest(path, recurse)
-	response := message.IRODSMessageMkcolResponse{}
+	request := message.NewIRODSMessageMakeCollectionRequest(path, recurse)
+	response := message.IRODSMessageMakeCollectionResponse{}
 	return conn.RequestAndCheck(request, &response, nil)
 }
 
@@ -604,8 +604,8 @@ func DeleteCollection(conn *connection.IRODSConnection, path string, recurse boo
 	conn.Lock()
 	defer conn.Unlock()
 
-	request := message.NewIRODSMessageRmcolRequest(path, recurse, force)
-	response := message.IRODSMessageRmcolResponse{}
+	request := message.NewIRODSMessageRemoveCollectionRequest(path, recurse, force)
+	response := message.IRODSMessageRemoveCollectionResponse{}
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
@@ -653,8 +653,8 @@ func MoveCollection(conn *connection.IRODSConnection, srcPath string, destPath s
 	conn.Lock()
 	defer conn.Unlock()
 
-	request := message.NewIRODSMessageMvcolRequest(srcPath, destPath)
-	response := message.IRODSMessageMvcolResponse{}
+	request := message.NewIRODSMessageMoveCollectionRequest(srcPath, destPath)
+	response := message.IRODSMessageMoveCollectionResponse{}
 	err := conn.RequestAndCheck(request, &response, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a collection")
@@ -679,7 +679,7 @@ func AddCollectionMeta(conn *connection.IRODSConnection, path string, metadata *
 	defer conn.Unlock()
 
 	request := message.NewIRODSMessageAddMetadataRequest(types.IRODSCollectionMetaItemType, path, metadata)
-	response := message.IRODSMessageModMetaResponse{}
+	response := message.IRODSMessageModifyMetadataResponse{}
 	return conn.RequestAndCheck(request, &response, nil)
 }
 
@@ -699,7 +699,7 @@ func DeleteCollectionMeta(conn *connection.IRODSConnection, path string, metadat
 	conn.Lock()
 	defer conn.Unlock()
 
-	var request *message.IRODSMessageModMetaRequest
+	var request *message.IRODSMessageModifyMetadataRequest
 
 	if metadata.AVUID != 0 {
 		request = message.NewIRODSMessageRemoveMetadataByIDRequest(types.IRODSCollectionMetaItemType, path, metadata.AVUID)
@@ -709,7 +709,7 @@ func DeleteCollectionMeta(conn *connection.IRODSConnection, path string, metadat
 		request = message.NewIRODSMessageRemoveMetadataRequest(types.IRODSCollectionMetaItemType, path, metadata)
 	}
 
-	response := message.IRODSMessageModMetaResponse{}
+	response := message.IRODSMessageModifyMetadataResponse{}
 	err := conn.RequestAndCheck(request, &response, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a collection")
@@ -737,7 +737,7 @@ func SearchCollectionsByMeta(conn *connection.IRODSConnection, metaName string, 
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
-		query := message.NewIRODSMessageQuery(common.MaxQueryRows, continueIndex, 0, 0)
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
 		query.AddSelect(common.ICAT_COLUMN_COLL_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_OWNER_NAME, 1)
@@ -749,7 +749,7 @@ func SearchCollectionsByMeta(conn *connection.IRODSConnection, metaName string, 
 		metaValueCondVal := fmt.Sprintf("= '%s'", metaValue)
 		query.AddCondition(common.ICAT_COLUMN_META_COLL_ATTR_VALUE, metaValueCondVal)
 
-		queryResult := message.IRODSMessageQueryResult{}
+		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a collection query result message - %v", err)
@@ -858,7 +858,7 @@ func SearchCollectionsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
-		query := message.NewIRODSMessageQuery(common.MaxQueryRows, continueIndex, 0, 0)
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
 		query.AddSelect(common.ICAT_COLUMN_COLL_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_OWNER_NAME, 1)
@@ -870,7 +870,7 @@ func SearchCollectionsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 		metaValueCondVal := fmt.Sprintf("like '%s'", metaValue)
 		query.AddCondition(common.ICAT_COLUMN_META_COLL_ATTR_VALUE, metaValueCondVal)
 
-		queryResult := message.IRODSMessageQueryResult{}
+		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a collection query result message - %v", err)
@@ -980,8 +980,8 @@ func ChangeCollectionAccess(conn *connection.IRODSConnection, path string, acces
 	conn.Lock()
 	defer conn.Unlock()
 
-	request := message.NewIRODSMessageModAccessRequest(access.ChmodString(), userName, zoneName, path, recursive, adminFlag)
-	response := message.IRODSMessageModAccessResponse{}
+	request := message.NewIRODSMessageModifyAccessRequest(access.ChmodString(), userName, zoneName, path, recursive, adminFlag)
+	response := message.IRODSMessageModifyAccessResponse{}
 	err := conn.RequestAndCheck(request, &response, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a collection")
@@ -1010,8 +1010,8 @@ func SetAccessInherit(conn *connection.IRODSConnection, path string, inherit, re
 		inheritStr = "noinherit"
 	}
 
-	request := message.NewIRODSMessageModAccessRequest(inheritStr, "", "", path, recursive, adminFlag)
-	response := message.IRODSMessageModAccessResponse{}
+	request := message.NewIRODSMessageModifyAccessRequest(inheritStr, "", "", path, recursive, adminFlag)
+	response := message.IRODSMessageModifyAccessResponse{}
 	err := conn.RequestAndCheck(request, &response, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a collection")

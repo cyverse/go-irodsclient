@@ -24,7 +24,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticket string
 	conn.Lock()
 	defer conn.Unlock()
 
-	query := message.NewIRODSMessageQuery(common.MaxQueryRows, 0, 0, 0)
+	query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, 0, 0, 0)
 	query.AddSelect(common.ICAT_COLUMN_TICKET_ID, 1)
 	query.AddSelect(common.ICAT_COLUMN_TICKET_TYPE, 1)
 	query.AddSelect(common.ICAT_COLUMN_TICKET_COLL_NAME, 1)
@@ -34,7 +34,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticket string
 	condVal := fmt.Sprintf("= '%s'", ticket)
 	query.AddCondition(common.ICAT_COLUMN_TICKET_STRING, condVal)
 
-	queryResult := message.IRODSMessageQueryResult{}
+	queryResult := message.IRODSMessageQueryResponse{}
 	err := conn.Request(query, &queryResult, nil)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive a ticket query result message - %v", err)

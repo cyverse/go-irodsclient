@@ -34,8 +34,8 @@ func CloseDataObjectReplica(conn *connection.IRODSConnection, handle *types.IROD
 		return fmt.Errorf("does not support close replica in current iRODS Version")
 	}
 
-	request := message.NewIRODSMessageClosereplicaRequest(handle.FileDescriptor, false, false, false, false)
-	response := message.IRODSMessageClosereplicaResponse{}
+	request := message.NewIRODSMessageCloseDataObjectReplicaRequest(handle.FileDescriptor, false, false, false, false)
+	response := message.IRODSMessageCloseDataObjectReplicaResponse{}
 	err := conn.RequestAndCheck(request, &response, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a data object")

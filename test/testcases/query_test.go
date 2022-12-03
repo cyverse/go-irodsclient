@@ -16,7 +16,7 @@ func TestQuery(t *testing.T) {
 }
 
 func testQueryStruct(t *testing.T) {
-	query := message.NewIRODSMessageQuery(500, 0, 0, 0)
+	query := message.NewIRODSMessageQueryRequest(500, 0, 0, 0)
 
 	queryBytes, err := query.GetBytes()
 	assert.NoError(t, err)
@@ -29,7 +29,7 @@ func testQueryStruct(t *testing.T) {
 }
 
 func testQueryKeyVal(t *testing.T) {
-	query := message.NewIRODSMessageQuery(500, 0, 0, 0)
+	query := message.NewIRODSMessageQueryRequest(500, 0, 0, 0)
 	query.Selects.Add(500, 1)
 	query.Selects.Add(501, 1)
 	query.Selects.Add(502, 1)
