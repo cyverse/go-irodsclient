@@ -18,9 +18,9 @@ func StatProcess(conn *connection.IRODSConnection, address string, zone string) 
 	defer conn.Unlock()
 
 	processes := []*types.IRODSProcess{}
-	req := message.NewIRODSMessageProcessstatRequest(address, zone)
+	req := message.NewIRODSMessageGetProcessstatRequest(address, zone)
 
-	queryResult := message.IRODSMessageQueryResult{}
+	queryResult := message.IRODSMessageQueryResponse{}
 	err := conn.Request(req, &queryResult, nil)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive a process stat result message - %v", err)

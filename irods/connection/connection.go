@@ -394,7 +394,7 @@ func (conn *IRODSConnection) login(password string) error {
 
 	// authenticate
 	authRequest := message.NewIRODSMessageAuthRequest()
-	authChallenge := message.IRODSMessageAuthChallenge{}
+	authChallenge := message.IRODSMessageAuthChallengeResponse{}
 	err := conn.Request(authRequest, &authChallenge, nil)
 	if err != nil {
 		logger.Error(err)
@@ -860,11 +860,11 @@ func (conn *IRODSConnection) poorMansEndTransaction(dummyCol string, commit bool
 		"function": "poorMansEndTransaction",
 	})
 
-	request := message.NewIRODSMessageModColRequest(dummyCol)
+	request := message.NewIRODSMessageModifyCollectionRequest(dummyCol)
 	if commit {
 		request.AddKeyVal(common.COLLECTION_TYPE_KW, "NULL_SPECIAL_VALUE")
 	}
-	response := message.IRODSMessageModColResponse{}
+	response := message.IRODSMessageModifyCollectionResponse{}
 	err := conn.Request(request, &response, nil)
 	if err != nil {
 		logger.Error(err)

@@ -30,7 +30,7 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 	defer conn.Unlock()
 
 	// query with AUTO_CLOSE option
-	query := message.NewIRODSMessageQuery(1, 0, 0, 0x100)
+	query := message.NewIRODSMessageQueryRequest(1, 0, 0, 0x100)
 	query.AddSelect(common.ICAT_COLUMN_R_RESC_ID, 1)
 	query.AddSelect(common.ICAT_COLUMN_R_RESC_NAME, 1)
 	query.AddSelect(common.ICAT_COLUMN_R_ZONE_NAME, 1)
@@ -45,7 +45,7 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 	rescCondVal := fmt.Sprintf("= '%s'", name)
 	query.AddCondition(common.ICAT_COLUMN_R_RESC_NAME, rescCondVal)
 
-	queryResult := message.IRODSMessageQueryResult{}
+	queryResult := message.IRODSMessageQueryResponse{}
 	err := conn.Request(query, &queryResult, nil)
 	if err != nil {
 		return nil, fmt.Errorf("could not receive a resource query result message - %v", err)
@@ -131,7 +131,7 @@ func AddResourceMeta(conn *connection.IRODSConnection, name string, metadata *ty
 	defer conn.Unlock()
 
 	request := message.NewIRODSMessageAddMetadataRequest(types.IRODSResourceMetaItemType, name, metadata)
-	response := message.IRODSMessageModMetaResponse{}
+	response := message.IRODSMessageModifyMetadataResponse{}
 	return conn.RequestAndCheck(request, &response, nil)
 }
 
@@ -146,7 +146,7 @@ func DeleteResourceMeta(conn *connection.IRODSConnection, name string, metadata 
 	conn.Lock()
 	defer conn.Unlock()
 
-	var request *message.IRODSMessageModMetaRequest
+	var request *message.IRODSMessageModifyMetadataRequest
 
 	if metadata.AVUID != 0 {
 		request = message.NewIRODSMessageRemoveMetadataByIDRequest(types.IRODSResourceMetaItemType, name, metadata.AVUID)
@@ -156,6 +156,6 @@ func DeleteResourceMeta(conn *connection.IRODSConnection, name string, metadata 
 		request = message.NewIRODSMessageRemoveMetadataRequest(types.IRODSResourceMetaItemType, name, metadata)
 	}
 
-	response := message.IRODSMessageModMetaResponse{}
+	response := message.IRODSMessageModifyMetadataResponse{}
 	return conn.RequestAndCheck(request, &response, nil)
 }

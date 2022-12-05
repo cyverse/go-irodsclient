@@ -1,0 +1,13 @@
+package common
+
+type ObjectType int
+
+const (
+	UNKNOWN_OBJECT_TYPE ObjectType = iota
+	DATA_OBJECT_TYPE
+	COLLECTION_OBJECT_TYPE
+	UNKNOWN_FILE_TYPE
+	LOCAL_FILE_TYPE
+	LOCAL_DIR_TYPE
+	NO_INPUT_TYPE
+)

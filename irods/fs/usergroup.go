@@ -25,7 +25,7 @@ func GetGroup(conn *connection.IRODSConnection, group string) (*types.IRODSUser,
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
-		query := message.NewIRODSMessageQuery(common.MaxQueryRows, 0, 0, 0)
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, 0, 0, 0)
 		query.AddSelect(common.ICAT_COLUMN_USER_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
@@ -36,7 +36,7 @@ func GetGroup(conn *connection.IRODSConnection, group string) (*types.IRODSUser,
 		condTypeVal := fmt.Sprintf("= '%s'", types.IRODSUserRodsGroup)
 		query.AddCondition(common.ICAT_COLUMN_USER_TYPE, condTypeVal)
 
-		queryResult := message.IRODSMessageQueryResult{}
+		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a group query result message - %v", err)
@@ -125,7 +125,7 @@ func ListGroupUsers(conn *connection.IRODSConnection, group string) ([]*types.IR
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
-		query := message.NewIRODSMessageQuery(common.MaxQueryRows, 0, 0, 0)
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, 0, 0, 0)
 		query.AddSelect(common.ICAT_COLUMN_USER_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
@@ -134,7 +134,7 @@ func ListGroupUsers(conn *connection.IRODSConnection, group string) ([]*types.IR
 		condNameVal := fmt.Sprintf("= '%s'", group)
 		query.AddCondition(common.ICAT_COLUMN_COLL_USER_GROUP_NAME, condNameVal)
 
-		queryResult := message.IRODSMessageQueryResult{}
+		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a group user query result message - %v", err)
@@ -224,7 +224,7 @@ func ListGroups(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
-		query := message.NewIRODSMessageQuery(common.MaxQueryRows, 0, 0, 0)
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, 0, 0, 0)
 		query.AddSelect(common.ICAT_COLUMN_USER_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
@@ -233,7 +233,7 @@ func ListGroups(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 		condTypeVal := fmt.Sprintf("= '%s'", types.IRODSUserRodsGroup)
 		query.AddCondition(common.ICAT_COLUMN_USER_TYPE, condTypeVal)
 
-		queryResult := message.IRODSMessageQueryResult{}
+		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a group query result message - %v", err)
@@ -323,7 +323,7 @@ func ListUsers(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
-		query := message.NewIRODSMessageQuery(common.MaxQueryRows, 0, 0, 0)
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, 0, 0, 0)
 		query.AddSelect(common.ICAT_COLUMN_USER_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
@@ -332,7 +332,7 @@ func ListUsers(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 		condTypeVal := fmt.Sprintf("<> '%s'", types.IRODSUserRodsGroup)
 		query.AddCondition(common.ICAT_COLUMN_USER_TYPE, condTypeVal)
 
-		queryResult := message.IRODSMessageQueryResult{}
+		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a user query result message - %v", err)
@@ -422,13 +422,13 @@ func ListUserGroupNames(conn *connection.IRODSConnection, user string) ([]string
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
-		query := message.NewIRODSMessageQuery(common.MaxQueryRows, 0, 0, 0)
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, 0, 0, 0)
 		query.AddSelect(common.ICAT_COLUMN_COLL_USER_GROUP_NAME, 1)
 
 		condTypeVal := fmt.Sprintf("= '%s'", user)
 		query.AddCondition(common.ICAT_COLUMN_USER_NAME, condTypeVal)
 
-		queryResult := message.IRODSMessageQueryResult{}
+		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a group query result message - %v", err)
@@ -496,14 +496,14 @@ func ListUserResourceQuota(conn *connection.IRODSConnection, user string) ([]*ty
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
-		query := message.NewIRODSMessageQuery(common.MaxQueryRows, 0, 0, 0)
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, 0, 0, 0)
 		query.AddSelect(common.ICAT_COLUMN_QUOTA_RESC_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_QUOTA_LIMIT, 1)
 
 		condTypeVal := fmt.Sprintf("= '%s'", user)
 		query.AddCondition(common.ICAT_COLUMN_QUOTA_USER_NAME, condTypeVal)
 
-		queryResult := message.IRODSMessageQueryResult{}
+		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a quota query result message - %v", err)
@@ -587,7 +587,7 @@ func GetUserGlobalQuota(conn *connection.IRODSConnection, user string) (*types.I
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
-		query := message.NewIRODSMessageQuery(common.MaxQueryRows, 0, 0, 0)
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, 0, 0, 0)
 		query.AddSelect(common.ICAT_COLUMN_QUOTA_LIMIT, 1)
 
 		condTypeVal := fmt.Sprintf("= '%s'", user)
@@ -595,7 +595,7 @@ func GetUserGlobalQuota(conn *connection.IRODSConnection, user string) (*types.I
 		condTypeVal = fmt.Sprintf("= '%s'", "0")
 		query.AddCondition(common.ICAT_COLUMN_QUOTA_RESC_ID, condTypeVal)
 
-		queryResult := message.IRODSMessageQueryResult{}
+		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a quota query result message - %v", err)
@@ -668,7 +668,7 @@ func AddUserMeta(conn *connection.IRODSConnection, user string, metadata *types.
 	defer conn.Unlock()
 
 	request := message.NewIRODSMessageAddMetadataRequest(types.IRODSUserMetaItemType, user, metadata)
-	response := message.IRODSMessageModMetaResponse{}
+	response := message.IRODSMessageModifyMetadataResponse{}
 	return conn.RequestAndCheck(request, &response, nil)
 }
 
@@ -683,7 +683,7 @@ func DeleteUserMeta(conn *connection.IRODSConnection, user string, metadata *typ
 	conn.Lock()
 	defer conn.Unlock()
 
-	var request *message.IRODSMessageModMetaRequest
+	var request *message.IRODSMessageModifyMetadataRequest
 
 	if metadata.AVUID != 0 {
 		request = message.NewIRODSMessageRemoveMetadataByIDRequest(types.IRODSUserMetaItemType, user, metadata.AVUID)
@@ -693,7 +693,7 @@ func DeleteUserMeta(conn *connection.IRODSConnection, user string, metadata *typ
 		request = message.NewIRODSMessageRemoveMetadataRequest(types.IRODSUserMetaItemType, user, metadata)
 	}
 
-	response := message.IRODSMessageModMetaResponse{}
+	response := message.IRODSMessageModifyMetadataResponse{}
 	return conn.RequestAndCheck(request, &response, nil)
 }
 
@@ -712,7 +712,7 @@ func ListUserMeta(conn *connection.IRODSConnection, user string) ([]*types.IRODS
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
-		query := message.NewIRODSMessageQuery(common.MaxQueryRows, continueIndex, 0, 0)
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
 		query.AddSelect(common.ICAT_COLUMN_META_USER_ATTR_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_META_USER_ATTR_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_META_USER_ATTR_VALUE, 1)
@@ -721,7 +721,7 @@ func ListUserMeta(conn *connection.IRODSConnection, user string) ([]*types.IRODS
 		nameCondVal := fmt.Sprintf("= '%s'", user)
 		query.AddCondition(common.ICAT_COLUMN_USER_NAME, nameCondVal)
 
-		queryResult := message.IRODSMessageQueryResult{}
+		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
 			return nil, fmt.Errorf("could not receive a user metadata query result message - %v", err)

@@ -32,8 +32,8 @@ func ExtractStructFile(conn *connection.IRODSConnection, path string, target str
 		resource = account.DefaultResource
 	}
 
-	request := message.NewIRODSMessageExtractstructfileRequest(path, target, resource, dataType, force)
-	response := message.IRODSMessageRmobjResponse{}
+	request := message.NewIRODSMessageExtractStructFileRequest(path, target, resource, dataType, force)
+	response := message.IRODSMessageRemoveDataObjectResponse{}
 	err := conn.RequestAndCheck(request, &response, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a data object (struct file) to extract")
