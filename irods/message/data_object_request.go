@@ -12,12 +12,12 @@ type IRODSMessageDataObjectRequest struct {
 	Size                     int64                         `xml:"dataSize"`
 	Threads                  int                           `xml:"numThreads"`
 	OperationType            int                           `xml:"oprType"`
-	SpecialCollectionPointer IRODSMessageSpecialCollection `xml:"*SpecColl_PI"`
+	SpecialCollectionPointer IRODSMessageSpecialCollection `xml:"SpecColl_PI"`
 	KeyVals                  IRODSMessageSSKeyVal          `xml:"KeyValPair_PI"`
 }
 
 type IRODSMessageSpecialCollection struct {
-	XMLName           xml.Name `xml:"*SpecColl_PI"`
+	XMLName           xml.Name `xml:"SpecColl_PI"`
 	CollectionClass   int      `xml:"collClass"`
 	Type              int      `xml:"type"`
 	Collection        string   `xml:"collection"`
