@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"strings"
 
 	"github.com/cyverse/go-irodsclient/irods/types"
 )
@@ -68,17 +69,17 @@ func CreateICommandsEnvironmentFromJSON(jsonBytes []byte) (*ICommandsEnvironment
 func (env *ICommandsEnvironment) ToIRODSAccount() *types.IRODSAccount {
 	authScheme := types.AuthSchemeNative
 	if len(env.AuthenticationScheme) > 0 {
-		authScheme = types.AuthScheme(env.AuthenticationScheme)
+		authScheme, _ = types.GetAuthScheme(env.AuthenticationScheme)
 	}
 
 	negotiationRequired := false
 	negotiationPolicy := types.CSNegotiationRequireTCP
-	if types.AuthScheme(env.AuthenticationScheme) == types.AuthSchemePAM {
+	if authScheme == types.AuthSchemePAM {
 		negotiationRequired = true
 		negotiationPolicy = types.CSNegotiationRequireSSL
 	}
 
-	if env.ClientServerNegotiation == "request_server_negotiation" {
+	if strings.ToLower(env.ClientServerNegotiation) == "request_server_negotiation" {
 		negotiationRequired = true
 	}
 
