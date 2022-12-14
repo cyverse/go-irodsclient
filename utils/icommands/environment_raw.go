@@ -73,7 +73,7 @@ func (env *ICommandsEnvironment) ToIRODSAccount() *types.IRODSAccount {
 	}
 
 	negotiationRequired := false
-	negotiationPolicy := types.CSNegotiationRequireTCP
+	negotiationPolicy, _ := types.GetCSNegotiationRequire(env.ClientServerPolicy)
 	if authScheme == types.AuthSchemePAM {
 		negotiationRequired = true
 		negotiationPolicy = types.CSNegotiationRequireSSL
