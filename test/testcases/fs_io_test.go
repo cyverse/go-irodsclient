@@ -33,9 +33,9 @@ func testUpDownMBFiles(t *testing.T) {
 
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
-	fs, err := fs.NewFileSystem(account, fsConfig)
+	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	assert.NoError(t, err)
-	defer fs.Release()
+	defer filesystem.Release()
 
 	homedir := getHomeDir(fsIOTestID)
 
@@ -49,21 +49,21 @@ func testUpDownMBFiles(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		start := time.Now()
-		err = fs.UploadFile(localPath, iRODSPath, "", false, nil)
+		err = filesystem.UploadFile(localPath, iRODSPath, "", false, nil)
 		duration := time.Since(start)
 
 		t.Logf("upload a file in size %d took time - %v", fileSize, duration)
 		assert.NoError(t, err)
 
 		start = time.Now()
-		err = fs.DownloadFile(iRODSPath, "", localDownloadPath, nil)
+		err = filesystem.DownloadFile(iRODSPath, "", localDownloadPath, nil)
 		duration = time.Since(start)
 
 		t.Logf("download a file in size %d took time - %v", fileSize, duration)
 		assert.NoError(t, err)
 
 		// remove
-		err = fs.RemoveFile(iRODSPath, true)
+		err = filesystem.RemoveFile(iRODSPath, true)
 		assert.NoError(t, err)
 
 		err = os.Remove(localDownloadPath)

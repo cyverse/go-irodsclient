@@ -91,6 +91,7 @@ func (handle *FileHandle) Close() error {
 
 	if handle.IsWriteMode() {
 		handle.filesystem.invalidateCacheForFileUpdate(handle.entry.Path)
+		handle.filesystem.cachePropagation.PropagateFileUpdate(handle.entry.Path)
 	}
 
 	return err
@@ -108,6 +109,7 @@ func (handle *FileHandle) closeWithoutFSHandleManagement() error {
 
 	if handle.IsWriteMode() {
 		handle.filesystem.invalidateCacheForFileUpdate(handle.entry.Path)
+		handle.filesystem.cachePropagation.PropagateFileUpdate(handle.entry.Path)
 	}
 
 	return err
@@ -257,6 +259,7 @@ func (handle *FileHandle) preprocessRename() error {
 
 	if handle.IsWriteMode() {
 		handle.filesystem.invalidateCacheForFileUpdate(handle.entry.Path)
+		handle.filesystem.cachePropagation.PropagateFileUpdate(handle.entry.Path)
 	}
 
 	return err

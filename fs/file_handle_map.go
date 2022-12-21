@@ -19,7 +19,7 @@ type FileHandleMapEventHandlerWrap struct {
 
 // FileHandleMap manages File Handles opened
 type FileHandleMap struct {
-	mutex              sync.Mutex
+	mutex              sync.RWMutex
 	fileHandles        map[string]*FileHandle                      // ID-handle mapping
 	filePathID         map[string][]string                         // path-IDs mappings
 	closeEventHandlers map[string][]*FileHandleMapEventHandlerWrap // path-eventhandler mapping
@@ -29,7 +29,7 @@ type FileHandleMap struct {
 // NewFileHandleMap creates a new FileHandleMap
 func NewFileHandleMap() *FileHandleMap {
 	return &FileHandleMap{
-		mutex:              sync.Mutex{},
+		mutex:              sync.RWMutex{},
 		fileHandles:        map[string]*FileHandle{},
 		filePathID:         map[string][]string{},
 		closeEventHandlers: map[string][]*FileHandleMapEventHandlerWrap{},
@@ -168,8 +168,8 @@ func (fileHandleMap *FileHandleMap) Clear() {
 
 // List lists all file handles registered
 func (fileHandleMap *FileHandleMap) List() []*FileHandle {
-	fileHandleMap.mutex.Lock()
-	defer fileHandleMap.mutex.Unlock()
+	fileHandleMap.mutex.RLock()
+	defer fileHandleMap.mutex.RUnlock()
 
 	handles := []*FileHandle{}
 	for _, handle := range fileHandleMap.fileHandles {
@@ -181,8 +181,8 @@ func (fileHandleMap *FileHandleMap) List() []*FileHandle {
 
 // Get returns a file handle registered using ID
 func (fileHandleMap *FileHandleMap) Get(id string) *FileHandle {
-	fileHandleMap.mutex.Lock()
-	defer fileHandleMap.mutex.Unlock()
+	fileHandleMap.mutex.RLock()
+	defer fileHandleMap.mutex.RUnlock()
 
 	return fileHandleMap.fileHandles[id]
 }
@@ -217,8 +217,8 @@ func (fileHandleMap *FileHandleMap) Pop(id string) *FileHandle {
 
 // ListByPath returns file handles registered using path
 func (fileHandleMap *FileHandleMap) ListByPath(path string) []*FileHandle {
-	fileHandleMap.mutex.Lock()
-	defer fileHandleMap.mutex.Unlock()
+	fileHandleMap.mutex.RLock()
+	defer fileHandleMap.mutex.RUnlock()
 
 	handles := []*FileHandle{}
 	if ids, ok := fileHandleMap.filePathID[path]; ok {
@@ -233,8 +233,8 @@ func (fileHandleMap *FileHandleMap) ListByPath(path string) []*FileHandle {
 
 // ListPathsUnderDir returns paths of file handles under given parent path
 func (fileHandleMap *FileHandleMap) ListPathsInDir(parentPath string) []string {
-	fileHandleMap.mutex.Lock()
-	defer fileHandleMap.mutex.Unlock()
+	fileHandleMap.mutex.RLock()
+	defer fileHandleMap.mutex.RUnlock()
 
 	prefix := parentPath
 	if len(prefix) > 1 && !strings.HasSuffix(prefix, "/") {

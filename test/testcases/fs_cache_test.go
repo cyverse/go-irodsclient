@@ -20,6 +20,7 @@ func TestFSCache(t *testing.T) {
 	makeHomeDir(t, fsCacheTestID)
 
 	t.Run("test MakeDir", testMakeDir)
+	t.Run("test testMakeDirCacheEvent", testMakeDirCacheEvent)
 }
 
 func testMakeDir(t *testing.T) {
@@ -29,9 +30,9 @@ func testMakeDir(t *testing.T) {
 
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
-	fs, err := fs.NewFileSystem(account, fsConfig)
+	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	assert.NoError(t, err)
-	defer fs.Release()
+	defer filesystem.Release()
 
 	homedir := getHomeDir(fsCacheTestID)
 
@@ -39,10 +40,10 @@ func testMakeDir(t *testing.T) {
 		newdir := fmt.Sprintf("%s/test_dir_%d", homedir, i)
 
 		// create test
-		err = fs.MakeDir(newdir, false)
+		err = filesystem.MakeDir(newdir, false)
 		assert.NoError(t, err)
 
-		entries, err := fs.List(homedir)
+		entries, err := filesystem.List(homedir)
 		assert.NoError(t, err)
 
 		found := false
@@ -57,14 +58,14 @@ func testMakeDir(t *testing.T) {
 
 		assert.True(t, found)
 
-		exist := fs.ExistsDir(newdir)
+		exist := filesystem.ExistsDir(newdir)
 		assert.True(t, exist)
 
 		// delete test
-		err = fs.RemoveDir(newdir, true, true)
+		err = filesystem.RemoveDir(newdir, true, true)
 		assert.NoError(t, err)
 
-		entries, err = fs.List(homedir)
+		entries, err = filesystem.List(homedir)
 		assert.NoError(t, err)
 
 		found = false
@@ -78,5 +79,54 @@ func testMakeDir(t *testing.T) {
 		}
 
 		assert.False(t, found)
+	}
+}
+
+func testMakeDirCacheEvent(t *testing.T) {
+	account := GetTestAccount()
+
+	account.ClientServerNegotiation = false
+
+	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
+
+	eventTypesReceived := []fs.FilesystemCacheUpdateEventType{}
+	eventPathsReceived := []string{}
+	eventHandler := func(path string, eventType fs.FilesystemCacheUpdateEventType) {
+		eventTypesReceived = append(eventTypesReceived, eventType)
+		eventPathsReceived = append(eventPathsReceived, path)
+	}
+
+	filesystem, err := fs.NewFileSystem(account, fsConfig)
+	assert.NoError(t, err)
+	defer filesystem.Release()
+
+	filesystem.AddCacheUpdateEventHandler(eventHandler)
+
+	homedir := getHomeDir(fsCacheTestID)
+
+	for i := 0; i < 10; i++ {
+		newdir := fmt.Sprintf("%s/cache_test_dir_%d", homedir, i)
+
+		// create test
+		err = filesystem.MakeDir(newdir, false)
+		assert.NoError(t, err)
+
+		exist := filesystem.ExistsDir(newdir)
+		assert.True(t, exist)
+
+		// delete test
+		err = filesystem.RemoveDir(newdir, true, true)
+		assert.NoError(t, err)
+
+		assert.Equal(t, 2, len(eventTypesReceived))
+		assert.Equal(t, 2, len(eventPathsReceived))
+
+		assert.Equal(t, newdir, eventPathsReceived[0])
+		assert.Equal(t, fs.FilesystemCacheDirCreateEvent, eventTypesReceived[0])
+		assert.Equal(t, newdir, eventPathsReceived[1])
+		assert.Equal(t, fs.FilesystemCacheDirRemoveEvent, eventTypesReceived[1])
+
+		eventTypesReceived = []fs.FilesystemCacheUpdateEventType{}
+		eventPathsReceived = []string{}
 	}
 }
