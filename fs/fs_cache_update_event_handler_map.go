@@ -6,46 +6,46 @@ import (
 	"github.com/rs/xid"
 )
 
-// FilesystemCacheUpdateEventType defines cache
-type FilesystemCacheUpdateEventType string
+// FilesystemCacheEventType defines cache
+type FilesystemCacheEventType string
 
 const (
 	// FilesystemCacheFileCreateEvent is an event type for file creation
-	FilesystemCacheFileCreateEvent FilesystemCacheUpdateEventType = "file create"
+	FilesystemCacheFileCreateEvent FilesystemCacheEventType = "file create"
 	// FilesystemCacheFileRemoveEvent is an event type for file removal
-	FilesystemCacheFileRemoveEvent FilesystemCacheUpdateEventType = "file remove"
+	FilesystemCacheFileRemoveEvent FilesystemCacheEventType = "file remove"
 	// FilesystemCacheFileUpdateEvent is an event type for file update
-	FilesystemCacheFileUpdateEvent FilesystemCacheUpdateEventType = "file update"
+	FilesystemCacheFileUpdateEvent FilesystemCacheEventType = "file update"
 	// FilesystemCacheDirCreateEvent is an event type for dir creation
-	FilesystemCacheDirCreateEvent FilesystemCacheUpdateEventType = "dir create"
+	FilesystemCacheDirCreateEvent FilesystemCacheEventType = "dir create"
 	// FilesystemCacheDirRemoveEvent is an event type for dir removal
-	FilesystemCacheDirRemoveEvent FilesystemCacheUpdateEventType = "dir remove"
+	FilesystemCacheDirRemoveEvent FilesystemCacheEventType = "dir remove"
 )
 
-type FilesystemCacheUpdateEventHandler func(path string, eventType FilesystemCacheUpdateEventType)
+type FilesystemCacheEventHandler func(path string, eventType FilesystemCacheEventType)
 
-// FilesystemCacheUpdateEventHandlerMap manages FilesystemCacheUpdateEventHandler
-type FilesystemCacheUpdateEventHandlerMap struct {
+// FilesystemCacheEventHandlerMap manages FilesystemCacheEventHandler
+type FilesystemCacheEventHandlerMap struct {
 	mutex    sync.RWMutex
-	handlers map[string]FilesystemCacheUpdateEventHandler // ID-handler mapping
+	handlers map[string]FilesystemCacheEventHandler // ID-handler mapping
 }
 
-// NewFilesystemCacheUpdateEventHandlerMap creates a new FilesystemCacheUpdateEventHandlerMap
-func NewFilesystemCacheUpdateEventHandlerMap() *FilesystemCacheUpdateEventHandlerMap {
-	return &FilesystemCacheUpdateEventHandlerMap{
+// NewFilesystemCacheEventHandlerMap creates a new FilesystemCacheEventHandlerMap
+func NewFilesystemCacheEventHandlerMap() *FilesystemCacheEventHandlerMap {
+	return &FilesystemCacheEventHandlerMap{
 		mutex:    sync.RWMutex{},
-		handlers: map[string]FilesystemCacheUpdateEventHandler{},
+		handlers: map[string]FilesystemCacheEventHandler{},
 	}
 }
 
-func (handlerMap *FilesystemCacheUpdateEventHandlerMap) Release() {
+func (handlerMap *FilesystemCacheEventHandlerMap) Release() {
 	handlerMap.mutex.Lock()
 	defer handlerMap.mutex.Unlock()
 
-	handlerMap.handlers = map[string]FilesystemCacheUpdateEventHandler{}
+	handlerMap.handlers = map[string]FilesystemCacheEventHandler{}
 }
 
-func (handlerMap *FilesystemCacheUpdateEventHandlerMap) AddEventHandler(handler FilesystemCacheUpdateEventHandler) string {
+func (handlerMap *FilesystemCacheEventHandlerMap) AddEventHandler(handler FilesystemCacheEventHandler) string {
 	handlerID := xid.New().String()
 
 	handlerMap.mutex.Lock()
@@ -56,25 +56,25 @@ func (handlerMap *FilesystemCacheUpdateEventHandlerMap) AddEventHandler(handler 
 	return handlerID
 }
 
-func (handlerMap *FilesystemCacheUpdateEventHandlerMap) RemoveEventHandler(handlerID string) {
+func (handlerMap *FilesystemCacheEventHandlerMap) RemoveEventHandler(handlerID string) {
 	handlerMap.mutex.Lock()
 	defer handlerMap.mutex.Unlock()
 
 	delete(handlerMap.handlers, handlerID)
 }
 
-func (handlerMap *FilesystemCacheUpdateEventHandlerMap) GetEventHandler(handlerID string) FilesystemCacheUpdateEventHandler {
+func (handlerMap *FilesystemCacheEventHandlerMap) GetEventHandler(handlerID string) FilesystemCacheEventHandler {
 	handlerMap.mutex.RLock()
 	defer handlerMap.mutex.RUnlock()
 
 	return handlerMap.handlers[handlerID]
 }
 
-func (handlerMap *FilesystemCacheUpdateEventHandlerMap) GetEventHandlers() []FilesystemCacheUpdateEventHandler {
+func (handlerMap *FilesystemCacheEventHandlerMap) GetEventHandlers() []FilesystemCacheEventHandler {
 	handlerMap.mutex.RLock()
 	defer handlerMap.mutex.RUnlock()
 
-	handlers := []FilesystemCacheUpdateEventHandler{}
+	handlers := []FilesystemCacheEventHandler{}
 	for _, handler := range handlerMap.handlers {
 		handlers = append(handlers, handler)
 	}
@@ -82,7 +82,7 @@ func (handlerMap *FilesystemCacheUpdateEventHandlerMap) GetEventHandlers() []Fil
 	return handlers
 }
 
-func (handlerMap *FilesystemCacheUpdateEventHandlerMap) GetEventHandlerIDs() []string {
+func (handlerMap *FilesystemCacheEventHandlerMap) GetEventHandlerIDs() []string {
 	handlerMap.mutex.RLock()
 	defer handlerMap.mutex.RUnlock()
 
@@ -94,7 +94,7 @@ func (handlerMap *FilesystemCacheUpdateEventHandlerMap) GetEventHandlerIDs() []s
 	return handlerIDs
 }
 
-func (handlerMap *FilesystemCacheUpdateEventHandlerMap) SendEvent(path string, eventType FilesystemCacheUpdateEventType) {
+func (handlerMap *FilesystemCacheEventHandlerMap) SendEvent(path string, eventType FilesystemCacheEventType) {
 	handlerMap.mutex.RLock()
 	defer handlerMap.mutex.RUnlock()
 
@@ -103,22 +103,22 @@ func (handlerMap *FilesystemCacheUpdateEventHandlerMap) SendEvent(path string, e
 	}
 }
 
-func (handlerMap *FilesystemCacheUpdateEventHandlerMap) SendFileCreateEvent(path string) {
+func (handlerMap *FilesystemCacheEventHandlerMap) SendFileCreateEvent(path string) {
 	handlerMap.SendEvent(path, FilesystemCacheFileCreateEvent)
 }
 
-func (handlerMap *FilesystemCacheUpdateEventHandlerMap) SendFileRemoveEvent(path string) {
+func (handlerMap *FilesystemCacheEventHandlerMap) SendFileRemoveEvent(path string) {
 	handlerMap.SendEvent(path, FilesystemCacheFileRemoveEvent)
 }
 
-func (handlerMap *FilesystemCacheUpdateEventHandlerMap) SendFileUpdateEvent(path string) {
+func (handlerMap *FilesystemCacheEventHandlerMap) SendFileUpdateEvent(path string) {
 	handlerMap.SendEvent(path, FilesystemCacheFileUpdateEvent)
 }
 
-func (handlerMap *FilesystemCacheUpdateEventHandlerMap) SendDirCreateEvent(path string) {
+func (handlerMap *FilesystemCacheEventHandlerMap) SendDirCreateEvent(path string) {
 	handlerMap.SendEvent(path, FilesystemCacheDirCreateEvent)
 }
 
-func (handlerMap *FilesystemCacheUpdateEventHandlerMap) SendDirRemoveEvent(path string) {
+func (handlerMap *FilesystemCacheEventHandlerMap) SendDirRemoveEvent(path string) {
 	handlerMap.SendEvent(path, FilesystemCacheDirRemoveEvent)
 }

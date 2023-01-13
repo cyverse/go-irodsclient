@@ -7,13 +7,13 @@ import (
 // used to sync caches between different fs instances
 
 var (
-	filesystemCacheUpdateEventHandlersMutex sync.RWMutex
-	filesystemCacheUpdateEventHandlers      map[string]FilesystemCacheUpdateEventHandler
+	filesystemCacheEventHandlersMutex sync.RWMutex
+	filesystemCacheEventHandlers      map[string]FilesystemCacheEventHandler
 )
 
 func init() {
-	filesystemCacheUpdateEventHandlersMutex = sync.RWMutex{}
-	filesystemCacheUpdateEventHandlers = make(map[string]FilesystemCacheUpdateEventHandler)
+	filesystemCacheEventHandlersMutex = sync.RWMutex{}
+	filesystemCacheEventHandlers = make(map[string]FilesystemCacheEventHandler)
 }
 
 // FileSystemCachePropagation manages filesystem cache propagation
@@ -27,10 +27,10 @@ func NewFileSystemCachePropagation(fs *FileSystem) *FileSystemCachePropagation {
 		filesystem: fs,
 	}
 
-	filesystemCacheUpdateEventHandlersMutex.Lock()
-	defer filesystemCacheUpdateEventHandlersMutex.Unlock()
+	filesystemCacheEventHandlersMutex.Lock()
+	defer filesystemCacheEventHandlersMutex.Unlock()
 
-	filesystemCacheUpdateEventHandlers[fs.GetID()] = func(path string, eventType FilesystemCacheUpdateEventType) {
+	filesystemCacheEventHandlers[fs.GetID()] = func(path string, eventType FilesystemCacheEventType) {
 		go cachePropagation.handle(path, eventType)
 	}
 
@@ -38,13 +38,13 @@ func NewFileSystemCachePropagation(fs *FileSystem) *FileSystemCachePropagation {
 }
 
 func (propagation *FileSystemCachePropagation) Release() {
-	filesystemCacheUpdateEventHandlersMutex.Lock()
-	defer filesystemCacheUpdateEventHandlersMutex.Unlock()
+	filesystemCacheEventHandlersMutex.Lock()
+	defer filesystemCacheEventHandlersMutex.Unlock()
 
-	delete(filesystemCacheUpdateEventHandlers, propagation.filesystem.GetID())
+	delete(filesystemCacheEventHandlers, propagation.filesystem.GetID())
 }
 
-func (propagation *FileSystemCachePropagation) handle(path string, eventType FilesystemCacheUpdateEventType) {
+func (propagation *FileSystemCachePropagation) handle(path string, eventType FilesystemCacheEventType) {
 	switch eventType {
 	case FilesystemCacheFileCreateEvent:
 		propagation.filesystem.invalidateCacheForFileCreate(path)
@@ -62,11 +62,11 @@ func (propagation *FileSystemCachePropagation) handle(path string, eventType Fil
 }
 
 // Propagate propagates fs cache update event
-func (propagation *FileSystemCachePropagation) Propagate(path string, eventType FilesystemCacheUpdateEventType) {
-	filesystemCacheUpdateEventHandlersMutex.RLock()
-	defer filesystemCacheUpdateEventHandlersMutex.RUnlock()
+func (propagation *FileSystemCachePropagation) Propagate(path string, eventType FilesystemCacheEventType) {
+	filesystemCacheEventHandlersMutex.RLock()
+	defer filesystemCacheEventHandlersMutex.RUnlock()
 
-	for fsID, handler := range filesystemCacheUpdateEventHandlers {
+	for fsID, handler := range filesystemCacheEventHandlers {
 		if fsID != propagation.filesystem.GetID() {
 			handler(path, eventType)
 		}

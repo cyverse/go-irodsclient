@@ -89,9 +89,9 @@ func testMakeDirCacheEvent(t *testing.T) {
 
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
-	eventTypesReceived := []fs.FilesystemCacheUpdateEventType{}
+	eventTypesReceived := []fs.FilesystemCacheEventType{}
 	eventPathsReceived := []string{}
-	eventHandler := func(path string, eventType fs.FilesystemCacheUpdateEventType) {
+	eventHandler := func(path string, eventType fs.FilesystemCacheEventType) {
 		eventTypesReceived = append(eventTypesReceived, eventType)
 		eventPathsReceived = append(eventPathsReceived, path)
 	}
@@ -100,7 +100,7 @@ func testMakeDirCacheEvent(t *testing.T) {
 	assert.NoError(t, err)
 	defer filesystem.Release()
 
-	filesystem.AddCacheUpdateEventHandler(eventHandler)
+	filesystem.AddCacheEventHandler(eventHandler)
 
 	homedir := getHomeDir(fsCacheTestID)
 
@@ -126,7 +126,7 @@ func testMakeDirCacheEvent(t *testing.T) {
 		assert.Equal(t, newdir, eventPathsReceived[1])
 		assert.Equal(t, fs.FilesystemCacheDirRemoveEvent, eventTypesReceived[1])
 
-		eventTypesReceived = []fs.FilesystemCacheUpdateEventType{}
+		eventTypesReceived = []fs.FilesystemCacheEventType{}
 		eventPathsReceived = []string{}
 	}
 }

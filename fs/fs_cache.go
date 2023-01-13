@@ -13,12 +13,12 @@ func (fs *FileSystem) ClearCache() {
 	fs.cache.ClearDirCache()
 }
 
-func (fs *FileSystem) AddCacheUpdateEventHandler(handler FilesystemCacheUpdateEventHandler) string {
-	return fs.cacheUpdateEventHandlerMap.AddEventHandler(handler)
+func (fs *FileSystem) AddCacheEventHandler(handler FilesystemCacheEventHandler) string {
+	return fs.cacheEventHandlerMap.AddEventHandler(handler)
 }
 
-func (fs *FileSystem) RemoveCacheUpdateEventHandler(handlerID string) {
-	fs.cacheUpdateEventHandlerMap.RemoveEventHandler(handlerID)
+func (fs *FileSystem) RemoveCacheEventHandler(handlerID string) {
+	fs.cacheEventHandlerMap.RemoveEventHandler(handlerID)
 }
 
 // invalidateCacheForRemoveInternal invalidates cache for removal of the given file/dir
@@ -61,7 +61,7 @@ func (fs *FileSystem) invalidateCacheForDirCreate(path string) {
 	}
 
 	// send event
-	fs.cacheUpdateEventHandlerMap.SendDirCreateEvent(path)
+	fs.cacheEventHandlerMap.SendDirCreateEvent(path)
 }
 
 // invalidateCacheForFileUpdate invalidates cache for update on the given file
@@ -72,7 +72,7 @@ func (fs *FileSystem) invalidateCacheForFileUpdate(path string) {
 	// modification doesn't affect to parent dir's modified time
 
 	// send event
-	fs.cacheUpdateEventHandlerMap.SendFileUpdateEvent(path)
+	fs.cacheEventHandlerMap.SendFileUpdateEvent(path)
 }
 
 // invalidateCacheForDirRemove invalidates cache for removal of the given dir
@@ -119,7 +119,7 @@ func (fs *FileSystem) invalidateCacheForDirRemove(path string, recurse bool) {
 	}
 
 	// send event
-	fs.cacheUpdateEventHandlerMap.SendDirRemoveEvent(path)
+	fs.cacheEventHandlerMap.SendDirRemoveEvent(path)
 }
 
 // invalidateCacheForFileCreate invalidates cache for creation of the given file
@@ -137,7 +137,7 @@ func (fs *FileSystem) invalidateCacheForFileCreate(path string) {
 	}
 
 	// send event
-	fs.cacheUpdateEventHandlerMap.SendFileCreateEvent(path)
+	fs.cacheEventHandlerMap.SendFileCreateEvent(path)
 }
 
 // invalidateCacheForFileRemove invalidates cache for removal of the given file
@@ -163,5 +163,5 @@ func (fs *FileSystem) invalidateCacheForFileRemove(path string) {
 	}
 
 	// send event
-	fs.cacheUpdateEventHandlerMap.SendFileRemoveEvent(path)
+	fs.cacheEventHandlerMap.SendFileRemoveEvent(path)
 }

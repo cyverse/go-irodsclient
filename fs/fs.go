@@ -17,14 +17,14 @@ import (
 
 // FileSystem provides a file-system like interface
 type FileSystem struct {
-	id                         string
-	account                    *types.IRODSAccount
-	config                     *FileSystemConfig
-	session                    *session.IRODSSession
-	cache                      *FileSystemCache
-	cachePropagation           *FileSystemCachePropagation
-	cacheUpdateEventHandlerMap *FilesystemCacheUpdateEventHandlerMap
-	fileHandleMap              *FileHandleMap
+	id                   string
+	account              *types.IRODSAccount
+	config               *FileSystemConfig
+	session              *session.IRODSSession
+	cache                *FileSystemCache
+	cachePropagation     *FileSystemCachePropagation
+	cacheEventHandlerMap *FilesystemCacheEventHandlerMap
+	fileHandleMap        *FileHandleMap
 }
 
 // NewFileSystem creates a new FileSystem
@@ -38,13 +38,13 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*File
 	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime, config.CacheTimeoutSettings, config.InvalidateParentEntryCacheImmediately)
 
 	fs := &FileSystem{
-		id:                         xid.New().String(), // generate a new ID
-		account:                    account,
-		config:                     config,
-		session:                    sess,
-		cache:                      cache,
-		cacheUpdateEventHandlerMap: NewFilesystemCacheUpdateEventHandlerMap(),
-		fileHandleMap:              NewFileHandleMap(),
+		id:                   xid.New().String(), // generate a new ID
+		account:              account,
+		config:               config,
+		session:              sess,
+		cache:                cache,
+		cacheEventHandlerMap: NewFilesystemCacheEventHandlerMap(),
+		fileHandleMap:        NewFileHandleMap(),
 	}
 
 	cachePropagation := NewFileSystemCachePropagation(fs)
@@ -65,13 +65,13 @@ func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName strin
 	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime, config.CacheTimeoutSettings, config.InvalidateParentEntryCacheImmediately)
 
 	fs := &FileSystem{
-		id:                         xid.New().String(), // generate a new ID
-		account:                    account,
-		config:                     config,
-		session:                    sess,
-		cache:                      cache,
-		cacheUpdateEventHandlerMap: NewFilesystemCacheUpdateEventHandlerMap(),
-		fileHandleMap:              NewFileHandleMap(),
+		id:                   xid.New().String(), // generate a new ID
+		account:              account,
+		config:               config,
+		session:              sess,
+		cache:                cache,
+		cacheEventHandlerMap: NewFilesystemCacheEventHandlerMap(),
+		fileHandleMap:        NewFileHandleMap(),
 	}
 
 	cachePropagation := NewFileSystemCachePropagation(fs)
@@ -91,13 +91,13 @@ func NewFileSystemWithSessionConfig(account *types.IRODSAccount, sessConfig *ses
 	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime, config.CacheTimeoutSettings, config.InvalidateParentEntryCacheImmediately)
 
 	fs := &FileSystem{
-		id:                         xid.New().String(), // generate a new ID
-		account:                    account,
-		config:                     config,
-		session:                    sess,
-		cache:                      cache,
-		cacheUpdateEventHandlerMap: NewFilesystemCacheUpdateEventHandlerMap(),
-		fileHandleMap:              NewFileHandleMap(),
+		id:                   xid.New().String(), // generate a new ID
+		account:              account,
+		config:               config,
+		session:              sess,
+		cache:                cache,
+		cacheEventHandlerMap: NewFilesystemCacheEventHandlerMap(),
+		fileHandleMap:        NewFileHandleMap(),
 	}
 
 	cachePropagation := NewFileSystemCachePropagation(fs)
@@ -113,7 +113,7 @@ func (fs *FileSystem) Release() {
 		handle.closeWithoutFSHandleManagement()
 	}
 
-	fs.cacheUpdateEventHandlerMap.Release()
+	fs.cacheEventHandlerMap.Release()
 	fs.cachePropagation.Release()
 
 	fs.session.Release()
