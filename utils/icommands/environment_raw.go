@@ -3,7 +3,7 @@ package icommands
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/cyverse/go-irodsclient/irods/types"
@@ -46,7 +46,7 @@ type ICommandsEnvironment struct {
 
 // CreateICommandsEnvironmentFromFile creates ICommandsEnvironment from a file
 func CreateICommandsEnvironmentFromFile(envPath string) (*ICommandsEnvironment, error) {
-	data, err := ioutil.ReadFile(envPath)
+	data, err := os.ReadFile(envPath)
 	if err != nil {
 		return nil, err
 	}
@@ -136,5 +136,5 @@ func (env *ICommandsEnvironment) ToFile(envPath string) error {
 		return err
 	}
 
-	return ioutil.WriteFile(envPath, jsonByte, 0664)
+	return os.WriteFile(envPath, jsonByte, 0664)
 }

@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/connection"
@@ -22,7 +22,7 @@ func main() {
 	flag.Parse()
 
 	// Read account configuration from YAML file
-	yaml, err := ioutil.ReadFile("account.yml")
+	yaml, err := os.ReadFile("account.yml")
 	if err != nil {
 		logger.Error(err)
 		panic(err)

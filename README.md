@@ -24,7 +24,7 @@ auth_scheme: "native"
 
 Loading a YAML file.
 ```go
-yaml, err := ioutil.ReadFile("account.yml")
+yaml, err := os.ReadFile("account.yml")
 if err != nil {
     logger.Error(err)
     panic(err)

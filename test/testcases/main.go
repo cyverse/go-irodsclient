@@ -4,7 +4,6 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -97,7 +96,7 @@ func createLocalTestFile(name string, size int64) (string, error) {
 		i += len(testval)
 	}
 
-	f, err := ioutil.TempFile("", name)
+	f, err := os.CreateTemp("", name)
 	if err != nil {
 		return "", err
 	}
@@ -182,7 +181,7 @@ func prepareSamples(t *testing.T, testID string) {
 			copy(buf[startIdx:startIdx+len(testval)], testval)
 		}
 
-		err = ioutil.WriteFile(filename, buf, 0666)
+		err = os.WriteFile(filename, buf, 0666)
 		assert.NoError(t, err)
 
 		irodsPath := homedir + "/" + filename

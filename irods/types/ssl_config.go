@@ -2,7 +2,7 @@ package types
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 )
 
 // IRODSSSLConfig contains irods ssl configuration
@@ -29,9 +29,9 @@ func CreateIRODSSSLConfig(caCertFile string, keySize int, algorithm string, salt
 // ReadCACert returns CA Cert data
 func (config *IRODSSSLConfig) ReadCACert() ([]byte, error) {
 	if len(config.CACertificateFile) > 0 {
-		caCert, err := ioutil.ReadFile(config.CACertificateFile)
+		caCert, err := os.ReadFile(config.CACertificateFile)
 		if err != nil {
-			return nil, fmt.Errorf("File Read Error - %v", err)
+			return nil, err
 		}
 		return caCert, nil
 	}

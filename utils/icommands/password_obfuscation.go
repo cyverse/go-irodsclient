@@ -1,7 +1,6 @@
 package icommands
 
 import (
-	"io/ioutil"
 	"os"
 	"time"
 )
@@ -38,7 +37,7 @@ var (
 
 // DecodePasswordFile decodes password string in .irodsA file
 func DecodePasswordFile(path string, uid int) (string, error) {
-	content, err := ioutil.ReadFile(path)
+	content, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
 	}
@@ -49,7 +48,7 @@ func DecodePasswordFile(path string, uid int) (string, error) {
 // EncodePasswordFile encodes password string and store in .irodsA file
 func EncodePasswordFile(path string, s string, uid int) error {
 	content := EncodePasswordString(s, uid)
-	return ioutil.WriteFile(path, []byte(content), 0600)
+	return os.WriteFile(path, []byte(content), 0600)
 }
 
 // DecodePasswordString decodes password string in .irodsA file

@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/cyverse/go-irodsclient/fs"
@@ -30,7 +29,7 @@ func main() {
 	inputPath := args[0]
 
 	// Read account configuration from YAML file
-	yaml, err := ioutil.ReadFile("account.yml")
+	yaml, err := os.ReadFile("account.yml")
 	if err != nil {
 		logger.Error(err)
 		panic(err)
