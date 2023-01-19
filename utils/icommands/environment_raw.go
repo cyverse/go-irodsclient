@@ -54,15 +54,28 @@ func CreateICommandsEnvironmentFromFile(envPath string) (*ICommandsEnvironment, 
 	return CreateICommandsEnvironmentFromJSON(data)
 }
 
+func getDefaultICommandsEnvironment() *ICommandsEnvironment {
+	return &ICommandsEnvironment{
+		Port:                    1247,
+		AuthenticationScheme:    "native",
+		ClientServerNegotiation: "request_server_negotiation",
+		ClientServerPolicy:      string(types.CSNegotiationRequireTCP),
+		EncryptionKeySize:       32,
+		EncryptionAlgorithm:     "AES-256-CBC",
+		EncryptionSaltSize:      8,
+		EncryptionNumHashRounds: 16,
+	}
+}
+
 // CreateICommandsEnvironmentFromJSON creates ICommandsEnvironment from JSON
 func CreateICommandsEnvironmentFromJSON(jsonBytes []byte) (*ICommandsEnvironment, error) {
-	var environment ICommandsEnvironment
+	environment := getDefaultICommandsEnvironment()
 	err := json.Unmarshal(jsonBytes, &environment)
 	if err != nil {
 		return nil, fmt.Errorf("JSON Unmarshal Error - %v", err)
 	}
 
-	return &environment, nil
+	return environment, nil
 }
 
 // ToIRODSAccount creates IRODSAccount
