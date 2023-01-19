@@ -22,6 +22,7 @@ type ICommandsEnvironmentManager struct {
 	EnvironmentFilename    string
 	UID                    int
 	Password               string
+	IsPasswordPamToken     bool
 	Environment            *ICommandsEnvironment
 	Session                *ICommandsEnvironment
 }
@@ -41,6 +42,7 @@ func CreateIcommandsEnvironmentManager() (*ICommandsEnvironmentManager, error) {
 		EnvironmentFilename:    environmentFilename,
 		UID:                    uid,
 		Password:               "",
+		IsPasswordPamToken:     false,
 		Environment:            &ICommandsEnvironment{},
 		Session:                &ICommandsEnvironment{},
 	}, nil
@@ -88,6 +90,7 @@ func CreateIcommandsEnvironmentManagerFromIRODSAccount(account *types.IRODSAccou
 	}
 
 	manager.Password = account.Password
+	manager.IsPasswordPamToken = false
 
 	return manager, nil
 }
@@ -163,6 +166,14 @@ func (manager *ICommandsEnvironmentManager) Load(processID int) error {
 	}
 
 	manager.Password = password
+	manager.IsPasswordPamToken = false
+
+	authScheme, _ := types.GetAuthScheme(manager.Environment.AuthenticationScheme)
+	if authScheme == types.AuthSchemePAM {
+		// if auth scheme is PAM auth, password read from .irodsA is pam token
+		manager.IsPasswordPamToken = true
+	}
+
 	return nil
 }
 
@@ -173,6 +184,11 @@ func (manager *ICommandsEnvironmentManager) ToIRODSAccount() (*types.IRODSAccoun
 
 	account := manager.Environment.ToIRODSAccount()
 	account.Password = manager.Password
+
+	if manager.IsPasswordPamToken {
+		account.AuthenticationScheme = types.AuthSchemeNative
+	}
+
 	return account, nil
 }
 
