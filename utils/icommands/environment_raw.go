@@ -58,7 +58,7 @@ func getDefaultICommandsEnvironment() *ICommandsEnvironment {
 	return &ICommandsEnvironment{
 		Port:                    1247,
 		AuthenticationScheme:    "native",
-		ClientServerNegotiation: "request_server_negotiation",
+		ClientServerNegotiation: "", // don't perform negotiation
 		ClientServerPolicy:      string(types.CSNegotiationRequireTCP),
 		EncryptionKeySize:       32,
 		EncryptionAlgorithm:     "AES-256-CBC",
