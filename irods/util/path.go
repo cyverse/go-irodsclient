@@ -6,6 +6,11 @@ import (
 	"strings"
 )
 
+// GetCorrectLocalPath corrects the path
+func GetCorrectLocalPath(p string) string {
+	return filepath.Clean(p)
+}
+
 func ExpandHomeDir(path string) (string, error) {
 	// resolve "~/"
 	if path == "~" {

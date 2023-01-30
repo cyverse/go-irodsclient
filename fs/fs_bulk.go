@@ -3,6 +3,7 @@ package fs
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	irods_fs "github.com/cyverse/go-irodsclient/irods/fs"
 	"github.com/cyverse/go-irodsclient/irods/types"
@@ -12,7 +13,7 @@ import (
 // DownloadFile downloads a file to local
 func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath string, callback irods_fs.TrackerCallBack) error {
 	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
-	localDestPath := util.GetCorrectIRODSPath(localPath)
+	localDestPath := util.GetCorrectLocalPath(localPath)
 
 	localFilePath := localDestPath
 
@@ -36,7 +37,7 @@ func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath 
 	} else {
 		if destStat.IsDir() {
 			irodsFileName := util.GetIRODSPathFileName(irodsSrcPath)
-			localFilePath = util.MakeIRODSPath(localDestPath, irodsFileName)
+			localFilePath = filepath.Join(localDestPath, irodsFileName)
 		} else {
 			return fmt.Errorf("file %s already exists", localDestPath)
 		}
@@ -48,7 +49,7 @@ func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath 
 // DownloadFileParallel downloads a file to local in parallel
 func (fs *FileSystem) DownloadFileParallel(irodsPath string, resource string, localPath string, taskNum int, callback irods_fs.TrackerCallBack) error {
 	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
-	localDestPath := util.GetCorrectIRODSPath(localPath)
+	localDestPath := util.GetCorrectLocalPath(localPath)
 
 	localFilePath := localDestPath
 
@@ -72,7 +73,7 @@ func (fs *FileSystem) DownloadFileParallel(irodsPath string, resource string, lo
 	} else {
 		if destStat.IsDir() {
 			irodsFileName := util.GetIRODSPathFileName(irodsSrcPath)
-			localFilePath = util.MakeIRODSPath(localDestPath, irodsFileName)
+			localFilePath = filepath.Join(localDestPath, irodsFileName)
 		} else {
 			return fmt.Errorf("file %s already exists", localDestPath)
 		}
@@ -84,7 +85,7 @@ func (fs *FileSystem) DownloadFileParallel(irodsPath string, resource string, lo
 // DownloadFileParallelInBlocksAsync downloads a file to local in parallel
 func (fs *FileSystem) DownloadFileParallelInBlocksAsync(irodsPath string, resource string, localPath string, blockLength int64, taskNum int) (chan int64, chan error) {
 	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
-	localDestPath := util.GetCorrectIRODSPath(localPath)
+	localDestPath := util.GetCorrectLocalPath(localPath)
 
 	localFilePath := localDestPath
 
@@ -120,7 +121,7 @@ func (fs *FileSystem) DownloadFileParallelInBlocksAsync(irodsPath string, resour
 	} else {
 		if destStat.IsDir() {
 			irodsFileName := util.GetIRODSPathFileName(irodsSrcPath)
-			localFilePath = util.MakeIRODSPath(localDestPath, irodsFileName)
+			localFilePath = filepath.Join(localDestPath, irodsFileName)
 		} else {
 			errChan <- fmt.Errorf("file %s already exists", localDestPath)
 			close(outputChan)
@@ -134,7 +135,7 @@ func (fs *FileSystem) DownloadFileParallelInBlocksAsync(irodsPath string, resour
 
 // UploadFile uploads a local file to irods
 func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource string, replicate bool, callback irods_fs.TrackerCallBack) error {
-	localSrcPath := util.GetCorrectIRODSPath(localPath)
+	localSrcPath := util.GetCorrectLocalPath(localPath)
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
 	irodsFilePath := irodsDestPath
@@ -162,7 +163,7 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 		case FileEntry:
 			// do nothing
 		case DirectoryEntry:
-			localFileName := util.GetIRODSPathFileName(localSrcPath)
+			localFileName := filepath.Base(localSrcPath)
 			irodsFilePath = util.MakeIRODSPath(irodsDestPath, localFileName)
 		default:
 			return fmt.Errorf("unknown entry type %s", entry.Type)
@@ -181,7 +182,7 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 
 // UploadFileParallel uploads a local file to irods in parallel
 func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, resource string, taskNum int, replicate bool, callback irods_fs.TrackerCallBack) error {
-	localSrcPath := util.GetCorrectIRODSPath(localPath)
+	localSrcPath := util.GetCorrectLocalPath(localPath)
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
 	irodsFilePath := irodsDestPath
@@ -209,7 +210,7 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 		case FileEntry:
 			// do nothing
 		case DirectoryEntry:
-			localFileName := util.GetIRODSPathFileName(localSrcPath)
+			localFileName := filepath.Join(localSrcPath)
 			irodsFilePath = util.MakeIRODSPath(irodsDestPath, localFileName)
 		default:
 			return fmt.Errorf("unknown entry type %s", destStat.Type)
@@ -228,7 +229,7 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 
 // UploadFileParallelInBlocksAsync uploads a local file to irods in parallel
 func (fs *FileSystem) UploadFileParallelInBlocksAsync(localPath string, irodsPath string, resource string, blockLength int64, taskNum int, replicate bool) (chan int64, chan error) {
-	localSrcPath := util.GetCorrectIRODSPath(localPath)
+	localSrcPath := util.GetCorrectLocalPath(localPath)
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
 	irodsFilePath := irodsDestPath
@@ -272,7 +273,7 @@ func (fs *FileSystem) UploadFileParallelInBlocksAsync(localPath string, irodsPat
 		case FileEntry:
 			// do nothing
 		case DirectoryEntry:
-			localFileName := util.GetIRODSPathFileName(localSrcPath)
+			localFileName := filepath.Base(localSrcPath)
 			irodsFilePath = util.MakeIRODSPath(irodsDestPath, localFileName)
 		default:
 			errChan <- fmt.Errorf("unknown entry type %s", destStat.Type)
