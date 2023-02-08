@@ -540,10 +540,15 @@ func (conn *IRODSConnection) socketFail() {
 
 // Send sends data
 func (conn *IRODSConnection) Send(buffer []byte, size int) error {
+	return conn.SendWithTrackerCallBack(buffer, size, nil)
+}
+
+// SendWithTrackerCallBack sends data
+func (conn *IRODSConnection) SendWithTrackerCallBack(buffer []byte, size int, callback common.TrackerCallBack) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "connection",
 		"struct":   "IRODSConnection",
-		"function": "Send",
+		"function": "SendWithTrackerCallBack",
 	})
 
 	if conn.socket == nil {
@@ -559,7 +564,7 @@ func (conn *IRODSConnection) Send(buffer []byte, size int) error {
 		conn.socket.SetWriteDeadline(time.Now().Add(conn.requestTimeout))
 	}
 
-	err := util.WriteBytes(conn.socket, buffer, size)
+	err := util.WriteBytesWithTrackerCallBack(conn.socket, buffer, size, callback)
 	if err != nil {
 		logger.WithError(err).Error("unable to send data. connection to remote host may have closed.")
 
@@ -580,10 +585,15 @@ func (conn *IRODSConnection) Send(buffer []byte, size int) error {
 
 // Recv receives a message
 func (conn *IRODSConnection) Recv(buffer []byte, size int) (int, error) {
+	return conn.RecvWithTrackerCallBack(buffer, size, nil)
+}
+
+// Recv receives a message
+func (conn *IRODSConnection) RecvWithTrackerCallBack(buffer []byte, size int, callback common.TrackerCallBack) (int, error) {
 	logger := log.WithFields(log.Fields{
 		"package":  "connection",
 		"struct":   "IRODSConnection",
-		"function": "Recv",
+		"function": "RecvWithTrackerCallBack",
 	})
 
 	if conn.socket == nil {
@@ -598,7 +608,7 @@ func (conn *IRODSConnection) Recv(buffer []byte, size int) (int, error) {
 		conn.socket.SetReadDeadline(time.Now().Add(conn.requestTimeout))
 	}
 
-	readLen, err := util.ReadBytes(conn.socket, buffer, size)
+	readLen, err := util.ReadBytesWithTrackerCallBack(conn.socket, buffer, size, callback)
 	if err != nil {
 		logger.Error("unable to receive data. connection to remote host may have closed.")
 
@@ -619,10 +629,15 @@ func (conn *IRODSConnection) Recv(buffer []byte, size int) (int, error) {
 
 // SendMessage makes the message into bytes
 func (conn *IRODSConnection) SendMessage(msg *message.IRODSMessage) error {
+	return conn.SendMessageWithTrackerCallBack(msg, nil)
+}
+
+// SendMessageWithTrackerCallBack makes the message into bytes
+func (conn *IRODSConnection) SendMessageWithTrackerCallBack(msg *message.IRODSMessage, callback common.TrackerCallBack) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "connection",
 		"struct":   "IRODSConnection",
-		"function": "SendMessage",
+		"function": "SendMessageWithTrackerCallBack",
 	})
 
 	if !conn.locked {
@@ -699,7 +714,7 @@ func (conn *IRODSConnection) SendMessage(msg *message.IRODSMessage) error {
 	// send body-bs
 	if msg.Body != nil {
 		if msg.Body.Bs != nil {
-			conn.Send(msg.Body.Bs, len(msg.Body.Bs))
+			conn.SendWithTrackerCallBack(msg.Body.Bs, len(msg.Body.Bs), callback)
 		}
 	}
 	return nil
@@ -752,10 +767,14 @@ func (conn *IRODSConnection) readMessageHeader() (*message.IRODSMessageHeader, e
 // if bsBuffer is given, bs data will be written directly to the bsBuffer
 // if not given, a new buffer will be allocated.
 func (conn *IRODSConnection) ReadMessage(bsBuffer []byte) (*message.IRODSMessage, error) {
+	return conn.ReadMessageWithTrackerCallBack(bsBuffer, nil)
+}
+
+func (conn *IRODSConnection) ReadMessageWithTrackerCallBack(bsBuffer []byte, callback common.TrackerCallBack) (*message.IRODSMessage, error) {
 	logger := log.WithFields(log.Fields{
 		"package":  "connection",
 		"struct":   "IRODSConnection",
-		"function": "ReadMessage",
+		"function": "ReadMessageWithTrackerCallBack",
 	})
 
 	if !conn.locked {
@@ -786,7 +805,7 @@ func (conn *IRODSConnection) ReadMessage(bsBuffer []byte) (*message.IRODSMessage
 		return nil, fmt.Errorf("could not read body fully - %d requested but %d read", bodyLen, bodyReadLen)
 	}
 
-	bsReadLen, err := conn.Recv(bsBuffer, int(header.BsLen))
+	bsReadLen, err := conn.RecvWithTrackerCallBack(bsBuffer, int(header.BsLen), callback)
 	if err != nil {
 		logger.Error(err)
 		return nil, fmt.Errorf("could not read body (BS) - %v", err)

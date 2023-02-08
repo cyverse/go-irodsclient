@@ -3,6 +3,7 @@ package connection
 import (
 	"fmt"
 
+	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/message"
 	log "github.com/sirupsen/logrus"
 )
@@ -26,10 +27,16 @@ type CheckErrorResponse interface {
 // Request sends a request and expects a response.
 // bsBuffer is optional
 func (conn *IRODSConnection) Request(request Request, response Response, bsBuffer []byte) error {
+	return conn.RequestWithTrackerCallBack(request, response, bsBuffer, nil, nil)
+}
+
+// RequestWithTrackerCallBack sends a request and expects a response.
+// bsBuffer is optional
+func (conn *IRODSConnection) RequestWithTrackerCallBack(request Request, response Response, bsBuffer []byte, reqCallback common.TrackerCallBack, resCallback common.TrackerCallBack) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "connection",
 		"struct":   "IRODSConnection",
-		"function": "Request",
+		"function": "RequestWithTrackerCallBack",
 	})
 
 	requestMessage, err := request.GetMessage()
@@ -51,7 +58,7 @@ func (conn *IRODSConnection) Request(request Request, response Response, bsBuffe
 		return fmt.Errorf("could not send preprocess message")
 	}
 
-	err = conn.SendMessage(requestMessage)
+	err = conn.SendMessageWithTrackerCallBack(requestMessage, reqCallback)
 	if err != nil {
 		logger.Error(err)
 		if conn.metrics != nil {
@@ -62,7 +69,7 @@ func (conn *IRODSConnection) Request(request Request, response Response, bsBuffe
 
 	// Server responds with results
 	// external bs buffer
-	responseMessage, err := conn.ReadMessage(bsBuffer)
+	responseMessage, err := conn.ReadMessageWithTrackerCallBack(bsBuffer, resCallback)
 	if err != nil {
 		logger.Error(err)
 		if conn.metrics != nil {
@@ -233,13 +240,18 @@ func (conn *IRODSConnection) RequestWithoutResponseNoXML(request Request) error 
 
 // RequestAndCheck sends a request and expects a CheckErrorResponse, on which the error is already checked.
 func (conn *IRODSConnection) RequestAndCheck(request Request, response CheckErrorResponse, bsBuffer []byte) error {
+	return conn.RequestAndCheckWithTrackerCallBack(request, response, bsBuffer, nil, nil)
+}
+
+// RequestAndCheckWithCallBack sends a request and expects a CheckErrorResponse, on which the error is already checked.
+func (conn *IRODSConnection) RequestAndCheckWithTrackerCallBack(request Request, response CheckErrorResponse, bsBuffer []byte, reqCallback common.TrackerCallBack, resCallback common.TrackerCallBack) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "connection",
 		"struct":   "IRODSConnection",
-		"function": "RequestAndCheck",
+		"function": "RequestAndCheckWithCallBack",
 	})
 
-	if err := conn.Request(request, response, bsBuffer); err != nil {
+	if err := conn.RequestWithTrackerCallBack(request, response, bsBuffer, reqCallback, resCallback); err != nil {
 		logger.Error(err)
 		if conn.metrics != nil {
 			conn.metrics.IncreaseCounterForRequestResponseFailures(1)

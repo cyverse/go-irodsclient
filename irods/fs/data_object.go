@@ -1567,6 +1567,11 @@ func seekDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHan
 
 // ReadDataObject reads data from a data object
 func ReadDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHandle, buffer []byte) (int, error) {
+	return ReadDataObjectWithTrackerCallBack(conn, handle, buffer, nil)
+}
+
+// ReadDataObjectWithTrackerCallBack reads data from a data object
+func ReadDataObjectWithTrackerCallBack(conn *connection.IRODSConnection, handle *types.IRODSFileHandle, buffer []byte, callback common.TrackerCallBack) (int, error) {
 	if conn == nil || !conn.IsConnected() {
 		return 0, fmt.Errorf("connection is nil or disconnected")
 	}
@@ -1582,7 +1587,7 @@ func ReadDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHan
 
 	request := message.NewIRODSMessageReadDataObjectRequest(handle.FileDescriptor, len(buffer))
 	response := message.IRODSMessageReadDataObjectResponse{}
-	err := conn.RequestAndCheck(request, &response, buffer)
+	err := conn.RequestAndCheckWithTrackerCallBack(request, &response, buffer, nil, callback)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return 0, types.NewFileNotFoundErrorf("could not find a data object")
@@ -1602,6 +1607,11 @@ func ReadDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHan
 
 // WriteDataObject writes data to a data object
 func WriteDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHandle, data []byte) error {
+	return WriteDataObjectWithTrackerCallBack(conn, handle, data, nil)
+}
+
+// WriteDataObjectWithTrackerCallBack writes data to a data object
+func WriteDataObjectWithTrackerCallBack(conn *connection.IRODSConnection, handle *types.IRODSFileHandle, data []byte, callback common.TrackerCallBack) error {
 	if conn == nil || !conn.IsConnected() {
 		return fmt.Errorf("connection is nil or disconnected")
 	}
@@ -1617,7 +1627,7 @@ func WriteDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHa
 
 	request := message.NewIRODSMessageWriteDataObjectRequest(handle.FileDescriptor, data)
 	response := message.IRODSMessageWriteDataObjectResponse{}
-	err := conn.RequestAndCheck(request, &response, nil)
+	err := conn.RequestAndCheckWithTrackerCallBack(request, &response, nil, callback, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 		return types.NewFileNotFoundErrorf("could not find a data object")
 	}

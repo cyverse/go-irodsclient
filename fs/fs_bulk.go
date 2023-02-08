@@ -5,13 +5,14 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/cyverse/go-irodsclient/irods/common"
 	irods_fs "github.com/cyverse/go-irodsclient/irods/fs"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
 )
 
 // DownloadFile downloads a file to local
-func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath string, callback irods_fs.TrackerCallBack) error {
+func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath string, callback common.TrackerCallBack) error {
 	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
 	localDestPath := util.GetCorrectLocalPath(localPath)
 
@@ -43,11 +44,11 @@ func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath 
 		}
 	}
 
-	return irods_fs.DownloadDataObject(fs.session, irodsSrcPath, resource, localFilePath, callback)
+	return irods_fs.DownloadDataObject(fs.session, irodsSrcPath, resource, localFilePath, srcStat.Size, callback)
 }
 
 // DownloadFileParallel downloads a file to local in parallel
-func (fs *FileSystem) DownloadFileParallel(irodsPath string, resource string, localPath string, taskNum int, callback irods_fs.TrackerCallBack) error {
+func (fs *FileSystem) DownloadFileParallel(irodsPath string, resource string, localPath string, taskNum int, callback common.TrackerCallBack) error {
 	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
 	localDestPath := util.GetCorrectLocalPath(localPath)
 
@@ -134,7 +135,7 @@ func (fs *FileSystem) DownloadFileParallelInBlocksAsync(irodsPath string, resour
 }
 
 // UploadFile uploads a local file to irods
-func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource string, replicate bool, callback irods_fs.TrackerCallBack) error {
+func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource string, replicate bool, callback common.TrackerCallBack) error {
 	localSrcPath := util.GetCorrectLocalPath(localPath)
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
@@ -181,7 +182,7 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 }
 
 // UploadFileParallel uploads a local file to irods in parallel
-func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, resource string, taskNum int, replicate bool, callback irods_fs.TrackerCallBack) error {
+func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, resource string, taskNum int, replicate bool, callback common.TrackerCallBack) error {
 	localSrcPath := util.GetCorrectLocalPath(localPath)
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
