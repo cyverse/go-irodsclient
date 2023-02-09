@@ -721,12 +721,13 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 		var blockReadCallback common.TrackerCallBack
 		if callback != nil {
 			blockReadCallback = func(processed int64, total int64) {
-				delta := processed - blockReads[taskID]
-				blockReads[taskID] = processed
+				if processed > 0 {
+					delta := processed - blockReads[taskID]
+					blockReads[taskID] = processed
 
-				atomic.AddInt64(&totalBytesDownloaded, int64(delta))
-
-				callback(totalBytesDownloaded, dataObjectLength)
+					atomic.AddInt64(&totalBytesDownloaded, int64(delta))
+					callback(totalBytesDownloaded, dataObjectLength)
+				}
 			}
 		}
 
@@ -740,6 +741,7 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 				toCopy = int64(common.ReadWriteBufferSize)
 			}
 
+			blockReads[taskID] = 0
 			readLen, taskErr := ReadDataObjectWithTrackerCallBack(taskConn, taskHandle, buffer[:toCopy], blockReadCallback)
 			if readLen > 0 {
 				_, taskErr2 := f.WriteAt(buffer[:readLen], taskOffset+(taskLength-taskRemain))

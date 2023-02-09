@@ -871,7 +871,6 @@ func testParallelUploadAndDownloadDataObject(t *testing.T) {
 	bufSize := 1024
 	buf := make([]byte, bufSize)
 
-	os.Open("")
 	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	assert.NoError(t, err)
 
