@@ -27,7 +27,7 @@ func CloseDataObjectReplica(conn *connection.IRODSConnection, handle *types.IROD
 	conn.Lock()
 	defer conn.Unlock()
 
-	if !SupportParallUpload(conn) {
+	if !conn.SupportParallUpload() {
 		// serial upload
 		return fmt.Errorf("does not support close replica in current iRODS Version")
 	}
@@ -142,13 +142,6 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 	return replErr
 }
 
-// SupportParallUpload checks if current server supports parallel upload
-// available from 4.2.9
-func SupportParallUpload(conn *connection.IRODSConnection) bool {
-	irodsVersion := conn.GetVersion()
-	return irodsVersion.HasHigherVersionThan(4, 2, 9)
-}
-
 // UploadDataObjectParallel put a data object at the local path to the iRODS path in parallel
 // Partitions a file into n (taskNum) tasks and uploads in parallel
 func UploadDataObjectParallel(session *session.IRODSSession, localPath string, irodsPath string, resource string, taskNum int, replicate bool, callback common.TrackerCallBack) error {
@@ -180,7 +173,7 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 		return fmt.Errorf("connection is nil or disconnected")
 	}
 
-	if !SupportParallUpload(conn) {
+	if !conn.SupportParallUpload() {
 		// serial upload
 		return UploadDataObject(session, localPath, irodsPath, resource, replicate, callback)
 	}
@@ -380,7 +373,7 @@ func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPa
 		return outputChan, errChan
 	}
 
-	if !SupportParallUpload(conn) {
+	if !conn.SupportParallUpload() {
 		// serial upload
 		outputChan := make(chan int64, 1)
 		errChan := make(chan error, 1)

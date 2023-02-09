@@ -93,6 +93,12 @@ func (conn *IRODSConnection) GetVersion() *types.IRODSVersion {
 	return conn.serverVersion
 }
 
+// SupportParallUpload checks if the server supports parallel upload
+// available from 4.2.9
+func (conn *IRODSConnection) SupportParallUpload() bool {
+	return conn.serverVersion.HasHigherVersionThan(4, 2, 9)
+}
+
 func (conn *IRODSConnection) requiresCSNegotiation() bool {
 	return conn.account.ClientServerNegotiation
 }

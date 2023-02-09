@@ -990,3 +990,25 @@ func (fs *FileSystem) getDataObject(path string) (*Entry, error) {
 	// otherwise, retrieve it and add it to cache
 	return fs.getDataObjectNoCache(path)
 }
+
+// GetServerVersion returns server version info
+func (fs *FileSystem) GetServerVersion() (*types.IRODSVersion, error) {
+	conn, err := fs.session.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.session.ReturnConnection(conn)
+
+	return conn.GetVersion(), nil
+}
+
+// SupportParallelUpload returns if the server supports parallel upload
+func (fs *FileSystem) SupportParallelUpload() bool {
+	conn, err := fs.session.AcquireConnection()
+	if err != nil {
+		return false
+	}
+	defer fs.session.ReturnConnection(conn)
+
+	return conn.SupportParallUpload()
+}

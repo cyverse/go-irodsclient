@@ -856,7 +856,7 @@ func testParallelUploadAndDownloadDataObject(t *testing.T) {
 	conn, err := sess.AcquireConnection()
 	assert.NoError(t, err)
 
-	if !fs.SupportParallUpload(conn) {
+	if !conn.SupportParallUpload() {
 		sess.ReturnConnection(conn)
 		return
 	}
