@@ -69,7 +69,7 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 
 	// test if it can create a new transaction
 	if sess.startNewTransaction {
-		logger.Debugf("testing perform poor man rollback")
+		logger.Debugf("testing poor man rollback")
 
 		conn, _, err := pool.Get()
 		if err != nil {
