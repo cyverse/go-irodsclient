@@ -2,7 +2,6 @@ package session
 
 import (
 	"container/list"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -13,8 +12,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 )
-
-var ErrConnectionPoolFull = errors.New("failed to create a new connection, pool is full")
 
 // ConnectionPoolConfig is for connection pool configuration
 type ConnectionPoolConfig struct {
@@ -175,7 +172,7 @@ func (pool *ConnectionPool) Get() (*connection.IRODSConnection, bool, error) {
 	defer pool.mutex.Unlock()
 
 	if len(pool.occupiedConnections) >= pool.config.MaxCap {
-		return nil, false, ErrConnectionPoolFull
+		return nil, false, NewConnectionPoolFullError("connection pool is full")
 	}
 
 	var err error
@@ -229,7 +226,7 @@ func (pool *ConnectionPool) GetNew() (*connection.IRODSConnection, error) {
 	defer pool.mutex.Unlock()
 
 	if len(pool.occupiedConnections) >= pool.config.MaxCap {
-		return nil, ErrConnectionPoolFull
+		return nil, NewConnectionPoolFullError("connection pool is full")
 	}
 
 	// full - close an idle connection and create a new one
