@@ -1,10 +1,9 @@
 package message
 
 import (
-	"fmt"
-
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/types"
+	"golang.org/x/xerrors"
 )
 
 // IRODSMessageTrimDataObjectResponse stores data object trim response
@@ -24,7 +23,7 @@ func (msg *IRODSMessageTrimDataObjectResponse) CheckError() error {
 // FromMessage returns struct from IRODSMessage
 func (msg *IRODSMessageTrimDataObjectResponse) FromMessage(msgIn *IRODSMessage) error {
 	if msgIn.Body == nil {
-		return fmt.Errorf("cannot create a struct from an empty body")
+		return xerrors.Errorf("empty message body")
 	}
 
 	msg.Result = int(msgIn.Body.IntInfo)

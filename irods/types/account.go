@@ -1,10 +1,10 @@
 package types
 
 import (
-	"fmt"
 	"regexp"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
+	"golang.org/x/xerrors"
 	"gopkg.in/yaml.v2"
 )
 
@@ -123,7 +123,7 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 
 	err := yaml.Unmarshal(yamlBytes, &y)
 	if err != nil {
-		return nil, fmt.Errorf("YAML Unmarshal Error - %v", err)
+		return nil, xerrors.Errorf("failed to unmarshal yaml to map: %w", err)
 	}
 
 	authScheme := AuthSchemeNative
@@ -286,7 +286,7 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 	if hasSSLConfig {
 		irodsSSLConfig, err = CreateIRODSSSLConfig(caCert, keySize, algorithm, saltSize, hashRounds)
 		if err != nil {
-			return nil, err
+			return nil, xerrors.Errorf("failed to create irods ssl config: %w", err)
 		}
 	}
 
@@ -340,35 +340,35 @@ func (account *IRODSAccount) MaskSensitiveData() *IRODSAccount {
 // Validate validates iRODS account
 func (account *IRODSAccount) Validate() error {
 	if len(account.Host) == 0 {
-		return fmt.Errorf("empty iRODS host")
+		return xerrors.Errorf("empty host")
 	}
 
 	if account.Port <= 0 {
-		return fmt.Errorf("empty iRODS port")
+		return xerrors.Errorf("empty port")
 	}
 
 	if len(account.ProxyUser) == 0 {
-		return fmt.Errorf("empty iRODS user")
+		return xerrors.Errorf("empty user")
 	}
 
 	err := account.validateUsername(account.ProxyUser)
 	if err != nil {
-		return err
+		return xerrors.Errorf("failed to validate username %s: %w", account.ProxyUser, err)
 	}
 
 	if len(account.ClientUser) > 0 {
 		err = account.validateUsername(account.ClientUser)
 		if err != nil {
-			return err
+			return xerrors.Errorf("failed to validate username %s: %w", account.ProxyUser, err)
 		}
 	}
 
 	if len(account.ProxyZone) == 0 {
-		return fmt.Errorf("empty iRODS zone")
+		return xerrors.Errorf("empty zone")
 	}
 
 	if len(account.AuthenticationScheme) == 0 {
-		return fmt.Errorf("empty authentication scheme")
+		return xerrors.Errorf("empty authentication scheme")
 	}
 
 	return nil
@@ -376,20 +376,20 @@ func (account *IRODSAccount) Validate() error {
 
 func (account *IRODSAccount) validateUsername(username string) error {
 	if len(username) >= common.MaxNameLength {
-		return fmt.Errorf("iRODS user exceeded max name length")
+		return xerrors.Errorf("username too long")
 	}
 
 	if username == "." || username == ".." {
-		return fmt.Errorf("invalid iRODS user")
+		return xerrors.Errorf("invalid username")
 	}
 
 	usernameRegEx, err := regexp.Compile(UsernameRegexString)
 	if err != nil {
-		return err
+		return xerrors.Errorf("failed to compile regex: %w", err)
 	}
 
 	if !usernameRegEx.Match([]byte(username)) {
-		return fmt.Errorf("invalid iRODS user, containing invalid chars")
+		return xerrors.Errorf("invalid username, containing invalid chars")
 	}
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/types"
+	"golang.org/x/xerrors"
 )
 
 // negotiation constants
@@ -42,13 +43,19 @@ func NewIRODSMessageCSNegotiation(result types.CSNegotiationPolicy) *IRODSMessag
 // GetBytes returns byte array
 func (msg *IRODSMessageCSNegotiation) GetBytes() ([]byte, error) {
 	xmlBytes, err := xml.Marshal(msg)
-	return xmlBytes, err
+	if err != nil {
+		return nil, xerrors.Errorf("failed to marshal irods message to xml: %w", err)
+	}
+	return xmlBytes, nil
 }
 
 // FromBytes returns struct from bytes
 func (msg *IRODSMessageCSNegotiation) FromBytes(bytes []byte) error {
 	err := xml.Unmarshal(bytes, msg)
-	return err
+	if err != nil {
+		return xerrors.Errorf("failed to unmarshal xml to irods message: %w", err)
+	}
+	return nil
 }
 
 // CheckError returns error if server returned an error
@@ -63,7 +70,7 @@ func (msg *IRODSMessageCSNegotiation) CheckError() error {
 func (msg *IRODSMessageCSNegotiation) GetMessage() (*IRODSMessage, error) {
 	bytes, err := msg.GetBytes()
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to get bytes from irods message: %w", err)
 	}
 
 	msgBody := IRODSMessageBody{
@@ -76,7 +83,7 @@ func (msg *IRODSMessageCSNegotiation) GetMessage() (*IRODSMessage, error) {
 
 	msgHeader, err := msgBody.BuildHeader()
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to build header from irods message: %w", err)
 	}
 
 	return &IRODSMessage{
@@ -88,9 +95,12 @@ func (msg *IRODSMessageCSNegotiation) GetMessage() (*IRODSMessage, error) {
 // FromMessage returns struct from IRODSMessage
 func (msg *IRODSMessageCSNegotiation) FromMessage(msgIn *IRODSMessage) error {
 	if msgIn.Body == nil {
-		return fmt.Errorf("cannot create a struct from an empty body")
+		return xerrors.Errorf("empty message body")
 	}
 
 	err := msg.FromBytes(msgIn.Body.Message)
-	return err
+	if err != nil {
+		return xerrors.Errorf("failed to get irods message from message body")
+	}
+	return nil
 }

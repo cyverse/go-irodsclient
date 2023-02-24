@@ -6,7 +6,6 @@ import (
 
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/fs"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestSystem(t *testing.T) {
@@ -23,11 +22,11 @@ func testProcessStat(t *testing.T) {
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
 	err := conn.Connect()
-	assert.NoError(t, err)
+	failError(t, err)
 	defer conn.Disconnect()
 
 	processes, err := fs.StatProcess(conn, "", "")
-	assert.NoError(t, err)
+	failError(t, err)
 
 	for _, process := range processes {
 		t.Logf("process - %s\n", process.ToString())

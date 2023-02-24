@@ -1,7 +1,6 @@
 package fs
 
 import (
-	"fmt"
 	"path"
 	"sync"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
 	"github.com/rs/xid"
+	"golang.org/x/xerrors"
 )
 
 // FileSystem provides a file-system like interface
@@ -158,7 +158,7 @@ func (fs *FileSystem) SupportParallelUpload() bool {
 	}
 	defer fs.session.ReturnConnection(conn)
 
-	return conn.SupportParallUpload()
+	return conn.SupportParallelUpload()
 }
 
 // GetMetrics returns metrics
@@ -173,7 +173,7 @@ func (fs *FileSystem) Stat(p string) (*Entry, error) {
 	// check if a negative cache for the given path exists
 	if fs.cache.HasNegativeEntryCache(irodsPath) {
 		// has a negative cache - fail fast
-		return nil, types.NewFileNotFoundError("could not find a data object or a directory")
+		return nil, types.NewFileNotFoundError("failed to find a data object or a directory")
 	}
 
 	// check if a cached Entry for the given path exists
@@ -197,7 +197,7 @@ func (fs *FileSystem) Stat(p string) (*Entry, error) {
 		if !dirEntryExist {
 			// dir entry not exist - fail fast
 			fs.cache.AddNegativeEntryCache(irodsPath)
-			return nil, types.NewFileNotFoundError("could not find a data object or a directory")
+			return nil, types.NewFileNotFoundError("failed to find a data object or a directory")
 		}
 	}
 
@@ -224,7 +224,7 @@ func (fs *FileSystem) Stat(p string) (*Entry, error) {
 
 	// not a collection, not a data object
 	fs.cache.AddNegativeEntryCache(irodsPath)
-	return nil, types.NewFileNotFoundError("could not find a data object or a directory")
+	return nil, types.NewFileNotFoundError("failed to find a data object or a directory")
 }
 
 // StatDir returns status of a directory
@@ -326,7 +326,7 @@ func (fs *FileSystem) RemoveFile(path string, force bool) error {
 
 	if util.WaitTimeout(&wg, fs.config.OperationTimeout) {
 		// timed out
-		return fmt.Errorf("failed to remove file, there are files still opened")
+		return xerrors.Errorf("failed to remove file, there are files still opened")
 	} else {
 		// wait done
 		err = irods_fs.DeleteDataObject(conn, irodsPath, force)
@@ -792,13 +792,13 @@ func (fs *FileSystem) getCollectionNoCache(path string) (*Entry, error) {
 		return entry, nil
 	}
 
-	return nil, types.NewFileNotFoundErrorf("could not find a directory")
+	return nil, types.NewFileNotFoundErrorf("failed to find a directory")
 }
 
 // getCollection returns collection entry
 func (fs *FileSystem) getCollection(path string) (*Entry, error) {
 	if fs.cache.HasNegativeEntryCache(path) {
-		return nil, types.NewFileNotFoundErrorf("could not find a directory")
+		return nil, types.NewFileNotFoundErrorf("failed to find a directory")
 	}
 
 	// check cache first
@@ -955,13 +955,13 @@ func (fs *FileSystem) getDataObjectWithConnectionNoCache(conn *connection.IRODSC
 		return entry, nil
 	}
 
-	return nil, types.NewFileNotFoundErrorf("could not find a data object")
+	return nil, types.NewFileNotFoundErrorf("failed to find a data object")
 }
 
 // getDataObjectWithConnection returns an entry for data object
 func (fs *FileSystem) getDataObjectWithConnection(conn *connection.IRODSConnection, path string) (*Entry, error) {
 	if fs.cache.HasNegativeEntryCache(path) {
-		return nil, types.NewFileNotFoundErrorf("could not find a data object")
+		return nil, types.NewFileNotFoundErrorf("failed to find a data object")
 	}
 
 	// check cache first
@@ -1004,13 +1004,13 @@ func (fs *FileSystem) getDataObjectNoCache(path string) (*Entry, error) {
 		return entry, nil
 	}
 
-	return nil, types.NewFileNotFoundErrorf("could not find a data object")
+	return nil, types.NewFileNotFoundErrorf("failed to find a data object")
 }
 
 // getDataObject returns an entry for data object
 func (fs *FileSystem) getDataObject(path string) (*Entry, error) {
 	if fs.cache.HasNegativeEntryCache(path) {
-		return nil, types.NewFileNotFoundErrorf("could not find a data object")
+		return nil, types.NewFileNotFoundErrorf("failed to find a data object")
 	}
 
 	// check cache first

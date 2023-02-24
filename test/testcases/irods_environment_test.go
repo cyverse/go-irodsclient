@@ -16,23 +16,23 @@ func TestIRODSEnvironment(t *testing.T) {
 
 func testSaveAndLoadEnv(t *testing.T) {
 	account, err := server.GetLocalAccount()
-	assert.NoError(t, err)
+	failError(t, err)
 
 	envMgr, err := icommands.CreateIcommandsEnvironmentManagerFromIRODSAccount(account)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	envMgr.SetEnvironmentFilePath("~/.irods2/irods_environment.json")
 
 	err = envMgr.SaveEnvironment()
-	assert.NoError(t, err)
+	failError(t, err)
 
 	envMgr2, err := icommands.CreateIcommandsEnvironmentManager()
-	assert.NoError(t, err)
+	failError(t, err)
 
 	envMgr2.SetEnvironmentFilePath("~/.irods2/irods_environment.json")
 
 	err = envMgr2.Load(os.Getppid())
-	assert.NoError(t, err)
+	failError(t, err)
 
 	env2 := envMgr2.Environment
 	assert.Equal(t, account.Host, env2.Host)
@@ -42,15 +42,15 @@ func testSaveAndLoadEnv(t *testing.T) {
 	assert.Equal(t, account.Password, envMgr2.Password)
 
 	err = os.RemoveAll("~/.irods2")
-	assert.NoError(t, err)
+	failError(t, err)
 }
 
 func testSaveAndLoadEnvSession(t *testing.T) {
 	account, err := server.GetLocalAccount()
-	assert.NoError(t, err)
+	failError(t, err)
 
 	envMgr, err := icommands.CreateIcommandsEnvironmentManagerFromIRODSAccount(account)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	envMgr.SetEnvironmentFilePath("~/.irods2/irods_environment.json")
 
@@ -59,12 +59,12 @@ func testSaveAndLoadEnvSession(t *testing.T) {
 	envMgr.Session.CurrentWorkingDir = testWorkingDir
 
 	err = envMgr.SaveEnvironment()
-	assert.NoError(t, err)
+	failError(t, err)
 	err = envMgr.SaveSession(os.Getppid())
-	assert.NoError(t, err)
+	failError(t, err)
 
 	envMgr2, err := icommands.CreateIcommandsEnvironmentManager()
-	assert.NoError(t, err)
+	failError(t, err)
 
 	envMgr2.SetEnvironmentFilePath("~/.irods2/irods_environment.json")
 
@@ -82,5 +82,5 @@ func testSaveAndLoadEnvSession(t *testing.T) {
 	assert.Equal(t, testWorkingDir, sess2.CurrentWorkingDir)
 
 	err = os.RemoveAll("~/.irods2")
-	assert.NoError(t, err)
+	failError(t, err)
 }

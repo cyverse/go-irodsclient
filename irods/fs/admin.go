@@ -7,6 +7,7 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/message"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
+	"golang.org/x/xerrors"
 )
 
 // CreateUser creates a user.
@@ -19,7 +20,11 @@ func CreateUser(conn *connection.IRODSConnection, username string, zone string, 
 
 	req := message.NewIRODSMessageAdminRequest("add", "user", userZoneName, userType, zone)
 
-	return conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	if err != nil {
+		return xerrors.Errorf("received create user error: %w", err)
+	}
+	return nil
 }
 
 // ChangeUserPassword changes the password of a user object
@@ -41,7 +46,11 @@ func ChangeUserPassword(conn *connection.IRODSConnection, username string, zone 
 
 	req := message.NewIRODSMessageAdminRequest("modify", "user", userZoneName, "password", scrambledPassword, zone)
 
-	return conn.RequestAndCheckForPassword(req, &message.IRODSMessageAdminResponse{}, nil)
+	err := conn.RequestAndCheckForPassword(req, &message.IRODSMessageAdminResponse{}, nil)
+	if err != nil {
+		return xerrors.Errorf("received change user password error: %w", err)
+	}
+	return nil
 }
 
 // ChangeUserType changes the type / role of a user object
@@ -54,7 +63,11 @@ func ChangeUserType(conn *connection.IRODSConnection, username string, zone stri
 
 	req := message.NewIRODSMessageAdminRequest("modify", "user", userZoneName, "type", newType, zone)
 
-	return conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	if err != nil {
+		return xerrors.Errorf("received change user type error: %w", err)
+	}
+	return nil
 }
 
 // RemoveUser removes a user or a group.
@@ -65,7 +78,11 @@ func RemoveUser(conn *connection.IRODSConnection, username string, zone string) 
 
 	req := message.NewIRODSMessageAdminRequest("rm", "user", username, zone)
 
-	return conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	if err != nil {
+		return xerrors.Errorf("received remove user error: %w", err)
+	}
+	return nil
 }
 
 // CreateGroup creates a group.
@@ -76,7 +93,11 @@ func CreateGroup(conn *connection.IRODSConnection, groupname string, groupType s
 
 	req := message.NewIRODSMessageAdminRequest("add", "user", groupname, groupType)
 
-	return conn.RequestAndCheck(req, &message.IRODSMessageUserAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageUserAdminResponse{}, nil)
+	if err != nil {
+		return xerrors.Errorf("received create group error: %w", err)
+	}
+	return nil
 }
 
 // AddGroupMember adds a user to a group.
@@ -87,7 +108,11 @@ func AddGroupMember(conn *connection.IRODSConnection, groupname string, username
 
 	req := message.NewIRODSMessageAdminRequest("modify", "group", groupname, "add", username, zone)
 
-	return conn.RequestAndCheck(req, &message.IRODSMessageUserAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageUserAdminResponse{}, nil)
+	if err != nil {
+		return xerrors.Errorf("received add group member error: %w", err)
+	}
+	return nil
 }
 
 // RemoveGroupMember removes a user from a group.
@@ -98,7 +123,11 @@ func RemoveGroupMember(conn *connection.IRODSConnection, groupname string, usern
 
 	req := message.NewIRODSMessageAdminRequest("modify", "group", groupname, "remove", username, zone)
 
-	return conn.RequestAndCheck(req, &message.IRODSMessageUserAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageUserAdminResponse{}, nil)
+	if err != nil {
+		return xerrors.Errorf("received remove group member error: %w", err)
+	}
+	return nil
 }
 
 // AddChildToResc adds a child to a parent resource
@@ -109,7 +138,11 @@ func AddChildToResc(conn *connection.IRODSConnection, parent string, child strin
 
 	req := message.NewIRODSMessageAdminRequest("add", "childtoresc", parent, child, options)
 
-	return conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	if err != nil {
+		return xerrors.Errorf("received add child to resc error: %w", err)
+	}
+	return nil
 }
 
 // SetUserQuota sets quota for a given user and resource ('total' for global)
@@ -120,7 +153,11 @@ func SetUserQuota(conn *connection.IRODSConnection, user string, resource string
 
 	req := message.NewIRODSMessageAdminRequest("set-quota", "user", user, resource, value)
 
-	return conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	if err != nil {
+		return xerrors.Errorf("received set user quota error: %w", err)
+	}
+	return nil
 }
 
 // SetGroupQuota sets quota for a given user and resource ('total' for global)
@@ -131,5 +168,9 @@ func SetGroupQuota(conn *connection.IRODSConnection, group string, resource stri
 
 	req := message.NewIRODSMessageAdminRequest("set-quota", "group", group, resource, value)
 
-	return conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	if err != nil {
+		return xerrors.Errorf("received set group quota error: %w", err)
+	}
+	return nil
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
+	"golang.org/x/xerrors"
 )
 
 const (
@@ -33,7 +34,7 @@ func CreateIcommandsEnvironmentManager() (*ICommandsEnvironmentManager, error) {
 
 	envDirPath, err := util.ExpandHomeDir(environmentDirDefault)
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to expand home dir %s: %w", environmentDirDefault, err)
 	}
 
 	return &ICommandsEnvironmentManager{
@@ -52,7 +53,7 @@ func CreateIcommandsEnvironmentManager() (*ICommandsEnvironmentManager, error) {
 func CreateIcommandsEnvironmentManagerFromIRODSAccount(account *types.IRODSAccount) (*ICommandsEnvironmentManager, error) {
 	manager, err := CreateIcommandsEnvironmentManager()
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to create icommands environment manager: %w", err)
 	}
 
 	csNegotiation := ""
@@ -99,7 +100,7 @@ func (manager *ICommandsEnvironmentManager) SetEnvironmentFilePath(envFilePath s
 	if len(envFilePath) > 0 {
 		envFilePath, err := util.ExpandHomeDir(envFilePath)
 		if err != nil {
-			return err
+			return xerrors.Errorf("failed to expand home dir %s: %w", envFilePath, err)
 		}
 
 		manager.EnvironmentDirPath = filepath.Dir(envFilePath)
@@ -142,7 +143,7 @@ func (manager *ICommandsEnvironmentManager) Load(processID int) error {
 	environmentFilePath := manager.GetEnvironmentFilePath()
 	env, err := CreateICommandsEnvironmentFromFile(environmentFilePath)
 	if err != nil {
-		return err
+		return xerrors.Errorf("failed to create icommands environment from file %s: %w", environmentFilePath, err)
 	}
 
 	manager.Environment = env
@@ -152,7 +153,7 @@ func (manager *ICommandsEnvironmentManager) Load(processID int) error {
 	if util.ExistFile(sessionFilePath) {
 		session, err := CreateICommandsEnvironmentFromFile(sessionFilePath)
 		if err != nil {
-			return err
+			return xerrors.Errorf("failed to create icommands environment from file %s: %w", sessionFilePath, err)
 		}
 
 		manager.Session = session
@@ -162,7 +163,7 @@ func (manager *ICommandsEnvironmentManager) Load(processID int) error {
 	passwordFilePath := manager.GetPasswordFilePath()
 	password, err := DecodePasswordFile(passwordFilePath, manager.UID)
 	if err != nil {
-		return err
+		return xerrors.Errorf("failed to decode password file %s: %w", passwordFilePath, err)
 	}
 
 	manager.Password = password
@@ -179,7 +180,7 @@ func (manager *ICommandsEnvironmentManager) Load(processID int) error {
 
 func (manager *ICommandsEnvironmentManager) ToIRODSAccount() (*types.IRODSAccount, error) {
 	if manager.Environment == nil {
-		return nil, fmt.Errorf("environment is not set")
+		return nil, xerrors.Errorf("environment is not set")
 	}
 
 	account := manager.Environment.ToIRODSAccount()
@@ -195,24 +196,29 @@ func (manager *ICommandsEnvironmentManager) ToIRODSAccount() (*types.IRODSAccoun
 // SaveEnvironment saves environment
 func (manager *ICommandsEnvironmentManager) SaveEnvironment() error {
 	if manager.Environment == nil {
-		return fmt.Errorf("environment is not set")
+		return xerrors.Errorf("environment is not set")
 	}
 
 	environmentFilePath := manager.GetEnvironmentFilePath()
 
 	// make dir first if not exist
-	err := os.MkdirAll(filepath.Dir(environmentFilePath), 0700)
+	dirpath := filepath.Dir(environmentFilePath)
+	err := os.MkdirAll(dirpath, 0700)
 	if err != nil {
-		return err
+		return xerrors.Errorf("failed to make a dir %s: %w", dirpath, err)
 	}
 
 	err = manager.Environment.ToFile(environmentFilePath)
 	if err != nil {
-		return err
+		return xerrors.Errorf("failed to write environment to file %s: %w", environmentFilePath, err)
 	}
 
 	passwordFilePath := filepath.Join(manager.HomeEnvironmentDirPath, passwordFilename)
-	return EncodePasswordFile(passwordFilePath, manager.Password, manager.UID)
+	err = EncodePasswordFile(passwordFilePath, manager.Password, manager.UID)
+	if err != nil {
+		return xerrors.Errorf("failed to encode password file %s: %w", passwordFilePath, err)
+	}
+	return nil
 }
 
 // SaveSession saves session to a dir
@@ -224,10 +230,15 @@ func (manager *ICommandsEnvironmentManager) SaveSession(processID int) error {
 	sessionFilePath := manager.GetSessionFilePath(processID)
 
 	// make dir first if not exist
-	err := os.MkdirAll(filepath.Dir(sessionFilePath), 0700)
+	dirpath := filepath.Dir(sessionFilePath)
+	err := os.MkdirAll(dirpath, 0700)
 	if err != nil {
-		return err
+		return xerrors.Errorf("failed to make a dir %s: %w", dirpath, err)
 	}
 
-	return manager.Session.ToFile(sessionFilePath)
+	err = manager.Session.ToFile(sessionFilePath)
+	if err != nil {
+		return xerrors.Errorf("failed to save to file %s: %w", sessionFilePath, err)
+	}
+	return nil
 }

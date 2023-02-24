@@ -6,6 +6,7 @@ import (
 	irods_fs "github.com/cyverse/go-irodsclient/irods/fs"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
+	"golang.org/x/xerrors"
 )
 
 // ListACLs returns ACLs
@@ -21,7 +22,7 @@ func (fs *FileSystem) ListACLs(path string) ([]*types.IRODSAccess, error) {
 		return fs.ListFileACLs(path)
 	}
 
-	return nil, fmt.Errorf("unknown type - %s", stat.Type)
+	return nil, xerrors.Errorf("unknown type - %s", stat.Type)
 }
 
 // ListACLsForEntries returns ACLs for entries in a collection
@@ -61,7 +62,7 @@ func (fs *FileSystem) ListACLsWithGroupUsers(path string) ([]*types.IRODSAccess,
 
 		accesses = append(accesses, accessList...)
 	} else {
-		return nil, fmt.Errorf("unknown type - %s", stat.Type)
+		return nil, xerrors.Errorf("unknown type '%s'", stat.Type)
 	}
 
 	return accesses, nil

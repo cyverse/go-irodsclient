@@ -66,13 +66,13 @@ func testGetIRODSCollection(t *testing.T) {
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
 	err := conn.Connect()
-	assert.NoError(t, err)
+	failError(t, err)
 	defer conn.Disconnect()
 
 	homedir := getHomeDir(fsAPITestID)
 
 	collection, err := fs.GetCollection(conn, homedir)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.Equal(t, homedir, collection.Path)
 	assert.NotEmpty(t, collection.ID)
@@ -85,13 +85,13 @@ func testListIRODSCollections(t *testing.T) {
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
 	err := conn.Connect()
-	assert.NoError(t, err)
+	failError(t, err)
 	defer conn.Disconnect()
 
 	homedir := getHomeDir(fsAPITestID)
 
 	collections, err := fs.ListSubCollections(conn, homedir)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	collectionPaths := []string{}
 
@@ -111,13 +111,13 @@ func testListIRODSCollectionMeta(t *testing.T) {
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
 	err := conn.Connect()
-	assert.NoError(t, err)
+	failError(t, err)
 	defer conn.Disconnect()
 
 	homedir := getHomeDir(fsAPITestID)
 
 	metas, err := fs.ListCollectionMeta(conn, homedir)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	for _, meta := range metas {
 		assert.NotEmpty(t, meta.AVUID)
@@ -131,13 +131,13 @@ func testListIRODSCollectionAccess(t *testing.T) {
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
 	err := conn.Connect()
-	assert.NoError(t, err)
+	failError(t, err)
 	defer conn.Disconnect()
 
 	homedir := getHomeDir(fsAPITestID)
 
 	accesses, err := fs.ListCollectionAccesses(conn, homedir)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	for _, access := range accesses {
 		assert.NotEmpty(t, access.Path)
@@ -152,17 +152,17 @@ func testListIRODSDataObjects(t *testing.T) {
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
 	err := conn.Connect()
-	assert.NoError(t, err)
+	failError(t, err)
 	defer conn.Disconnect()
 
 	homedir := getHomeDir(fsAPITestID)
 
 	collection, err := fs.GetCollection(conn, homedir)
-	assert.NoError(t, err)
+	failError(t, err)
 	assert.NotEmpty(t, collection.ID)
 
 	dataobjects, err := fs.ListDataObjects(conn, collection)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	dataobjectPaths := []string{}
 
@@ -188,17 +188,17 @@ func testListIRODSDataObjectsMasterReplica(t *testing.T) {
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
 	err := conn.Connect()
-	assert.NoError(t, err)
+	failError(t, err)
 	defer conn.Disconnect()
 
 	homedir := getHomeDir(fsAPITestID)
 
 	collection, err := fs.GetCollection(conn, homedir)
-	assert.NoError(t, err)
+	failError(t, err)
 	assert.NotEmpty(t, collection.ID)
 
 	dataobjects, err := fs.ListDataObjectsMasterReplica(conn, collection)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	dataobjectPaths := []string{}
 
@@ -226,13 +226,13 @@ func testGetIRODSDataObject(t *testing.T) {
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
 	err := conn.Connect()
-	assert.NoError(t, err)
+	failError(t, err)
 	defer conn.Disconnect()
 
 	homedir := getHomeDir(fsAPITestID)
 
 	collection, err := fs.GetCollection(conn, homedir)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.Equal(t, homedir, collection.Path)
 	assert.NotEmpty(t, collection.ID)
@@ -243,7 +243,7 @@ func testGetIRODSDataObject(t *testing.T) {
 		assert.Equal(t, dirpath, homedir)
 
 		dataobject, err := fs.GetDataObject(conn, collection, filename)
-		assert.NoError(t, err)
+		failError(t, err)
 
 		assert.NotEmpty(t, dataobject.ID)
 
@@ -262,13 +262,13 @@ func testGetIRODSDataObjectMasterReplica(t *testing.T) {
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
 	err := conn.Connect()
-	assert.NoError(t, err)
+	failError(t, err)
 	defer conn.Disconnect()
 
 	homedir := getHomeDir(fsAPITestID)
 
 	collection, err := fs.GetCollection(conn, homedir)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.Equal(t, homedir, collection.Path)
 	assert.NotEmpty(t, collection.ID)
@@ -279,7 +279,7 @@ func testGetIRODSDataObjectMasterReplica(t *testing.T) {
 		assert.Equal(t, dirpath, homedir)
 
 		dataobject, err := fs.GetDataObjectMasterReplica(conn, collection, filename)
-		assert.NoError(t, err)
+		failError(t, err)
 
 		assert.NotEmpty(t, dataobject.ID)
 
@@ -299,13 +299,13 @@ func testListIRODSDataObjectMeta(t *testing.T) {
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
 	err := conn.Connect()
-	assert.NoError(t, err)
+	failError(t, err)
 	defer conn.Disconnect()
 
 	homedir := getHomeDir(fsAPITestID)
 
 	collection, err := fs.GetCollection(conn, homedir)
-	assert.NoError(t, err)
+	failError(t, err)
 	assert.NotEmpty(t, collection.ID)
 
 	for _, filepath := range GetTestFiles() {
@@ -314,7 +314,7 @@ func testListIRODSDataObjectMeta(t *testing.T) {
 		assert.Equal(t, dirpath, homedir)
 
 		metas, err := fs.ListDataObjectMeta(conn, collection, filename)
-		assert.NoError(t, err)
+		failError(t, err)
 
 		for _, meta := range metas {
 			assert.NotEmpty(t, meta.AVUID)
@@ -329,13 +329,13 @@ func testListIRODSDataObjectAccess(t *testing.T) {
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
 	err := conn.Connect()
-	assert.NoError(t, err)
+	failError(t, err)
 	defer conn.Disconnect()
 
 	homedir := getHomeDir(fsAPITestID)
 
 	collection, err := fs.GetCollection(conn, homedir)
-	assert.NoError(t, err)
+	failError(t, err)
 	assert.NotEmpty(t, collection.ID)
 
 	for _, filepath := range GetTestFiles() {
@@ -344,7 +344,7 @@ func testListIRODSDataObjectAccess(t *testing.T) {
 		assert.Equal(t, dirpath, homedir)
 
 		accesses, err := fs.ListDataObjectAccesses(conn, collection, filename)
-		assert.NoError(t, err)
+		failError(t, err)
 
 		for _, access := range accesses {
 			assert.NotEmpty(t, access.Path)
@@ -360,7 +360,7 @@ func testCreateDeleteIRODSCollection(t *testing.T) {
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
 	err := conn.Connect()
-	assert.NoError(t, err)
+	failError(t, err)
 	defer conn.Disconnect()
 
 	homedir := getHomeDir(fsAPITestID)
@@ -369,17 +369,17 @@ func testCreateDeleteIRODSCollection(t *testing.T) {
 	newCollectionPath := homedir + "/testdir_" + xid.New().String()
 
 	err = fs.CreateCollection(conn, newCollectionPath, true)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	collection, err := fs.GetCollection(conn, newCollectionPath)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.Equal(t, newCollectionPath, collection.Path)
 	assert.NotEmpty(t, collection.ID)
 
 	// delete
 	err = fs.DeleteCollection(conn, newCollectionPath, true, false)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	_, err = fs.GetCollection(conn, newCollectionPath)
 	deleted := false
@@ -400,7 +400,7 @@ func testCreateMoveDeleteIRODSCollection(t *testing.T) {
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
 	err := conn.Connect()
-	assert.NoError(t, err)
+	failError(t, err)
 	defer conn.Disconnect()
 
 	homedir := getHomeDir(fsAPITestID)
@@ -409,10 +409,10 @@ func testCreateMoveDeleteIRODSCollection(t *testing.T) {
 	newCollectionPath := homedir + "/testdir_" + xid.New().String()
 
 	err = fs.CreateCollection(conn, newCollectionPath, true)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	collection, err := fs.GetCollection(conn, newCollectionPath)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.Equal(t, newCollectionPath, collection.Path)
 	assert.NotEmpty(t, collection.ID)
@@ -420,17 +420,17 @@ func testCreateMoveDeleteIRODSCollection(t *testing.T) {
 	// move
 	new2CollectionPath := homedir + "/testdir_" + xid.New().String()
 	err = fs.MoveCollection(conn, newCollectionPath, new2CollectionPath)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	new2Collection, err := fs.GetCollection(conn, new2CollectionPath)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.Equal(t, new2CollectionPath, new2Collection.Path)
 	assert.NotEmpty(t, new2Collection.ID)
 
 	// delete
 	err = fs.DeleteCollection(conn, new2CollectionPath, true, false)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	_, err = fs.GetCollection(conn, new2CollectionPath)
 	deleted := false
@@ -451,7 +451,7 @@ func testCreateDeleteIRODSDataObject(t *testing.T) {
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
 	err := conn.Connect()
-	assert.NoError(t, err)
+	failError(t, err)
 	defer conn.Disconnect()
 
 	homedir := getHomeDir(fsAPITestID)
@@ -460,21 +460,21 @@ func testCreateDeleteIRODSDataObject(t *testing.T) {
 	newDataObjectFilename := "testobj_" + xid.New().String()
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
 	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", "w", true)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	err = fs.CloseDataObject(conn, handle)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	collection, err := fs.GetCollection(conn, homedir)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	obj, err := fs.GetDataObject(conn, collection, newDataObjectFilename)
-	assert.NoError(t, err)
+	failError(t, err)
 	assert.NotEmpty(t, obj.ID)
 
 	// delete
 	err = fs.DeleteDataObject(conn, newDataObjectPath, true)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	_, err = fs.GetDataObject(conn, collection, newDataObjectFilename)
 	deleted := false
@@ -495,7 +495,7 @@ func testReadWriteIRODSDataObject(t *testing.T) {
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
 	err := conn.Connect()
-	assert.NoError(t, err)
+	failError(t, err)
 	defer conn.Disconnect()
 
 	homedir := getHomeDir(fsAPITestID)
@@ -505,39 +505,39 @@ func testReadWriteIRODSDataObject(t *testing.T) {
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
 
 	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", "w", true)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	data := "Hello World"
 	err = fs.WriteDataObject(conn, handle, []byte(data))
-	assert.NoError(t, err)
+	failError(t, err)
 
 	err = fs.CloseDataObject(conn, handle)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	collection, err := fs.GetCollection(conn, homedir)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	obj, err := fs.GetDataObject(conn, collection, newDataObjectFilename)
-	assert.NoError(t, err)
+	failError(t, err)
 	assert.NotEmpty(t, obj.ID)
 
 	// read
 	handle, _, err = fs.OpenDataObject(conn, newDataObjectPath, "", "r")
-	assert.NoError(t, err)
+	failError(t, err)
 
 	buf := make([]byte, len(data))
 	recvLen, err := fs.ReadDataObject(conn, handle, buf)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.Equal(t, len(data), recvLen)
 	assert.Equal(t, data, string(buf))
 
 	err = fs.CloseDataObject(conn, handle)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// delete
 	err = fs.DeleteDataObject(conn, newDataObjectPath, true)
-	assert.NoError(t, err)
+	failError(t, err)
 }
 
 func testReadWriteIRODSDataObjectWithSingleConnection(t *testing.T) {
@@ -547,7 +547,7 @@ func testReadWriteIRODSDataObjectWithSingleConnection(t *testing.T) {
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
 	err := conn.Connect()
-	assert.NoError(t, err)
+	failError(t, err)
 	defer conn.Disconnect()
 
 	homedir := getHomeDir(fsAPITestID)
@@ -557,49 +557,49 @@ func testReadWriteIRODSDataObjectWithSingleConnection(t *testing.T) {
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
 
 	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", "w", true)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	data := "Hello World"
 	err = fs.WriteDataObject(conn, handle, []byte(data))
-	assert.NoError(t, err)
+	failError(t, err)
 
 	err = fs.CloseDataObject(conn, handle)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	collection, err := fs.GetCollection(conn, homedir)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	obj, err := fs.GetDataObject(conn, collection, newDataObjectFilename)
-	assert.NoError(t, err)
+	failError(t, err)
 	assert.NotEmpty(t, obj.ID)
 
 	// read 1
 	handle1, _, err := fs.OpenDataObject(conn, newDataObjectPath, "", "r")
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// read 2
 	handle2, _, err := fs.OpenDataObject(conn, newDataObjectPath, "", "r")
-	assert.NoError(t, err)
+	failError(t, err)
 
 	buf1 := make([]byte, len(data))
 	recvLen1, err := fs.ReadDataObject(conn, handle1, buf1[:5])
-	assert.NoError(t, err)
+	failError(t, err)
 
 	buf2 := make([]byte, len(data))
 	recvLen2, err := fs.ReadDataObject(conn, handle2, buf2[:4])
-	assert.NoError(t, err)
+	failError(t, err)
 
 	recvLen3, err := fs.ReadDataObject(conn, handle1, buf1[5:])
-	assert.NoError(t, err)
+	failError(t, err)
 
 	recvLen4, err := fs.ReadDataObject(conn, handle2, buf2[4:])
-	assert.NoError(t, err)
+	failError(t, err)
 
 	err = fs.CloseDataObject(conn, handle1)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	err = fs.CloseDataObject(conn, handle2)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.Equal(t, len(data), recvLen1+recvLen3)
 	assert.Equal(t, len(data), recvLen2+recvLen4)
@@ -608,7 +608,7 @@ func testReadWriteIRODSDataObjectWithSingleConnection(t *testing.T) {
 
 	// delete
 	err = fs.DeleteDataObject(conn, newDataObjectPath, true)
-	assert.NoError(t, err)
+	failError(t, err)
 }
 
 func testMixedReadWriteIRODSDataObjectWithSingleConnection(t *testing.T) {
@@ -618,7 +618,7 @@ func testMixedReadWriteIRODSDataObjectWithSingleConnection(t *testing.T) {
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
 	err := conn.Connect()
-	assert.NoError(t, err)
+	failError(t, err)
 	defer conn.Disconnect()
 
 	homedir := getHomeDir(fsAPITestID)
@@ -628,71 +628,71 @@ func testMixedReadWriteIRODSDataObjectWithSingleConnection(t *testing.T) {
 	newSideDataObjectPath := homedir + "/" + newSideDataObjectFilename
 
 	handleSide, err := fs.CreateDataObject(conn, newSideDataObjectPath, "", "w", true)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// create
 	newDataObjectFilename := "testobj_" + xid.New().String()
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
 
 	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", "w", true)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	data := "Hello World"
 	err = fs.WriteDataObject(conn, handle, []byte(data))
-	assert.NoError(t, err)
+	failError(t, err)
 
 	err = fs.CloseDataObject(conn, handle)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	collection, err := fs.GetCollection(conn, homedir)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	obj, err := fs.GetDataObject(conn, collection, newDataObjectFilename)
-	assert.NoError(t, err)
+	failError(t, err)
 	assert.NotEmpty(t, obj.ID)
 
 	// read 1
 	handle1, _, err := fs.OpenDataObject(conn, newDataObjectPath, "", "r")
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// read 2
 	handle2, _, err := fs.OpenDataObject(conn, newDataObjectPath, "", "r")
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// write to side file
 	err = fs.WriteDataObject(conn, handleSide, []byte(data))
-	assert.NoError(t, err)
+	failError(t, err)
 
 	err = fs.CloseDataObject(conn, handleSide)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// rollback test
 	// this causes operation error, rollbacks the transaction
 	conn.Lock()
 	err = conn.PoorMansRollback()
 	conn.Unlock()
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// continue reading
 	buf1 := make([]byte, len(data))
 	recvLen1, err := fs.ReadDataObject(conn, handle1, buf1[:5])
-	assert.NoError(t, err)
+	failError(t, err)
 
 	buf2 := make([]byte, len(data))
 	recvLen2, err := fs.ReadDataObject(conn, handle2, buf2[:4])
-	assert.NoError(t, err)
+	failError(t, err)
 
 	recvLen3, err := fs.ReadDataObject(conn, handle1, buf1[5:])
-	assert.NoError(t, err)
+	failError(t, err)
 
 	err = fs.CloseDataObject(conn, handle1)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	recvLen4, err := fs.ReadDataObject(conn, handle2, buf2[4:])
-	assert.NoError(t, err)
+	failError(t, err)
 
 	err = fs.CloseDataObject(conn, handle2)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.Equal(t, len(data), recvLen1+recvLen3)
 	assert.Equal(t, len(data), recvLen2+recvLen4)
@@ -701,7 +701,7 @@ func testMixedReadWriteIRODSDataObjectWithSingleConnection(t *testing.T) {
 
 	// delete
 	err = fs.DeleteDataObject(conn, newDataObjectPath, true)
-	assert.NoError(t, err)
+	failError(t, err)
 }
 
 func testTruncateIRODSDataObject(t *testing.T) {
@@ -711,7 +711,7 @@ func testTruncateIRODSDataObject(t *testing.T) {
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
 	err := conn.Connect()
-	assert.NoError(t, err)
+	failError(t, err)
 	defer conn.Disconnect()
 
 	homedir := getHomeDir(fsAPITestID)
@@ -721,28 +721,28 @@ func testTruncateIRODSDataObject(t *testing.T) {
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
 
 	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", "w", true)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	data := "Hello World Test!!!!"
 	err = fs.WriteDataObject(conn, handle, []byte(data))
-	assert.NoError(t, err)
+	failError(t, err)
 
 	err = fs.TruncateDataObjectHandle(conn, handle, 11)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	err = fs.CloseDataObject(conn, handle)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	collection, err := fs.GetCollection(conn, homedir)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	obj, err := fs.GetDataObject(conn, collection, newDataObjectFilename)
-	assert.NoError(t, err)
+	failError(t, err)
 	assert.NotEmpty(t, obj.ID)
 
 	// read
 	handle, _, err = fs.OpenDataObject(conn, newDataObjectPath, "", "r")
-	assert.NoError(t, err)
+	failError(t, err)
 
 	buf := make([]byte, len(data))
 	recvLen, err := fs.ReadDataObject(conn, handle, buf)
@@ -752,11 +752,11 @@ func testTruncateIRODSDataObject(t *testing.T) {
 	assert.Equal(t, "Hello World", string(buf[:recvLen]))
 
 	err = fs.CloseDataObject(conn, handle)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// delete
 	err = fs.DeleteDataObject(conn, newDataObjectPath, true)
-	assert.NoError(t, err)
+	failError(t, err)
 }
 
 func testListIRODSGroupUsers(t *testing.T) {
@@ -766,11 +766,11 @@ func testListIRODSGroupUsers(t *testing.T) {
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
 	err := conn.Connect()
-	assert.NoError(t, err)
+	failError(t, err)
 	defer conn.Disconnect()
 
 	users, err := fs.ListGroupUsers(conn, "rodsadmin")
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.GreaterOrEqual(t, len(users), 1)
 
@@ -791,19 +791,19 @@ func testSearchDataObjectsByMeta(t *testing.T) {
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
 	err := conn.Connect()
-	assert.NoError(t, err)
+	failError(t, err)
 	defer conn.Disconnect()
 
 	for _, testFilePath := range GetTestFiles() {
 		sha1sum := sha1.New()
 		_, err = sha1sum.Write([]byte(testFilePath))
-		assert.NoError(t, err)
+		failError(t, err)
 
 		hashBytes := sha1sum.Sum(nil)
 		hashString := hex.EncodeToString(hashBytes)
 
 		dataobjects, err := fs.SearchDataObjectsByMeta(conn, "hash", hashString)
-		assert.NoError(t, err)
+		failError(t, err)
 
 		assert.Equal(t, 1, len(dataobjects))
 		assert.Equal(t, testFilePath, dataobjects[0].Path)
@@ -817,27 +817,27 @@ func testSearchDataObjectsByMetaWildcard(t *testing.T) {
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
 	err := conn.Connect()
-	assert.NoError(t, err)
+	failError(t, err)
 	defer conn.Disconnect()
 
 	// this takes a long time to perform
 	for _, testFilePath := range GetTestFiles() {
 		sha1sum := sha1.New()
 		_, err = sha1sum.Write([]byte(testFilePath))
-		assert.NoError(t, err)
+		failError(t, err)
 
 		hashBytes := sha1sum.Sum(nil)
 		hashString := hex.EncodeToString(hashBytes)
 
 		dataobjects, err := fs.SearchDataObjectsByMetaWildcard(conn, "hash", hashString+"%")
-		assert.NoError(t, err)
+		failError(t, err)
 
 		assert.Equal(t, 1, len(dataobjects))
 		assert.Equal(t, testFilePath, dataobjects[0].Path)
 	}
 
 	dataobjects, err := fs.SearchDataObjectsByMetaWildcard(conn, "tag", "test%")
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.Equal(t, len(GetTestFiles()), len(dataobjects))
 }
@@ -850,13 +850,13 @@ func testParallelUploadAndDownloadDataObject(t *testing.T) {
 	sessionConfig := session.NewIRODSSessionConfigWithDefault("go-irodsclient-test")
 
 	sess, err := session.NewIRODSSession(account, sessionConfig)
-	assert.NoError(t, err)
+	failError(t, err)
 	defer sess.Release()
 
 	conn, err := sess.AcquireConnection()
-	assert.NoError(t, err)
+	failError(t, err)
 
-	if !conn.SupportParallUpload() {
+	if !conn.SupportParallelUpload() {
 		sess.ReturnConnection(conn)
 		return
 	}
@@ -872,7 +872,7 @@ func testParallelUploadAndDownloadDataObject(t *testing.T) {
 	buf := make([]byte, bufSize)
 
 	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	for i := 0; i < fileSize/bufSize; i++ {
 		// fill buf
@@ -881,32 +881,32 @@ func testParallelUploadAndDownloadDataObject(t *testing.T) {
 		}
 
 		_, err = f.Write(buf)
-		assert.NoError(t, err)
+		failError(t, err)
 	}
 
 	err = f.Close()
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// upload
 	irodsPath := homedir + "/" + filename
 	err = fs.UploadDataObjectParallel(sess, filename, irodsPath, "", 4, false, nil)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	err = os.Remove(filename)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// get
 	collection, err := fs.GetCollection(conn, homedir)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	obj, err := fs.GetDataObject(conn, collection, filename)
-	assert.NoError(t, err)
+	failError(t, err)
 	assert.NotEmpty(t, obj.ID)
 	assert.Equal(t, int64(fileSize), obj.Size)
 
 	// delete
 	err = fs.DeleteDataObject(conn, irodsPath, true)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	sess.ReturnConnection(conn)
 }

@@ -48,13 +48,13 @@ func testListEntries(t *testing.T) {
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
-	assert.NoError(t, err)
+	failError(t, err)
 	defer filesystem.Release()
 
 	homedir := getHomeDir(fsTestID)
 
 	collections, err := filesystem.List(homedir)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	collectionPaths := []string{}
 
@@ -79,19 +79,19 @@ func testListEntriesByMeta(t *testing.T) {
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
-	assert.NoError(t, err)
+	failError(t, err)
 	defer filesystem.Release()
 
 	for _, testFilePath := range GetTestFiles() {
 		sha1sum := sha1.New()
 		_, err = sha1sum.Write([]byte(testFilePath))
-		assert.NoError(t, err)
+		failError(t, err)
 
 		hashBytes := sha1sum.Sum(nil)
 		hashString := hex.EncodeToString(hashBytes)
 
 		entries, err := filesystem.SearchByMeta("hash", hashString)
-		assert.NoError(t, err)
+		failError(t, err)
 
 		assert.Equal(t, 1, len(entries))
 		assert.Equal(t, testFilePath, entries[0].Path)
@@ -106,13 +106,13 @@ func testListACLs(t *testing.T) {
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
-	assert.NoError(t, err)
+	failError(t, err)
 	defer filesystem.Release()
 
 	objectPath := GetTestFiles()[0]
 
 	acls, err := filesystem.ListACLsWithGroupUsers(objectPath)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.GreaterOrEqual(t, len(acls), 1)
 	for _, acl := range acls {
@@ -128,7 +128,7 @@ func testReadWrite(t *testing.T) {
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
-	assert.NoError(t, err)
+	failError(t, err)
 	defer filesystem.Release()
 
 	homedir := getHomeDir(fsTestID)
@@ -140,32 +140,32 @@ func testReadWrite(t *testing.T) {
 
 	// create
 	handle, err := filesystem.CreateFile(newDataObjectPath, "", "w")
-	assert.NoError(t, err)
+	failError(t, err)
 
 	_, err = handle.Write([]byte(text))
-	assert.NoError(t, err)
+	failError(t, err)
 
 	err = handle.Close()
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.True(t, filesystem.Exists(newDataObjectPath))
 
 	// read
 	newHandle, err := filesystem.OpenFile(newDataObjectPath, "", "r")
-	assert.NoError(t, err)
+	failError(t, err)
 
 	buffer := make([]byte, 1024)
 	readLen, err := newHandle.Read(buffer)
 	assert.Equal(t, io.EOF, err)
 
 	err = newHandle.Close()
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.Equal(t, text, string(buffer[:readLen]))
 
 	// delete
 	err = filesystem.RemoveFile(newDataObjectPath, true)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.False(t, filesystem.Exists(newDataObjectPath))
 }
@@ -178,7 +178,7 @@ func testCreateStat(t *testing.T) {
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
-	assert.NoError(t, err)
+	failError(t, err)
 	defer filesystem.Release()
 
 	homedir := getHomeDir(fsTestID)
@@ -190,40 +190,40 @@ func testCreateStat(t *testing.T) {
 
 	// create
 	handle, err := filesystem.CreateFile(newDataObjectPath, "", "w")
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// stat
 	stat, err := filesystem.Stat(newDataObjectPath)
-	assert.NoError(t, err)
+	failError(t, err)
 	assert.NotEmpty(t, stat.ID)
 	assert.Equal(t, fs.FileEntry, stat.Type)
 
 	// write
 	_, err = handle.Write([]byte(text))
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// close
 	err = handle.Close()
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.True(t, filesystem.Exists(newDataObjectPath))
 
 	// read
 	newHandle, err := filesystem.OpenFile(newDataObjectPath, "", "r")
-	assert.NoError(t, err)
+	failError(t, err)
 
 	buffer := make([]byte, 1024)
 	readLen, err := newHandle.Read(buffer)
 	assert.Equal(t, io.EOF, err)
 
 	err = newHandle.Close()
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.Equal(t, text, string(buffer[:readLen]))
 
 	// delete
 	err = filesystem.RemoveFile(newDataObjectPath, true)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.False(t, filesystem.Exists(newDataObjectPath))
 }
@@ -236,7 +236,7 @@ func testSpecialCharInName(t *testing.T) {
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
-	assert.NoError(t, err)
+	failError(t, err)
 	defer filesystem.Release()
 
 	homedir := getHomeDir(fsTestID)
@@ -248,34 +248,34 @@ func testSpecialCharInName(t *testing.T) {
 
 	// create
 	handle, err := filesystem.CreateFile(newDataObjectPath, "", "w")
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// write
 	_, err = handle.Write([]byte(text))
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// close
 	err = handle.Close()
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.True(t, filesystem.Exists(newDataObjectPath))
 
 	// read
 	newHandle, err := filesystem.OpenFile(newDataObjectPath, "", "r")
-	assert.NoError(t, err)
+	failError(t, err)
 
 	buffer := make([]byte, 1024)
 	readLen, err := newHandle.Read(buffer)
 	assert.Equal(t, io.EOF, err)
 
 	err = newHandle.Close()
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.Equal(t, text, string(buffer[:readLen]))
 
 	// delete
 	err = filesystem.RemoveFile(newDataObjectPath, true)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.False(t, filesystem.Exists(newDataObjectPath))
 }
@@ -288,7 +288,7 @@ func testWriteRename(t *testing.T) {
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
-	assert.NoError(t, err)
+	failError(t, err)
 	defer filesystem.Release()
 
 	homedir := getHomeDir(fsTestID)
@@ -304,42 +304,42 @@ func testWriteRename(t *testing.T) {
 
 	// create
 	handle, err := filesystem.CreateFile(newDataObjectPath, "", "w")
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// write
 	_, err = handle.Write([]byte(text1))
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// rename
 	err = filesystem.RenameFile(newDataObjectPath, newDataObjectPathRenameTarget)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// write again
 	_, err = handle.Write([]byte(text2))
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// close
 	err = handle.Close()
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.True(t, filesystem.Exists(newDataObjectPathRenameTarget))
 
 	// read
 	newHandle, err := filesystem.OpenFile(newDataObjectPathRenameTarget, "", "r")
-	assert.NoError(t, err)
+	failError(t, err)
 
 	buffer := make([]byte, 1024)
 	readLen, err := newHandle.Read(buffer)
 	assert.Equal(t, io.EOF, err)
 
 	err = newHandle.Close()
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.Equal(t, text1+text2, string(buffer[:readLen]))
 
 	// delete
 	err = filesystem.RemoveFile(newDataObjectPathRenameTarget, true)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.False(t, filesystem.Exists(newDataObjectPathRenameTarget))
 }
@@ -352,14 +352,14 @@ func testWriteRenameDir(t *testing.T) {
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
-	assert.NoError(t, err)
+	failError(t, err)
 	defer filesystem.Release()
 
 	homedir := getHomeDir(fsTestID)
 	newdir := fmt.Sprintf("%s/testdir_%s", homedir, xid.New().String())
 
 	err = filesystem.MakeDir(newdir, true)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	newDataObjectFilename := "testobj_" + xid.New().String()
 	newDataObjectPath := newdir + "/" + newDataObjectFilename
@@ -372,47 +372,47 @@ func testWriteRenameDir(t *testing.T) {
 
 	// create
 	handle, err := filesystem.CreateFile(newDataObjectPath, "", "w")
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// write
 	_, err = handle.Write([]byte(text1))
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// rename
 	err = filesystem.RenameDir(newdir, newdirRenameTarget)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// write again
 	_, err = handle.Write([]byte(text2))
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// close
 	err = handle.Close()
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.True(t, filesystem.Exists(newDataObjectPathRenameTarget))
 
 	// read
 	newHandle, err := filesystem.OpenFile(newDataObjectPathRenameTarget, "", "r")
-	assert.NoError(t, err)
+	failError(t, err)
 
 	buffer := make([]byte, 1024)
 	readLen, err := newHandle.Read(buffer)
 	assert.Equal(t, io.EOF, err)
 
 	err = newHandle.Close()
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.Equal(t, text1+text2, string(buffer[:readLen]))
 
 	// delete
 	err = filesystem.RemoveFile(newDataObjectPathRenameTarget, true)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	assert.False(t, filesystem.Exists(newDataObjectPathRenameTarget))
 
 	err = filesystem.RemoveDir(newdirRenameTarget, true, true)
-	assert.NoError(t, err)
+	failError(t, err)
 }
 
 func testRemoveClose(t *testing.T) {
@@ -423,7 +423,7 @@ func testRemoveClose(t *testing.T) {
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
-	assert.NoError(t, err)
+	failError(t, err)
 	defer filesystem.Release()
 
 	homedir := getHomeDir(fsTestID)
@@ -435,11 +435,11 @@ func testRemoveClose(t *testing.T) {
 
 	// create
 	handle, err := filesystem.CreateFile(newDataObjectPath, "", "w")
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// write
 	_, err = handle.Write([]byte(text))
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// remove
 	wg := sync.WaitGroup{}
@@ -448,7 +448,7 @@ func testRemoveClose(t *testing.T) {
 	go func() {
 		//t.Logf("calling remove - %s\n", newDataObjectPath)
 		err = filesystem.RemoveFile(newDataObjectPath, true)
-		assert.NoError(t, err)
+		failError(t, err)
 		wg.Done()
 	}()
 
@@ -457,7 +457,7 @@ func testRemoveClose(t *testing.T) {
 		// close
 		//t.Logf("calling close - %s\n", newDataObjectPath)
 		err = handle.Close()
-		assert.NoError(t, err)
+		failError(t, err)
 		wg.Done()
 	}()
 

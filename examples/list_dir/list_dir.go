@@ -65,10 +65,10 @@ func main() {
 		fmt.Printf("DIR: %s\n", inputPath)
 		for _, entry := range entries {
 			if entry.Type == fs.FileEntry {
-				fmt.Printf("> FILE:\t%s\t%d\n", entry.Path, entry.Size)
+				fmt.Printf("> FILE:\t%d\t%s\t%d\n", entry.ID, entry.Path, entry.Size)
 			} else {
 				// dir
-				fmt.Printf("> DIRECTORY:\t%s\n", entry.Path)
+				fmt.Printf("> DIRECTORY:\t%d\t%s\n", entry.ID, entry.Path)
 			}
 
 		}

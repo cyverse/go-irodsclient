@@ -24,7 +24,6 @@ func TestSession(t *testing.T) {
 	t.Run("test Session", testSession)
 	t.Run("test many Connections", testManyConnections)
 	t.Run("test Connection Metrics", testConnectionMetrics)
-
 }
 
 func testSession(t *testing.T) {
@@ -36,26 +35,23 @@ func testSession(t *testing.T) {
 	sessionConfig := session.NewIRODSSessionConfigWithDefault("go-irodsclient-test")
 
 	sess, err := session.NewIRODSSession(account, sessionConfig)
-	assert.NoError(t, err)
+	failError(t, err)
 	defer sess.Release()
 
 	// first
 	conn, err := sess.AcquireConnection()
-	assert.NoError(t, err)
+	failError(t, err)
 
 	homedir := getHomeDir(fsSessionTestID)
 
 	collection, err := fs.GetCollection(conn, homedir)
-	if err != nil {
-		t.Error(err)
-		t.FailNow()
-	}
+	failError(t, err)
 
 	assert.Equal(t, homedir, collection.Path)
 	assert.NotEmpty(t, collection.ID)
 
 	err = sess.ReturnConnection(conn)
-	assert.NoError(t, err)
+	failError(t, err)
 }
 
 func testManyConnections(t *testing.T) {
@@ -67,7 +63,7 @@ func testManyConnections(t *testing.T) {
 	sessionConfig := session.NewIRODSSessionConfigWithDefault("go-irodsclient-test")
 
 	sess, err := session.NewIRODSSession(account, sessionConfig)
-	assert.NoError(t, err)
+	failError(t, err)
 	defer sess.Release()
 
 	homedir := getHomeDir(fsSessionTestID)
@@ -76,10 +72,10 @@ func testManyConnections(t *testing.T) {
 
 	for i := 0; i < 30; i++ {
 		conn, err := sess.AcquireConnection()
-		assert.NoError(t, err)
+		failError(t, err)
 
 		collection, err := fs.GetCollection(conn, homedir)
-		assert.NoError(t, err)
+		failError(t, err)
 
 		connections = append(connections, conn)
 
@@ -91,7 +87,7 @@ func testManyConnections(t *testing.T) {
 
 	for _, conn := range connections {
 		err = sess.ReturnConnection(conn)
-		assert.NoError(t, err)
+		failError(t, err)
 	}
 }
 
@@ -104,7 +100,7 @@ func testConnectionMetrics(t *testing.T) {
 	sessionConfig := session.NewIRODSSessionConfigWithDefault("go-irodsclient-test")
 
 	sess, err := session.NewIRODSSession(account, sessionConfig)
-	assert.NoError(t, err)
+	failError(t, err)
 	defer sess.Release()
 
 	metrics := sess.GetMetrics()
@@ -117,10 +113,10 @@ func testConnectionMetrics(t *testing.T) {
 
 	for i := 0; i < 30; i++ {
 		conn, err := sess.AcquireConnection()
-		assert.NoError(t, err)
+		failError(t, err)
 
 		collection, err := fs.GetCollection(conn, homedir)
-		assert.NoError(t, err)
+		failError(t, err)
 
 		connections = append(connections, conn)
 
@@ -134,7 +130,7 @@ func testConnectionMetrics(t *testing.T) {
 
 	for _, conn := range connections {
 		err = sess.ReturnConnection(conn)
-		assert.NoError(t, err)
+		failError(t, err)
 	}
 
 	assert.Equal(t, uint64(sessionConfig.ConnectionMaxIdle), metrics.GetConnectionsOpened())

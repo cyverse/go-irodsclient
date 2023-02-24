@@ -2,9 +2,9 @@ package message
 
 import (
 	"encoding/xml"
-	"fmt"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
+	"golang.org/x/xerrors"
 )
 
 // IRODSMessageAuthResponse stores auth response
@@ -25,20 +25,26 @@ func NewIRODSMessageAuthResponse(response string, username string) *IRODSMessage
 // GetBytes returns byte array
 func (msg *IRODSMessageAuthResponse) GetBytes() ([]byte, error) {
 	xmlBytes, err := xml.Marshal(msg)
-	return xmlBytes, err
+	if err != nil {
+		return nil, xerrors.Errorf("failed to marshal irods message to xml: %w", err)
+	}
+	return xmlBytes, nil
 }
 
 // FromBytes returns struct from bytes
 func (msg *IRODSMessageAuthResponse) FromBytes(bytes []byte) error {
 	err := xml.Unmarshal(bytes, msg)
-	return err
+	if err != nil {
+		return xerrors.Errorf("failed to unmarshal xml to irods message: %w", err)
+	}
+	return nil
 }
 
 // GetMessage builds a message
 func (msg *IRODSMessageAuthResponse) GetMessage() (*IRODSMessage, error) {
 	bytes, err := msg.GetBytes()
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to get bytes from irods message: %w", err)
 	}
 
 	msgBody := IRODSMessageBody{
@@ -51,7 +57,7 @@ func (msg *IRODSMessageAuthResponse) GetMessage() (*IRODSMessage, error) {
 
 	msgHeader, err := msgBody.BuildHeader()
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to build header from irods message: %w", err)
 	}
 
 	return &IRODSMessage{
@@ -63,8 +69,12 @@ func (msg *IRODSMessageAuthResponse) GetMessage() (*IRODSMessage, error) {
 // FromMessage returns struct from IRODSMessage
 func (msg *IRODSMessageAuthResponse) FromMessage(msgIn *IRODSMessage) error {
 	if msgIn.Body == nil {
-		return fmt.Errorf("cannot create a struct from an empty body")
+		return xerrors.Errorf("empty message body")
 	}
 
-	return msg.FromBytes(msgIn.Body.Message)
+	err := msg.FromBytes(msgIn.Body.Message)
+	if err != nil {
+		return xerrors.Errorf("failed to get irods message from message body")
+	}
+	return nil
 }

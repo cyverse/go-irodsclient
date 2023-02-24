@@ -35,11 +35,11 @@ func testParallelUploadDataObject(t *testing.T) {
 	sessionConfig := session.NewIRODSSessionConfigWithDefault("go-irodsclient-test")
 
 	sess, err := session.NewIRODSSession(account, sessionConfig)
-	assert.NoError(t, err)
+	failError(t, err)
 	defer sess.Release()
 
 	conn, err := sess.AcquireConnection()
-	assert.NoError(t, err)
+	failError(t, err)
 
 	homedir := getHomeDir(bulkFSAPITestID)
 
@@ -52,7 +52,7 @@ func testParallelUploadDataObject(t *testing.T) {
 	buf := make([]byte, bufSize)
 
 	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	for i := 0; i < fileSize/bufSize; i++ {
 		// fill buf
@@ -61,11 +61,11 @@ func testParallelUploadDataObject(t *testing.T) {
 		}
 
 		_, err = f.Write(buf)
-		assert.NoError(t, err)
+		failError(t, err)
 	}
 
 	err = f.Close()
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// upload
 	irodsPath := homedir + "/" + filename
@@ -76,32 +76,32 @@ func testParallelUploadDataObject(t *testing.T) {
 	}
 
 	err = fs.UploadDataObjectParallel(sess, filename, irodsPath, "", 4, false, callBack)
-	assert.NoError(t, err)
+	failError(t, err)
 	assert.Greater(t, callbackCalled, 10) // at least called 10 times
 
 	err = os.Remove(filename)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	// get
 	callbackCalled = 0
 	err = fs.DownloadDataObjectParallel(sess, irodsPath, "", filename, int64(fileSize), 4, callBack)
-	assert.NoError(t, err)
+	failError(t, err)
 	assert.Greater(t, callbackCalled, 10) // at least called 10 times
 
 	err = os.Remove(filename)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	collection, err := fs.GetCollection(conn, homedir)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	obj, err := fs.GetDataObject(conn, collection, filename)
-	assert.NoError(t, err)
+	failError(t, err)
 	assert.NotEmpty(t, obj.ID)
 	assert.Equal(t, int64(fileSize), obj.Size)
 
 	// delete
 	err = fs.DeleteDataObject(conn, irodsPath, true)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	sess.ReturnConnection(conn)
 }

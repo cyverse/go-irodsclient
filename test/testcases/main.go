@@ -4,6 +4,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
+	"math/rand"
 	"os"
 	"testing"
 
@@ -86,15 +87,40 @@ func GetTestDirs() []string {
 	return testDirs
 }
 
-func createLocalTestFile(name string, size int64) (string, error) {
-	testval := "abcdefghijklmnop" // 16
-	// fill
-	dataBuf := make([]byte, 1024)
-	i := 0
-	for i < len(dataBuf) {
-		copy(dataBuf[i:], testval)
-		i += len(testval)
+func failError(t *testing.T, err error) {
+	if err != nil {
+		t.Errorf("%+v", err)
+		t.FailNow()
 	}
+}
+
+func makeFixedContentTestDataBuf(size int64) []byte {
+	testval := "abcdefghijklmnopqrstuvwxyz"
+
+	// fill
+	dataBuf := make([]byte, size)
+	writeLen := 0
+	for writeLen < len(dataBuf) {
+		copy(dataBuf[writeLen:], testval)
+		writeLen += len(testval)
+	}
+	return dataBuf
+}
+
+func makeRandomContentTestDataBuf(size int64) []byte {
+	letters := []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+	// fill
+	dataBuf := make([]byte, size)
+	for i := range dataBuf {
+		dataBuf[i] = letters[rand.Intn(len(letters))]
+	}
+	return dataBuf
+}
+
+func createLocalTestFile(name string, size int64) (string, error) {
+	// fill
+	dataBuf := makeFixedContentTestDataBuf(1024)
 
 	f, err := os.CreateTemp("", name)
 	if err != nil {
@@ -131,16 +157,16 @@ func makeHomeDir(t *testing.T, testID string) {
 	sessionConfig := session.NewIRODSSessionConfigWithDefault("go-irodsclient-test")
 
 	sess, err := session.NewIRODSSession(account, sessionConfig)
-	assert.NoError(t, err)
+	failError(t, err)
 	defer sess.Release()
 
 	// first
 	conn, err := sess.AcquireConnection()
-	assert.NoError(t, err)
+	failError(t, err)
 
 	homedir := getHomeDir(testID)
 	err = fs.CreateCollection(conn, homedir, true)
-	assert.NoError(t, err)
+	failError(t, err)
 }
 
 func prepareSamples(t *testing.T, testID string) {
@@ -150,17 +176,17 @@ func prepareSamples(t *testing.T, testID string) {
 	sessionConfig := session.NewIRODSSessionConfigWithDefault("go-irodsclient-test")
 
 	sess, err := session.NewIRODSSession(account, sessionConfig)
-	assert.NoError(t, err)
+	failError(t, err)
 	defer sess.Release()
 
 	// first
 	conn, err := sess.AcquireConnection()
-	assert.NoError(t, err)
+	failError(t, err)
 
 	homedir := getHomeDir(testID)
 
 	collection, err := fs.GetCollection(conn, homedir)
-	assert.NoError(t, err)
+	failError(t, err)
 	assert.NotEmpty(t, collection.ID)
 
 	testval := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" // 62
@@ -182,18 +208,18 @@ func prepareSamples(t *testing.T, testID string) {
 		}
 
 		err = os.WriteFile(filename, buf, 0666)
-		assert.NoError(t, err)
+		failError(t, err)
 
 		irodsPath := homedir + "/" + filename
 		err = fs.UploadDataObject(sess, filename, irodsPath, "", false, nil)
-		assert.NoError(t, err)
+		failError(t, err)
 
 		conn, err := sess.AcquireConnection()
-		assert.NoError(t, err)
+		failError(t, err)
 
 		sha1sum := sha1.New()
 		_, err = sha1sum.Write([]byte(irodsPath))
-		assert.NoError(t, err)
+		failError(t, err)
 
 		hashBytes := sha1sum.Sum(nil)
 		hashString := hex.EncodeToString(hashBytes)
@@ -202,20 +228,20 @@ func prepareSamples(t *testing.T, testID string) {
 			Name:  "hash",
 			Value: hashString,
 		})
-		assert.NoError(t, err)
+		failError(t, err)
 
 		err = fs.AddDataObjectMeta(conn, irodsPath, &types.IRODSMeta{
 			Name:  "tag",
 			Value: "test",
 		})
-		assert.NoError(t, err)
+		failError(t, err)
 
 		sess.ReturnConnection(conn)
 
 		testFiles = append(testFiles, irodsPath)
 
 		err = os.Remove(filename)
-		assert.NoError(t, err)
+		failError(t, err)
 	}
 
 	// create random directories
@@ -224,11 +250,11 @@ func prepareSamples(t *testing.T, testID string) {
 
 		irodsPath := homedir + "/" + dirname
 		err = fs.CreateCollection(conn, irodsPath, true)
-		assert.NoError(t, err)
+		failError(t, err)
 
 		testDirs = append(testDirs, irodsPath)
 	}
 
 	err = sess.ReturnConnection(conn)
-	assert.NoError(t, err)
+	failError(t, err)
 }

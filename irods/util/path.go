@@ -3,7 +3,8 @@ package util
 import (
 	"os"
 	"path/filepath"
-	"strings"
+
+	"golang.org/x/xerrors"
 )
 
 // GetCorrectLocalPath corrects the path
@@ -12,20 +13,26 @@ func GetCorrectLocalPath(p string) string {
 }
 
 func ExpandHomeDir(path string) (string, error) {
-	// resolve "~/"
-	if path == "~" {
-		homedir, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
+	if len(path) == 0 {
+		return "", nil
+	}
 
+	if path[0] != '~' {
+		return path, nil
+	}
+
+	homedir, err := os.UserHomeDir()
+	if err != nil {
+		return "", xerrors.Errorf("failed to get user home dir: %w", err)
+	}
+
+	// resolve "~"
+	if len(path) == 1 {
 		return homedir, nil
-	} else if strings.HasPrefix(path, "~/") {
-		homedir, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
+	}
 
+	// resolve "~/"
+	if path[1] == '/' {
 		path = filepath.Join(homedir, path[2:])
 		return filepath.Clean(path), nil
 	}

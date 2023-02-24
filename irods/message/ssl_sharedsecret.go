@@ -1,6 +1,8 @@
 package message
 
-import "fmt"
+import (
+	"golang.org/x/xerrors"
+)
 
 const (
 	// RODS_MESSAGE_SSL_SHARED_SECRET_TYPE is a message type for shared secret used in SSL connection establishment
@@ -31,7 +33,7 @@ func (msg *IRODSMessageSSLSharedSecret) GetMessage() (*IRODSMessage, error) {
 
 	msgHeader, err := msgBody.BuildHeader()
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to build header from irods message: %w", err)
 	}
 
 	return &IRODSMessage{
@@ -43,7 +45,7 @@ func (msg *IRODSMessageSSLSharedSecret) GetMessage() (*IRODSMessage, error) {
 // FromMessage returns struct from IRODSMessage
 func (msg *IRODSMessageSSLSharedSecret) FromMessage(msgIn *IRODSMessage) error {
 	if msgIn.Body == nil {
-		return fmt.Errorf("cannot create a struct from an empty body")
+		return xerrors.Errorf("empty message body")
 	}
 
 	msg.SharedSecret = msgIn.Body.Message

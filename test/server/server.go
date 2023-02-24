@@ -8,6 +8,7 @@ import (
 
 	"github.com/cyverse/go-irodsclient/irods/types"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/xerrors"
 )
 
 const (
@@ -20,10 +21,10 @@ const (
 	testServerZone          string = "cyverse"
 )
 
-func startServerExec() error {
+func StartServer() error {
 	logger := log.WithFields(log.Fields{
 		"package":  "server",
-		"function": "startServerExec",
+		"function": "StartServer",
 	})
 
 	logger.Info("Running iRODS test server")
@@ -37,8 +38,9 @@ func startServerExec() error {
 
 	err := cmd.Start()
 	if err != nil {
-		logger.WithError(err).Errorf("failed to start iRODS test server")
-		return err
+		startErr := xerrors.Errorf("failed to start iRODS test server: %w", err)
+		logger.Errorf("%+v", startErr)
+		return startErr
 	}
 
 	cmd.Wait()
@@ -46,10 +48,10 @@ func startServerExec() error {
 	return nil
 }
 
-func stopServerExec() error {
+func StopServer() error {
 	logger := log.WithFields(log.Fields{
 		"package":  "server",
-		"function": "stopServerExec",
+		"function": "StopServer",
 	})
 
 	logger.Info("Stopping iRODS test server")
@@ -63,29 +65,15 @@ func stopServerExec() error {
 
 	err := cmd.Start()
 	if err != nil {
-		logger.WithError(err).Errorf("failed to stop iRODS test server")
-		return err
+		stopErr := xerrors.Errorf("failed to stop iRODS test server: %w", err)
+		logger.Errorf("%+v", stopErr)
+		return stopErr
 	}
 
 	cmd.Wait()
 	// we don't check it's error because it always return exit code 1
 
 	logger.Info("Successfully stopped iRODS test server")
-	return nil
-}
-
-func StartServer() error {
-	logger := log.WithFields(log.Fields{
-		"package":  "server",
-		"function": "StartServer",
-	})
-
-	err := startServerExec()
-	if err != nil {
-		logger.WithError(err).Error("failed to start iRODS test server")
-		return err
-	}
-
 	return nil
 }
 
@@ -97,25 +85,10 @@ func GetLocalAccount() (*types.IRODSAccount, error) {
 
 	account, err := types.CreateIRODSAccount(testServerHost, testServerPort, testServerAdminUser, testServerZone, types.AuthSchemeNative, testServerAdminPassword, "")
 	if err != nil {
-		logger.WithError(err).Error("failed to create an iRODS Account")
-		return nil, err
+		accountErr := xerrors.Errorf("failed to create irods account: %w", err)
+		logger.Errorf("%+v", accountErr)
+		return nil, accountErr
 	}
 
 	return account, nil
-}
-
-func StopServer() error {
-	logger := log.WithFields(log.Fields{
-		"package":  "server",
-		"function": "StopServer",
-	})
-
-	err := stopServerExec()
-	if err != nil {
-		logger.WithError(err).Error("failed to stop iRODS test server")
-		return err
-	}
-
-	return nil
-
 }

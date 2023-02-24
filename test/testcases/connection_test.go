@@ -27,7 +27,7 @@ func testIRODSConnection(t *testing.T) {
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
 	err := conn.Connect()
-	assert.NoError(t, err)
+	failError(t, err)
 	defer conn.Disconnect()
 
 	ver := conn.GetVersion()
@@ -58,7 +58,7 @@ func testIRODSConnectionWithNegotiation(t *testing.T) {
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
 	err := conn.Connect()
-	assert.NoError(t, err)
+	failError(t, err)
 	defer conn.Disconnect()
 
 	ver := conn.GetVersion()

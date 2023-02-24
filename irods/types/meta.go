@@ -1,6 +1,10 @@
 package types
 
-import "fmt"
+import (
+	"fmt"
+
+	"golang.org/x/xerrors"
+)
 
 // IRODSMetaItemType describes a type to set metadata on
 type IRODSMetaItemType string
@@ -26,7 +30,7 @@ func GetIRODSMetaItemType(data interface{}) (IRODSMetaItemType, error) {
 	case IRODSUser:
 		return IRODSUserMetaItemType, nil
 	default:
-		return "", fmt.Errorf("data type is unknown for irods metadata")
+		return "", xerrors.Errorf("unknown irods metadata item type")
 	}
 }
 

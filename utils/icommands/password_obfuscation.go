@@ -3,6 +3,8 @@ package icommands
 import (
 	"os"
 	"time"
+
+	"golang.org/x/xerrors"
 )
 
 var (
@@ -39,7 +41,7 @@ var (
 func DecodePasswordFile(path string, uid int) (string, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return "", err
+		return "", xerrors.Errorf("failed to read file %s: %w", path, err)
 	}
 
 	return DecodePasswordString(string(content), uid), nil
@@ -48,7 +50,11 @@ func DecodePasswordFile(path string, uid int) (string, error) {
 // EncodePasswordFile encodes password string and store in .irodsA file
 func EncodePasswordFile(path string, s string, uid int) error {
 	content := EncodePasswordString(s, uid)
-	return os.WriteFile(path, []byte(content), 0600)
+	err := os.WriteFile(path, []byte(content), 0600)
+	if err != nil {
+		return xerrors.Errorf("failed to write file %s: %w", path, err)
+	}
+	return nil
 }
 
 // DecodePasswordString decodes password string in .irodsA file

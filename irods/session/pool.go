@@ -2,13 +2,13 @@ package session
 
 import (
 	"container/list"
-	"fmt"
 	"sync"
 	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/metrics"
 	"github.com/cyverse/go-irodsclient/irods/types"
+	"golang.org/x/xerrors"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -50,7 +50,7 @@ func NewConnectionPool(config *ConnectionPoolConfig, metrics *metrics.IRODSMetri
 
 	err := pool.init()
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to init connection pool: %w", err)
 	}
 
 	go func() {
@@ -134,12 +134,6 @@ func (pool *ConnectionPool) Release() {
 }
 
 func (pool *ConnectionPool) init() error {
-	logger := log.WithFields(log.Fields{
-		"package":  "session",
-		"struct":   "ConnectionPool",
-		"function": "init",
-	})
-
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
 
@@ -148,9 +142,8 @@ func (pool *ConnectionPool) init() error {
 		newConn := connection.NewIRODSConnectionWithMetrics(pool.config.Account, pool.config.OperationTimeout, pool.config.ApplicationName, pool.metrics)
 		err := newConn.Connect()
 		if err != nil {
-			logger.WithError(err).Error("failed to create a new connection")
 			pool.metrics.IncreaseCounterForConnectionPoolFailures(1)
-			return err
+			return xerrors.Errorf("failed to connect to irods server: %w", err)
 		}
 
 		pool.idleConnections.PushBack(newConn)
@@ -193,7 +186,7 @@ func (pool *ConnectionPool) Get() (*connection.IRODSConnection, bool, error) {
 					return idleConn, false, nil
 				}
 
-				logger.Warn("failed to reuse an idle connection. already disconnected. discarding.")
+				logger.Warn("failed to reuse an idle connection because it is already disconnected. discarding...")
 			}
 		}
 	}
@@ -202,9 +195,8 @@ func (pool *ConnectionPool) Get() (*connection.IRODSConnection, bool, error) {
 	newConn := connection.NewIRODSConnectionWithMetrics(pool.config.Account, pool.config.OperationTimeout, pool.config.ApplicationName, pool.metrics)
 	err = newConn.Connect()
 	if err != nil {
-		logger.WithError(err).Error("failed to create a new connection")
 		pool.metrics.IncreaseCounterForConnectionPoolFailures(1)
-		return nil, false, err
+		return nil, false, xerrors.Errorf("failed to connect to irods server: %w", err)
 	}
 
 	pool.occupiedConnections[newConn] = true
@@ -249,9 +241,8 @@ func (pool *ConnectionPool) GetNew() (*connection.IRODSConnection, error) {
 		newConn := connection.NewIRODSConnection(pool.config.Account, pool.config.OperationTimeout, pool.config.ApplicationName)
 		err := newConn.Connect()
 		if err != nil {
-			logger.WithError(err).Error("failed to create a new connection")
 			pool.metrics.IncreaseCounterForConnectionPoolFailures(1)
-			return nil, err
+			return nil, xerrors.Errorf("failed to connect to irods server: %w", err)
 		}
 
 		pool.occupiedConnections[newConn] = true
@@ -261,7 +252,7 @@ func (pool *ConnectionPool) GetNew() (*connection.IRODSConnection, error) {
 		return newConn, nil
 	}
 
-	return nil, fmt.Errorf("failed to create a new connection, no idle connections")
+	return nil, xerrors.Errorf("failed to create a new connection, no idle connections")
 }
 
 // Return returns the connection after use
@@ -282,12 +273,11 @@ func (pool *ConnectionPool) Return(conn *connection.IRODSConnection) error {
 		pool.metrics.DecreaseConnectionsOccupied(1)
 	} else {
 		// cannot find it from occupied map
-		logger.Error("failed to find the connection from occupied connections")
-		return fmt.Errorf("failed to find the connection from occupied connections")
+		return xerrors.Errorf("failed to find the connection from occupied connection list")
 	}
 
 	if !conn.IsConnected() {
-		logger.Warn("failed to return the connection. already closed. discarding.")
+		logger.Warn("failed to return the connection because it is already closed. discarding...")
 		return nil
 	}
 

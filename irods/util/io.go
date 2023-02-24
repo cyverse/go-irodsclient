@@ -1,15 +1,19 @@
 package util
 
 import (
-	"fmt"
 	"net"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
+	"golang.org/x/xerrors"
 )
 
 // ReadBytes reads data from socket in a particular size
 func ReadBytes(socket net.Conn, buffer []byte, size int) (int, error) {
-	return ReadBytesWithTrackerCallBack(socket, buffer, size, nil)
+	readLen, err := ReadBytesWithTrackerCallBack(socket, buffer, size, nil)
+	if err != nil {
+		return readLen, xerrors.Errorf("failed to read bytes from socket: %w", err)
+	}
+	return readLen, nil
 }
 
 // ReadBytesWithTrackerCallBack reads data from socket in a particular size
@@ -21,7 +25,7 @@ func ReadBytesWithTrackerCallBack(socket net.Conn, buffer []byte, size int, call
 	for sizeLeft > 0 {
 		sizeRead, err := socket.Read(buffer[actualRead:size])
 		if err != nil {
-			return actualRead, err
+			return actualRead, xerrors.Errorf("failed to read from socket: %w", err)
 		}
 
 		sizeLeft -= sizeRead
@@ -33,7 +37,7 @@ func ReadBytesWithTrackerCallBack(socket net.Conn, buffer []byte, size int, call
 	}
 
 	if sizeLeft < 0 {
-		return actualRead, fmt.Errorf("read more bytes than requested - %d requested, but %d read", size, actualRead)
+		return actualRead, xerrors.Errorf("received more bytes than requested, %d requested, but %d read", size, actualRead)
 	}
 
 	return actualRead, nil
@@ -41,7 +45,11 @@ func ReadBytesWithTrackerCallBack(socket net.Conn, buffer []byte, size int, call
 
 // WriteBytes writes data to socket
 func WriteBytes(socket net.Conn, buffer []byte, size int) error {
-	return WriteBytesWithTrackerCallBack(socket, buffer, size, nil)
+	err := WriteBytesWithTrackerCallBack(socket, buffer, size, nil)
+	if err != nil {
+		return xerrors.Errorf("failed to write bytes to socket: %w", err)
+	}
+	return nil
 }
 
 // WriteBytesWithTrackerCallBack writes data to socket
@@ -53,7 +61,7 @@ func WriteBytesWithTrackerCallBack(socket net.Conn, buffer []byte, size int, cal
 	for sizeLeft > 0 {
 		sizeWrite, err := socket.Write(buffer[actualWrite:size])
 		if err != nil {
-			return err
+			return xerrors.Errorf("failed to write to socket: %w", err)
 		}
 
 		sizeLeft -= sizeWrite

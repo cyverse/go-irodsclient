@@ -1,8 +1,9 @@
 package types
 
 import (
-	"fmt"
 	"os"
+
+	"golang.org/x/xerrors"
 )
 
 // IRODSSSLConfig contains irods ssl configuration
@@ -31,10 +32,10 @@ func (config *IRODSSSLConfig) ReadCACert() ([]byte, error) {
 	if len(config.CACertificateFile) > 0 {
 		caCert, err := os.ReadFile(config.CACertificateFile)
 		if err != nil {
-			return nil, err
+			return nil, xerrors.Errorf("failed to read from file %s: %w", config.CACertificateFile, err)
 		}
 		return caCert, nil
 	}
 
-	return nil, fmt.Errorf("CACertificateFile is not set")
+	return nil, xerrors.Errorf("ca certificate file is not set")
 }

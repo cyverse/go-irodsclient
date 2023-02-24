@@ -31,7 +31,7 @@ func testMakeDir(t *testing.T) {
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
-	assert.NoError(t, err)
+	failError(t, err)
 	defer filesystem.Release()
 
 	homedir := getHomeDir(fsCacheTestID)
@@ -41,10 +41,10 @@ func testMakeDir(t *testing.T) {
 
 		// create test
 		err = filesystem.MakeDir(newdir, false)
-		assert.NoError(t, err)
+		failError(t, err)
 
 		entries, err := filesystem.List(homedir)
-		assert.NoError(t, err)
+		failError(t, err)
 
 		found := false
 		for _, entry := range entries {
@@ -63,10 +63,10 @@ func testMakeDir(t *testing.T) {
 
 		// delete test
 		err = filesystem.RemoveDir(newdir, true, true)
-		assert.NoError(t, err)
+		failError(t, err)
 
 		entries, err = filesystem.List(homedir)
-		assert.NoError(t, err)
+		failError(t, err)
 
 		found = false
 		for _, entry := range entries {
@@ -97,7 +97,7 @@ func testMakeDirCacheEvent(t *testing.T) {
 	}
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
-	assert.NoError(t, err)
+	failError(t, err)
 	defer filesystem.Release()
 
 	filesystem.AddCacheEventHandler(eventHandler)
@@ -109,14 +109,14 @@ func testMakeDirCacheEvent(t *testing.T) {
 
 		// create test
 		err = filesystem.MakeDir(newdir, false)
-		assert.NoError(t, err)
+		failError(t, err)
 
 		exist := filesystem.ExistsDir(newdir)
 		assert.True(t, exist)
 
 		// delete test
 		err = filesystem.RemoveDir(newdir, true, true)
-		assert.NoError(t, err)
+		failError(t, err)
 
 		assert.Equal(t, 2, len(eventTypesReceived))
 		assert.Equal(t, 2, len(eventPathsReceived))

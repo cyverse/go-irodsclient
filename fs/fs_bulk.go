@@ -1,7 +1,6 @@
 package fs
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -9,6 +8,7 @@ import (
 	irods_fs "github.com/cyverse/go-irodsclient/irods/fs"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
+	"golang.org/x/xerrors"
 )
 
 // DownloadFile downloads a file to local
@@ -20,11 +20,11 @@ func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath 
 
 	srcStat, err := fs.Stat(irodsSrcPath)
 	if err != nil {
-		return types.NewFileNotFoundErrorf("could not find a data object")
+		return types.NewFileNotFoundErrorf("failed to find a data object")
 	}
 
 	if srcStat.Type == DirectoryEntry {
-		return fmt.Errorf("cannot download a collection %s", irodsSrcPath)
+		return xerrors.Errorf("cannot download a collection %s", irodsSrcPath)
 	}
 
 	destStat, err := os.Stat(localDestPath)
@@ -40,7 +40,7 @@ func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath 
 			irodsFileName := util.GetIRODSPathFileName(irodsSrcPath)
 			localFilePath = filepath.Join(localDestPath, irodsFileName)
 		} else {
-			return fmt.Errorf("file %s already exists", localDestPath)
+			return xerrors.Errorf("file %s already exists", localDestPath)
 		}
 	}
 
@@ -56,11 +56,11 @@ func (fs *FileSystem) DownloadFileParallel(irodsPath string, resource string, lo
 
 	srcStat, err := fs.Stat(irodsSrcPath)
 	if err != nil {
-		return types.NewFileNotFoundErrorf("could not find a data object")
+		return types.NewFileNotFoundErrorf("failed to find a data object")
 	}
 
 	if srcStat.Type == DirectoryEntry {
-		return fmt.Errorf("cannot download a collection %s", irodsSrcPath)
+		return xerrors.Errorf("cannot download a collection %s", irodsSrcPath)
 	}
 
 	destStat, err := os.Stat(localDestPath)
@@ -76,7 +76,7 @@ func (fs *FileSystem) DownloadFileParallel(irodsPath string, resource string, lo
 			irodsFileName := util.GetIRODSPathFileName(irodsSrcPath)
 			localFilePath = filepath.Join(localDestPath, irodsFileName)
 		} else {
-			return fmt.Errorf("file %s already exists", localDestPath)
+			return xerrors.Errorf("file %s already exists", localDestPath)
 		}
 	}
 
@@ -95,14 +95,14 @@ func (fs *FileSystem) DownloadFileParallelInBlocksAsync(irodsPath string, resour
 
 	srcStat, err := fs.Stat(irodsSrcPath)
 	if err != nil {
-		errChan <- types.NewFileNotFoundErrorf("could not find a data object")
+		errChan <- types.NewFileNotFoundErrorf("failed to find a data object")
 		close(outputChan)
 		close(errChan)
 		return outputChan, errChan
 	}
 
 	if srcStat.Type == DirectoryEntry {
-		errChan <- fmt.Errorf("cannot download a collection %s", irodsSrcPath)
+		errChan <- xerrors.Errorf("cannot download a collection %s", irodsSrcPath)
 		close(outputChan)
 		close(errChan)
 		return outputChan, errChan
@@ -124,7 +124,7 @@ func (fs *FileSystem) DownloadFileParallelInBlocksAsync(irodsPath string, resour
 			irodsFileName := util.GetIRODSPathFileName(irodsSrcPath)
 			localFilePath = filepath.Join(localDestPath, irodsFileName)
 		} else {
-			errChan <- fmt.Errorf("file %s already exists", localDestPath)
+			errChan <- xerrors.Errorf("file %s already exists", localDestPath)
 			close(outputChan)
 			close(errChan)
 			return outputChan, errChan
@@ -145,7 +145,7 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 	if err != nil {
 		if os.IsNotExist(err) {
 			// file not exists
-			return types.NewFileNotFoundError("could not find the local file")
+			return types.NewFileNotFoundError("failed to find the local file")
 		}
 		return err
 	}
@@ -167,7 +167,7 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 			localFileName := filepath.Base(localSrcPath)
 			irodsFilePath = util.MakeIRODSPath(irodsDestPath, localFileName)
 		default:
-			return fmt.Errorf("unknown entry type %s", entry.Type)
+			return xerrors.Errorf("unknown entry type %s", entry.Type)
 		}
 	}
 
@@ -192,7 +192,7 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 	if err != nil {
 		if os.IsNotExist(err) {
 			// file not exists
-			return types.NewFileNotFoundError("could not find the local file")
+			return types.NewFileNotFoundError("failed to find the local file")
 		}
 		return err
 	}
@@ -214,7 +214,7 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 			localFileName := filepath.Join(localSrcPath)
 			irodsFilePath = util.MakeIRODSPath(irodsDestPath, localFileName)
 		default:
-			return fmt.Errorf("unknown entry type %s", destStat.Type)
+			return xerrors.Errorf("unknown entry type %s", destStat.Type)
 		}
 	}
 
@@ -242,7 +242,7 @@ func (fs *FileSystem) UploadFileParallelInBlocksAsync(localPath string, irodsPat
 	if err != nil {
 		if os.IsNotExist(err) {
 			// file not exists
-			errChan <- types.NewFileNotFoundError("could not find the local file")
+			errChan <- types.NewFileNotFoundError("failed to find the local file")
 			close(outputChan)
 			close(errChan)
 			return outputChan, errChan
@@ -277,7 +277,7 @@ func (fs *FileSystem) UploadFileParallelInBlocksAsync(localPath string, irodsPat
 			localFileName := filepath.Base(localSrcPath)
 			irodsFilePath = util.MakeIRODSPath(irodsDestPath, localFileName)
 		default:
-			errChan <- fmt.Errorf("unknown entry type %s", destStat.Type)
+			errChan <- xerrors.Errorf("unknown entry type %s", destStat.Type)
 			close(outputChan)
 			close(errChan)
 			return outputChan, errChan

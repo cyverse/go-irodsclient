@@ -2,10 +2,10 @@ package message
 
 import (
 	"encoding/xml"
-	"fmt"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/types"
+	"golang.org/x/xerrors"
 )
 
 // IRODSMessageGetDataObjectStatResponse stores file stat request
@@ -28,7 +28,10 @@ type IRODSMessageGetDataObjectStatResponse struct {
 // GetBytes returns byte array
 func (msg *IRODSMessageGetDataObjectStatResponse) GetBytes() ([]byte, error) {
 	xmlBytes, err := xml.Marshal(msg)
-	return xmlBytes, err
+	if err != nil {
+		return nil, xerrors.Errorf("failed to marshal irods message to xml: %w", err)
+	}
+	return xmlBytes, nil
 }
 
 // CheckError returns error if server returned an error
@@ -42,16 +45,22 @@ func (msg *IRODSMessageGetDataObjectStatResponse) CheckError() error {
 // FromBytes returns struct from bytes
 func (msg *IRODSMessageGetDataObjectStatResponse) FromBytes(bytes []byte) error {
 	err := xml.Unmarshal(bytes, msg)
-	return err
+	if err != nil {
+		return xerrors.Errorf("failed to unmarshal xml to irods message: %w", err)
+	}
+	return nil
 }
 
 // FromMessage returns struct from IRODSMessage
 func (msg *IRODSMessageGetDataObjectStatResponse) FromMessage(msgIn *IRODSMessage) error {
 	if msgIn.Body == nil {
-		return fmt.Errorf("cannot create a struct from an empty body")
+		return xerrors.Errorf("empty message body")
 	}
 
 	err := msg.FromBytes(msgIn.Body.Message)
 	msg.Result = int(msgIn.Body.IntInfo)
-	return err
+	if err != nil {
+		return xerrors.Errorf("failed to get irods message from message body")
+	}
+	return nil
 }

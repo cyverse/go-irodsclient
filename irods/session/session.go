@@ -1,25 +1,26 @@
 package session
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/metrics"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/xerrors"
 )
 
 // IRODSSession manages connections to iRODS
 type IRODSSession struct {
-	account              *types.IRODSAccount
-	config               *IRODSSessionConfig
-	connectionPool       *ConnectionPool
-	sharedConnections    map[*connection.IRODSConnection]int
-	startNewTransaction  bool
-	poormansRollbackFail bool
-	metrics              metrics.IRODSMetrics
-	mutex                sync.Mutex
+	account               *types.IRODSAccount
+	config                *IRODSSessionConfig
+	connectionPool        *ConnectionPool
+	sharedConnections     map[*connection.IRODSConnection]int
+	startNewTransaction   bool
+	poormansRollbackFail  bool
+	supportParallelUpload bool
+	metrics               metrics.IRODSMetrics
+	mutex                 sync.Mutex
 }
 
 // NewIRODSSession create a IRODSSession
@@ -35,8 +36,9 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 		sharedConnections: map[*connection.IRODSConnection]int{},
 
 		// transaction
-		startNewTransaction:  config.StartNewTransaction,
-		poormansRollbackFail: false,
+		startNewTransaction:   config.StartNewTransaction,
+		poormansRollbackFail:  false,
+		supportParallelUpload: false,
 
 		metrics: metrics.IRODSMetrics{},
 
@@ -56,8 +58,7 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 
 	pool, err := NewConnectionPool(&poolConfig, &sess.metrics)
 	if err != nil {
-		logger.WithError(err).Error("cannot create a new connection pool")
-		return nil, err
+		return nil, xerrors.Errorf("failed to create connection pool: %w", err)
 	}
 	sess.connectionPool = pool
 
@@ -73,23 +74,33 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 
 		conn, _, err := pool.Get()
 		if err != nil {
-			logger.WithError(err).Error("failed to get a test connection")
 			pool.Release()
-			return nil, err
+			return nil, xerrors.Errorf("failed to get a test connection: %w", err)
 		}
 
 		conn.Lock()
 		err = conn.PoorMansRollback()
 		conn.Unlock()
 		if err != nil {
-			logger.WithError(err).Warn("could not perform poor man rollback for the connection, disabling poor mans rollback")
+			logger.WithError(err).Debug("could not perform poor man rollback for the connection, disabling poor mans rollback")
 			pool.Discard(conn)
 			sess.poormansRollbackFail = true
 		} else {
-			logger.Debugf("using poor man rollback for the connection")
+			logger.Debug("using poor man rollback for the connection")
 			pool.Return(conn)
 		}
 	}
+
+	// check parallel upload support
+	conn, _, err := pool.Get()
+	if err != nil {
+		pool.Release()
+		return nil, xerrors.Errorf("failed to get a test connection: %w", err)
+	}
+
+	sess.supportParallelUpload = conn.SupportParallelUpload()
+	logger.Debug("support parallel upload: %t", sess.supportParallelUpload)
+	pool.Return(conn)
 
 	return &sess, nil
 }
@@ -115,8 +126,7 @@ func (sess *IRODSSession) getConnectionFromPool() (*connection.IRODSConnection, 
 	// get a connection from pool
 	conn, isNewConn, err := sess.connectionPool.Get()
 	if err != nil {
-		logger.WithError(err).Error("failed to get a connection from the pool")
-		return nil, err
+		return nil, xerrors.Errorf("failed to get a connection from the pool: %w", err)
 	}
 
 	if sess.startNewTransaction && !isNewConn {
@@ -136,22 +146,20 @@ func (sess *IRODSSession) getConnectionFromPool() (*connection.IRODSConnection, 
 
 			conn, err = sess.connectionPool.GetNew()
 			if err != nil {
-				logger.WithError(err).Error("failed to create a new connection")
-				return nil, err
+				return nil, xerrors.Errorf("failed to get a new connection: %w", err)
 			}
 		} else {
 			conn.Lock()
 			err = conn.PoorMansRollback()
 			conn.Unlock()
 			if err != nil {
-				logger.WithError(err).Warn("could not perform poor man rollback for the connection, creating a new connection")
+				logger.WithError(err).Debug("could not perform poor man rollback for the connection, creating a new connection")
 				sess.connectionPool.Discard(conn)
 				sess.poormansRollbackFail = true
 
 				conn, err = sess.connectionPool.GetNew()
 				if err != nil {
-					logger.WithError(err).Error("failed to create a new connection")
-					return nil, err
+					return nil, xerrors.Errorf("failed to get a new connection: %w", err)
 				}
 			}
 		}
@@ -178,7 +186,7 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 		// ignore error this happens when connections in the pool are all occupied
 		if err != nil {
 			if IsConnectionPoolFullError(err) {
-				logger.WithError(err).Error("failed to get a connection from the pool")
+				logger.WithError(err).Debug("failed to get a connection from the pool, the pool is full")
 				// fall below
 			}
 		} else {
@@ -213,7 +221,7 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 
 	if minShareConn == nil {
 		sess.metrics.IncreaseCounterForConnectionPoolFailures(1)
-		return nil, fmt.Errorf("failed to get a shared connection")
+		return nil, xerrors.Errorf("failed to get a shared connection, too many connections created")
 	}
 
 	// update
@@ -243,7 +251,7 @@ func (sess *IRODSSession) AcquireConnectionsMulti(number int) ([]*connection.IRO
 			conn, err := sess.getConnectionFromPool()
 			if err != nil {
 				if IsConnectionPoolFullError(err) {
-					logger.WithError(err).Error("failed to get a connection from the pool")
+					logger.WithError(err).Debug("failed to get a connection from the pool, the pool is full")
 				}
 
 				// fall through
@@ -293,12 +301,6 @@ func (sess *IRODSSession) AcquireConnectionsMulti(number int) ([]*connection.IRO
 
 // ReturnConnection returns an idle connection
 func (sess *IRODSSession) ReturnConnection(conn *connection.IRODSConnection) error {
-	logger := log.WithFields(log.Fields{
-		"package":  "session",
-		"struct":   "IRODSSession",
-		"function": "ReturnConnection",
-	})
-
 	sess.mutex.Lock()
 	defer sess.mutex.Unlock()
 
@@ -316,8 +318,7 @@ func (sess *IRODSSession) ReturnConnection(conn *connection.IRODSConnection) err
 
 			err := sess.connectionPool.Return(conn)
 			if err != nil {
-				logger.WithError(err).Error("failed to return an idle connection")
-				return err
+				return xerrors.Errorf("failed to return an idle connection: %w", err)
 			}
 		} else {
 			sess.sharedConnections[conn] = share
@@ -358,6 +359,11 @@ func (sess *IRODSSession) Release() {
 	sess.sharedConnections = map[*connection.IRODSConnection]int{}
 
 	sess.connectionPool.Release()
+}
+
+// SupportParallelUpload returns if parallel upload is supported
+func (sess *IRODSSession) SupportParallelUpload() bool {
+	return sess.supportParallelUpload
 }
 
 // Connections returns the number of connections in the pool

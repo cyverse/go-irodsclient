@@ -8,12 +8,13 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/message"
 	"github.com/cyverse/go-irodsclient/irods/types"
+	"golang.org/x/xerrors"
 )
 
 // GetGroup returns the group
 func GetGroup(conn *connection.IRODSConnection, group string) (*types.IRODSUser, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, fmt.Errorf("connection is nil or disconnected")
+		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -39,12 +40,12 @@ func GetGroup(conn *connection.IRODSConnection, group string) (*types.IRODSUser,
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
-			return nil, fmt.Errorf("could not receive a group query result message - %v", err)
+			return nil, xerrors.Errorf("failed to receive a group query result message: %w", err)
 		}
 
 		err = queryResult.CheckError()
 		if err != nil {
-			return nil, fmt.Errorf("received a group query error - %v", err)
+			return nil, xerrors.Errorf("received a group query error: %w", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -52,7 +53,7 @@ func GetGroup(conn *connection.IRODSConnection, group string) (*types.IRODSUser,
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, fmt.Errorf("could not receive group attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, xerrors.Errorf("failed to receive group attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedUsers := make([]*types.IRODSUser, queryResult.RowCount)
@@ -60,7 +61,7 @@ func GetGroup(conn *connection.IRODSConnection, group string) (*types.IRODSUser,
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, fmt.Errorf("could not receive group rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, xerrors.Errorf("failed to receive group rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -80,7 +81,7 @@ func GetGroup(conn *connection.IRODSConnection, group string) (*types.IRODSUser,
 				case int(common.ICAT_COLUMN_USER_ID):
 					userID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("could not parse user id - %s", value)
+						return nil, xerrors.Errorf("failed to parse user id '%s': %w", value, err)
 					}
 					pagenatedUsers[row].ID = userID
 				case int(common.ICAT_COLUMN_USER_ZONE):
@@ -104,7 +105,7 @@ func GetGroup(conn *connection.IRODSConnection, group string) (*types.IRODSUser,
 	}
 
 	if len(users) == 0 {
-		return nil, types.NewFileNotFoundErrorf("could not find a group")
+		return nil, types.NewFileNotFoundErrorf("failed to find a group '%s'", group)
 	}
 
 	return users[0], nil
@@ -113,7 +114,7 @@ func GetGroup(conn *connection.IRODSConnection, group string) (*types.IRODSUser,
 // ListGroupUsers returns users in the group
 func ListGroupUsers(conn *connection.IRODSConnection, group string) ([]*types.IRODSUser, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, fmt.Errorf("connection is nil or disconnected")
+		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -137,7 +138,7 @@ func ListGroupUsers(conn *connection.IRODSConnection, group string) ([]*types.IR
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
-			return nil, fmt.Errorf("could not receive a group user query result message - %v", err)
+			return nil, xerrors.Errorf("failed to receive a group user query result message: %w", err)
 		}
 
 		err = queryResult.CheckError()
@@ -146,8 +147,7 @@ func ListGroupUsers(conn *connection.IRODSConnection, group string) ([]*types.IR
 				// empty
 				return users, nil
 			}
-
-			return nil, fmt.Errorf("received a group user query error - %v", err)
+			return nil, xerrors.Errorf("received a group user query error: %w", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -155,7 +155,7 @@ func ListGroupUsers(conn *connection.IRODSConnection, group string) ([]*types.IR
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, fmt.Errorf("could not receive group user attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, xerrors.Errorf("failed to receive group user attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedUsers := make([]*types.IRODSUser, queryResult.RowCount)
@@ -163,7 +163,7 @@ func ListGroupUsers(conn *connection.IRODSConnection, group string) ([]*types.IR
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, fmt.Errorf("could not receive group user rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, xerrors.Errorf("failed to receive group user rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -183,7 +183,7 @@ func ListGroupUsers(conn *connection.IRODSConnection, group string) ([]*types.IR
 				case int(common.ICAT_COLUMN_USER_ID):
 					userID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("could not parse user id - %s", value)
+						return nil, xerrors.Errorf("failed to parse user id '%s': %w", value, err)
 					}
 					pagenatedUsers[row].ID = userID
 				case int(common.ICAT_COLUMN_USER_ZONE):
@@ -212,7 +212,7 @@ func ListGroupUsers(conn *connection.IRODSConnection, group string) ([]*types.IR
 // ListGroups returns all groups
 func ListGroups(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, fmt.Errorf("connection is nil or disconnected")
+		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -236,7 +236,7 @@ func ListGroups(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
-			return nil, fmt.Errorf("could not receive a group query result message - %v", err)
+			return nil, xerrors.Errorf("failed to receive a group query result message: %w", err)
 		}
 
 		err = queryResult.CheckError()
@@ -245,8 +245,7 @@ func ListGroups(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 				// empty
 				return groups, nil
 			}
-
-			return nil, fmt.Errorf("received a group query error - %v", err)
+			return nil, xerrors.Errorf("received a group query error: %w", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -254,7 +253,7 @@ func ListGroups(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, fmt.Errorf("could not receive group attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, xerrors.Errorf("failed to receive group attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedGroups := make([]*types.IRODSUser, queryResult.RowCount)
@@ -262,7 +261,7 @@ func ListGroups(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, fmt.Errorf("could not receive group rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, xerrors.Errorf("failed to receive group rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -282,7 +281,7 @@ func ListGroups(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 				case int(common.ICAT_COLUMN_USER_ID):
 					userID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("could not parse user id - %s", value)
+						return nil, xerrors.Errorf("failed to parse user id '%s': %w", value, err)
 					}
 					pagenatedGroups[row].ID = userID
 				case int(common.ICAT_COLUMN_USER_ZONE):
@@ -311,7 +310,7 @@ func ListGroups(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 // ListUsers lists all users
 func ListUsers(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, fmt.Errorf("connection is nil or disconnected")
+		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -335,7 +334,7 @@ func ListUsers(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
-			return nil, fmt.Errorf("could not receive a user query result message - %v", err)
+			return nil, xerrors.Errorf("failed to receive a user query result message: %w", err)
 		}
 
 		err = queryResult.CheckError()
@@ -344,8 +343,7 @@ func ListUsers(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 				// empty
 				return users, nil
 			}
-
-			return nil, fmt.Errorf("received a user query error - %v", err)
+			return nil, xerrors.Errorf("received a user query error: %w", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -353,7 +351,7 @@ func ListUsers(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, fmt.Errorf("could not receive user attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, xerrors.Errorf("failed to receive user attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedUsers := make([]*types.IRODSUser, queryResult.RowCount)
@@ -361,7 +359,7 @@ func ListUsers(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, fmt.Errorf("could not receive user rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, xerrors.Errorf("failed to receive user rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -381,7 +379,7 @@ func ListUsers(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 				case int(common.ICAT_COLUMN_USER_ID):
 					userID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("could not parse user id - %s", value)
+						return nil, xerrors.Errorf("failed to parse user id '%s': %w", value, err)
 					}
 					pagenatedUsers[row].ID = userID
 				case int(common.ICAT_COLUMN_USER_ZONE):
@@ -410,7 +408,7 @@ func ListUsers(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 // ListUserGroupNames lists the group names a user is a member of
 func ListUserGroupNames(conn *connection.IRODSConnection, user string) ([]string, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, fmt.Errorf("connection is nil or disconnected")
+		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -431,7 +429,7 @@ func ListUserGroupNames(conn *connection.IRODSConnection, user string) ([]string
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
-			return nil, fmt.Errorf("could not receive a group query result message - %v", err)
+			return nil, xerrors.Errorf("failed to receive a group query result message: %w", err)
 		}
 
 		err = queryResult.CheckError()
@@ -440,8 +438,7 @@ func ListUserGroupNames(conn *connection.IRODSConnection, user string) ([]string
 				// empty
 				return groups, nil
 			}
-
-			return nil, fmt.Errorf("received a group query error - %v", err)
+			return nil, xerrors.Errorf("received a group query error: %w", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -449,7 +446,7 @@ func ListUserGroupNames(conn *connection.IRODSConnection, user string) ([]string
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, fmt.Errorf("could not receive group attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, xerrors.Errorf("failed to receive group attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		var groupNames []string
@@ -457,7 +454,7 @@ func ListUserGroupNames(conn *connection.IRODSConnection, user string) ([]string
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, fmt.Errorf("could not receive group rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, xerrors.Errorf("failed to receive group rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -484,7 +481,7 @@ func ListUserGroupNames(conn *connection.IRODSConnection, user string) ([]string
 // ListUserResourceQuota lists all existing resource quota of a user or group
 func ListUserResourceQuota(conn *connection.IRODSConnection, user string) ([]*types.IRODSQuota, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, fmt.Errorf("connection is nil or disconnected")
+		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -506,7 +503,7 @@ func ListUserResourceQuota(conn *connection.IRODSConnection, user string) ([]*ty
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
-			return nil, fmt.Errorf("could not receive a quota query result message - %v", err)
+			return nil, xerrors.Errorf("failed to receive a quota query result message: %w", err)
 		}
 
 		err = queryResult.CheckError()
@@ -515,8 +512,7 @@ func ListUserResourceQuota(conn *connection.IRODSConnection, user string) ([]*ty
 				// empty
 				return quota, nil
 			}
-
-			return nil, fmt.Errorf("received a quota query error - %v", err)
+			return nil, xerrors.Errorf("received a quota query error: %w", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -524,7 +520,7 @@ func ListUserResourceQuota(conn *connection.IRODSConnection, user string) ([]*ty
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, fmt.Errorf("could not receive quota attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, xerrors.Errorf("failed to receive quota attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedQuota := make([]*types.IRODSQuota, queryResult.RowCount)
@@ -532,7 +528,7 @@ func ListUserResourceQuota(conn *connection.IRODSConnection, user string) ([]*ty
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, fmt.Errorf("could not receive quota rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, xerrors.Errorf("failed to receive quota rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -552,7 +548,7 @@ func ListUserResourceQuota(conn *connection.IRODSConnection, user string) ([]*ty
 				case int(common.ICAT_COLUMN_QUOTA_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("could not parse quota limit - %s", value)
+						return nil, xerrors.Errorf("failed to parse quota limit '%s': %w", value, err)
 					}
 					pagenatedQuota[row].Limit = limit
 				default:
@@ -575,7 +571,7 @@ func ListUserResourceQuota(conn *connection.IRODSConnection, user string) ([]*ty
 // GetUserGlobalQuota returns the global quota of a user or group
 func GetUserGlobalQuota(conn *connection.IRODSConnection, user string) (*types.IRODSQuota, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, fmt.Errorf("connection is nil or disconnected")
+		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -598,12 +594,12 @@ func GetUserGlobalQuota(conn *connection.IRODSConnection, user string) (*types.I
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
-			return nil, fmt.Errorf("could not receive a quota query result message - %v", err)
+			return nil, xerrors.Errorf("failed to receive a quota query result message: %w", err)
 		}
 
 		err = queryResult.CheckError()
 		if err != nil {
-			return nil, fmt.Errorf("received a quota query error - %v", err)
+			return nil, xerrors.Errorf("received a quota query error: %w", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -611,7 +607,7 @@ func GetUserGlobalQuota(conn *connection.IRODSConnection, user string) (*types.I
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, fmt.Errorf("could not receive quota attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, xerrors.Errorf("failed to receive quota attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedQuota := make([]*types.IRODSQuota, queryResult.RowCount)
@@ -619,7 +615,7 @@ func GetUserGlobalQuota(conn *connection.IRODSConnection, user string) (*types.I
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, fmt.Errorf("could not receive quota rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, xerrors.Errorf("failed to receive quota rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -637,7 +633,7 @@ func GetUserGlobalQuota(conn *connection.IRODSConnection, user string) (*types.I
 				case int(common.ICAT_COLUMN_QUOTA_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("could not parse quota limit - %s", value)
+						return nil, xerrors.Errorf("failed to parse quota limit '%s': %w", value, err)
 					}
 					pagenatedQuota[row].Limit = limit
 				default:
@@ -660,7 +656,7 @@ func GetUserGlobalQuota(conn *connection.IRODSConnection, user string) (*types.I
 // AddUserMeta sets metadata of a user object to given key values.
 func AddUserMeta(conn *connection.IRODSConnection, user string, metadata *types.IRODSMeta) error {
 	if conn == nil || !conn.IsConnected() {
-		return fmt.Errorf("connection is nil or disconnected")
+		return xerrors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -676,7 +672,7 @@ func AddUserMeta(conn *connection.IRODSConnection, user string, metadata *types.
 // The metadata AVU is selected on basis of AVUID if it is supplied, otherwise on basis of Name, Value and Units.
 func DeleteUserMeta(conn *connection.IRODSConnection, user string, metadata *types.IRODSMeta) error {
 	if conn == nil || !conn.IsConnected() {
-		return fmt.Errorf("connection is nil or disconnected")
+		return xerrors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -700,7 +696,7 @@ func DeleteUserMeta(conn *connection.IRODSConnection, user string, metadata *typ
 // ListUserMeta returns a user metadata for the path
 func ListUserMeta(conn *connection.IRODSConnection, user string) ([]*types.IRODSMeta, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, fmt.Errorf("connection is nil or disconnected")
+		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -724,7 +720,7 @@ func ListUserMeta(conn *connection.IRODSConnection, user string) ([]*types.IRODS
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
-			return nil, fmt.Errorf("could not receive a user metadata query result message - %v", err)
+			return nil, xerrors.Errorf("failed to receive a user metadata query result message: %w", err)
 		}
 
 		err = queryResult.CheckError()
@@ -733,8 +729,7 @@ func ListUserMeta(conn *connection.IRODSConnection, user string) ([]*types.IRODS
 				// empty
 				return metas, nil
 			}
-
-			return nil, fmt.Errorf("received a user metadata query error - %v", err)
+			return nil, xerrors.Errorf("received a user metadata query error: %w", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -742,7 +737,7 @@ func ListUserMeta(conn *connection.IRODSConnection, user string) ([]*types.IRODS
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, fmt.Errorf("could not receive user metadata attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, xerrors.Errorf("failed to receive user metadata attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedMetas := make([]*types.IRODSMeta, queryResult.RowCount)
@@ -750,7 +745,7 @@ func ListUserMeta(conn *connection.IRODSConnection, user string) ([]*types.IRODS
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, fmt.Errorf("could not receive user metadata rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, xerrors.Errorf("failed to receive user metadata rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -770,7 +765,7 @@ func ListUserMeta(conn *connection.IRODSConnection, user string) ([]*types.IRODS
 				case int(common.ICAT_COLUMN_META_USER_ATTR_ID):
 					avuID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, fmt.Errorf("could not parse user metadata id - %s", value)
+						return nil, xerrors.Errorf("failed to parse user metadata id '%s': %w", value, err)
 					}
 					pagenatedMetas[row].AVUID = avuID
 				case int(common.ICAT_COLUMN_META_USER_ATTR_NAME):

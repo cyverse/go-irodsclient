@@ -2,11 +2,11 @@ package icommands
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"strings"
 
 	"github.com/cyverse/go-irodsclient/irods/types"
+	"golang.org/x/xerrors"
 )
 
 // ICommandsEnvironment stores irods environment data (config file)
@@ -48,7 +48,7 @@ type ICommandsEnvironment struct {
 func CreateICommandsEnvironmentFromFile(envPath string) (*ICommandsEnvironment, error) {
 	data, err := os.ReadFile(envPath)
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to read from file %s: %w", envPath, err)
 	}
 
 	return CreateICommandsEnvironmentFromJSON(data)
@@ -72,7 +72,7 @@ func CreateICommandsEnvironmentFromJSON(jsonBytes []byte) (*ICommandsEnvironment
 	environment := getDefaultICommandsEnvironment()
 	err := json.Unmarshal(jsonBytes, &environment)
 	if err != nil {
-		return nil, fmt.Errorf("JSON Unmarshal Error - %v", err)
+		return nil, xerrors.Errorf("failed to unmarshal json to icommands environment: %w", err)
 	}
 
 	return environment, nil
@@ -123,7 +123,7 @@ func (env *ICommandsEnvironment) ToIRODSAccount() *types.IRODSAccount {
 func (env *ICommandsEnvironment) ToJSON() ([]byte, error) {
 	jsonBytes, err := json.MarshalIndent(env, "", "    ")
 	if err != nil {
-		return nil, fmt.Errorf("JSON Marshal Error - %v", err)
+		return nil, xerrors.Errorf("failed to marshal icommands environment to json: %w", err)
 	}
 
 	return jsonBytes, nil
@@ -133,8 +133,12 @@ func (env *ICommandsEnvironment) ToJSON() ([]byte, error) {
 func (env *ICommandsEnvironment) ToFile(envPath string) error {
 	jsonByte, err := env.ToJSON()
 	if err != nil {
-		return err
+		return xerrors.Errorf("failed to convert icommands environment to json: %w", err)
 	}
 
-	return os.WriteFile(envPath, jsonByte, 0664)
+	err = os.WriteFile(envPath, jsonByte, 0664)
+	if err != nil {
+		return xerrors.Errorf("failed to write to file %s: %w", envPath, err)
+	}
+	return nil
 }

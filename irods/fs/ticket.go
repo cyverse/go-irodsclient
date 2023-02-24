@@ -11,13 +11,14 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/message"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
+	"golang.org/x/xerrors"
 )
 
 // https://github.com/irods/irods_client_s3_ticketbooth/blob/b92e8aaa3127cb56fcb8fef09caa00244bd29ca6/ticket_booth/main.py
 // GetTicketForAnonymousAccess returns minimal ticket information for the ticket string
 func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticket string) (*types.IRODSTicketForAnonymousAccess, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, fmt.Errorf("connection is nil or disconnected")
+		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -37,25 +38,25 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticket string
 	queryResult := message.IRODSMessageQueryResponse{}
 	err := conn.Request(query, &queryResult, nil)
 	if err != nil {
-		return nil, fmt.Errorf("could not receive a ticket query result message - %v", err)
+		return nil, xerrors.Errorf("failed to receive a ticket query result message: %w", err)
 	}
 
 	err = queryResult.CheckError()
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, types.NewFileNotFoundErrorf("could not find a ticket")
+			return nil, types.NewFileNotFoundErrorf("failed to find a ticket")
 		}
 
-		return nil, fmt.Errorf("received a ticket query error - %v", err)
+		return nil, xerrors.Errorf("received a ticket query error: %w", err)
 	}
 
 	if queryResult.RowCount != 1 {
 		// file not found
-		return nil, types.NewFileNotFoundErrorf("could not find a ticket")
+		return nil, types.NewFileNotFoundErrorf("failed to find a ticket")
 	}
 
 	if queryResult.AttributeCount > len(queryResult.SQLResult) {
-		return nil, fmt.Errorf("could not receive ticket attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+		return nil, xerrors.Errorf("failed to receive ticket attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 	}
 
 	var ticketID int64 = -1
@@ -66,7 +67,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticket string
 	for idx := 0; idx < queryResult.AttributeCount; idx++ {
 		sqlResult := queryResult.SQLResult[idx]
 		if len(sqlResult.Values) != queryResult.RowCount {
-			return nil, fmt.Errorf("could not receive ticket rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+			return nil, xerrors.Errorf("failed to receive ticket rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 		}
 
 		value := sqlResult.Values[0]
@@ -75,7 +76,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticket string
 		case int(common.ICAT_COLUMN_TICKET_ID):
 			cID, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("could not parse ticket id - %s", value)
+				return nil, xerrors.Errorf("failed to parse ticket id '%s': %w", value, err)
 			}
 			ticketID = cID
 		case int(common.ICAT_COLUMN_TICKET_TYPE):
@@ -86,7 +87,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticket string
 			if len(strings.TrimSpace(value)) > 0 {
 				mT, err := util.GetIRODSDateTime(value)
 				if err != nil {
-					return nil, fmt.Errorf("could not parse expiry time - %s", value)
+					return nil, xerrors.Errorf("failed to parse expiry time '%s': %w", value, err)
 				}
 				expireTime = mT
 			}
@@ -96,7 +97,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticket string
 	}
 
 	if ticketID == -1 {
-		return nil, types.NewFileNotFoundErrorf("could not find a ticket")
+		return nil, types.NewFileNotFoundErrorf("failed to find a ticket")
 	}
 
 	return &types.IRODSTicketForAnonymousAccess{
@@ -113,7 +114,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticket string
 // GetTicket returns a ticket for the ticket string
 func GetTicket(conn *connection.IRODSConnection, ticket string) (*types.IRODSTicket, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, fmt.Errorf("connection is nil or disconnected")
+		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
 
 	query := message.NewIRODSMessageQuery(common.MaxQueryRows, 0, 0, 0)
@@ -137,25 +138,25 @@ func GetTicket(conn *connection.IRODSConnection, ticket string) (*types.IRODSTic
 	queryResult := message.IRODSMessageQueryResult{}
 	err := conn.Request(query, &queryResult, nil)
 	if err != nil {
-		return nil, fmt.Errorf("could not receive a ticket query result message - %v", err)
+		return nil, xerrors.Errorf("failed to receive a ticket query result message: %w", err)
 	}
 
 	err = queryResult.CheckError()
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, types.NewFileNotFoundErrorf("could not find a ticket")
+			return nil, types.NewFileNotFoundErrorf("failed to find a ticket")
 		}
 
-		return nil, fmt.Errorf("received a ticket query error - %v", err)
+		return nil, xerrors.Errorf("received a ticket query error: %w", err)
 	}
 
 	if queryResult.RowCount != 1 {
 		// file not found
-		return nil, types.NewFileNotFoundErrorf("could not find a ticket")
+		return nil, types.NewFileNotFoundErrorf("failed to find a ticket")
 	}
 
 	if queryResult.AttributeCount > len(queryResult.SQLResult) {
-		return nil, fmt.Errorf("could not receive ticket attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+		return nil, xerrors.Errorf("failed to receive ticket attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 	}
 
 	var ticketID int64 = -1
@@ -175,7 +176,7 @@ func GetTicket(conn *connection.IRODSConnection, ticket string) (*types.IRODSTic
 	for idx := 0; idx < queryResult.AttributeCount; idx++ {
 		sqlResult := queryResult.SQLResult[idx]
 		if len(sqlResult.Values) != queryResult.RowCount {
-			return nil, fmt.Errorf("could not receive ticket rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+			return nil, xerrors.Errorf("failed to receive ticket rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 		}
 
 		value := sqlResult.Values[0]
@@ -184,7 +185,7 @@ func GetTicket(conn *connection.IRODSConnection, ticket string) (*types.IRODSTic
 		case int(common.ICAT_COLUMN_TICKET_ID):
 			cID, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("could not parse ticket id - %s", value)
+				return nil, xerrors.Errorf("failed to parse ticket id '%s': %w", value, err)
 			}
 			ticketID = cID
 		case int(common.ICAT_COLUMN_TICKET_STRING):
@@ -204,44 +205,44 @@ func GetTicket(conn *connection.IRODSConnection, ticket string) (*types.IRODSTic
 			if len(strings.TrimSpace(value)) > 0 {
 				mT, err := util.GetIRODSDateTime(value)
 				if err != nil {
-					return nil, fmt.Errorf("could not parse expiry time - %s", value)
+					return nil, xerrors.Errorf("failed to parse expiry time '%s': %w", value, err)
 				}
 				expireTime = mT
 			}
 		case int(common.ICAT_COLUMN_TICKET_USES_LIMIT):
 			limit, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("could not parse uses limit - %s", value)
+				return nil, xerrors.Errorf("failed to parse uses limit '%s': %w", value, err)
 			}
 			usesLimit = limit
 		case int(common.ICAT_COLUMN_TICKET_USES_COUNT):
 			count, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("could not parse uses count - %s", value)
+				return nil, xerrors.Errorf("failed to parse uses count '%s': %w", value, err)
 			}
 			usesCount = count
 		case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_LIMIT):
 			limit, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("could not parse write file limit - %s", value)
+				return nil, xerrors.Errorf("failed to parse write file limit '%s': %w", value, err)
 			}
 			writeFileLimit = limit
 		case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_COUNT):
 			count, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("could not parse write file count - %s", value)
+				return nil, xerrors.Errorf("failed to parse write file count '%s': %w", value, err)
 			}
 			writeFileCount = count
 		case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_LIMIT):
 			limit, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("could not parse write byte limit - %s", value)
+				return nil, xerrors.Errorf("failed to parse write byte limit '%s': %w", value, err)
 			}
 			writeByteLimit = limit
 		case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_COUNT):
 			count, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("could not parse write byte count - %s", value)
+				return nil, xerrors.Errorf("failed to parse write byte count '%s': %w", value, err)
 			}
 			writeByteCount = count
 		default:
@@ -250,7 +251,7 @@ func GetTicket(conn *connection.IRODSConnection, ticket string) (*types.IRODSTic
 	}
 
 	if ticketID == -1 {
-		return nil, types.NewFileNotFoundErrorf("could not find a ticket")
+		return nil, types.NewFileNotFoundErrorf("failed to find a ticket")
 	}
 
 	return &types.IRODSTicket{

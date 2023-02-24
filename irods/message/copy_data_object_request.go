@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
+	"golang.org/x/xerrors"
 )
 
 // IRODSMessageCopyDataObjectRequest stores data object copy request
@@ -47,20 +48,26 @@ func NewIRODSMessageCopyDataObjectRequest(srcPath string, destPath string) *IROD
 // GetBytes returns byte array
 func (msg *IRODSMessageCopyDataObjectRequest) GetBytes() ([]byte, error) {
 	xmlBytes, err := xml.Marshal(msg)
-	return xmlBytes, err
+	if err != nil {
+		return nil, xerrors.Errorf("failed to marshal irods message to xml: %w", err)
+	}
+	return xmlBytes, nil
 }
 
 // FromBytes returns struct from bytes
 func (msg *IRODSMessageCopyDataObjectRequest) FromBytes(bytes []byte) error {
 	err := xml.Unmarshal(bytes, msg)
-	return err
+	if err != nil {
+		return xerrors.Errorf("failed to unmarshal xml to irods message: %w", err)
+	}
+	return nil
 }
 
 // GetMessage builds a message
 func (msg *IRODSMessageCopyDataObjectRequest) GetMessage() (*IRODSMessage, error) {
 	bytes, err := msg.GetBytes()
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to get bytes from irods message: %w", err)
 	}
 
 	msgBody := IRODSMessageBody{
@@ -73,7 +80,7 @@ func (msg *IRODSMessageCopyDataObjectRequest) GetMessage() (*IRODSMessage, error
 
 	msgHeader, err := msgBody.BuildHeader()
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to build header from irods message: %w", err)
 	}
 
 	return &IRODSMessage{

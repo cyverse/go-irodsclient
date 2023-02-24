@@ -1,10 +1,9 @@
 package message
 
 import (
-	"fmt"
-
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/types"
+	"golang.org/x/xerrors"
 )
 
 // IRODSMessageCreateDataObjectResponse stores data object creation response
@@ -29,7 +28,7 @@ func (msg *IRODSMessageCreateDataObjectResponse) GetFileDescriptor() int {
 // FromMessage returns struct from IRODSMessage
 func (msg *IRODSMessageCreateDataObjectResponse) FromMessage(msgIn *IRODSMessage) error {
 	if msgIn.Body == nil {
-		return fmt.Errorf("cannot create a struct from an empty body")
+		return xerrors.Errorf("empty message body")
 	}
 
 	msg.FileDescriptor = int(msgIn.Body.IntInfo)

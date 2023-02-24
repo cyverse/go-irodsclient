@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+
+	"golang.org/x/xerrors"
 )
 
 // FileLock is a lock for a file
@@ -65,7 +67,7 @@ func (mgr *FileLocks) UnlockFiles(paths []string) error {
 
 			if lock.references <= 0 {
 				mgr.mutex.Unlock()
-				return fmt.Errorf("file lock for path %s has invalid references %d", path, lock.references)
+				return xerrors.Errorf("file lock for path %s has invalid references %d", path, lock.references)
 			}
 
 			lock.references--
@@ -75,7 +77,7 @@ func (mgr *FileLocks) UnlockFiles(paths []string) error {
 			}
 		} else {
 			mgr.mutex.Unlock()
-			return fmt.Errorf("file lock for path %s does not exist", path)
+			return xerrors.Errorf("file lock for path %s does not exist", path)
 		}
 	}
 
@@ -151,12 +153,12 @@ func (mgr *FileLocks) Unlock(path string) error {
 		fileLock = lock
 	} else {
 		mgr.mutex.Unlock()
-		return fmt.Errorf("file lock for path %s does not exist", path)
+		return xerrors.Errorf("file lock for path %s does not exist", path)
 	}
 
 	if fileLock.references <= 0 {
 		mgr.mutex.Unlock()
-		return fmt.Errorf("file lock for path %s has invalid references %d", path, fileLock.references)
+		return xerrors.Errorf("file lock for path %s has invalid references %d", path, fileLock.references)
 	}
 
 	fileLock.references--
@@ -182,12 +184,12 @@ func (mgr *FileLocks) RUnlock(path string) error {
 		fileLock = lock
 	} else {
 		mgr.mutex.Unlock()
-		return fmt.Errorf("file lock for path %s does not exist", path)
+		return xerrors.Errorf("file lock for path %s does not exist", path)
 	}
 
 	if fileLock.references <= 0 {
 		mgr.mutex.Unlock()
-		return fmt.Errorf("file lock for path %s has invalid references %d", path, fileLock.references)
+		return xerrors.Errorf("file lock for path %s has invalid references %d", path, fileLock.references)
 	}
 
 	fileLock.references--

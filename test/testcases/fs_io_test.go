@@ -10,7 +10,6 @@ import (
 
 	"github.com/cyverse/go-irodsclient/fs"
 	"github.com/rs/xid"
-	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -34,18 +33,18 @@ func testUpDownMBFiles(t *testing.T) {
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
-	assert.NoError(t, err)
+	failError(t, err)
 	defer filesystem.Release()
 
 	homedir := getHomeDir(fsIOTestID)
 
 	fileSize := int64(100 * 1024 * 1024) // 100MB
 	localPath, err := createLocalTestFile("test_file_", fileSize)
-	assert.NoError(t, err)
+	failError(t, err)
 
 	iRODSPath := fmt.Sprintf("%s/%s", homedir, path.Base(localPath))
 	localDownloadPath, err := filepath.Abs(fmt.Sprintf("./%s", filepath.Base(localPath)))
-	assert.NoError(t, err)
+	failError(t, err)
 
 	for i := 0; i < 3; i++ {
 		start := time.Now()
@@ -53,23 +52,23 @@ func testUpDownMBFiles(t *testing.T) {
 		duration := time.Since(start)
 
 		t.Logf("upload a file in size %d took time - %v", fileSize, duration)
-		assert.NoError(t, err)
+		failError(t, err)
 
 		start = time.Now()
 		err = filesystem.DownloadFile(iRODSPath, "", localDownloadPath, nil)
 		duration = time.Since(start)
 
 		t.Logf("download a file in size %d took time - %v", fileSize, duration)
-		assert.NoError(t, err)
+		failError(t, err)
 
 		// remove
 		err = filesystem.RemoveFile(iRODSPath, true)
-		assert.NoError(t, err)
+		failError(t, err)
 
 		err = os.Remove(localDownloadPath)
-		assert.NoError(t, err)
+		failError(t, err)
 	}
 
 	err = os.Remove(localPath)
-	assert.NoError(t, err)
+	failError(t, err)
 }

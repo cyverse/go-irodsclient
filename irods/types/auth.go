@@ -1,8 +1,9 @@
 package types
 
 import (
-	"fmt"
 	"strings"
+
+	"golang.org/x/xerrors"
 )
 
 // AuthScheme defines Authentication Scheme
@@ -19,19 +20,14 @@ const (
 
 // GetAuthScheme returns AuthScheme value from string
 func GetAuthScheme(authScheme string) (AuthScheme, error) {
-	scheme := AuthSchemeNative
-	var err error = nil
 	switch strings.TrimSpace(strings.ToLower(authScheme)) {
 	case string(AuthSchemeNative):
-		scheme = AuthSchemeNative
+		return AuthSchemeNative, nil
 	case string(AuthSchemeGSI):
-		scheme = AuthSchemeGSI
+		return AuthSchemeGSI, nil
 	case string(AuthSchemePAM):
-		scheme = AuthSchemePAM
+		return AuthSchemePAM, nil
 	default:
-		scheme = AuthSchemeNative
-		err = fmt.Errorf("cannot parse string %s", authScheme)
+		return AuthSchemeNative, xerrors.Errorf("cannot parse string %s", authScheme)
 	}
-
-	return scheme, err
 }

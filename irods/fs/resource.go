@@ -1,7 +1,6 @@
 package fs
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 
@@ -10,19 +9,13 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/message"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
-
-	log "github.com/sirupsen/logrus"
+	"golang.org/x/xerrors"
 )
 
 // GetResource returns a resource for the name
 func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSResource, error) {
-	logger := log.WithFields(log.Fields{
-		"package":  "fs",
-		"function": "GetResource",
-	})
-
 	if conn == nil || !conn.IsConnected() {
-		return nil, fmt.Errorf("connection is nil or disconnected")
+		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -48,24 +41,25 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 	queryResult := message.IRODSMessageQueryResponse{}
 	err := conn.Request(query, &queryResult, nil)
 	if err != nil {
-		return nil, fmt.Errorf("could not receive a resource query result message - %v", err)
+		return nil, xerrors.Errorf("failed to receive a resource query result message: %w", err)
 	}
 
 	err = queryResult.CheckError()
 	if err != nil {
-		return nil, fmt.Errorf("received a data resource query error - %v", err)
+		return nil, xerrors.Errorf("received a data resource query error: %w", err)
 	}
 
-	if queryResult.ContinueIndex != 0 {
-		logger.Debugf("resource query for %s would have continued, more than one result found\n", name)
-	}
+	// TODO: do we need to print out?
+	//if queryResult.ContinueIndex != 0 {
+	//	logger.Debugf("resource query for %s would have continued, more than one result found\n", name)
+	//}
 
 	if queryResult.RowCount == 0 {
-		return nil, errors.New("no row found")
+		return nil, xerrors.Errorf("no row found")
 	}
 
 	if queryResult.AttributeCount > len(queryResult.SQLResult) {
-		return nil, fmt.Errorf("could not receive resource attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+		return nil, xerrors.Errorf("failed to receive resource attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 	}
 
 	resource := &types.IRODSResource{}
@@ -73,7 +67,7 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 	for attr := 0; attr < queryResult.AttributeCount; attr++ {
 		sqlResult := queryResult.SQLResult[attr]
 		if len(sqlResult.Values) != queryResult.RowCount {
-			return nil, fmt.Errorf("could not receive resource rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+			return nil, xerrors.Errorf("failed to receive resource rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 		}
 
 		value := sqlResult.Values[0]
@@ -82,7 +76,7 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 		case int(common.ICAT_COLUMN_R_RESC_ID):
 			objID, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("could not parse resource id - %s", value)
+				return nil, xerrors.Errorf("failed to parse resource id '%s': %w", value, err)
 			}
 			resource.RescID = objID
 		case int(common.ICAT_COLUMN_R_RESC_NAME):
@@ -102,13 +96,13 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 		case int(common.ICAT_COLUMN_R_CREATE_TIME):
 			cT, err := util.GetIRODSDateTime(value)
 			if err != nil {
-				return nil, fmt.Errorf("could not parse create time - %s", value)
+				return nil, xerrors.Errorf("failed to parse create time '%s': %w", value, err)
 			}
 			resource.CreateTime = cT
 		case int(common.ICAT_COLUMN_R_MODIFY_TIME):
 			mT, err := util.GetIRODSDateTime(value)
 			if err != nil {
-				return nil, fmt.Errorf("could not parse modify time - %s", value)
+				return nil, xerrors.Errorf("failed to parse modify time '%s': %w", value, err)
 			}
 			resource.ModifyTime = mT
 		default:
@@ -123,7 +117,7 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 // metadata.AVUID is ignored
 func AddResourceMeta(conn *connection.IRODSConnection, name string, metadata *types.IRODSMeta) error {
 	if conn == nil || !conn.IsConnected() {
-		return fmt.Errorf("connection is nil or disconnected")
+		return xerrors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -132,14 +126,18 @@ func AddResourceMeta(conn *connection.IRODSConnection, name string, metadata *ty
 
 	request := message.NewIRODSMessageAddMetadataRequest(types.IRODSResourceMetaItemType, name, metadata)
 	response := message.IRODSMessageModifyMetadataResponse{}
-	return conn.RequestAndCheck(request, &response, nil)
+	err := conn.RequestAndCheck(request, &response, nil)
+	if err != nil {
+		return xerrors.Errorf("received an add data resource meta error: %w", err)
+	}
+	return nil
 }
 
 // DeleteResourceMeta sets metadata of a resource to the given key values.
 // The metadata AVU is selected on basis of AVUID if it is supplied, otherwise on basis of Name, Value and Units.
 func DeleteResourceMeta(conn *connection.IRODSConnection, name string, metadata *types.IRODSMeta) error {
 	if conn == nil || !conn.IsConnected() {
-		return fmt.Errorf("connection is nil or disconnected")
+		return xerrors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -157,5 +155,9 @@ func DeleteResourceMeta(conn *connection.IRODSConnection, name string, metadata 
 	}
 
 	response := message.IRODSMessageModifyMetadataResponse{}
-	return conn.RequestAndCheck(request, &response, nil)
+	err := conn.RequestAndCheck(request, &response, nil)
+	if err != nil {
+		return xerrors.Errorf("received a delete data resource meta error: %w", err)
+	}
+	return nil
 }

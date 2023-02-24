@@ -2,12 +2,12 @@ package connection
 
 import (
 	"bytes"
-	"errors"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/cyverse/go-irodsclient/irods/message"
+	"golang.org/x/xerrors"
 )
 
 var (
@@ -25,7 +25,7 @@ var (
 )
 
 // ErrInvalidUTF8 is returned if an invalid utf-8 character is found.
-var ErrInvalidUTF8 = errors.New("invalid utf-8 character")
+var ErrInvalidUTF8 = xerrors.Errorf("invalid utf-8 character")
 
 func (conn *IRODSConnection) talksCorrectXML() bool {
 	if conn.serverVersion == nil {
@@ -68,43 +68,38 @@ func (conn *IRODSConnection) PostprocessMessage(msg *message.IRODSMessage) error
 
 // PostprocessXML translates IRODS XML into valid XML.
 // We fix the invalid encoding of ` as &quot.
-func (conn *IRODSConnection) PostprocessXML(in []byte) (out []byte, err error) {
+func (conn *IRODSConnection) PostprocessXML(in []byte) ([]byte, error) {
 	buf := in
+	out := &bytes.Buffer{}
 
 	for len(buf) > 0 {
 		switch {
 		// turn &quot; into `
 		case bytes.HasPrefix(buf, irodsEscQuot) && !conn.talksCorrectXML():
-			out = append(out, '`')
+			out.WriteByte('`')
 			buf = buf[len(irodsEscQuot):]
-
 		// turn ' into &apos;
 		case buf[0] == '\'' && !conn.talksCorrectXML():
-			out = append(out, escApos...)
+			out.Write(escApos)
 			buf = buf[1:]
-
 		// check utf8 characters for validity
 		default:
 			r, size := utf8.DecodeRune(buf)
-
 			if r == utf8.RuneError && size == 1 {
-				err = ErrInvalidUTF8
-				out = in
-
-				return
+				return in, ErrInvalidUTF8
 			}
 
 			if isValidChar(r) {
-				out = append(out, buf[:size]...)
+				out.Write(buf[:size])
 			} else {
-				out = append(out, escFFFD...)
+				out.Write(escFFFD)
 			}
 
 			buf = buf[size:]
 		}
 	}
 
-	return
+	return out.Bytes(), nil
 }
 
 // PreprocessMessage modifies a request message to use irods dialect for XML.
@@ -127,112 +122,95 @@ func (conn *IRODSConnection) PreprocessMessage(msg *message.IRODSMessage, forPas
 }
 
 // PreprocessXML translates output of xml.Marshal into XML that IRODS understands.
-func (conn *IRODSConnection) PreprocessXML(in []byte) (out []byte, err error) {
+func (conn *IRODSConnection) PreprocessXML(in []byte) ([]byte, error) {
 	buf := in
+	out := &bytes.Buffer{}
 
 	for len(buf) > 0 {
 		switch {
 		// turn &#34; into &quot;
 		case bytes.HasPrefix(buf, escQuot):
-			out = append(out, irodsEscQuot...)
+			out.Write(irodsEscQuot)
 			buf = buf[len(escQuot):]
-
 		// turn &#39 into &apos; or '
 		case bytes.HasPrefix(buf, escApos):
 			if conn.talksCorrectXML() {
-				out = append(out, irodsEscApos...)
+				out.Write(irodsEscApos)
 			} else {
-				out = append(out, '\'')
+				out.WriteByte('\'')
 			}
 			buf = buf[len(escApos):]
-
 		// irods does not decode encoded tabs
 		case bytes.HasPrefix(buf, escTab):
-			out = append(out, '\t')
+			out.WriteByte('\t')
 			buf = buf[len(escTab):]
-
 		// irods does not decode encoded carriage returns
 		case bytes.HasPrefix(buf, escCR):
-			out = append(out, '\r')
+			out.WriteByte('\r')
 			buf = buf[len(escCR):]
-
 		// irods does not decode encoded newlines
 		case bytes.HasPrefix(buf, escNL):
-			out = append(out, '\n')
+			out.WriteByte('\n')
 			buf = buf[len(escNL):]
-
 		// turn ` into &apos;
 		case buf[0] == '`' && !conn.talksCorrectXML():
-			out = append(out, irodsEscApos...)
+			out.Write(irodsEscApos)
 			buf = buf[1:]
-
 		// pass utf8 characters
 		default:
 			r, size := utf8.DecodeRune(buf)
-
 			if r == utf8.RuneError && size == 1 {
-				err = ErrInvalidUTF8
-				out = in
-
-				return
+				return in, ErrInvalidUTF8
 			}
 
-			out = append(out, buf[:size]...)
+			out.Write(buf[:size])
 			buf = buf[size:]
 		}
 	}
 
-	return
+	return out.Bytes(), nil
 }
 
 // PreprocessXMLForPassword translates output of xml.Marshal into XML that IRODS understands.
-func (conn *IRODSConnection) PreprocessXMLForPassword(in []byte) (out []byte, err error) {
+func (conn *IRODSConnection) PreprocessXMLForPassword(in []byte) ([]byte, error) {
 	buf := in
+	out := &bytes.Buffer{}
 
 	for len(buf) > 0 {
 		switch {
 		// turn &#34; into \"
 		case bytes.HasPrefix(buf, escQuot):
-			out = append(out, '"')
+			out.WriteByte('"')
 			buf = buf[len(escQuot):]
-
 		// turn &#39; into \'
 		case bytes.HasPrefix(buf, escApos):
-			out = append(out, '\'')
+			out.WriteByte('\'')
 			buf = buf[len(escApos):]
-
 		// irods does not decode encoded tabs
 		case bytes.HasPrefix(buf, escTab):
-			out = append(out, '\t')
+			out.WriteByte('\t')
 			buf = buf[len(escTab):]
-
 		// irods does not decode encoded carriage returns
 		case bytes.HasPrefix(buf, escCR):
-			out = append(out, '\r')
+			out.WriteByte('\r')
 			buf = buf[len(escCR):]
-
 		// irods does not decode encoded newlines
 		case bytes.HasPrefix(buf, escNL):
-			out = append(out, '\n')
+			out.WriteByte('\n')
 			buf = buf[len(escNL):]
-
 		// pass utf8 characters
 		default:
 			r, size := utf8.DecodeRune(buf)
-
 			if r == utf8.RuneError && size == 1 {
-				err = ErrInvalidUTF8
-				out = in
-
-				return
+				return in, ErrInvalidUTF8
 			}
 
-			out = append(out, buf[:size]...)
+			out.Write(buf[:size])
 			buf = buf[size:]
 		}
 	}
 
-	return
+	return out.Bytes(), nil
 }
 
 func isValidChar(r rune) bool {
