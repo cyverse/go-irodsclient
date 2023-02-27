@@ -22,7 +22,7 @@ func ExtractStructFile(conn *connection.IRODSConnection, path string, target str
 	case types.TAR_FILE_DT, types.GZIP_TAR_DT, types.BZIP2_TAR_DT, types.ZIP_FILE_DT:
 		// pass
 	default:
-		return xerrors.Errorf("cannot extract content from unsupported data type %s", dataType)
+		return xerrors.Errorf("failed to extract content from unsupported data type %s", dataType)
 	}
 
 	// use default resource when resource param is empty
@@ -35,7 +35,7 @@ func ExtractStructFile(conn *connection.IRODSConnection, path string, target str
 	response := message.IRODSMessageRemoveDataObjectResponse{}
 	err := conn.RequestAndCheck(request, &response, nil)
 	if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-		return types.NewFileNotFoundErrorf("could not find a data object (struct file) to extract")
+		return types.NewFileNotFoundErrorf("failed to find a data object (struct file) to extract")
 	}
 	return xerrors.Errorf("received a extract struct file error: %w", err)
 }

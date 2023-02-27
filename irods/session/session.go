@@ -299,6 +299,25 @@ func (sess *IRODSSession) AcquireConnectionsMulti(number int) ([]*connection.IRO
 	return acquiredConnections, nil
 }
 
+// AcquireUnmanagedConnection returns a connection that is not managed
+func (sess *IRODSSession) AcquireUnmanagedConnection() (*connection.IRODSConnection, error) {
+	logger := log.WithFields(log.Fields{
+		"package":  "session",
+		"struct":   "IRODSSession",
+		"function": "AcquireUnmanagedConnection",
+	})
+
+	// create a new one
+	newConn := connection.NewIRODSConnection(sess.account, sess.config.OperationTimeout, sess.config.ApplicationName)
+	err := newConn.Connect()
+	if err != nil {
+		return nil, xerrors.Errorf("failed to connect to irods server: %w", err)
+	}
+
+	logger.Debug("Created a new unmanaged connection")
+	return newConn, nil
+}
+
 // ReturnConnection returns an idle connection
 func (sess *IRODSSession) ReturnConnection(conn *connection.IRODSConnection) error {
 	sess.mutex.Lock()
@@ -323,6 +342,11 @@ func (sess *IRODSSession) ReturnConnection(conn *connection.IRODSConnection) err
 		} else {
 			sess.sharedConnections[conn] = share
 		}
+	} else {
+		// may be unmanged?
+		if conn.IsConnected() {
+			conn.Disconnect()
+		}
 	}
 
 	return nil
@@ -343,6 +367,11 @@ func (sess *IRODSSession) DiscardConnection(conn *connection.IRODSConnection) er
 			return nil
 		} else {
 			sess.sharedConnections[conn] = share
+		}
+	} else {
+		// may be unmanaged?
+		if conn.IsConnected() {
+			conn.Disconnect()
 		}
 	}
 
