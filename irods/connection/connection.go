@@ -525,7 +525,11 @@ func (conn *IRODSConnection) Disconnect() error {
 		return err2
 	}
 
-	return xerrors.Errorf("received irods connection close error: %w", err)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (conn *IRODSConnection) socketFail() {
