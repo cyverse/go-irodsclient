@@ -7,11 +7,11 @@ import (
 
 // GetTicketForAnonymousAccess gets ticket information for anonymous access
 func (fs *FileSystem) GetTicketForAnonymousAccess(ticket string) (*types.IRODSTicketForAnonymousAccess, error) {
-	conn, err := fs.session.AcquireConnection()
+	conn, err := fs.metaSession.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.session.ReturnConnection(conn)
+	defer fs.metaSession.ReturnConnection(conn)
 
 	ticketInfo, err := irods_fs.GetTicketForAnonymousAccess(conn, ticket)
 	if err != nil {

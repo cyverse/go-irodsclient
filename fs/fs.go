@@ -20,7 +20,8 @@ type FileSystem struct {
 	id                   string
 	account              *types.IRODSAccount
 	config               *FileSystemConfig
-	session              *session.IRODSSession
+	ioSession            *session.IRODSSession
+	metaSession          *session.IRODSSession
 	cache                *FileSystemCache
 	cachePropagation     *FileSystemCachePropagation
 	cacheEventHandlerMap *FilesystemCacheEventHandlerMap
@@ -29,8 +30,14 @@ type FileSystem struct {
 
 // NewFileSystem creates a new FileSystem
 func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*FileSystem, error) {
-	sessConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax, config.StartNewTransaction)
-	sess, err := session.NewIRODSSession(account, sessConfig)
+	ioSessionConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax, config.StartNewTransaction)
+	ioSession, err := session.NewIRODSSession(account, ioSessionConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	metaSessionConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, FileSystemConnectionMetaDefault, config.StartNewTransaction)
+	metaSession, err := session.NewIRODSSession(account, metaSessionConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +48,8 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*File
 		id:                   xid.New().String(), // generate a new ID
 		account:              account,
 		config:               config,
-		session:              sess,
+		ioSession:            ioSession,
+		metaSession:          metaSession,
 		cache:                cache,
 		cacheEventHandlerMap: NewFilesystemCacheEventHandlerMap(),
 		fileHandleMap:        NewFileHandleMap(),
@@ -56,8 +64,14 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*File
 // NewFileSystemWithDefault creates a new FileSystem with default configurations
 func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName string) (*FileSystem, error) {
 	config := NewFileSystemConfigWithDefault(applicationName)
-	sessConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax, config.StartNewTransaction)
-	sess, err := session.NewIRODSSession(account, sessConfig)
+	ioSessionConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax, config.StartNewTransaction)
+	ioSession, err := session.NewIRODSSession(account, ioSessionConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	metaSessionConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, FileSystemConnectionMetaDefault, config.StartNewTransaction)
+	metaSession, err := session.NewIRODSSession(account, metaSessionConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +82,8 @@ func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName strin
 		id:                   xid.New().String(), // generate a new ID
 		account:              account,
 		config:               config,
-		session:              sess,
+		ioSession:            ioSession,
+		metaSession:          metaSession,
 		cache:                cache,
 		cacheEventHandlerMap: NewFilesystemCacheEventHandlerMap(),
 		fileHandleMap:        NewFileHandleMap(),
@@ -83,7 +98,13 @@ func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName strin
 // NewFileSystemWithSessionConfig creates a new FileSystem with custom session configurations
 func NewFileSystemWithSessionConfig(account *types.IRODSAccount, sessConfig *session.IRODSSessionConfig) (*FileSystem, error) {
 	config := NewFileSystemConfigWithDefault(sessConfig.ApplicationName)
-	sess, err := session.NewIRODSSession(account, sessConfig)
+	ioSession, err := session.NewIRODSSession(account, sessConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	metaSessionConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, FileSystemConnectionMetaDefault, config.StartNewTransaction)
+	metaSession, err := session.NewIRODSSession(account, metaSessionConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +115,8 @@ func NewFileSystemWithSessionConfig(account *types.IRODSAccount, sessConfig *ses
 		id:                   xid.New().String(), // generate a new ID
 		account:              account,
 		config:               config,
-		session:              sess,
+		ioSession:            ioSession,
+		metaSession:          metaSession,
 		cache:                cache,
 		cacheEventHandlerMap: NewFilesystemCacheEventHandlerMap(),
 		fileHandleMap:        NewFileHandleMap(),
@@ -116,7 +138,8 @@ func (fs *FileSystem) Release() {
 	fs.cacheEventHandlerMap.Release()
 	fs.cachePropagation.Release()
 
-	fs.session.Release()
+	fs.ioSession.Release()
+	fs.metaSession.Release()
 }
 
 // GetID returns file system instance ID
@@ -124,46 +147,62 @@ func (fs *FileSystem) GetID() string {
 	return fs.id
 }
 
-// GetConnection returns irods connection
-func (fs *FileSystem) GetConnection() (*connection.IRODSConnection, error) {
-	return fs.session.AcquireConnection()
+// GetIOConnection returns irods connection for IO
+func (fs *FileSystem) GetIOConnection() (*connection.IRODSConnection, error) {
+	return fs.ioSession.AcquireConnection()
 }
 
-// ReturnConnection returns irods connection back to session
-func (fs *FileSystem) ReturnConnection(conn *connection.IRODSConnection) {
-	fs.session.ReturnConnection(conn)
+// ReturnIOConnection returns irods connection for IO back to session
+func (fs *FileSystem) ReturnIOConnection(conn *connection.IRODSConnection) {
+	fs.ioSession.ReturnConnection(conn)
+}
+
+// GetMetadataConnection returns irods connection for metadata operations
+func (fs *FileSystem) GetMetadataConnection() (*connection.IRODSConnection, error) {
+	return fs.metaSession.AcquireConnection()
+}
+
+// ReturnMetadataConnection returns irods connection for metadata operations back to session
+func (fs *FileSystem) ReturnMetadataConnection(conn *connection.IRODSConnection) {
+	fs.metaSession.ReturnConnection(conn)
 }
 
 // ConnectionTotal counts current established connections
 func (fs *FileSystem) ConnectionTotal() int {
-	return fs.session.ConnectionTotal()
+	return fs.ioSession.ConnectionTotal() + fs.metaSession.ConnectionTotal()
 }
 
 // GetServerVersion returns server version info
 func (fs *FileSystem) GetServerVersion() (*types.IRODSVersion, error) {
-	conn, err := fs.session.AcquireConnection()
+	conn, err := fs.metaSession.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.session.ReturnConnection(conn)
+	defer fs.metaSession.ReturnConnection(conn)
 
 	return conn.GetVersion(), nil
 }
 
 // SupportParallelUpload returns if the server supports parallel upload
 func (fs *FileSystem) SupportParallelUpload() bool {
-	conn, err := fs.session.AcquireConnection()
+	conn, err := fs.metaSession.AcquireConnection()
 	if err != nil {
 		return false
 	}
-	defer fs.session.ReturnConnection(conn)
+	defer fs.metaSession.ReturnConnection(conn)
 
 	return conn.SupportParallelUpload()
 }
 
 // GetMetrics returns metrics
 func (fs *FileSystem) GetMetrics() *metrics.IRODSMetrics {
-	return fs.session.GetMetrics()
+	ioMetrics := fs.ioSession.GetMetrics()
+	metaMetrics := fs.metaSession.GetMetrics()
+
+	newMetrics := &metrics.IRODSMetrics{}
+	newMetrics.Sum(ioMetrics)
+	newMetrics.Sum(metaMetrics)
+	return newMetrics
 }
 
 // Stat returns file status
@@ -286,11 +325,11 @@ func (fs *FileSystem) List(path string) ([]*Entry, error) {
 func (fs *FileSystem) RemoveDir(path string, recurse bool, force bool) error {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
-	conn, err := fs.session.AcquireConnection()
+	conn, err := fs.metaSession.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.session.ReturnConnection(conn)
+	defer fs.metaSession.ReturnConnection(conn)
 
 	err = irods_fs.DeleteCollection(conn, irodsPath, recurse, force)
 	if err != nil {
@@ -306,11 +345,11 @@ func (fs *FileSystem) RemoveDir(path string, recurse bool, force bool) error {
 func (fs *FileSystem) RemoveFile(path string, force bool) error {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
-	conn, err := fs.session.AcquireConnection()
+	conn, err := fs.metaSession.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.session.ReturnConnection(conn)
+	defer fs.metaSession.ReturnConnection(conn)
 
 	// if file handle is opened, wg
 	wg := sync.WaitGroup{}
@@ -361,11 +400,11 @@ func (fs *FileSystem) RenameDirToDir(srcPath string, destPath string) error {
 	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
 	irodsDestPath := util.GetCorrectIRODSPath(destPath)
 
-	conn, err := fs.session.AcquireConnection()
+	conn, err := fs.metaSession.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.session.ReturnConnection(conn)
+	defer fs.metaSession.ReturnConnection(conn)
 
 	// preprocess
 	handles, err := fs.preprocessRenameFileHandleForDir(irodsSrcPath)
@@ -411,11 +450,11 @@ func (fs *FileSystem) RenameFileToFile(srcPath string, destPath string) error {
 	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
 	irodsDestPath := util.GetCorrectIRODSPath(destPath)
 
-	conn, err := fs.session.AcquireConnection()
+	conn, err := fs.metaSession.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.session.ReturnConnection(conn)
+	defer fs.metaSession.ReturnConnection(conn)
 
 	// preprocess
 	handles, err := fs.preprocessRenameFileHandle(irodsSrcPath)
@@ -563,11 +602,11 @@ func (fs *FileSystem) postprocessRenameFileHandleForDir(handles []*FileHandle, c
 func (fs *FileSystem) MakeDir(path string, recurse bool) error {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
-	conn, err := fs.session.AcquireConnection()
+	conn, err := fs.metaSession.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.session.ReturnConnection(conn)
+	defer fs.metaSession.ReturnConnection(conn)
 
 	err = irods_fs.CreateCollection(conn, irodsPath, recurse)
 	if err != nil {
@@ -600,11 +639,11 @@ func (fs *FileSystem) CopyFileToFile(srcPath string, destPath string) error {
 	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
 	irodsDestPath := util.GetCorrectIRODSPath(destPath)
 
-	conn, err := fs.session.AcquireConnection()
+	conn, err := fs.metaSession.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.session.ReturnConnection(conn)
+	defer fs.metaSession.ReturnConnection(conn)
 
 	err = irods_fs.CopyDataObject(conn, irodsSrcPath, irodsDestPath)
 	if err != nil {
@@ -624,11 +663,11 @@ func (fs *FileSystem) TruncateFile(path string, size int64) error {
 		size = 0
 	}
 
-	conn, err := fs.session.AcquireConnection()
+	conn, err := fs.metaSession.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.session.ReturnConnection(conn)
+	defer fs.metaSession.ReturnConnection(conn)
 
 	err = irods_fs.TruncateDataObject(conn, irodsPath, size)
 	if err != nil {
@@ -644,11 +683,11 @@ func (fs *FileSystem) TruncateFile(path string, size int64) error {
 func (fs *FileSystem) ReplicateFile(path string, resource string, update bool) error {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
-	conn, err := fs.session.AcquireConnection()
+	conn, err := fs.metaSession.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.session.ReturnConnection(conn)
+	defer fs.metaSession.ReturnConnection(conn)
 
 	err = irods_fs.ReplicateDataObject(conn, irodsPath, resource, update, false)
 	if err != nil {
@@ -664,14 +703,14 @@ func (fs *FileSystem) ReplicateFile(path string, resource string, update bool) e
 func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*FileHandle, error) {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
-	conn, err := fs.session.AcquireConnection()
+	conn, err := fs.ioSession.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
 
 	handle, offset, err := irods_fs.OpenDataObject(conn, irodsPath, resource, mode)
 	if err != nil {
-		fs.session.ReturnConnection(conn)
+		fs.ioSession.ReturnConnection(conn)
 		return nil, err
 	}
 
@@ -719,7 +758,7 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 func (fs *FileSystem) CreateFile(path string, resource string, mode string) (*FileHandle, error) {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
-	conn, err := fs.session.AcquireConnection()
+	conn, err := fs.ioSession.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
@@ -727,27 +766,27 @@ func (fs *FileSystem) CreateFile(path string, resource string, mode string) (*Fi
 	// create
 	handle, err := irods_fs.CreateDataObject(conn, irodsPath, resource, mode, true)
 	if err != nil {
-		fs.session.ReturnConnection(conn)
+		fs.ioSession.ReturnConnection(conn)
 		return nil, err
 	}
 
 	// close - this is required to let other processes see the file existence
 	err = irods_fs.CloseDataObject(conn, handle)
 	if err != nil {
-		fs.session.ReturnConnection(conn)
+		fs.ioSession.ReturnConnection(conn)
 		return nil, err
 	}
 
 	entry, err := fs.getDataObjectWithConnectionNoCache(conn, irodsPath)
 	if err != nil {
-		fs.session.ReturnConnection(conn)
+		fs.ioSession.ReturnConnection(conn)
 		return nil, err
 	}
 
 	// re-open
 	handle, offset, err := irods_fs.OpenDataObject(conn, irodsPath, resource, mode)
 	if err != nil {
-		fs.session.ReturnConnection(conn)
+		fs.ioSession.ReturnConnection(conn)
 		return nil, err
 	}
 
@@ -772,11 +811,11 @@ func (fs *FileSystem) CreateFile(path string, resource string, mode string) (*Fi
 // getCollectionNoCache returns collection entry
 func (fs *FileSystem) getCollectionNoCache(path string) (*Entry, error) {
 	// retrieve it and add it to cache
-	conn, err := fs.session.AcquireConnection()
+	conn, err := fs.metaSession.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.session.ReturnConnection(conn)
+	defer fs.metaSession.ReturnConnection(conn)
 
 	collection, err := irods_fs.GetCollection(conn, path)
 	if err != nil {
@@ -881,11 +920,11 @@ func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*Entry, 
 	}
 
 	// otherwise, retrieve it and add it to cache
-	conn, err := fs.session.AcquireConnection()
+	conn, err := fs.metaSession.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.session.ReturnConnection(conn)
+	defer fs.metaSession.ReturnConnection(conn)
 
 	collections, err := irods_fs.ListSubCollections(conn, collection.Path)
 	if err != nil {
@@ -984,11 +1023,11 @@ func (fs *FileSystem) getDataObjectNoCache(path string) (*Entry, error) {
 
 	collection := fs.getCollectionFromEntry(collectionEntry)
 
-	conn, err := fs.session.AcquireConnection()
+	conn, err := fs.metaSession.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.session.ReturnConnection(conn)
+	defer fs.metaSession.ReturnConnection(conn)
 
 	dataobject, err := irods_fs.GetDataObjectMasterReplica(conn, collection, util.GetIRODSPathFileName(path))
 	if err != nil {

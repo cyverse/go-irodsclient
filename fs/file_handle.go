@@ -85,7 +85,7 @@ func (handle *FileHandle) Close() error {
 	handle.mutex.Lock()
 	defer handle.mutex.Unlock()
 
-	defer handle.filesystem.session.ReturnConnection(handle.connection)
+	defer handle.filesystem.ioSession.ReturnConnection(handle.connection)
 
 	err := irods_fs.CloseDataObject(handle.connection, handle.irodsfilehandle)
 	handle.filesystem.fileHandleMap.Remove(handle.id)
@@ -103,7 +103,7 @@ func (handle *FileHandle) closeWithoutFSHandleManagement() error {
 	handle.mutex.Lock()
 	defer handle.mutex.Unlock()
 
-	defer handle.filesystem.session.ReturnConnection(handle.connection)
+	defer handle.filesystem.ioSession.ReturnConnection(handle.connection)
 
 	err := irods_fs.CloseDataObject(handle.connection, handle.irodsfilehandle)
 	handle.filesystem.fileHandleMap.Remove(handle.id)

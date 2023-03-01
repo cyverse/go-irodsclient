@@ -44,7 +44,7 @@ func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath 
 		}
 	}
 
-	return irods_fs.DownloadDataObject(fs.session, irodsSrcPath, resource, localFilePath, srcStat.Size, callback)
+	return irods_fs.DownloadDataObject(fs.ioSession, irodsSrcPath, resource, localFilePath, srcStat.Size, callback)
 }
 
 // DownloadFileParallel downloads a file to local in parallel
@@ -80,7 +80,7 @@ func (fs *FileSystem) DownloadFileParallel(irodsPath string, resource string, lo
 		}
 	}
 
-	return irods_fs.DownloadDataObjectParallel(fs.session, irodsSrcPath, resource, localFilePath, srcStat.Size, taskNum, callback)
+	return irods_fs.DownloadDataObjectParallel(fs.ioSession, irodsSrcPath, resource, localFilePath, srcStat.Size, taskNum, callback)
 }
 
 // DownloadFileParallelInBlocksAsync downloads a file to local in parallel
@@ -131,7 +131,7 @@ func (fs *FileSystem) DownloadFileParallelInBlocksAsync(irodsPath string, resour
 		}
 	}
 
-	return irods_fs.DownloadDataObjectParallelInBlocksAsync(fs.session, irodsSrcPath, resource, localFilePath, srcStat.Size, blockLength, taskNum)
+	return irods_fs.DownloadDataObjectParallelInBlocksAsync(fs.ioSession, irodsSrcPath, resource, localFilePath, srcStat.Size, blockLength, taskNum)
 }
 
 // UploadFile uploads a local file to irods
@@ -171,7 +171,7 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 		}
 	}
 
-	err = irods_fs.UploadDataObject(fs.session, localSrcPath, irodsFilePath, resource, replicate, callback)
+	err = irods_fs.UploadDataObject(fs.ioSession, localSrcPath, irodsFilePath, resource, replicate, callback)
 	if err != nil {
 		return err
 	}
@@ -218,7 +218,7 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 		}
 	}
 
-	err = irods_fs.UploadDataObjectParallel(fs.session, localSrcPath, irodsFilePath, resource, taskNum, replicate, callback)
+	err = irods_fs.UploadDataObjectParallel(fs.ioSession, localSrcPath, irodsFilePath, resource, taskNum, replicate, callback)
 	if err != nil {
 		return err
 	}
@@ -284,7 +284,7 @@ func (fs *FileSystem) UploadFileParallelInBlocksAsync(localPath string, irodsPat
 		}
 	}
 
-	outputChan2, errChan2 := irods_fs.UploadDataObjectParallelInBlockAsync(fs.session, localSrcPath, irodsFilePath, resource, blockLength, taskNum, replicate)
+	outputChan2, errChan2 := irods_fs.UploadDataObjectParallelInBlockAsync(fs.ioSession, localSrcPath, irodsFilePath, resource, blockLength, taskNum, replicate)
 
 	fs.invalidateCacheForFileCreate(irodsFilePath)
 	fs.cachePropagation.PropagateFileCreate(irodsFilePath)

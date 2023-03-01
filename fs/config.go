@@ -7,6 +7,8 @@ const (
 	FileSystemConnectionMaxMin = 5
 	// FileSystemConnectionMaxDefault is a default number of connection max value
 	FileSystemConnectionMaxDefault = 10
+	// FileSystemConnectionMetaDefault is a default number of connection for metadata operations
+	FileSystemConnectionMetaDefault = 2
 	// ConnectionLifespanDefault is a default lifespan of a connection
 	ConnectionLifespanDefault = 1 * time.Hour
 	// FileSystemTimeoutDefault is a default timeout value

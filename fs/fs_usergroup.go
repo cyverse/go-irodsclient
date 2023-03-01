@@ -14,11 +14,11 @@ func (fs *FileSystem) ListGroupUsers(group string) ([]*types.IRODSUser, error) {
 	}
 
 	// otherwise, retrieve it and add it to cache
-	conn, err := fs.session.AcquireConnection()
+	conn, err := fs.metaSession.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.session.ReturnConnection(conn)
+	defer fs.metaSession.ReturnConnection(conn)
 
 	users, err := irods_fs.ListGroupUsers(conn, group)
 	if err != nil {
@@ -40,11 +40,11 @@ func (fs *FileSystem) ListGroups() ([]*types.IRODSUser, error) {
 	}
 
 	// otherwise, retrieve it and add it to cache
-	conn, err := fs.session.AcquireConnection()
+	conn, err := fs.metaSession.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.session.ReturnConnection(conn)
+	defer fs.metaSession.ReturnConnection(conn)
 
 	groups, err := irods_fs.ListGroups(conn)
 	if err != nil {
@@ -66,11 +66,11 @@ func (fs *FileSystem) ListUserGroups(user string) ([]*types.IRODSUser, error) {
 	}
 
 	// otherwise, retrieve it and add it to cache
-	conn, err := fs.session.AcquireConnection()
+	conn, err := fs.metaSession.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.session.ReturnConnection(conn)
+	defer fs.metaSession.ReturnConnection(conn)
 
 	groupNames, err := irods_fs.ListUserGroupNames(conn, user)
 	if err != nil {
@@ -102,11 +102,11 @@ func (fs *FileSystem) ListUsers() ([]*types.IRODSUser, error) {
 	}
 
 	// otherwise, retrieve it and add it to cache
-	conn, err := fs.session.AcquireConnection()
+	conn, err := fs.metaSession.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.session.ReturnConnection(conn)
+	defer fs.metaSession.ReturnConnection(conn)
 
 	users, err := irods_fs.ListUsers(conn)
 	if err != nil {
