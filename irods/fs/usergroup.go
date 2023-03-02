@@ -26,7 +26,7 @@ func GetGroup(conn *connection.IRODSConnection, group string) (*types.IRODSUser,
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
-		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, 0, 0, 0)
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
 		query.AddSelect(common.ICAT_COLUMN_USER_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
@@ -126,7 +126,7 @@ func ListGroupUsers(conn *connection.IRODSConnection, group string) ([]*types.IR
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
-		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, 0, 0, 0)
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
 		query.AddSelect(common.ICAT_COLUMN_USER_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
@@ -224,7 +224,7 @@ func ListGroups(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
-		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, 0, 0, 0)
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
 		query.AddSelect(common.ICAT_COLUMN_USER_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
@@ -322,7 +322,7 @@ func ListUsers(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
-		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, 0, 0, 0)
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
 		query.AddSelect(common.ICAT_COLUMN_USER_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
@@ -420,7 +420,7 @@ func ListUserGroupNames(conn *connection.IRODSConnection, user string) ([]string
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
-		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, 0, 0, 0)
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
 		query.AddSelect(common.ICAT_COLUMN_COLL_USER_GROUP_NAME, 1)
 
 		condTypeVal := fmt.Sprintf("= '%s'", user)
@@ -493,7 +493,7 @@ func ListUserResourceQuota(conn *connection.IRODSConnection, user string) ([]*ty
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
-		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, 0, 0, 0)
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
 		query.AddSelect(common.ICAT_COLUMN_QUOTA_RESC_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_QUOTA_LIMIT, 1)
 
@@ -583,7 +583,7 @@ func GetUserGlobalQuota(conn *connection.IRODSConnection, user string) (*types.I
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
-		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, 0, 0, 0)
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
 		query.AddSelect(common.ICAT_COLUMN_QUOTA_LIMIT, 1)
 
 		condTypeVal := fmt.Sprintf("= '%s'", user)
