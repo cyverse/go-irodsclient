@@ -99,7 +99,7 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 	}
 
 	sess.supportParallelUpload = conn.SupportParallelUpload()
-	logger.Debug("support parallel upload: %t", sess.supportParallelUpload)
+	logger.Debugf("support parallel upload: %t", sess.supportParallelUpload)
 	pool.Return(conn)
 
 	return &sess, nil
