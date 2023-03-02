@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"net"
 	"sync"
 	"time"
@@ -571,12 +572,6 @@ func (conn *IRODSConnection) Send(buffer []byte, size int) error {
 
 // SendWithTrackerCallBack sends data
 func (conn *IRODSConnection) SendWithTrackerCallBack(buffer []byte, size int, callback common.TrackerCallBack) error {
-	logger := log.WithFields(log.Fields{
-		"package":  "connection",
-		"struct":   "IRODSConnection",
-		"function": "SendWithTrackerCallBack",
-	})
-
 	if conn.socket == nil {
 		return xerrors.Errorf("failed to send data - socket closed")
 	}
@@ -592,8 +587,6 @@ func (conn *IRODSConnection) SendWithTrackerCallBack(buffer []byte, size int, ca
 
 	err := util.WriteBytesWithTrackerCallBack(conn.socket, buffer, size, callback)
 	if err != nil {
-		logger.WithError(err).Error("failed to send data. connection to remote host may have closed.")
-
 		conn.socketFail()
 		return xerrors.Errorf("failed to send data: %w", err)
 	}
@@ -601,6 +594,43 @@ func (conn *IRODSConnection) SendWithTrackerCallBack(buffer []byte, size int, ca
 	if size > 0 {
 		if conn.metrics != nil {
 			conn.metrics.IncreaseBytesSent(uint64(size))
+		}
+	}
+
+	conn.lastSuccessfulAccess = time.Now()
+
+	return nil
+}
+
+// SendFromReader sends data from Reader
+func (conn *IRODSConnection) SendFromReader(src io.Reader, size int) error {
+	if conn.socket == nil {
+		return xerrors.Errorf("failed to send data - socket closed")
+	}
+
+	if !conn.locked {
+		return xerrors.Errorf("connection must be locked before use")
+	}
+
+	// use sslSocket
+	if conn.requestTimeout > 0 {
+		conn.socket.SetWriteDeadline(time.Now().Add(conn.requestTimeout))
+	}
+
+	copyLen, err := io.CopyN(conn.socket, src, int64(size))
+	if err != nil {
+		conn.socketFail()
+		return xerrors.Errorf("failed to send data: %w", err)
+	}
+
+	if copyLen != int64(size) {
+		conn.socketFail()
+		return xerrors.Errorf("failed to send data. failed to send data fully (requested %d vs sent %d)", size, copyLen)
+	}
+
+	if copyLen > 0 {
+		if conn.metrics != nil {
+			conn.metrics.IncreaseBytesSent(uint64(copyLen))
 		}
 	}
 
@@ -643,6 +673,37 @@ func (conn *IRODSConnection) RecvWithTrackerCallBack(buffer []byte, size int, ca
 	conn.lastSuccessfulAccess = time.Now()
 
 	return readLen, nil
+}
+
+// RecvToWriter receives a message to Writer
+func (conn *IRODSConnection) RecvToWriter(writer io.Writer, size int) (int, error) {
+	if conn.socket == nil {
+		return 0, xerrors.Errorf("failed to receive data - socket closed")
+	}
+
+	if !conn.locked {
+		return 0, xerrors.Errorf("connection must be locked before use")
+	}
+
+	if conn.requestTimeout > 0 {
+		conn.socket.SetReadDeadline(time.Now().Add(conn.requestTimeout))
+	}
+
+	copyLen, err := io.CopyN(writer, conn.socket, int64(size))
+	if err != nil {
+		conn.socketFail()
+		return int(copyLen), xerrors.Errorf("failed to receive data: %w", err)
+	}
+
+	if copyLen > 0 {
+		if conn.metrics != nil {
+			conn.metrics.IncreaseBytesReceived(uint64(copyLen))
+		}
+	}
+
+	conn.lastSuccessfulAccess = time.Now()
+
+	return int(copyLen), nil
 }
 
 // SendMessage makes the message into bytes
