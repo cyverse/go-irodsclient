@@ -23,10 +23,15 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	TCPBufferSizeDefault int = 4 * 1024 * 1024
+)
+
 // IRODSConnection connects to iRODS
 type IRODSConnection struct {
 	account         *types.IRODSAccount
 	requestTimeout  time.Duration
+	tcpBufferSize   int
 	applicationName string
 
 	connected               bool
@@ -47,6 +52,7 @@ func NewIRODSConnection(account *types.IRODSAccount, requestTimeout time.Duratio
 	return &IRODSConnection{
 		account:         account,
 		requestTimeout:  requestTimeout,
+		tcpBufferSize:   TCPBufferSizeDefault,
 		applicationName: applicationName,
 
 		creationTime:    time.Now(),
@@ -62,6 +68,7 @@ func NewIRODSConnectionWithMetrics(account *types.IRODSAccount, requestTimeout t
 	return &IRODSConnection{
 		account:         account,
 		requestTimeout:  requestTimeout,
+		tcpBufferSize:   TCPBufferSizeDefault,
 		applicationName: applicationName,
 
 		creationTime:    time.Now(),
@@ -92,6 +99,11 @@ func (conn *IRODSConnection) GetAccount() *types.IRODSAccount {
 // GetVersion returns iRODS version
 func (conn *IRODSConnection) GetVersion() *types.IRODSVersion {
 	return conn.serverVersion
+}
+
+// SetTCPBufferSize sets TCP Buffer Size
+func (conn *IRODSConnection) SetTCPBufferSize(bufferSize int) {
+	conn.tcpBufferSize = bufferSize
 }
 
 // SupportParallelUpload checks if the server supports parallel upload
@@ -159,6 +171,18 @@ func (conn *IRODSConnection) Connect() error {
 			conn.metrics.IncreaseCounterForConnectionFailures(1)
 		}
 		return connErr
+	}
+
+	if tcpSocket, ok := socket.(*net.TCPConn); ok {
+		sockErr := tcpSocket.SetReadBuffer(conn.tcpBufferSize)
+		if sockErr != nil {
+			logger.WithError(sockErr).Debugf("failed to set tcp read buffer size %d", conn.tcpBufferSize)
+		}
+
+		sockErr = tcpSocket.SetWriteBuffer(conn.tcpBufferSize)
+		if sockErr != nil {
+			logger.WithError(sockErr).Debugf("failed to set tcp write buffer size %d", conn.tcpBufferSize)
+		}
 	}
 
 	if conn.metrics != nil {

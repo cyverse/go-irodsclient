@@ -54,6 +54,7 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 		Lifespan:         config.ConnectionLifespan,
 		IdleTimeout:      config.ConnectionIdleTimeout,
 		OperationTimeout: config.OperationTimeout,
+		TcpBufferSize:    config.TcpBufferSize,
 	}
 
 	pool, err := NewConnectionPool(&poolConfig, &sess.metrics)

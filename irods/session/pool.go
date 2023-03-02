@@ -23,6 +23,7 @@ type ConnectionPoolConfig struct {
 	Lifespan         time.Duration // if a connection exceeds its lifespan, the connection will die
 	IdleTimeout      time.Duration // if there's no activity on a connection for the timeout time, the connection will die
 	OperationTimeout time.Duration // if there's no response for the timeout time, the request will fail
+	TcpBufferSize    int
 }
 
 // ConnectionPool is a struct for connection pool
@@ -140,6 +141,7 @@ func (pool *ConnectionPool) init() error {
 	// create connections
 	for i := 0; i < pool.config.InitialCap; i++ {
 		newConn := connection.NewIRODSConnectionWithMetrics(pool.config.Account, pool.config.OperationTimeout, pool.config.ApplicationName, pool.metrics)
+		newConn.SetTCPBufferSize(pool.config.TcpBufferSize)
 		err := newConn.Connect()
 		if err != nil {
 			pool.metrics.IncreaseCounterForConnectionPoolFailures(1)
@@ -193,6 +195,7 @@ func (pool *ConnectionPool) Get() (*connection.IRODSConnection, bool, error) {
 
 	// create a new if not exists
 	newConn := connection.NewIRODSConnectionWithMetrics(pool.config.Account, pool.config.OperationTimeout, pool.config.ApplicationName, pool.metrics)
+	newConn.SetTCPBufferSize(pool.config.TcpBufferSize)
 	err = newConn.Connect()
 	if err != nil {
 		pool.metrics.IncreaseCounterForConnectionPoolFailures(1)
@@ -239,6 +242,7 @@ func (pool *ConnectionPool) GetNew() (*connection.IRODSConnection, error) {
 	if len(pool.occupiedConnections)+pool.idleConnections.Len() < pool.config.MaxCap {
 		// create a new one
 		newConn := connection.NewIRODSConnection(pool.config.Account, pool.config.OperationTimeout, pool.config.ApplicationName)
+		newConn.SetTCPBufferSize(pool.config.TcpBufferSize)
 		err := newConn.Connect()
 		if err != nil {
 			pool.metrics.IncreaseCounterForConnectionPoolFailures(1)

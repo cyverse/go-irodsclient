@@ -13,6 +13,8 @@ const (
 	IRODSSessionConnectionLifespanDefault = 1 * time.Hour
 	// IRODSSessionTimeoutDefault is a default value for timeout
 	IRODSSessionTimeoutDefault = 5 * time.Minute
+	// TCPBufferSizeDefault is a default value for tcp buffer size
+	TCPBufferSizeDefault = 4 * 1024 * 1024
 )
 
 // IRODSSessionConfig is for session configuration
@@ -24,11 +26,12 @@ type IRODSSessionConfig struct {
 	ConnectionMax         int
 	ConnectionInitNumber  int
 	ConnectionMaxIdle     int
+	TcpBufferSize         int
 	StartNewTransaction   bool
 }
 
 // NewIRODSSessionConfig create a IRODSSessionConfig
-func NewIRODSSessionConfig(applicationName string, connectionLifespan time.Duration, operationTimeout time.Duration, idleTimeout time.Duration, connectionMax int, startNewTransaction bool) *IRODSSessionConfig {
+func NewIRODSSessionConfig(applicationName string, connectionLifespan time.Duration, operationTimeout time.Duration, idleTimeout time.Duration, connectionMax int, tcpBufferSize int, startNewTransaction bool) *IRODSSessionConfig {
 	if connectionMax < IRODSSessionConnectionMaxMin {
 		connectionMax = IRODSSessionConnectionMaxMin
 	}
@@ -41,6 +44,7 @@ func NewIRODSSessionConfig(applicationName string, connectionLifespan time.Durat
 		ConnectionMax:         connectionMax,
 		ConnectionInitNumber:  1,
 		ConnectionMaxIdle:     IRODSSessionConnectionMaxMin,
+		TcpBufferSize:         tcpBufferSize,
 		StartNewTransaction:   startNewTransaction,
 	}
 }
@@ -55,6 +59,7 @@ func NewIRODSSessionConfigWithDefault(applicationName string) *IRODSSessionConfi
 		ConnectionMax:         IRODSSessionConnectionMaxDefault,
 		ConnectionInitNumber:  1,
 		ConnectionMaxIdle:     IRODSSessionConnectionMaxMin,
+		TcpBufferSize:         TCPBufferSizeDefault,
 		StartNewTransaction:   true,
 	}
 }

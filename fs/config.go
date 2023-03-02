@@ -13,6 +13,8 @@ const (
 	ConnectionLifespanDefault = 1 * time.Hour
 	// FileSystemTimeoutDefault is a default timeout value
 	FileSystemTimeoutDefault = 5 * time.Minute
+	// TCPBufferSizeDefault is a default value for tcp buffer size
+	TCPBufferSizeDefault = 4 * 1024 * 1024
 )
 
 // FileSystemConfig is a struct for file system configuration
@@ -22,6 +24,7 @@ type FileSystemConfig struct {
 	OperationTimeout      time.Duration
 	ConnectionIdleTimeout time.Duration
 	ConnectionMax         int
+	TcpBufferSize         int
 	CacheTimeout          time.Duration
 	CacheCleanupTime      time.Duration
 	CacheTimeoutSettings  []MetadataCacheTimeoutSetting
@@ -35,7 +38,7 @@ type FileSystemConfig struct {
 }
 
 // NewFileSystemConfig create a FileSystemConfig
-func NewFileSystemConfig(applicationName string, connectionLifespan time.Duration, operationTimeout time.Duration, connectionIdleTimeout time.Duration, connectionMax int, cacheTimeout time.Duration, cacheCleanupTime time.Duration, cacheTimeoutSettings []MetadataCacheTimeoutSetting, startNewTransaction bool, invalidateParentEntryCacheImmediately bool) *FileSystemConfig {
+func NewFileSystemConfig(applicationName string, connectionLifespan time.Duration, operationTimeout time.Duration, connectionIdleTimeout time.Duration, connectionMax int, tcpBufferSize int, cacheTimeout time.Duration, cacheCleanupTime time.Duration, cacheTimeoutSettings []MetadataCacheTimeoutSetting, startNewTransaction bool, invalidateParentEntryCacheImmediately bool) *FileSystemConfig {
 	connMax := connectionMax
 	if connMax < FileSystemConnectionMaxMin {
 		connMax = FileSystemConnectionMaxMin
@@ -47,6 +50,7 @@ func NewFileSystemConfig(applicationName string, connectionLifespan time.Duratio
 		OperationTimeout:                      operationTimeout,
 		ConnectionIdleTimeout:                 connectionIdleTimeout,
 		ConnectionMax:                         connMax,
+		TcpBufferSize:                         tcpBufferSize,
 		CacheTimeout:                          cacheTimeout,
 		CacheCleanupTime:                      cacheCleanupTime,
 		CacheTimeoutSettings:                  cacheTimeoutSettings,
@@ -63,6 +67,7 @@ func NewFileSystemConfigWithDefault(applicationName string) *FileSystemConfig {
 		OperationTimeout:                      FileSystemTimeoutDefault,
 		ConnectionIdleTimeout:                 FileSystemTimeoutDefault,
 		ConnectionMax:                         FileSystemConnectionMaxDefault,
+		TcpBufferSize:                         TCPBufferSizeDefault,
 		CacheTimeout:                          FileSystemTimeoutDefault,
 		CacheTimeoutSettings:                  []MetadataCacheTimeoutSetting{},
 		CacheCleanupTime:                      FileSystemTimeoutDefault,
