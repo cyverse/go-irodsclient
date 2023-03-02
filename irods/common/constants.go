@@ -10,7 +10,7 @@ const (
 	MaxQueryRows        int = 500
 	MaxPasswordLength   int = 50
 	MaxNameLength       int = 64
-	ReadWriteBufferSize int = 1024 * 1024 * 8 // 8MB
+	ReadWriteBufferSize int = 1024 * 1024 * 4 // 4MB
 
 	/*
 		MAX_SQL_ATTR               int = 50
