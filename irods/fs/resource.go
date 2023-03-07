@@ -51,7 +51,7 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 
 	// TODO: do we need to print out?
 	//if queryResult.ContinueIndex != 0 {
-	//	logger.Debugf("resource query for %s would have continued, more than one result found\n", name)
+	//	logger.Debugf("resource query for %s would have continued, more than one result found", name)
 	//}
 
 	if queryResult.RowCount == 0 {

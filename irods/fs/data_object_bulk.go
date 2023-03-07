@@ -64,7 +64,7 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 
 	fileLength := stat.Size()
 
-	logger.Debugf("upload data object - %s\n", localPath)
+	logger.Debugf("upload data object - %s", localPath)
 
 	conn, err := session.AcquireConnection()
 	if err != nil {
@@ -185,7 +185,7 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 		numTasks = util.GetNumTasksForParallelTransfer(fileLength)
 	}
 
-	logger.Debugf("upload data object in parallel - %s, size(%d), threads(%d)\n", irodsPath, fileLength, numTasks)
+	logger.Debugf("upload data object in parallel - %s, size(%d), threads(%d)", irodsPath, fileLength, numTasks)
 
 	// open a new file
 	handle, err := OpenDataObjectWithOperation(conn, irodsPath, resource, "w", common.OPER_TYPE_PUT_DATA_OBJ)
@@ -413,7 +413,7 @@ func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPa
 		numBlocks++
 	}
 
-	logger.Debugf("upload data object in parallel - %s, size(%d), threads(%d), block_size(%d)\n", irodsPath, fileLength, numTasks, blockSize)
+	logger.Debugf("upload data object in parallel - %s, size(%d), threads(%d), block_size(%d)", irodsPath, fileLength, numTasks, blockSize)
 
 	inputChan := make(chan int64, numBlocks)
 	outputChan := make(chan int64, numBlocks)
@@ -563,7 +563,7 @@ func DownloadDataObject(session *session.IRODSSession, irodsPath string, resourc
 		"function": "DownloadDataObject",
 	})
 
-	logger.Debugf("download data object - %s\n", irodsPath)
+	logger.Debugf("download data object - %s", irodsPath)
 
 	// use default resource when resource param is empty
 	if len(resource) == 0 {
@@ -653,7 +653,7 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 		numTasks = session.GetConfig().ConnectionMax
 	}
 
-	logger.Debugf("download data object in parallel - %s, size(%d), threads(%d)\n", irodsPath, dataObjectLength, numTasks)
+	logger.Debugf("download data object in parallel - %s, size(%d), threads(%d)", irodsPath, dataObjectLength, numTasks)
 
 	// create an empty file
 	f, err := os.Create(localPath)
@@ -822,7 +822,7 @@ func DownloadDataObjectParallelInBlocksAsync(session *session.IRODSSession, irod
 		numBlocks++
 	}
 
-	logger.Debugf("download data object in parallel - %s, size(%d), threads(%d), block_size(%d)\n", irodsPath, dataObjectLength, numTasks, blockSize)
+	logger.Debugf("download data object in parallel - %s, size(%d), threads(%d), block_size(%d)", irodsPath, dataObjectLength, numTasks, blockSize)
 
 	inputChan := make(chan int64, numBlocks)
 	outputChan := make(chan int64, numBlocks)
