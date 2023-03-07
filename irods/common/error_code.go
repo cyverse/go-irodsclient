@@ -1375,11 +1375,32 @@ func init() {
 	errorCodeDescriptionTable[SYS_NO_HANDLER_REPLY_MSG] = "SYS_NO_HANDLER_REPLY_MSG"
 }
 
+func SplitIRODSErrorCode(code ErrorCode) (ErrorCode, LinuxErrorCode) {
+	mainErrCode := (code / 1000) * 1000
+	subErrCode := (code / 1000)
+
+	return mainErrCode, LinuxErrorCode(subErrCode)
+}
+
 // GetIRODSErrorString returns string representation of error code
 func GetIRODSErrorString(code ErrorCode) string {
-	errorString, ok := errorCodeDescriptionTable[code]
-	if ok {
-		return errorString
+	if code < 0 {
+		code = -1 * code
 	}
-	return fmt.Sprintf("ErrorCode: %d", int(code))
+
+	mainErrCode, subErrCode := SplitIRODSErrorCode(code)
+
+	if mainErrCode > 0 {
+		mainErrString, ok := errorCodeDescriptionTable[mainErrCode]
+		if ok {
+			if subErrCode > 0 {
+				subErrString := GetLinuxErrorString(subErrCode)
+				return fmt.Sprintf("%s (sub %s)", mainErrString, subErrString)
+			}
+
+			return mainErrString
+		}
+		return fmt.Sprintf("Unknown ErrorCode: %d", int(code))
+	}
+	return ""
 }
