@@ -366,8 +366,9 @@ func (conn *IRODSConnection) sslStartup() error {
 
 	caCertPool := x509.NewCertPool()
 	caCert, err := irodsSSLConfig.ReadCACert()
-	if err == nil {
+	if err != nil {
 		logger.Error("failed to read CA cert, ignoring...")
+	} else {
 		caCertPool.AppendCertsFromPEM(caCert)
 	}
 
@@ -798,11 +799,12 @@ func (conn *IRODSConnection) readMessageHeader() (*message.IRODSMessageHeader, e
 	// read header size
 	headerLenBuffer := make([]byte, 4)
 	readLen, err := conn.Recv(headerLenBuffer, 4)
-	if readLen != 4 {
-		return nil, xerrors.Errorf("failed to read header size")
-	}
 	if err != nil {
 		return nil, xerrors.Errorf("failed to read header size: %w", err)
+	}
+
+	if readLen != 4 {
+		return nil, xerrors.Errorf("failed to read header size, read %d", readLen)
 	}
 
 	headerSize := binary.BigEndian.Uint32(headerLenBuffer)
