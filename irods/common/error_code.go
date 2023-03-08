@@ -1377,23 +1377,27 @@ func init() {
 
 func SplitIRODSErrorCode(code ErrorCode) (ErrorCode, LinuxErrorCode) {
 	mainErrCode := (code / 1000) * 1000
-	subErrCode := (code / 1000)
+	subErrCode := (code % 1000)
 
 	return mainErrCode, LinuxErrorCode(subErrCode)
 }
 
 // GetIRODSErrorString returns string representation of error code
 func GetIRODSErrorString(code ErrorCode) string {
-	if code < 0 {
-		code = -1 * code
+	if code == 0 {
+		return ""
 	}
 
 	mainErrCode, subErrCode := SplitIRODSErrorCode(code)
 
-	if mainErrCode > 0 {
+	if mainErrCode != 0 {
+		if mainErrCode > 0 {
+			mainErrCode *= -1
+		}
+
 		mainErrString, ok := errorCodeDescriptionTable[mainErrCode]
 		if ok {
-			if subErrCode > 0 {
+			if subErrCode != 0 {
 				subErrString := GetLinuxErrorString(subErrCode)
 				return fmt.Sprintf("%s (sub %s)", mainErrString, subErrString)
 			}

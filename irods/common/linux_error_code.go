@@ -272,6 +272,10 @@ func init() {
 
 // GetLinuxErrorString returns string representation of error code
 func GetLinuxErrorString(code LinuxErrorCode) string {
+	if code == 0 {
+		return ""
+	}
+
 	if code < 0 {
 		code = -1 * code
 	}
