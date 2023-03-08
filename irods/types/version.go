@@ -51,7 +51,24 @@ func (ver *IRODSVersion) GetReleaseVersion() (int, int, int) {
 // HasHigherVersionThan returns if given version is higher or equal than current version
 func (ver *IRODSVersion) HasHigherVersionThan(major int, minor int, patch int) bool {
 	smajor, sminor, spatch := ver.GetReleaseVersion()
-	if smajor < major || sminor < minor || spatch < patch {
+	if smajor > major {
+		return true
+	}
+	if smajor < major {
+		return false
+	}
+	// major is equal
+	if sminor > minor {
+		return true
+	}
+	if sminor < minor {
+		return false
+	}
+	// minor is equal
+	if spatch > patch {
+		return true
+	}
+	if spatch < patch {
 		return false
 	}
 	return true
