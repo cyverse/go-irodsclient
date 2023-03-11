@@ -177,12 +177,14 @@ func (conn *IRODSConnection) Connect() error {
 	if tcpSocket, ok := socket.(*net.TCPConn); ok {
 		sockErr := tcpSocket.SetReadBuffer(conn.tcpBufferSize)
 		if sockErr != nil {
-			logger.WithError(sockErr).Debugf("failed to set tcp read buffer size %d", conn.tcpBufferSize)
+			sockBuffErr := xerrors.Errorf("failed to set tcp read buffer size %d: %w", conn.tcpBufferSize, sockErr)
+			logger.Errorf("%+v", sockBuffErr)
 		}
 
 		sockErr = tcpSocket.SetWriteBuffer(conn.tcpBufferSize)
 		if sockErr != nil {
-			logger.WithError(sockErr).Debugf("failed to set tcp write buffer size %d", conn.tcpBufferSize)
+			sockBuffErr := xerrors.Errorf("failed to set tcp write buffer size %d: %w", conn.tcpBufferSize, sockErr)
+			logger.Errorf("%+v", sockBuffErr)
 		}
 	}
 
