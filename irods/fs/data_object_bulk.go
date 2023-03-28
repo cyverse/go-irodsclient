@@ -227,7 +227,9 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 			return
 		}
 
-		taskHandle, _, taskErr := OpenDataObjectWithReplicaToken(taskConn, irodsPath, resource, "a", replicaToken, resourceHierarchy)
+		// open the file with read-write mode
+		// to not seek to end
+		taskHandle, _, taskErr := OpenDataObjectWithReplicaToken(taskConn, irodsPath, resource, "r+", replicaToken, resourceHierarchy)
 		if taskErr != nil {
 			errChan <- taskErr
 			return
@@ -460,6 +462,7 @@ func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPa
 		}
 
 		// open the file with read-write mode
+		// to not seek to end
 		taskHandle, _, taskErr := OpenDataObjectWithReplicaToken(taskConn, irodsPath, resource, "r+", replicaToken, resourceHierarchy)
 		if taskErr != nil {
 			errChan <- taskErr
