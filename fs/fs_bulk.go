@@ -181,6 +181,53 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 	return nil
 }
 
+// UploadFileAsync uploads a local file to irods
+func (fs *FileSystem) UploadFileAsync(localPath string, irodsPath string, resource string, replicate bool, callback common.TrackerCallBack) error {
+	localSrcPath := util.GetCorrectLocalPath(localPath)
+	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
+
+	irodsFilePath := irodsDestPath
+
+	stat, err := os.Stat(localSrcPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// file not exists
+			return types.NewFileNotFoundError("failed to find the local file")
+		}
+		return err
+	}
+
+	if stat.IsDir() {
+		return types.NewFileNotFoundError("The local file is a directory")
+	}
+
+	entry, err := fs.Stat(irodsDestPath)
+	if err != nil {
+		if !types.IsFileNotFoundError(err) {
+			return err
+		}
+	} else {
+		switch entry.Type {
+		case FileEntry:
+			// do nothing
+		case DirectoryEntry:
+			localFileName := filepath.Base(localSrcPath)
+			irodsFilePath = util.MakeIRODSPath(irodsDestPath, localFileName)
+		default:
+			return xerrors.Errorf("unknown entry type %s", entry.Type)
+		}
+	}
+
+	err = irods_fs.UploadDataObjectAsync(fs.ioSession, localSrcPath, irodsFilePath, resource, replicate, callback)
+	if err != nil {
+		return err
+	}
+
+	fs.invalidateCacheForFileCreate(irodsFilePath)
+	fs.cachePropagation.PropagateFileCreate(irodsFilePath)
+	return nil
+}
+
 // UploadFileParallel uploads a local file to irods in parallel
 func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, resource string, taskNum int, replicate bool, callback common.TrackerCallBack) error {
 	localSrcPath := util.GetCorrectLocalPath(localPath)

@@ -103,14 +103,12 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 
 	// copy
 	buffer := make([]byte, common.ReadWriteBufferSize)
-	var returnErr error
+	var writeErr error
 	for {
 		bytesRead, readErr := f.Read(buffer)
 		if bytesRead > 0 {
-			writeErr := WriteDataObjectWithTrackerCallBack(conn, handle, buffer[:bytesRead], blockWriteCallback)
+			writeErr = WriteDataObjectWithTrackerCallBack(conn, handle, buffer[:bytesRead], blockWriteCallback)
 			if writeErr != nil {
-				CloseDataObject(conn, handle)
-				returnErr = writeErr
 				break
 			}
 
@@ -121,27 +119,96 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 		}
 
 		if readErr != nil {
-			CloseDataObject(conn, handle)
 			if readErr == io.EOF {
 				break
 			} else {
-				returnErr = xerrors.Errorf("failed to read from file %s: %w", localPath, readErr)
+				writeErr = xerrors.Errorf("failed to read from file %s: %w", localPath, readErr)
 				break
 			}
 		}
 	}
 
-	var replErr error
+	CloseDataObject(conn, handle)
+
+	if writeErr != nil {
+		return writeErr
+	}
+
 	// replicate
 	if replicate {
-		replErr = ReplicateDataObject(conn, irodsPath, "", true, false)
+		replErr := ReplicateDataObject(conn, irodsPath, "", true, false)
+		if replErr != nil {
+			return replErr
+		}
 	}
 
-	if returnErr != nil {
-		return returnErr
+	return nil
+}
+
+// UploadDataObjectAsync put a data object at the local path to the iRODS path
+func UploadDataObjectAsync(session *session.IRODSSession, localPath string, irodsPath string, resource string, replicate bool, callback common.TrackerCallBack) error {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "UploadDataObjectAsync",
+	})
+
+	// use default resource when resource param is empty
+	if len(resource) == 0 {
+		account := session.GetAccount()
+		resource = account.DefaultResource
 	}
 
-	return replErr
+	stat, err := os.Stat(localPath)
+	if err != nil {
+		return xerrors.Errorf("failed to stat file %s: %w", localPath, err)
+	}
+
+	fileLength := stat.Size()
+
+	logger.Debugf("upload data object - %s", localPath)
+
+	conn, err := session.AcquireConnection()
+	if err != nil {
+		return xerrors.Errorf("failed to get connection: %w", err)
+	}
+	defer session.ReturnConnection(conn)
+
+	if conn == nil || !conn.IsConnected() {
+		return xerrors.Errorf("connection is nil or disconnected")
+	}
+
+	f, err := os.OpenFile(localPath, os.O_RDONLY, 0)
+	if err != nil {
+		return xerrors.Errorf("failed to open file %s: %w", localPath, err)
+	}
+	defer f.Close()
+
+	// open a new file
+	handle, err := OpenDataObjectWithOperation(conn, irodsPath, resource, "w", common.OPER_TYPE_PUT_DATA_OBJ)
+	if err != nil {
+		return err
+	}
+
+	totalBytesUploaded := int64(0)
+	if callback != nil {
+		callback(totalBytesUploaded, fileLength)
+	}
+
+	// copy
+	writeErr := WriteDataObjectAsyncWithTrackerCallBack(conn, handle, f, fileLength, callback)
+	CloseDataObject(conn, handle)
+
+	if writeErr != nil {
+		return writeErr
+	}
+
+	if replicate {
+		replErr := ReplicateDataObject(conn, irodsPath, "", true, false)
+		if replErr != nil {
+			return replErr
+		}
+	}
+	return nil
 }
 
 // UploadDataObjectParallel put a data object at the local path to the iRODS path in parallel
