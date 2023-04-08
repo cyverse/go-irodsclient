@@ -126,9 +126,10 @@ func (cache *FileSystemCache) RemoveParentDirCache(path string) {
 
 // GetEntryCache retrieves an entry cache
 func (cache *FileSystemCache) GetEntryCache(path string) *Entry {
-	entry, _ := cache.entryCache.Get(path)
-	if fsentry, ok := entry.(*Entry); ok {
-		return fsentry
+	if entry, exist := cache.entryCache.Get(path); exist {
+		if fsentry, ok := entry.(*Entry); ok {
+			return fsentry
+		}
 	}
 	return nil
 }
@@ -166,9 +167,10 @@ func (cache *FileSystemCache) RemoveAllNegativeEntryCacheForPath(path string) {
 
 // HasNegativeEntryCache checks the existence of a negative entry cache
 func (cache *FileSystemCache) HasNegativeEntryCache(path string) bool {
-	exist, _ := cache.negativeEntryCache.Get(path)
-	if bexist, ok := exist.(bool); ok {
-		return bexist
+	if exist, existOk := cache.negativeEntryCache.Get(path); existOk {
+		if bexist, ok := exist.(bool); ok {
+			return bexist
+		}
 	}
 	return false
 }
