@@ -169,7 +169,11 @@ func (manager *ICommandsEnvironmentManager) Load(processID int) error {
 	manager.Password = password
 	manager.IsPasswordPamToken = false
 
-	authScheme, _ := types.GetAuthScheme(manager.Environment.AuthenticationScheme)
+	authScheme, err := types.GetAuthScheme(manager.Environment.AuthenticationScheme)
+	if err != nil {
+		return xerrors.Errorf("failed to get auth scheme %s: %w", manager.Environment.AuthenticationScheme, err)
+	}
+
 	if authScheme == types.AuthSchemePAM {
 		// if auth scheme is PAM auth, password read from .irodsA is pam token
 		manager.IsPasswordPamToken = true
