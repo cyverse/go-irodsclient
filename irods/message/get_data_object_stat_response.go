@@ -10,17 +10,17 @@ import (
 
 // IRODSMessageGetDataObjectStatResponse stores file stat request
 type IRODSMessageGetDataObjectStatResponse struct {
-	XMLName                  xml.Name                      `xml:"RodsObjStat_PI"`
-	Size                     int64                         `xml:"objSize"`
-	Type                     int                           `xml:"objType"`
-	DataMode                 int                           `xml:"dataMode"`
-	DataID                   string                        `xml:"dataId"`
-	ChkSum                   string                        `xml:"chksum"`
-	Owner                    string                        `xml:"ownerName"`
-	Zone                     string                        `xml:"ownerZone"`
-	CreateTime               string                        `xml:"createTime"`
-	ModifyTime               string                        `xml:"modifyTime"`
-	SpecialCollectionPointer IRODSMessageSpecialCollection `xml:"*SpecColl_PI"`
+	XMLName                  xml.Name                       `xml:"RodsObjStat_PI"`
+	Size                     int64                          `xml:"objSize"`
+	Type                     int                            `xml:"objType"`
+	DataMode                 int                            `xml:"dataMode"`
+	DataID                   string                         `xml:"dataId"`
+	ChkSum                   string                         `xml:"chksum"`
+	Owner                    string                         `xml:"ownerName"`
+	Zone                     string                         `xml:"ownerZone"`
+	CreateTime               string                         `xml:"createTime"`
+	ModifyTime               string                         `xml:"modifyTime"`
+	SpecialCollectionPointer *IRODSMessageSpecialCollection `xml:"SpecColl_PI"`
 	// stores error return
 	Result int `xml:"-"`
 }
