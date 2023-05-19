@@ -24,6 +24,8 @@ type IRODSTicket struct {
 	Type TicketType
 	// Owner has the owner's name
 	Owner string
+	// OwnerZone has the owner's zone
+	OwnerZone string
 	// ObjectType is type of object
 	ObjectType ObjectType
 	// Path is path to the object
@@ -46,7 +48,7 @@ type IRODSTicket struct {
 
 // ToString stringifies the object
 func (ticket *IRODSTicket) ToString() string {
-	return fmt.Sprintf("<IRODSTicket %d %s %s %s>", ticket.ID, ticket.Name, ticket.Owner, ticket.Path)
+	return fmt.Sprintf("<IRODSTicket %d %s %s %s %s>", ticket.ID, ticket.Name, ticket.Owner, ticket.OwnerZone, ticket.Path)
 }
 
 // IRODSTicketForAnonymousAccess contains minimal irods ticket information for anonymous access

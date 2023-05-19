@@ -20,3 +20,35 @@ func (fs *FileSystem) GetTicketForAnonymousAccess(ticket string) (*types.IRODSTi
 
 	return ticketInfo, err
 }
+
+// ListTickets lists all available ticket information
+func (fs *FileSystem) ListTickets() ([]*types.IRODSTicket, error) {
+	conn, err := fs.metaSession.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.metaSession.ReturnConnection(conn)
+
+	tickets, err := irods_fs.ListTickets(conn)
+	if err != nil {
+		return nil, err
+	}
+
+	return tickets, err
+}
+
+// ListTicketsBasic lists all available basic ticket information
+func (fs *FileSystem) ListTicketsBasic() ([]*types.IRODSTicket, error) {
+	conn, err := fs.metaSession.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.metaSession.ReturnConnection(conn)
+
+	tickets, err := irods_fs.ListTicketsBasic(conn)
+	if err != nil {
+		return nil, err
+	}
+
+	return tickets, err
+}
