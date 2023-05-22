@@ -53,22 +53,22 @@ func testListEntries(t *testing.T) {
 
 	homedir := getHomeDir(fsTestID)
 
-	collections, err := filesystem.List(homedir)
+	entries, err := filesystem.List(homedir)
 	failError(t, err)
 
-	collectionPaths := []string{}
+	entryPaths := []string{}
 
-	for _, collection := range collections {
-		collectionPaths = append(collectionPaths, collection.Path)
-		assert.NotEmpty(t, collection.ID)
+	for _, entry := range entries {
+		entryPaths = append(entryPaths, entry.Path)
+		assert.NotEmpty(t, entry.ID)
 	}
 
 	expected := []string{}
 	expected = append(expected, GetTestDirs()...)
 	expected = append(expected, GetTestFiles()...)
 
-	assert.Equal(t, len(collections), len(expected))
-	assert.ElementsMatch(t, collectionPaths, expected)
+	assert.Equal(t, len(entries), len(expected))
+	assert.ElementsMatch(t, entryPaths, expected)
 }
 
 func testListEntriesByMeta(t *testing.T) {
