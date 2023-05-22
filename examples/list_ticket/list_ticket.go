@@ -51,6 +51,12 @@ func main() {
 		fmt.Printf("Found no tickets\n")
 	} else {
 		for _, ticket := range tickets {
+			restrictions, err := filesystem.GetTicketRestrictions(ticket.ID)
+			if err != nil {
+				logger.Error(err)
+				panic(err)
+			}
+
 			fmt.Printf("> %d\n", ticket.ID)
 			fmt.Printf("  id: %d\n", ticket.ID)
 			fmt.Printf("  name: %s\n", ticket.Name)
@@ -66,6 +72,30 @@ func main() {
 			fmt.Printf("  write file count: %d\n", ticket.WriteFileCount)
 			fmt.Printf("  write byte limit: %d\n", ticket.WriteByteLimit)
 			fmt.Printf("  write byte count: %d\n", ticket.WriteByteCount)
+
+			if len(restrictions.AllowedHosts) == 0 {
+				fmt.Printf("  No host restrictions\n")
+			} else {
+				for _, host := range restrictions.AllowedHosts {
+					fmt.Printf("  host restriction: %s\n", host)
+				}
+			}
+
+			if len(restrictions.AllowedUserNames) == 0 {
+				fmt.Printf("  No user restrictions\n")
+			} else {
+				for _, user := range restrictions.AllowedUserNames {
+					fmt.Printf("  user restriction: %s\n", user)
+				}
+			}
+
+			if len(restrictions.AllowedGroupNames) == 0 {
+				fmt.Printf("  No group restrictions\n")
+			} else {
+				for _, group := range restrictions.AllowedGroupNames {
+					fmt.Printf("  group restriction: %s\n", group)
+				}
+			}
 		}
 	}
 }

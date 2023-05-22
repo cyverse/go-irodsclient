@@ -52,3 +52,81 @@ func (fs *FileSystem) ListTicketsBasic() ([]*types.IRODSTicket, error) {
 
 	return tickets, err
 }
+
+// GetTicketRestrictions gets all restriction info. for the given ticket
+func (fs *FileSystem) GetTicketRestrictions(ticketID int64) (*types.IRODSTicketRestrictions, error) {
+	conn, err := fs.metaSession.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.metaSession.ReturnConnection(conn)
+
+	hosts, err := irods_fs.ListTicketAllowedHosts(conn, ticketID)
+	if err != nil {
+		return nil, err
+	}
+
+	usernames, err := irods_fs.ListTicketAllowedUserNames(conn, ticketID)
+	if err != nil {
+		return nil, err
+	}
+
+	groupnames, err := irods_fs.ListTicketAllowedGroupNames(conn, ticketID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.IRODSTicketRestrictions{
+		AllowedHosts:      hosts,
+		AllowedUserNames:  usernames,
+		AllowedGroupNames: groupnames,
+	}, nil
+}
+
+// ListTicketHostRestrictions lists all host restrictions for the given ticket
+func (fs *FileSystem) ListTicketHostRestrictions(ticketID int64) ([]string, error) {
+	conn, err := fs.metaSession.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.metaSession.ReturnConnection(conn)
+
+	hosts, err := irods_fs.ListTicketAllowedHosts(conn, ticketID)
+	if err != nil {
+		return nil, err
+	}
+
+	return hosts, err
+}
+
+// ListTicketUserNameRestrictions lists all user name restrictions for the given ticket
+func (fs *FileSystem) ListTicketUserNameRestrictions(ticketID int64) ([]string, error) {
+	conn, err := fs.metaSession.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.metaSession.ReturnConnection(conn)
+
+	usernames, err := irods_fs.ListTicketAllowedUserNames(conn, ticketID)
+	if err != nil {
+		return nil, err
+	}
+
+	return usernames, err
+}
+
+// ListTicketGroupNameRestrictions lists all group name restrictions for the given ticket
+func (fs *FileSystem) ListTicketUserGroupRestrictions(ticketID int64) ([]string, error) {
+	conn, err := fs.metaSession.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.metaSession.ReturnConnection(conn)
+
+	groupnames, err := irods_fs.ListTicketAllowedGroupNames(conn, ticketID)
+	if err != nil {
+		return nil, err
+	}
+
+	return groupnames, err
+}

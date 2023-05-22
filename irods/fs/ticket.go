@@ -638,3 +638,231 @@ func ListTicketsBasic(conn *connection.IRODSConnection) ([]*types.IRODSTicket, e
 
 	return tickets, nil
 }
+
+// ListTicketAllowedHosts returns allowed hosts for the given ticket
+func ListTicketAllowedHosts(conn *connection.IRODSConnection, ticketID int64) ([]string, error) {
+	if conn == nil || !conn.IsConnected() {
+		return nil, xerrors.Errorf("connection is nil or disconnected")
+	}
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	hosts := []string{}
+
+	continueQuery := true
+	continueIndex := 0
+	for continueQuery {
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddSelect(common.ICAT_COLUMN_TICKET_ALLOWED_HOST, 1)
+
+		collCondVal := fmt.Sprintf("= '%d'", ticketID)
+		query.AddCondition(common.ICAT_COLUMN_TICKET_ALLOWED_HOST_TICKET_ID, collCondVal)
+
+		queryResult := message.IRODSMessageQueryResponse{}
+		err := conn.Request(query, &queryResult, nil)
+		if err != nil {
+			return nil, xerrors.Errorf("failed to receive a ticket restriction query result message: %w", err)
+		}
+
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return hosts, nil
+			}
+
+			return nil, xerrors.Errorf("received a ticket restriction query error: %w", err)
+		}
+
+		if queryResult.RowCount == 0 {
+			break
+		}
+
+		if queryResult.AttributeCount > len(queryResult.SQLResult) {
+			return nil, xerrors.Errorf("failed to receive ticket restriction attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+		}
+
+		pagenatedHosts := make([]string, queryResult.RowCount)
+
+		for attr := 0; attr < queryResult.AttributeCount; attr++ {
+			sqlResult := queryResult.SQLResult[attr]
+			if len(sqlResult.Values) != queryResult.RowCount {
+				return nil, xerrors.Errorf("failed to receive ticket restriction rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+			}
+
+			for row := 0; row < queryResult.RowCount; row++ {
+				value := sqlResult.Values[row]
+
+				switch sqlResult.AttributeIndex {
+				case int(common.ICAT_COLUMN_TICKET_ALLOWED_HOST):
+					pagenatedHosts[row] = value
+				default:
+					// ignore
+				}
+			}
+		}
+
+		hosts = append(hosts, pagenatedHosts...)
+
+		continueIndex = queryResult.ContinueIndex
+		if continueIndex == 0 {
+			continueQuery = false
+		}
+	}
+
+	return hosts, nil
+}
+
+// ListTicketAllowedUserNames returns allowed user names for the given ticket
+func ListTicketAllowedUserNames(conn *connection.IRODSConnection, ticketID int64) ([]string, error) {
+	if conn == nil || !conn.IsConnected() {
+		return nil, xerrors.Errorf("connection is nil or disconnected")
+	}
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	usernames := []string{}
+
+	continueQuery := true
+	continueIndex := 0
+	for continueQuery {
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddSelect(common.ICAT_COLUMN_TICKET_ALLOWED_USER_NAME, 1)
+
+		collCondVal := fmt.Sprintf("= '%d'", ticketID)
+		query.AddCondition(common.ICAT_COLUMN_TICKET_ALLOWED_USER_TICKET_ID, collCondVal)
+
+		queryResult := message.IRODSMessageQueryResponse{}
+		err := conn.Request(query, &queryResult, nil)
+		if err != nil {
+			return nil, xerrors.Errorf("failed to receive a ticket restriction query result message: %w", err)
+		}
+
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return usernames, nil
+			}
+
+			return nil, xerrors.Errorf("received a ticket restriction query error: %w", err)
+		}
+
+		if queryResult.RowCount == 0 {
+			break
+		}
+
+		if queryResult.AttributeCount > len(queryResult.SQLResult) {
+			return nil, xerrors.Errorf("failed to receive ticket restriction attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+		}
+
+		pagenatedUsernames := make([]string, queryResult.RowCount)
+
+		for attr := 0; attr < queryResult.AttributeCount; attr++ {
+			sqlResult := queryResult.SQLResult[attr]
+			if len(sqlResult.Values) != queryResult.RowCount {
+				return nil, xerrors.Errorf("failed to receive ticket restriction rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+			}
+
+			for row := 0; row < queryResult.RowCount; row++ {
+				value := sqlResult.Values[row]
+
+				switch sqlResult.AttributeIndex {
+				case int(common.ICAT_COLUMN_TICKET_ALLOWED_USER_NAME):
+					pagenatedUsernames[row] = value
+				default:
+					// ignore
+				}
+			}
+		}
+
+		usernames = append(usernames, pagenatedUsernames...)
+
+		continueIndex = queryResult.ContinueIndex
+		if continueIndex == 0 {
+			continueQuery = false
+		}
+	}
+
+	return usernames, nil
+}
+
+// ListTicketAllowedGroupNames returns allowed group names for the given ticket
+func ListTicketAllowedGroupNames(conn *connection.IRODSConnection, ticketID int64) ([]string, error) {
+	if conn == nil || !conn.IsConnected() {
+		return nil, xerrors.Errorf("connection is nil or disconnected")
+	}
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	groupnames := []string{}
+
+	continueQuery := true
+	continueIndex := 0
+	for continueQuery {
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddSelect(common.ICAT_COLUMN_TICKET_ALLOWED_GROUP_NAME, 1)
+
+		collCondVal := fmt.Sprintf("= '%d'", ticketID)
+		query.AddCondition(common.ICAT_COLUMN_TICKET_ALLOWED_GROUP_TICKET_ID, collCondVal)
+
+		queryResult := message.IRODSMessageQueryResponse{}
+		err := conn.Request(query, &queryResult, nil)
+		if err != nil {
+			return nil, xerrors.Errorf("failed to receive a ticket restriction query result message: %w", err)
+		}
+
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				return groupnames, nil
+			}
+
+			return nil, xerrors.Errorf("received a ticket restriction query error: %w", err)
+		}
+
+		if queryResult.RowCount == 0 {
+			break
+		}
+
+		if queryResult.AttributeCount > len(queryResult.SQLResult) {
+			return nil, xerrors.Errorf("failed to receive ticket restriction attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+		}
+
+		pagenatedGroupnames := make([]string, queryResult.RowCount)
+
+		for attr := 0; attr < queryResult.AttributeCount; attr++ {
+			sqlResult := queryResult.SQLResult[attr]
+			if len(sqlResult.Values) != queryResult.RowCount {
+				return nil, xerrors.Errorf("failed to receive ticket restriction rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+			}
+
+			for row := 0; row < queryResult.RowCount; row++ {
+				value := sqlResult.Values[row]
+
+				switch sqlResult.AttributeIndex {
+				case int(common.ICAT_COLUMN_TICKET_ALLOWED_GROUP_NAME):
+					pagenatedGroupnames[row] = value
+				default:
+					// ignore
+				}
+			}
+		}
+
+		groupnames = append(groupnames, pagenatedGroupnames...)
+
+		continueIndex = queryResult.ContinueIndex
+		if continueIndex == 0 {
+			continueQuery = false
+		}
+	}
+
+	return groupnames, nil
+}
