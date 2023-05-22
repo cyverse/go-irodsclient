@@ -11,6 +11,7 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/message"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
+	"github.com/rs/xid"
 	"golang.org/x/xerrors"
 )
 
@@ -220,6 +221,11 @@ func ListTicketsForDataObjects(conn *connection.IRODSConnection) ([]*types.IRODS
 						WriteByteLimit: 0,
 						WriteByteCount: 0,
 					}
+				}
+
+				if tempValues[row] == nil {
+					// create a new
+					tempValues[row] = map[string]string{}
 				}
 
 				switch sqlResult.AttributeIndex {
@@ -865,4 +871,24 @@ func ListTicketAllowedGroupNames(conn *connection.IRODSConnection, ticketID int6
 	}
 
 	return groupnames, nil
+}
+
+// CreateTicket creates a ticket
+func CreateTicket(conn *connection.IRODSConnection, ticketName string, ticketType types.TicketType, path string) error {
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	ticketName = strings.TrimSpace(ticketName)
+	if len(ticketName) == 0 {
+		ticketName = xid.New().String()
+	}
+
+	req := message.NewIRODSMessageTicketAdminRequest("create", ticketName, string(ticketType), path)
+
+	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	if err != nil {
+		return xerrors.Errorf("received create ticket error: %w", err)
+	}
+	return nil
 }

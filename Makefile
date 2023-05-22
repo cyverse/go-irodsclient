@@ -28,6 +28,7 @@ examples:
 	CGO_ENABLED=0 GOOS=linux go build -o ./examples/make_dir/make_dir.out ./examples/make_dir/make_dir.go
 	CGO_ENABLED=0 GOOS=linux go build -o ./examples/list_dir_via_ticket/list_dir.out ./examples/list_dir_via_ticket/list_dir.go
 	CGO_ENABLED=0 GOOS=linux go build -o ./examples/list_ticket/list_ticket.out ./examples/list_ticket/list_ticket.go
+	CGO_ENABLED=0 GOOS=linux go build -o ./examples/create_ticket/create_ticket.out ./examples/create_ticket/create_ticket.go
 	CGO_ENABLED=0 GOOS=linux go build -o ./examples/get_ticket/get_ticket.out ./examples/get_ticket/get_ticket.go
 	CGO_ENABLED=0 GOOS=linux go build -o ./examples/get_ticket_anon/get_ticket_anon.out ./examples/get_ticket_anon/get_ticket_anon.go
 	CGO_ENABLED=0 GOOS=linux go build -o ./examples/version/version.out ./examples/version/version.go

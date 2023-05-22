@@ -3,6 +3,7 @@ package fs
 import (
 	irods_fs "github.com/cyverse/go-irodsclient/irods/fs"
 	"github.com/cyverse/go-irodsclient/irods/types"
+	"github.com/cyverse/go-irodsclient/irods/util"
 )
 
 // GetTicketForAnonymousAccess gets ticket information for anonymous access
@@ -54,7 +55,7 @@ func (fs *FileSystem) ListTicketsBasic() ([]*types.IRODSTicket, error) {
 }
 
 // GetTicketRestrictions gets all restriction info. for the given ticket
-func (fs *FileSystem) GetTicketRestrictions(ticketID int64) (*types.IRODSTicketRestrictions, error) {
+func (fs *FileSystem) GetTicketRestrictions(ticketID int64) (*IRODSTicketRestrictions, error) {
 	conn, err := fs.metaSession.AcquireConnection()
 	if err != nil {
 		return nil, err
@@ -76,7 +77,7 @@ func (fs *FileSystem) GetTicketRestrictions(ticketID int64) (*types.IRODSTicketR
 		return nil, err
 	}
 
-	return &types.IRODSTicketRestrictions{
+	return &IRODSTicketRestrictions{
 		AllowedHosts:      hosts,
 		AllowedUserNames:  usernames,
 		AllowedGroupNames: groupnames,
@@ -129,4 +130,22 @@ func (fs *FileSystem) ListTicketUserGroupRestrictions(ticketID int64) ([]string,
 	}
 
 	return groupnames, err
+}
+
+// CreateTicket creates a new ticket
+func (fs *FileSystem) CreateTicket(ticketName string, ticketType types.TicketType, path string) error {
+	irodsPath := util.GetCorrectIRODSPath(path)
+
+	conn, err := fs.metaSession.AcquireConnection()
+	if err != nil {
+		return err
+	}
+	defer fs.metaSession.ReturnConnection(conn)
+
+	err = irods_fs.CreateTicket(conn, ticketName, ticketType, irodsPath)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

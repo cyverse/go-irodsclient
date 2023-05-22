@@ -11,7 +11,7 @@ import (
 type IRODSMessageTicketAdminRequest struct {
 	XMLName xml.Name `xml:"ticketAdminInp_PI"`
 	Action  string   `xml:"arg1"` // session, create
-	Ticket  string   `xml:"arg2"` // ticket number
+	Ticket  string   `xml:"arg2"` // ticket name
 	Arg3    string   `xml:"arg3"`
 	Arg4    string   `xml:"arg4"`
 	Arg5    string   `xml:"arg5"`
