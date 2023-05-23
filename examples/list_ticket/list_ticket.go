@@ -65,7 +65,7 @@ func main() {
 			fmt.Printf("  owner zone: %s\n", ticket.OwnerZone)
 			fmt.Printf("  object type: %s\n", ticket.ObjectType)
 			fmt.Printf("  path: %s\n", ticket.Path)
-			fmt.Printf("  expireTime: %s\n", ticket.ExpireTime)
+			fmt.Printf("  expireTime: %s\n", ticket.ExpirationTime)
 			fmt.Printf("  uses limit: %d\n", ticket.UsesLimit)
 			fmt.Printf("  uses count: %d\n", ticket.UsesCount)
 			fmt.Printf("  write file limit: %d\n", ticket.WriteFileLimit)

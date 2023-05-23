@@ -234,7 +234,11 @@ func (conn *IRODSConnection) Connect() error {
 	}
 
 	if conn.account.UseTicket() {
-		conn.showTicket()
+		req := message.NewIRODSMessageTicketAdminRequest("session", conn.account.Ticket)
+		err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+		if err != nil {
+			return xerrors.Errorf("received supply ticket error: %w", err)
+		}
 	}
 
 	conn.connected = true
@@ -489,28 +493,6 @@ func (conn *IRODSConnection) loginPAM() error {
 
 	// retry native auth with generated password
 	return conn.login(conn.generatedPasswordForPAM)
-}
-
-func (conn *IRODSConnection) showTicket() error {
-	logger := log.WithFields(log.Fields{
-		"package":  "connection",
-		"struct":   "IRODSConnection",
-		"function": "showTicket",
-	})
-
-	logger.Debug("Submitting a ticket to obtain access")
-
-	if len(conn.account.Ticket) > 0 {
-		// show the ticket
-		ticketRequest := message.NewIRODSMessageTicketAdminRequest("session", conn.account.Ticket)
-		ticketResult := message.IRODSMessageTicketAdminResponse{}
-		err := conn.RequestAndCheck(ticketRequest, &ticketResult, nil)
-		if err != nil {
-			return xerrors.Errorf("received irods ticket request error: %w", err)
-		}
-		return nil
-	}
-	return nil
 }
 
 // Disconnect disconnects

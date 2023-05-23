@@ -30,8 +30,8 @@ type IRODSTicket struct {
 	ObjectType ObjectType
 	// Path is path to the object
 	Path string
-	// ExpireTime is time that the ticket expires
-	ExpireTime time.Time
+	// ExpirationTime is time that the ticket expires
+	ExpirationTime time.Time
 	// UsesLimit is an access limit
 	UsesLimit int64
 	// UsesCount is an access count
@@ -60,11 +60,11 @@ type IRODSTicketForAnonymousAccess struct {
 	Type TicketType
 	// Path is path to the object
 	Path string
-	// ExpireTime is time that the ticket expires
-	ExpireTime time.Time
+	// ExpirationTime is time that the ticket expires
+	ExpirationTime time.Time
 }
 
 // ToString stringifies the object
 func (ticket *IRODSTicketForAnonymousAccess) ToString() string {
-	return fmt.Sprintf("<IRODSTicketForAnonymousAccess %d %s %s %s %v>", ticket.ID, ticket.Name, ticket.Type, ticket.Path, ticket.ExpireTime)
+	return fmt.Sprintf("<IRODSTicketForAnonymousAccess %d %s %s %s %v>", ticket.ID, ticket.Name, ticket.Type, ticket.Path, ticket.ExpirationTime)
 }

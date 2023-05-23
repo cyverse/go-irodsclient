@@ -16,8 +16,8 @@ import (
 )
 
 // https://github.com/irods/irods_client_s3_ticketbooth/blob/b92e8aaa3127cb56fcb8fef09caa00244bd29ca6/ticket_booth/main.py
-// GetTicketForAnonymousAccess returns minimal ticket information for the ticket string
-func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticket string) (*types.IRODSTicketForAnonymousAccess, error) {
+// GetTicketForAnonymousAccess returns minimal ticket information for the ticket name string
+func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticketName string) (*types.IRODSTicketForAnonymousAccess, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
@@ -33,7 +33,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticket string
 	query.AddSelect(common.ICAT_COLUMN_TICKET_EXPIRY_TS, 1)
 	// We can't get common.ICAT_COLUMN_TICKET_STRING using query since it's not available for anonymous access
 
-	condVal := fmt.Sprintf("= '%s'", ticket)
+	condVal := fmt.Sprintf("= '%s'", ticketName)
 	query.AddCondition(common.ICAT_COLUMN_TICKET_STRING, condVal)
 
 	queryResult := message.IRODSMessageQueryResponse{}
@@ -102,11 +102,11 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticket string
 	}
 
 	return &types.IRODSTicketForAnonymousAccess{
-		ID:         ticketID,
-		Name:       ticket,
-		Type:       ticketType,
-		Path:       ticketPath,
-		ExpireTime: expireTime,
+		ID:             ticketID,
+		Name:           ticketName,
+		Type:           ticketType,
+		Path:           ticketPath,
+		ExpirationTime: expireTime,
 	}, nil
 }
 
@@ -213,7 +213,7 @@ func ListTicketsForDataObjects(conn *connection.IRODSConnection) ([]*types.IRODS
 						OwnerZone:      "",
 						ObjectType:     types.ObjectTypeCollection,
 						Path:           "",
-						ExpireTime:     time.Time{},
+						ExpirationTime: time.Time{},
 						UsesLimit:      0,
 						UsesCount:      0,
 						WriteFileLimit: 0,
@@ -259,7 +259,7 @@ func ListTicketsForDataObjects(conn *connection.IRODSConnection) ([]*types.IRODS
 						if err != nil {
 							return nil, xerrors.Errorf("failed to parse expiry time '%s': %w", value, err)
 						}
-						pagenatedTickets[row].ExpireTime = mT
+						pagenatedTickets[row].ExpirationTime = mT
 					}
 				case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
@@ -392,7 +392,7 @@ func ListTicketsForCollections(conn *connection.IRODSConnection) ([]*types.IRODS
 						OwnerZone:      "",
 						ObjectType:     types.ObjectTypeCollection,
 						Path:           "",
-						ExpireTime:     time.Time{},
+						ExpirationTime: time.Time{},
 						UsesLimit:      0,
 						UsesCount:      0,
 						WriteFileLimit: 0,
@@ -433,7 +433,7 @@ func ListTicketsForCollections(conn *connection.IRODSConnection) ([]*types.IRODS
 						if err != nil {
 							return nil, xerrors.Errorf("failed to parse expiry time '%s': %w", value, err)
 						}
-						pagenatedTickets[row].ExpireTime = mT
+						pagenatedTickets[row].ExpirationTime = mT
 					}
 				case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
@@ -557,7 +557,7 @@ func ListTicketsBasic(conn *connection.IRODSConnection) ([]*types.IRODSTicket, e
 						OwnerZone:      "",
 						ObjectType:     types.ObjectTypeCollection,
 						Path:           "",
-						ExpireTime:     time.Time{},
+						ExpirationTime: time.Time{},
 						UsesLimit:      0,
 						UsesCount:      0,
 						WriteFileLimit: 0,
@@ -598,7 +598,7 @@ func ListTicketsBasic(conn *connection.IRODSConnection) ([]*types.IRODSTicket, e
 						if err != nil {
 							return nil, xerrors.Errorf("failed to parse expiry time '%s': %w", value, err)
 						}
-						pagenatedTickets[row].ExpireTime = mT
+						pagenatedTickets[row].ExpirationTime = mT
 					}
 				case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
@@ -889,6 +889,122 @@ func CreateTicket(conn *connection.IRODSConnection, ticketName string, ticketTyp
 	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
 	if err != nil {
 		return xerrors.Errorf("received create ticket error: %w", err)
+	}
+	return nil
+}
+
+// DeleteTicket deletes the ticket
+func DeleteTicket(conn *connection.IRODSConnection, ticketName string) error {
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	req := message.NewIRODSMessageTicketAdminRequest("delete", ticketName)
+
+	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	if err != nil {
+		return xerrors.Errorf("received delete ticket error: %w", err)
+	}
+	return nil
+}
+
+// ModifyTicket modifies the given ticket
+func ModifyTicket(conn *connection.IRODSConnection, ticketName string, args ...string) error {
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	req := message.NewIRODSMessageTicketAdminRequest("mod", ticketName, args...)
+
+	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	if err != nil {
+		return xerrors.Errorf("received mod ticket error: %w", err)
+	}
+	return nil
+}
+
+// ModifyTicketUseLimit modifies the use limit of the given ticket
+func ModifyTicketUseLimit(conn *connection.IRODSConnection, ticketName string, uses int) error {
+	return ModifyTicket(conn, ticketName, "uses", fmt.Sprintf("%d", uses))
+}
+
+// ClearTicketUseLimit clears the use limit of the given ticket
+func ClearTicketUseLimit(conn *connection.IRODSConnection, ticketName string) error {
+	return ModifyTicketUseLimit(conn, ticketName, 0)
+}
+
+// ModifyTicketWriteFileLimit modifies the write file limit of the given ticket
+func ModifyTicketWriteFileLimit(conn *connection.IRODSConnection, ticketName string, count int) error {
+	return ModifyTicket(conn, ticketName, "write-file", fmt.Sprintf("%d", count))
+}
+
+// ClearTicketWriteFileLimit clears the write file limit of the given ticket
+func ClearTicketWriteFileLimit(conn *connection.IRODSConnection, ticketName string) error {
+	return ModifyTicketWriteFileLimit(conn, ticketName, 0)
+}
+
+// ModifyTicketWriteByteLimit modifies the write byte limit of the given ticket
+func ModifyTicketWriteByteLimit(conn *connection.IRODSConnection, ticketName string, bytes int) error {
+	return ModifyTicket(conn, ticketName, "write-byte", fmt.Sprintf("%d", bytes))
+}
+
+// ClearTicketWriteByteLimit clears the write byte limit of the given ticket
+func ClearTicketWriteByteLimit(conn *connection.IRODSConnection, ticketName string) error {
+	return ModifyTicketWriteByteLimit(conn, ticketName, 0)
+}
+
+// AddTicketAllowedUser adds a user to the allowed user names list of the given ticket
+func AddTicketAllowedUser(conn *connection.IRODSConnection, ticketName string, userName string) error {
+	return ModifyTicket(conn, ticketName, "add", "user", userName)
+}
+
+// RemoveTicketAllowedUser removes the user from the allowed user names list of the given ticket
+func RemoveTicketAllowedUser(conn *connection.IRODSConnection, ticketName string, userName string) error {
+	return ModifyTicket(conn, ticketName, "remove", "user", userName)
+}
+
+// AddTicketAllowedGroup adds a group to the allowed group names list of the given ticket
+func AddTicketAllowedGroup(conn *connection.IRODSConnection, ticketName string, groupName string) error {
+	return ModifyTicket(conn, ticketName, "add", "group", groupName)
+}
+
+// RemoveTicketAllowedGroup removes the group from the allowed group names list of the given ticket
+func RemoveTicketAllowedGroup(conn *connection.IRODSConnection, ticketName string, groupName string) error {
+	return ModifyTicket(conn, ticketName, "remove", "group", groupName)
+}
+
+// AddTicketAllowedHost adds a host to the allowed hosts list of the given ticket
+func AddTicketAllowedHost(conn *connection.IRODSConnection, ticketName string, host string) error {
+	return ModifyTicket(conn, ticketName, "add", "host", host)
+}
+
+// RemoveTicketAllowedHost removes the host from the allowed hosts list of the given ticket
+func RemoveTicketAllowedHost(conn *connection.IRODSConnection, ticketName string, host string) error {
+	return ModifyTicket(conn, ticketName, "remove", "host", host)
+}
+
+// ModifyTicketExpirationTime modifies the expiration time of the given ticket
+func ModifyTicketExpirationTime(conn *connection.IRODSConnection, ticketName string, expirationTime time.Time) error {
+	expirationTimeString := util.GetIRODSDateTimeStringForTicket(expirationTime)
+
+	return ModifyTicket(conn, ticketName, "expiry", expirationTimeString)
+}
+
+// ClearTicketExpirationTime clears the expiration time of the given ticket
+func ClearTicketExpirationTime(conn *connection.IRODSConnection, ticketName string) error {
+	return ModifyTicketExpirationTime(conn, ticketName, time.Time{})
+}
+
+// SupplyTicket supplies a ticket to obtain access
+func SupplyTicket(conn *connection.IRODSConnection, ticketName string) error {
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	req := message.NewIRODSMessageTicketAdminRequest("session", ticketName)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	if err != nil {
+		return xerrors.Errorf("received supply ticket error: %w", err)
 	}
 	return nil
 }

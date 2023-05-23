@@ -10,7 +10,7 @@ import (
 // IRODSMessageTicketAdminRequest stores ticket admin request
 type IRODSMessageTicketAdminRequest struct {
 	XMLName xml.Name `xml:"ticketAdminInp_PI"`
-	Action  string   `xml:"arg1"` // session, create
+	Action  string   `xml:"arg1"` // session, create, or mod
 	Ticket  string   `xml:"arg2"` // ticket name
 	Arg3    string   `xml:"arg3"`
 	Arg4    string   `xml:"arg4"`
