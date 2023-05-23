@@ -21,7 +21,7 @@ func TestTicket(t *testing.T) {
 	makeHomeDir(t, ticketTestID)
 
 	t.Run("test PrepareSamples", testPrepareSamplesForTicket)
-	//t.Run("test CreateAndRemoveTickets", testCreateAndRemoveTickets)
+	t.Run("test CreateAndRemoveTickets", testCreateAndRemoveTickets)
 	t.Run("test UpdateTicket", testUpdateTicket)
 }
 
