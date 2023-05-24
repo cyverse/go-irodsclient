@@ -9,14 +9,30 @@ import (
 )
 
 // GetTicketForAnonymousAccess gets ticket information for anonymous access
-func (fs *FileSystem) GetTicketForAnonymousAccess(ticket string) (*types.IRODSTicketForAnonymousAccess, error) {
+func (fs *FileSystem) GetTicketForAnonymousAccess(ticketName string) (*types.IRODSTicketForAnonymousAccess, error) {
 	conn, err := fs.metaSession.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
 	defer fs.metaSession.ReturnConnection(conn)
 
-	ticketInfo, err := irods_fs.GetTicketForAnonymousAccess(conn, ticket)
+	ticketInfo, err := irods_fs.GetTicketForAnonymousAccess(conn, ticketName)
+	if err != nil {
+		return nil, err
+	}
+
+	return ticketInfo, err
+}
+
+// GetTicket gets ticket information
+func (fs *FileSystem) GetTicket(ticketName string) (*types.IRODSTicket, error) {
+	conn, err := fs.metaSession.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.metaSession.ReturnConnection(conn)
+
+	ticketInfo, err := irods_fs.GetTicket(conn, ticketName)
 	if err != nil {
 		return nil, err
 	}

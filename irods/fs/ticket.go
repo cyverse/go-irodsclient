@@ -63,7 +63,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticketName st
 	var ticketID int64 = -1
 	ticketType := types.TicketTypeRead
 	ticketPath := ""
-	expireTime := time.Time{}
+	expirationTime := time.Time{}
 
 	for idx := 0; idx < queryResult.AttributeCount; idx++ {
 		sqlResult := queryResult.SQLResult[idx]
@@ -90,7 +90,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticketName st
 				if err != nil {
 					return nil, xerrors.Errorf("failed to parse expiry time '%s': %w", value, err)
 				}
-				expireTime = mT
+				expirationTime = mT
 			}
 		default:
 			// ignore
@@ -106,7 +106,369 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticketName st
 		Name:           ticketName,
 		Type:           ticketType,
 		Path:           ticketPath,
-		ExpirationTime: expireTime,
+		ExpirationTime: expirationTime,
+	}, nil
+}
+
+// GetTicket returns the ticket
+func GetTicket(conn *connection.IRODSConnection, ticketName string) (*types.IRODSTicket, error) {
+	if conn == nil || !conn.IsConnected() {
+		return nil, xerrors.Errorf("connection is nil or disconnected")
+	}
+
+	ticketColl, err := GetTicketForCollections(conn, ticketName)
+	if err != nil {
+		if !types.IsFileNotFoundError(err) {
+			return nil, err
+		}
+	} else {
+		if ticketColl != nil {
+			return ticketColl, nil
+		}
+	}
+
+	ticketsDataObj, err := GetTicketForDataObjects(conn, ticketName)
+	if err != nil {
+		if !types.IsFileNotFoundError(err) {
+			return nil, err
+		}
+	} else {
+		if ticketsDataObj != nil {
+			return ticketsDataObj, nil
+		}
+	}
+
+	return nil, types.NewFileNotFoundErrorf("failed to find ticket %s", ticketName)
+}
+
+// GetTicketForDataObjects returns ticket information for the ticket name string
+func GetTicketForDataObjects(conn *connection.IRODSConnection, ticketName string) (*types.IRODSTicket, error) {
+	if conn == nil || !conn.IsConnected() {
+		return nil, xerrors.Errorf("connection is nil or disconnected")
+	}
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, 0, 0, 0)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_ID, 1)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_TYPE, 1)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_OBJECT_TYPE, 1)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_USES_LIMIT, 1)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_USES_COUNT, 1)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_EXPIRY_TS, 1)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_WRITE_FILE_COUNT, 1)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_WRITE_FILE_LIMIT, 1)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_WRITE_BYTE_COUNT, 1)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_WRITE_BYTE_LIMIT, 1)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_DATA_NAME, 1)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_DATA_COLL_NAME, 1)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_OWNER_NAME, 1)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_OWNER_ZONE, 1)
+
+	condVal := fmt.Sprintf("= '%s'", ticketName)
+	query.AddCondition(common.ICAT_COLUMN_TICKET_STRING, condVal)
+
+	queryResult := message.IRODSMessageQueryResponse{}
+	err := conn.Request(query, &queryResult, nil)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to receive a ticket query result message: %w", err)
+	}
+
+	err = queryResult.CheckError()
+	if err != nil {
+		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+			return nil, types.NewFileNotFoundErrorf("failed to find a ticket")
+		}
+
+		return nil, xerrors.Errorf("received a ticket query error: %w", err)
+	}
+
+	if queryResult.RowCount != 1 {
+		// file not found
+		return nil, types.NewFileNotFoundErrorf("failed to find a ticket")
+	}
+
+	if queryResult.AttributeCount > len(queryResult.SQLResult) {
+		return nil, xerrors.Errorf("failed to receive ticket attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+	}
+
+	ticketID := int64(-1)
+	ticketType := types.TicketTypeRead
+	owner := ""
+	ownerZone := ""
+	objectType := types.ObjectTypeDataObject
+	ticketPath := ""
+	dataCollName := ""
+	dataName := ""
+	expirationTime := time.Time{}
+	usesLimit := int64(0)
+	usesCount := int64(0)
+	writeFileLimit := int64(0)
+	writeFileCount := int64(0)
+	writeByteLimit := int64(0)
+	writeByteCount := int64(0)
+
+	for idx := 0; idx < queryResult.AttributeCount; idx++ {
+		sqlResult := queryResult.SQLResult[idx]
+		if len(sqlResult.Values) != queryResult.RowCount {
+			return nil, xerrors.Errorf("failed to receive ticket rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+		}
+
+		value := sqlResult.Values[0]
+
+		switch sqlResult.AttributeIndex {
+		case int(common.ICAT_COLUMN_TICKET_ID):
+			cID, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				return nil, xerrors.Errorf("failed to parse ticket id '%s': %w", value, err)
+			}
+			ticketID = cID
+		case int(common.ICAT_COLUMN_TICKET_TYPE):
+			ticketType = types.TicketType(value)
+		case int(common.ICAT_COLUMN_TICKET_OBJECT_TYPE):
+			objectType = types.ObjectType(value)
+		case int(common.ICAT_COLUMN_TICKET_USES_LIMIT):
+			limit, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				return nil, xerrors.Errorf("failed to parse uses limit '%s': %w", value, err)
+			}
+			usesLimit = limit
+		case int(common.ICAT_COLUMN_TICKET_USES_COUNT):
+			count, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				return nil, xerrors.Errorf("failed to parse uses count '%s': %w", value, err)
+			}
+			usesCount = count
+		case int(common.ICAT_COLUMN_TICKET_EXPIRY_TS):
+			if len(strings.TrimSpace(value)) > 0 {
+				mT, err := util.GetIRODSDateTime(value)
+				if err != nil {
+					return nil, xerrors.Errorf("failed to parse expiry time '%s': %w", value, err)
+				}
+				expirationTime = mT
+			}
+		case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_LIMIT):
+			limit, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				return nil, xerrors.Errorf("failed to parse write file limit '%s': %w", value, err)
+			}
+			writeFileLimit = limit
+		case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_COUNT):
+			count, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				return nil, xerrors.Errorf("failed to parse write file count '%s': %w", value, err)
+			}
+			writeFileCount = count
+		case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_LIMIT):
+			limit, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				return nil, xerrors.Errorf("failed to parse write byte limit '%s': %w", value, err)
+			}
+			writeByteLimit = limit
+		case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_COUNT):
+			count, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				return nil, xerrors.Errorf("failed to parse write byte count '%s': %w", value, err)
+			}
+			writeByteCount = count
+		case int(common.ICAT_COLUMN_TICKET_DATA_NAME):
+			dataName = value
+			ticketPath = util.MakeIRODSPath(dataCollName, value)
+		case int(common.ICAT_COLUMN_TICKET_DATA_COLL_NAME):
+			dataCollName = value
+			ticketPath = util.MakeIRODSPath(value, dataName)
+		case int(common.ICAT_COLUMN_TICKET_OWNER_NAME):
+			owner = value
+		case int(common.ICAT_COLUMN_TICKET_OWNER_ZONE):
+			ownerZone = value
+		default:
+			// ignore
+		}
+	}
+
+	if ticketID == -1 {
+		return nil, types.NewFileNotFoundErrorf("failed to find a ticket")
+	}
+
+	return &types.IRODSTicket{
+		ID:             ticketID,
+		Name:           ticketName,
+		Type:           ticketType,
+		Owner:          owner,
+		OwnerZone:      ownerZone,
+		ObjectType:     objectType,
+		Path:           ticketPath,
+		ExpirationTime: expirationTime,
+		UsesLimit:      usesLimit,
+		UsesCount:      usesCount,
+		WriteFileLimit: writeFileLimit,
+		WriteFileCount: writeFileCount,
+		WriteByteLimit: writeByteLimit,
+		WriteByteCount: writeByteCount,
+	}, nil
+}
+
+// GetTicketForCollections returns ticket information for the ticket name string
+func GetTicketForCollections(conn *connection.IRODSConnection, ticketName string) (*types.IRODSTicket, error) {
+	if conn == nil || !conn.IsConnected() {
+		return nil, xerrors.Errorf("connection is nil or disconnected")
+	}
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, 0, 0, 0)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_ID, 1)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_TYPE, 1)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_OBJECT_TYPE, 1)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_USES_LIMIT, 1)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_USES_COUNT, 1)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_EXPIRY_TS, 1)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_WRITE_FILE_COUNT, 1)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_WRITE_FILE_LIMIT, 1)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_WRITE_BYTE_COUNT, 1)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_WRITE_BYTE_LIMIT, 1)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_COLL_NAME, 1)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_OWNER_NAME, 1)
+	query.AddSelect(common.ICAT_COLUMN_TICKET_OWNER_ZONE, 1)
+
+	condVal := fmt.Sprintf("= '%s'", ticketName)
+	query.AddCondition(common.ICAT_COLUMN_TICKET_STRING, condVal)
+
+	queryResult := message.IRODSMessageQueryResponse{}
+	err := conn.Request(query, &queryResult, nil)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to receive a ticket query result message: %w", err)
+	}
+
+	err = queryResult.CheckError()
+	if err != nil {
+		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+			return nil, types.NewFileNotFoundErrorf("failed to find a ticket")
+		}
+
+		return nil, xerrors.Errorf("received a ticket query error: %w", err)
+	}
+
+	if queryResult.RowCount != 1 {
+		// file not found
+		return nil, types.NewFileNotFoundErrorf("failed to find a ticket")
+	}
+
+	if queryResult.AttributeCount > len(queryResult.SQLResult) {
+		return nil, xerrors.Errorf("failed to receive ticket attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+	}
+
+	ticketID := int64(-1)
+	ticketType := types.TicketTypeRead
+	owner := ""
+	ownerZone := ""
+	objectType := types.ObjectTypeCollection
+	ticketPath := ""
+	expirationTime := time.Time{}
+	usesLimit := int64(0)
+	usesCount := int64(0)
+	writeFileLimit := int64(0)
+	writeFileCount := int64(0)
+	writeByteLimit := int64(0)
+	writeByteCount := int64(0)
+
+	for idx := 0; idx < queryResult.AttributeCount; idx++ {
+		sqlResult := queryResult.SQLResult[idx]
+		if len(sqlResult.Values) != queryResult.RowCount {
+			return nil, xerrors.Errorf("failed to receive ticket rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+		}
+
+		value := sqlResult.Values[0]
+
+		switch sqlResult.AttributeIndex {
+		case int(common.ICAT_COLUMN_TICKET_ID):
+			cID, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				return nil, xerrors.Errorf("failed to parse ticket id '%s': %w", value, err)
+			}
+			ticketID = cID
+		case int(common.ICAT_COLUMN_TICKET_TYPE):
+			ticketType = types.TicketType(value)
+		case int(common.ICAT_COLUMN_TICKET_OBJECT_TYPE):
+			objectType = types.ObjectType(value)
+		case int(common.ICAT_COLUMN_TICKET_USES_LIMIT):
+			limit, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				return nil, xerrors.Errorf("failed to parse uses limit '%s': %w", value, err)
+			}
+			usesLimit = limit
+		case int(common.ICAT_COLUMN_TICKET_USES_COUNT):
+			count, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				return nil, xerrors.Errorf("failed to parse uses count '%s': %w", value, err)
+			}
+			usesCount = count
+		case int(common.ICAT_COLUMN_TICKET_EXPIRY_TS):
+			if len(strings.TrimSpace(value)) > 0 {
+				mT, err := util.GetIRODSDateTime(value)
+				if err != nil {
+					return nil, xerrors.Errorf("failed to parse expiry time '%s': %w", value, err)
+				}
+				expirationTime = mT
+			}
+		case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_LIMIT):
+			limit, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				return nil, xerrors.Errorf("failed to parse write file limit '%s': %w", value, err)
+			}
+			writeFileLimit = limit
+		case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_COUNT):
+			count, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				return nil, xerrors.Errorf("failed to parse write file count '%s': %w", value, err)
+			}
+			writeFileCount = count
+		case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_LIMIT):
+			limit, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				return nil, xerrors.Errorf("failed to parse write byte limit '%s': %w", value, err)
+			}
+			writeByteLimit = limit
+		case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_COUNT):
+			count, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				return nil, xerrors.Errorf("failed to parse write byte count '%s': %w", value, err)
+			}
+			writeByteCount = count
+		case int(common.ICAT_COLUMN_TICKET_COLL_NAME):
+			ticketPath = value
+		case int(common.ICAT_COLUMN_TICKET_OWNER_NAME):
+			owner = value
+		case int(common.ICAT_COLUMN_TICKET_OWNER_ZONE):
+			ownerZone = value
+		default:
+			// ignore
+		}
+	}
+
+	if ticketID == -1 {
+		return nil, types.NewFileNotFoundErrorf("failed to find a ticket")
+	}
+
+	return &types.IRODSTicket{
+		ID:             ticketID,
+		Name:           ticketName,
+		Type:           ticketType,
+		Owner:          owner,
+		OwnerZone:      ownerZone,
+		ObjectType:     objectType,
+		Path:           ticketPath,
+		ExpirationTime: expirationTime,
+		UsesLimit:      usesLimit,
+		UsesCount:      usesCount,
+		WriteFileLimit: writeFileLimit,
+		WriteFileCount: writeFileCount,
+		WriteByteLimit: writeByteLimit,
+		WriteByteCount: writeByteCount,
 	}, nil
 }
 
