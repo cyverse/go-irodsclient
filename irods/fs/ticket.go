@@ -1286,7 +1286,7 @@ func ModifyTicket(conn *connection.IRODSConnection, ticketName string, args ...s
 }
 
 // ModifyTicketUseLimit modifies the use limit of the given ticket
-func ModifyTicketUseLimit(conn *connection.IRODSConnection, ticketName string, uses int) error {
+func ModifyTicketUseLimit(conn *connection.IRODSConnection, ticketName string, uses int64) error {
 	return ModifyTicket(conn, ticketName, "uses", fmt.Sprintf("%d", uses))
 }
 
@@ -1296,7 +1296,7 @@ func ClearTicketUseLimit(conn *connection.IRODSConnection, ticketName string) er
 }
 
 // ModifyTicketWriteFileLimit modifies the write file limit of the given ticket
-func ModifyTicketWriteFileLimit(conn *connection.IRODSConnection, ticketName string, count int) error {
+func ModifyTicketWriteFileLimit(conn *connection.IRODSConnection, ticketName string, count int64) error {
 	return ModifyTicket(conn, ticketName, "write-file", fmt.Sprintf("%d", count))
 }
 
@@ -1306,7 +1306,7 @@ func ClearTicketWriteFileLimit(conn *connection.IRODSConnection, ticketName stri
 }
 
 // ModifyTicketWriteByteLimit modifies the write byte limit of the given ticket
-func ModifyTicketWriteByteLimit(conn *connection.IRODSConnection, ticketName string, bytes int) error {
+func ModifyTicketWriteByteLimit(conn *connection.IRODSConnection, ticketName string, bytes int64) error {
 	return ModifyTicket(conn, ticketName, "write-byte", fmt.Sprintf("%d", bytes))
 }
 

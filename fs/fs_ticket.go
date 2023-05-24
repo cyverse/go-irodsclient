@@ -185,7 +185,7 @@ func (fs *FileSystem) DeleteTicket(ticketName string) error {
 }
 
 // ModifyTicketUseLimit modifies the use limit of the given ticket
-func (fs *FileSystem) ModifyTicketUseLimit(ticketName string, uses int) error {
+func (fs *FileSystem) ModifyTicketUseLimit(ticketName string, uses int64) error {
 	conn, err := fs.metaSession.AcquireConnection()
 	if err != nil {
 		return err
@@ -217,7 +217,7 @@ func (fs *FileSystem) ClearTicketUseLimit(ticketName string) error {
 }
 
 // ModifyTicketWriteFileLimit modifies the write file limit of the given ticket
-func (fs *FileSystem) ModifyTicketWriteFileLimit(ticketName string, count int) error {
+func (fs *FileSystem) ModifyTicketWriteFileLimit(ticketName string, count int64) error {
 	conn, err := fs.metaSession.AcquireConnection()
 	if err != nil {
 		return err
@@ -249,7 +249,7 @@ func (fs *FileSystem) ClearTicketWriteFileLimit(ticketName string) error {
 }
 
 // ModifyTicketWriteByteLimit modifies the write byte limit of the given ticket
-func (fs *FileSystem) ModifyTicketWriteByteLimit(ticketName string, bytes int) error {
+func (fs *FileSystem) ModifyTicketWriteByteLimit(ticketName string, bytes int64) error {
 	conn, err := fs.metaSession.AcquireConnection()
 	if err != nil {
 		return err
