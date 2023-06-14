@@ -181,7 +181,7 @@ func ListCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return metas, nil
+				break
 			}
 			return nil, xerrors.Errorf("received collection metadata query error: %w", err)
 		}
@@ -284,7 +284,7 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return accesses, nil
+				break
 			}
 			return nil, xerrors.Errorf("received collection access query error: %w", err)
 		}
@@ -385,7 +385,7 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, path string
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return accesses, nil
+				break
 			}
 			return nil, xerrors.Errorf("received collection access query error: %w", err)
 		}
@@ -488,7 +488,7 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return collections, nil
+				break
 			}
 			return nil, xerrors.Errorf("received collection query error: %w", err)
 		}
@@ -769,7 +769,7 @@ func SearchCollectionsByMeta(conn *connection.IRODSConnection, metaName string, 
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return collections, nil
+				break
 			}
 			return nil, xerrors.Errorf("received collection query error: %w", err)
 		}
@@ -889,7 +889,7 @@ func SearchCollectionsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return collections, nil
+				break
 			}
 			return nil, xerrors.Errorf("received collection query error: %w", err)
 		}

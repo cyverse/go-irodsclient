@@ -485,7 +485,7 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return dataObjects, nil
+				break
 			}
 			return nil, xerrors.Errorf("received data object query error: %w", err)
 		}
@@ -670,7 +670,7 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return dataObjects, nil
+				break
 			}
 			return nil, xerrors.Errorf("received data object query error: %w", err)
 		}
@@ -783,6 +783,7 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 
 	// merge data objects per file
 	mergedDataObjectsMap := map[int64]*types.IRODSDataObject{}
+
 	for _, object := range dataObjects {
 		existingObj, exists := mergedDataObjectsMap[object.ID]
 		if exists {
@@ -852,7 +853,7 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, collection *types.IROD
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return metas, nil
+				break
 			}
 			return nil, xerrors.Errorf("received data object metadata query error: %w", err)
 		}
@@ -957,7 +958,7 @@ func ListDataObjectAccesses(conn *connection.IRODSConnection, collection *types.
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return accesses, nil
+				break
 			}
 			return nil, xerrors.Errorf("received data object access query error: %w", err)
 		}
@@ -1058,7 +1059,7 @@ func ListAccessesForDataObjects(conn *connection.IRODSConnection, collection *ty
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return accesses, nil
+				break
 			}
 			return nil, xerrors.Errorf("received data object access query error: %w", err)
 		}
@@ -1990,7 +1991,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return dataObjects, nil
+				break
 			}
 			return nil, xerrors.Errorf("received data object query error: %w", err)
 		}
@@ -2195,7 +2196,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return dataObjects, nil
+				break
 			}
 			return nil, xerrors.Errorf("received data object query error: %w", err)
 		}
@@ -2408,7 +2409,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return dataObjects, nil
+				break
 			}
 			return nil, xerrors.Errorf("received data object query error: %w", err)
 		}
@@ -2614,7 +2615,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return dataObjects, nil
+				break
 			}
 			return nil, xerrors.Errorf("received data object query error: %w", err)
 		}

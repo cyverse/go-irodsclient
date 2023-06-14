@@ -539,7 +539,7 @@ func ListTicketsForDataObjects(conn *connection.IRODSConnection) ([]*types.IRODS
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return tickets, nil
+				break
 			}
 
 			return nil, xerrors.Errorf("received a ticket query error: %w", err)
@@ -719,7 +719,7 @@ func ListTicketsForCollections(conn *connection.IRODSConnection) ([]*types.IRODS
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return tickets, nil
+				break
 			}
 
 			return nil, xerrors.Errorf("received a ticket query error: %w", err)
@@ -884,7 +884,7 @@ func ListTicketsBasic(conn *connection.IRODSConnection) ([]*types.IRODSTicket, e
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return tickets, nil
+				break
 			}
 
 			return nil, xerrors.Errorf("received a ticket query error: %w", err)
@@ -1038,7 +1038,7 @@ func ListTicketAllowedHosts(conn *connection.IRODSConnection, ticketID int64) ([
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return hosts, nil
+				break
 			}
 
 			return nil, xerrors.Errorf("received a ticket restriction query error: %w", err)
@@ -1114,7 +1114,7 @@ func ListTicketAllowedUserNames(conn *connection.IRODSConnection, ticketID int64
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return usernames, nil
+				break
 			}
 
 			return nil, xerrors.Errorf("received a ticket restriction query error: %w", err)
@@ -1190,7 +1190,7 @@ func ListTicketAllowedGroupNames(conn *connection.IRODSConnection, ticketID int6
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return groupnames, nil
+				break
 			}
 
 			return nil, xerrors.Errorf("received a ticket restriction query error: %w", err)

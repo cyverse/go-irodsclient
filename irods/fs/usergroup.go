@@ -146,7 +146,7 @@ func ListGroupUsers(conn *connection.IRODSConnection, group string) ([]*types.IR
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return users, nil
+				break
 			}
 			return nil, xerrors.Errorf("received a group user query error: %w", err)
 		}
@@ -244,7 +244,7 @@ func ListGroups(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return groups, nil
+				break
 			}
 			return nil, xerrors.Errorf("received a group query error: %w", err)
 		}
@@ -342,7 +342,7 @@ func ListUsers(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return users, nil
+				break
 			}
 			return nil, xerrors.Errorf("received a user query error: %w", err)
 		}
@@ -437,7 +437,7 @@ func ListUserGroupNames(conn *connection.IRODSConnection, user string) ([]string
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return groups, nil
+				break
 			}
 			return nil, xerrors.Errorf("received a group query error: %w", err)
 		}
@@ -631,7 +631,7 @@ func ListUserResourceQuota(conn *connection.IRODSConnection, user string) ([]*ty
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return quota, nil
+				break
 			}
 			return nil, xerrors.Errorf("received a quota query error: %w", err)
 		}
@@ -848,7 +848,7 @@ func ListUserMeta(conn *connection.IRODSConnection, user string) ([]*types.IRODS
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
-				return metas, nil
+				break
 			}
 			return nil, xerrors.Errorf("received a user metadata query error: %w", err)
 		}
