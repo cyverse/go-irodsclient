@@ -379,8 +379,9 @@ func (conn *IRODSConnection) sslStartup() error {
 	}
 
 	sslConf := &tls.Config{
-		RootCAs:    caCertPool,
-		ServerName: conn.account.Host,
+		RootCAs:            caCertPool,
+		ServerName:         conn.account.Host,
+		InsecureSkipVerify: true,
 	}
 
 	// Create a side connection using the existing socket
