@@ -12,6 +12,8 @@ const (
 	//ALL_KW           KeyWord = "all"
 	DEST_RESC_NAME_KW  KeyWord = "destRescName"
 	DATA_TYPE_KW       KeyWord = "dataType"
+	DATA_SIZE_KW       KeyWord = "dataSize"
+	NUM_THREADS_KW     KeyWord = "numThreads"
 	OPR_TYPE_KW        KeyWord = "oprType"
 	UPDATE_REPL_KW     KeyWord = "updateRepl"
 	RESC_NAME_KW       KeyWord = "rescName"

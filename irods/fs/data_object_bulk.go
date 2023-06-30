@@ -260,7 +260,7 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 	logger.Debugf("upload data object in parallel - %s, size(%d), threads(%d)", irodsPath, fileLength, numTasks)
 
 	// open a new file
-	handle, err := OpenDataObjectWithOperation(conn, irodsPath, resource, "w", common.OPER_TYPE_NONE)
+	handle, err := OpenDataObjectForPutParallel(conn, irodsPath, resource, "w", common.OPER_TYPE_NONE, numTasks, fileLength)
 	if err != nil {
 		return err
 	}
@@ -301,7 +301,7 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 
 		// open the file with read-write mode
 		// to not seek to end
-		taskHandle, _, taskErr := OpenDataObjectWithReplicaToken(taskConn, irodsPath, resource, "r+", replicaToken, resourceHierarchy)
+		taskHandle, _, taskErr := OpenDataObjectWithReplicaToken(taskConn, irodsPath, resource, "a", replicaToken, resourceHierarchy, numTasks, fileLength)
 		if taskErr != nil {
 			errChan <- taskErr
 			return
@@ -494,7 +494,7 @@ func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPa
 	errChan := make(chan error, numBlocks)
 
 	// open a new file
-	handle, err := OpenDataObjectWithOperation(conn, irodsPath, resource, "w", common.OPER_TYPE_NONE)
+	handle, err := OpenDataObjectForPutParallel(conn, irodsPath, resource, "w", common.OPER_TYPE_NONE, numTasks, fileLength)
 	if err != nil {
 		errChan <- err
 		close(outputChan)
@@ -535,7 +535,7 @@ func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPa
 
 		// open the file with read-write mode
 		// to not seek to end
-		taskHandle, _, taskErr := OpenDataObjectWithReplicaToken(taskConn, irodsPath, resource, "r+", replicaToken, resourceHierarchy)
+		taskHandle, _, taskErr := OpenDataObjectWithReplicaToken(taskConn, irodsPath, resource, "r+", replicaToken, resourceHierarchy, numTasks, fileLength)
 		if taskErr != nil {
 			errChan <- taskErr
 			return

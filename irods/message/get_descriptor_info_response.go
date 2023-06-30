@@ -37,7 +37,6 @@ type IRODSMessageGetDescriptorInfoResponse struct {
 	RemoteZoneHost          map[string]interface{} `json:"remote_zone_host"`
 	InPDMO                  string                 `json:"in_pdmo"`
 	ReplicaToken            string                 `json:"replica_token"`
-	ResourceHierarchy       string                 `json:"resource_hierarchy"`
 
 	// stores error return
 	Result int `json:"-"`
@@ -76,14 +75,6 @@ func (msg *IRODSMessageGetDescriptorInfoResponse) FromBytes(bytes []byte) error 
 	err = json.Unmarshal(jsonBody, msg)
 	if err != nil {
 		return xerrors.Errorf("failed to unmarshal json to irods message: %w", err)
-	}
-
-	// handle fields buried in other structs
-	// ResourceHierarchy
-	if msg.DataObjectInfo != nil {
-		if resourceHierarchy, ok := msg.DataObjectInfo["resource_hierarchy"]; ok {
-			msg.ResourceHierarchy = resourceHierarchy.(string)
-		}
 	}
 
 	return nil

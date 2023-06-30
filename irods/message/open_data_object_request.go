@@ -2,6 +2,7 @@ package message
 
 import (
 	"encoding/xml"
+	"fmt"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/types"
@@ -57,8 +58,35 @@ func NewIRODSMessageOpenobjRequestWithOperation(path string, resource string, mo
 	return request
 }
 
+// NewIRODSMessageOpenobjRequestForPutParallel ...
+func NewIRODSMessageOpenobjRequestForPutParallel(path string, resource string, mode types.FileOpenMode, oper common.OperationType, threadNum int, dataSize int64) *IRODSMessageOpenDataObjectRequest {
+	flag := mode.GetFlag()
+	request := &IRODSMessageOpenDataObjectRequest{
+		Path:          path,
+		CreateMode:    0,
+		OpenFlags:     flag,
+		Offset:        0,
+		Size:          -1,
+		Threads:       0,
+		OperationType: int(oper),
+		KeyVals: IRODSMessageSSKeyVal{
+			Length: 0,
+		},
+	}
+
+	if len(resource) > 0 {
+		request.KeyVals.Add(string(common.RESC_NAME_KW), resource)
+		request.KeyVals.Add(string(common.DEST_RESC_NAME_KW), resource)
+	}
+
+	request.AddKeyVal(common.NUM_THREADS_KW, fmt.Sprintf("%d", threadNum))
+	request.AddKeyVal(common.DATA_SIZE_KW, fmt.Sprintf("%d", dataSize))
+
+	return request
+}
+
 // NewIRODSMessageOpenobjRequestWithReplicaToken creates a IRODSMessageOpenobjRequest message
-func NewIRODSMessageOpenobjRequestWithReplicaToken(path string, mode types.FileOpenMode, resourceHierarchy string, replicaToken string) *IRODSMessageOpenDataObjectRequest {
+func NewIRODSMessageOpenobjRequestWithReplicaToken(path string, mode types.FileOpenMode, resourceHierarchy string, replicaToken string, threadNum int, dataSize int64) *IRODSMessageOpenDataObjectRequest {
 	flag := mode.GetFlag()
 	request := &IRODSMessageOpenDataObjectRequest{
 		Path:          path,
@@ -75,6 +103,8 @@ func NewIRODSMessageOpenobjRequestWithReplicaToken(path string, mode types.FileO
 
 	request.AddKeyVal(common.RESC_HIER_STR_KW, resourceHierarchy)
 	request.AddKeyVal(common.REPLICA_TOKEN_KW, replicaToken)
+	request.AddKeyVal(common.NUM_THREADS_KW, fmt.Sprintf("%d", threadNum))
+	request.AddKeyVal(common.DATA_SIZE_KW, fmt.Sprintf("%d", dataSize))
 
 	return request
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -1407,7 +1408,7 @@ func OpenDataObject(conn *connection.IRODSConnection, path string, resource stri
 }
 
 // OpenDataObjectWithReplicaToken opens a data object for the path, returns a file handle
-func OpenDataObjectWithReplicaToken(conn *connection.IRODSConnection, path string, resource string, mode string, replicaToken string, resourceHierarchy string) (*types.IRODSFileHandle, int64, error) {
+func OpenDataObjectWithReplicaToken(conn *connection.IRODSConnection, path string, resource string, mode string, replicaToken string, resourceHierarchy string, threadNum int, dataSize int64) (*types.IRODSFileHandle, int64, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, -1, xerrors.Errorf("connection is nil or disconnected")
 	}
@@ -1429,7 +1430,8 @@ func OpenDataObjectWithReplicaToken(conn *connection.IRODSConnection, path strin
 
 	fileOpenMode := types.FileOpenMode(mode)
 
-	request := message.NewIRODSMessageOpenobjRequestWithReplicaToken(path, fileOpenMode, resourceHierarchy, replicaToken)
+	request := message.NewIRODSMessageOpenobjRequestWithReplicaToken(path, fileOpenMode, resourceHierarchy, replicaToken, threadNum, dataSize)
+
 	response := message.IRODSMessageOpenDataObjectResponse{}
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
@@ -1519,6 +1521,62 @@ func OpenDataObjectWithOperation(conn *connection.IRODSConnection, path string, 
 	return handle, nil
 }
 
+// OpenDataObjectForPutParallel opens a data object for the path, returns a file handle
+func OpenDataObjectForPutParallel(conn *connection.IRODSConnection, path string, resource string, mode string, oper common.OperationType, threadNum int, dataSize int64) (*types.IRODSFileHandle, error) {
+	if conn == nil || !conn.IsConnected() {
+		return nil, xerrors.Errorf("connection is nil or disconnected")
+	}
+
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForDataObjectOpen(1)
+	}
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	// use default resource when resource param is empty
+	if len(resource) == 0 {
+		account := conn.GetAccount()
+		resource = account.DefaultResource
+	}
+
+	fileOpenMode := types.FileOpenMode(mode)
+
+	request := message.NewIRODSMessageOpenobjRequestForPutParallel(path, resource, fileOpenMode, oper, threadNum, dataSize)
+	response := message.IRODSMessageOpenDataObjectResponse{}
+	err := conn.RequestAndCheck(request, &response, nil)
+	if err != nil {
+		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+			return nil, types.NewFileNotFoundErrorf("failed to find a data object")
+		}
+		return nil, xerrors.Errorf("failed to open data object: %w", err)
+	}
+
+	handle := &types.IRODSFileHandle{
+		FileDescriptor: response.GetFileDescriptor(),
+		Path:           path,
+		OpenMode:       fileOpenMode,
+		Resource:       resource,
+		Oper:           oper,
+	}
+
+	if metrics != nil {
+		metrics.IncreaseCounterForOpenFileHandles(1)
+	}
+
+	// handle seek
+	if fileOpenMode.SeekToEnd() {
+		_, err = seekDataObject(conn, handle, 0, types.SeekEnd)
+		if err != nil {
+			return handle, err
+		}
+	}
+
+	return handle, nil
+}
+
 // GetReplicaAccessInfo returns replica token and resource hierarchy
 func GetReplicaAccessInfo(conn *connection.IRODSConnection, handle *types.IRODSFileHandle) (string, string, error) {
 	if conn == nil || !conn.IsConnected() {
@@ -1544,7 +1602,17 @@ func GetReplicaAccessInfo(conn *connection.IRODSConnection, handle *types.IRODSF
 		return "", "", xerrors.Errorf("failed to get replica access info: %w", err)
 	}
 
-	return response.ReplicaToken, response.ResourceHierarchy, nil
+	// handle fields buried in other structs
+	// ResourceHierarchy
+	resourceHierarchy := ""
+	if response.DataObjectInfo != nil {
+		if resourceHierarchyInfo, ok := response.DataObjectInfo["resource_hierarchy"]; ok {
+			resourceHierarchy = fmt.Sprintf("%v", resourceHierarchyInfo)
+			resourceHierarchy = strings.TrimSpace(resourceHierarchy)
+		}
+	}
+
+	return response.ReplicaToken, resourceHierarchy, nil
 }
 
 // SeekDataObject moves file pointer of a data object, returns offset
