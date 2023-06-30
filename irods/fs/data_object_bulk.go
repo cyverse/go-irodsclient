@@ -252,6 +252,11 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 		numTasks = util.GetNumTasksForParallelTransfer(fileLength)
 	}
 
+	if numTasks == 1 {
+		// serial upload
+		return UploadDataObject(session, localPath, irodsPath, resource, replicate, callback)
+	}
+
 	logger.Debugf("upload data object in parallel - %s, size(%d), threads(%d)", irodsPath, fileLength, numTasks)
 
 	// open a new file
@@ -444,25 +449,6 @@ func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPa
 		return outputChan, errChan
 	}
 
-	if !conn.SupportParallelUpload() {
-		// serial upload
-		outputChan := make(chan int64, 1)
-		errChan := make(chan error, 1)
-
-		err := UploadDataObject(session, localPath, irodsPath, resource, replicate, nil)
-		if err != nil {
-			errChan <- err
-			close(outputChan)
-			close(errChan)
-			return outputChan, errChan
-		}
-
-		outputChan <- 0
-		close(outputChan)
-		close(errChan)
-		return outputChan, errChan
-	}
-
 	blockSize := blockLength
 	if blockSize <= 0 {
 		blockSize = util.GetBlockSizeForParallelTransfer(fileLength)
@@ -480,6 +466,25 @@ func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPa
 	numBlocks := fileLength / blockSize
 	if fileLength%blockSize != 0 {
 		numBlocks++
+	}
+
+	if !conn.SupportParallelUpload() || numTasks <= 1 {
+		// serial upload
+		outputChan := make(chan int64, 1)
+		errChan := make(chan error, 1)
+
+		err := UploadDataObject(session, localPath, irodsPath, resource, replicate, nil)
+		if err != nil {
+			errChan <- err
+			close(outputChan)
+			close(errChan)
+			return outputChan, errChan
+		}
+
+		outputChan <- 0
+		close(outputChan)
+		close(errChan)
+		return outputChan, errChan
 	}
 
 	logger.Debugf("upload data object in parallel - %s, size(%d), threads(%d), block_size(%d)", irodsPath, fileLength, numTasks, blockSize)
