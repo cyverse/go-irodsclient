@@ -1860,7 +1860,7 @@ func TruncateDataObjectHandle(conn *connection.IRODSConnection, handle *types.IR
 	}
 
 	// close
-	request1 := message.NewIRODSMessageCloseDataObjectRequest(handle.FileDescriptor, handle.Resource)
+	request1 := message.NewIRODSMessageCloseDataObjectRequest(handle.FileDescriptor)
 	response1 := message.IRODSMessageCloseDataObjectResponse{}
 	err = conn.RequestAndCheck(request1, &response1, nil)
 	if err != nil {
@@ -1927,7 +1927,7 @@ func CloseDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHa
 	conn.Lock()
 	defer conn.Unlock()
 
-	request := message.NewIRODSMessageCloseDataObjectRequest(handle.FileDescriptor, handle.Resource)
+	request := message.NewIRODSMessageCloseDataObjectRequest(handle.FileDescriptor)
 	response := message.IRODSMessageCloseDataObjectResponse{}
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {

@@ -11,7 +11,7 @@ import (
 type IRODSMessageCloseDataObjectRequest IRODSMessageOpenedDataObjectRequest
 
 // NewIRODSMessageCloseDataObjectRequest creates a IRODSMessageCloseDataObjectRequest message
-func NewIRODSMessageCloseDataObjectRequest(desc int, resource string) *IRODSMessageCloseDataObjectRequest {
+func NewIRODSMessageCloseDataObjectRequest(desc int) *IRODSMessageCloseDataObjectRequest {
 	request := &IRODSMessageCloseDataObjectRequest{
 		FileDescriptor: desc,
 		Size:           0,
@@ -22,10 +22,6 @@ func NewIRODSMessageCloseDataObjectRequest(desc int, resource string) *IRODSMess
 		KeyVals: IRODSMessageSSKeyVal{
 			Length: 0,
 		},
-	}
-
-	if len(resource) > 0 {
-		request.KeyVals.Add(string(common.DEST_RESC_NAME_KW), resource)
 	}
 
 	return request

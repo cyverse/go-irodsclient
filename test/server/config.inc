@@ -8,4 +8,4 @@ export IRODS_LAST_EPHEMERAL_PORT=20199
 
 export DBMS_CONF_HOST="$ENV_NAME"_dbms_1."$DOMAIN"
 export IRODS_CONF_HOST="$ENV_NAME"_irods_1."$DOMAIN"
-export IRODS_VER="4.2.8"
+export IRODS_VER="4.2.11"

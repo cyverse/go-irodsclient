@@ -288,11 +288,14 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 	uploadTask := func(taskOffset int64, taskLength int64) {
 		defer taskWaitGroup.Done()
 
-		taskConn, taskErr := session.AcquireConnection()
+		//taskConn, taskErr := session.AcquireConnection()
+		// we will not reuse connection from the pool, as it should use fresh one
+		taskConn, taskErr := session.AcquireUnmanagedConnection()
 		if taskErr != nil {
 			errChan <- xerrors.Errorf("failed to get connection: %w", taskErr)
 		}
-		defer session.ReturnConnection(taskConn)
+		//defer session.ReturnConnection(taskConn)
+		defer session.DiscardConnection(taskConn)
 
 		if taskConn == nil || !taskConn.IsConnected() {
 			errChan <- xerrors.Errorf("connection is nil or disconnected")
@@ -522,11 +525,14 @@ func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPa
 	uploadTask := func() {
 		defer taskWaitGroup.Done()
 
-		taskConn, taskErr := session.AcquireConnection()
+		//taskConn, taskErr := session.AcquireConnection()
+		// we will not reuse connection from the pool, as it should use fresh one
+		taskConn, taskErr := session.AcquireUnmanagedConnection()
 		if taskErr != nil {
-			errChan <- xerrors.Errorf("failed to get connection: %w", err)
+			errChan <- xerrors.Errorf("failed to get connection: %w", taskErr)
 		}
-		defer session.ReturnConnection(taskConn)
+		//defer session.ReturnConnection(taskConn)
+		defer session.DiscardConnection(taskConn)
 
 		if taskConn == nil || !taskConn.IsConnected() {
 			errChan <- xerrors.Errorf("connection is nil or disconnected")
