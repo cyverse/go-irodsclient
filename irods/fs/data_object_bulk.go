@@ -237,11 +237,11 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 
 	fileLength := stat.Size()
 
-	conn, err := session.AcquireConnection()
+	conn, err := session.AcquireUnmanagedConnection()
 	if err != nil {
 		return xerrors.Errorf("failed to get connection: %w", err)
 	}
-	defer session.ReturnConnection(conn)
+	defer session.DiscardConnection(conn)
 
 	if conn == nil || !conn.IsConnected() {
 		return xerrors.Errorf("connection is nil or disconnected")
@@ -288,13 +288,11 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 	uploadTask := func(taskOffset int64, taskLength int64) {
 		defer taskWaitGroup.Done()
 
-		//taskConn, taskErr := session.AcquireConnection()
 		// we will not reuse connection from the pool, as it should use fresh one
 		taskConn, taskErr := session.AcquireUnmanagedConnection()
 		if taskErr != nil {
 			errChan <- xerrors.Errorf("failed to get connection: %w", taskErr)
 		}
-		//defer session.ReturnConnection(taskConn)
 		defer session.DiscardConnection(taskConn)
 
 		if taskConn == nil || !taskConn.IsConnected() {
@@ -432,7 +430,7 @@ func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPa
 
 	fileLength := stat.Size()
 
-	conn, err := session.AcquireConnection()
+	conn, err := session.AcquireUnmanagedConnection()
 	if err != nil {
 		outputChan := make(chan int64, 1)
 		errChan := make(chan error, 1)
@@ -441,7 +439,7 @@ func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPa
 		close(errChan)
 		return outputChan, errChan
 	}
-	defer session.ReturnConnection(conn)
+	defer session.DiscardConnection(conn)
 
 	if conn == nil || !conn.IsConnected() {
 		outputChan := make(chan int64, 1)
