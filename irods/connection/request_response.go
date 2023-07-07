@@ -41,6 +41,9 @@ func (conn *IRODSConnection) Request(request Request, response Response, bsBuffe
 // RequestWithTrackerCallBack sends a request and expects a response.
 // bsBuffer is optional
 func (conn *IRODSConnection) RequestWithTrackerCallBack(request Request, response Response, bsBuffer []byte, reqCallback common.TrackerCallBack, resCallback common.TrackerCallBack) error {
+	// set transaction dirty
+	conn.SetTransactionDirty(true)
+
 	requestMessage, err := conn.getRequestMessage(request, true, false)
 	if err != nil {
 		if conn.metrics != nil {

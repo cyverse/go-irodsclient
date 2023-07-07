@@ -523,13 +523,11 @@ func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPa
 	uploadTask := func() {
 		defer taskWaitGroup.Done()
 
-		//taskConn, taskErr := session.AcquireConnection()
 		// we will not reuse connection from the pool, as it should use fresh one
 		taskConn, taskErr := session.AcquireUnmanagedConnection()
 		if taskErr != nil {
 			errChan <- xerrors.Errorf("failed to get connection: %w", taskErr)
 		}
-		//defer session.ReturnConnection(taskConn)
 		defer session.DiscardConnection(taskConn)
 
 		if taskConn == nil || !taskConn.IsConnected() {
