@@ -24,7 +24,7 @@ func TestBulkFSAPI(t *testing.T) {
 
 	makeHomeDir(t, bulkFSAPITestID)
 
-	//t.Run("test ParallelUploadDataObject", testParallelUploadDataObject)
+	t.Run("test ParallelUploadDataObject", testParallelUploadDataObject)
 	t.Run("test ParallelUploadReplication", testParallelUploadReplication)
 }
 
