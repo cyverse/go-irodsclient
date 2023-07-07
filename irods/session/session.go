@@ -17,6 +17,7 @@ type IRODSSession struct {
 	connectionPool        *ConnectionPool
 	sharedConnections     map[*connection.IRODSConnection]int
 	startNewTransaction   bool
+	commitFail            bool
 	poormansRollbackFail  bool
 	supportParallelUpload bool
 	metrics               metrics.IRODSMetrics
@@ -37,6 +38,7 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 
 		// transaction
 		startNewTransaction:   config.StartNewTransaction,
+		commitFail:            false,
 		poormansRollbackFail:  false,
 		supportParallelUpload: false,
 
@@ -63,47 +65,45 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 	}
 	sess.connectionPool = pool
 
+	// check connection
+	logger.Debugf("testing connection")
+	err = sess.checkConnection()
+	if err != nil {
+		return nil, xerrors.Errorf("failed to check transaction: %w", err)
+	}
+
+	return &sess, nil
+}
+
+// checkConnection checks connection
+func (sess *IRODSSession) checkConnection() error {
+	logger := log.WithFields(log.Fields{
+		"package":  "session",
+		"function": "checkConnection",
+	})
+
+	conn, _, err := sess.connectionPool.Get()
+	if err != nil {
+		return xerrors.Errorf("failed to get a test connection: %w", err)
+	}
+
+	conn.Lock()
+
+	// check parallel upload
+	sess.supportParallelUpload = conn.SupportParallelUpload()
+	logger.Debugf("support parallel upload: %t", sess.supportParallelUpload)
+
+	// check transaction
 	// when the user is anonymous, we cannot use transaction since we don't have access to home dir
 	if sess.account.ClientUser == "anonymous" {
-		sess.startNewTransaction = false
+		sess.commitFail = true
 		sess.poormansRollbackFail = true
 	}
 
-	// test if it can create a new transaction
-	if sess.startNewTransaction {
-		logger.Debugf("testing poor man rollback")
+	conn.Unlock()
 
-		conn, _, err := pool.Get()
-		if err != nil {
-			pool.Release()
-			return nil, xerrors.Errorf("failed to get a test connection: %w", err)
-		}
-
-		conn.Lock()
-		err = conn.PoorMansRollback()
-		conn.Unlock()
-		if err != nil {
-			logger.WithError(err).Debug("could not perform poor man rollback for the connection, disabling poor mans rollback")
-			pool.Discard(conn)
-			sess.poormansRollbackFail = true
-		} else {
-			logger.Debug("using poor man rollback for the connection")
-			pool.Return(conn)
-		}
-	}
-
-	// check parallel upload support
-	conn, _, err := pool.Get()
-	if err != nil {
-		pool.Release()
-		return nil, xerrors.Errorf("failed to get a test connection: %w", err)
-	}
-
-	sess.supportParallelUpload = conn.SupportParallelUpload()
-	logger.Debugf("support parallel upload: %t", sess.supportParallelUpload)
-	pool.Return(conn)
-
-	return &sess, nil
+	sess.connectionPool.Return(conn)
+	return nil
 }
 
 // GetConfig returns a configuration
@@ -116,57 +116,54 @@ func (sess *IRODSSession) GetAccount() *types.IRODSAccount {
 	return sess.account
 }
 
-// getConnectionFromPool returns an idle connection from pool
-func (sess *IRODSSession) getConnectionFromPool() (*connection.IRODSConnection, error) {
+// endTransaction ends transaction
+func (sess *IRODSSession) endTransaction(conn *connection.IRODSConnection) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "session",
 		"struct":   "IRODSSession",
-		"function": "getConnectionFromPool",
+		"function": "endTransaction",
 	})
 
-	// get a connection from pool
-	conn, isNewConn, err := sess.connectionPool.Get()
-	if err != nil {
-		return nil, xerrors.Errorf("failed to get a connection from the pool: %w", err)
+	// Each irods connection automatically starts a database transaction at initial setup.
+	// All queries against irods using a connection will give results corresponding to the time
+	// the connection was made, or since the last change using the very same connection.
+	// I.e. if connections 1 and 2 are created at the same time, and connection 1 does an update,
+	// connection 2 will not see it until any other change is made using connection 2.
+	// The connection we get here from the connection pool might be old, and we might miss
+	// changes that happened in parallel connections. We fix this by doing a rollback operation,
+	// which will do nothing to the database (there are no operations staged for commit/rollback),
+	// but which will close the current transaction and starts a new one - refreshing the view for
+	// future queries.
+
+	if !sess.startNewTransaction {
+		// done
+		return nil
 	}
 
-	if sess.startNewTransaction && !isNewConn {
-		// Each irods connection automatically starts a database transaction at initial setup.
-		// All queries against irods using a connection will give results corresponding to the time
-		// the connection was made, or since the last change using the very same connection.
-		// I.e. if connections 1 and 2 are created at the same time, and connection 1 does an update,
-		// connection 2 will not see it until any other change is made using connection 2.
-		// The connection we get here from the connection pool might be old, and we might miss
-		// changes that happened in parallel connections. We fix this by doing a rollback operation,
-		// which will do nothing to the database (there are no operations staged for commit/rollback),
-		// but which will close the current transaction and starts a new one - refreshing the view for
-		// future queries.
-		if sess.poormansRollbackFail {
-			// always use new connection
-			sess.connectionPool.Discard(conn)
-
-			conn, err = sess.connectionPool.GetNew()
-			if err != nil {
-				return nil, xerrors.Errorf("failed to get a new connection: %w", err)
-			}
-		} else {
-			conn.Lock()
-			err = conn.PoorMansRollback()
-			conn.Unlock()
-			if err != nil {
-				logger.WithError(err).Debug("could not perform poor man rollback for the connection, creating a new connection")
-				sess.connectionPool.Discard(conn)
-				sess.poormansRollbackFail = true
-
-				conn, err = sess.connectionPool.GetNew()
-				if err != nil {
-					return nil, xerrors.Errorf("failed to get a new connection: %w", err)
-				}
-			}
+	if !sess.commitFail {
+		commitErr := conn.Commit()
+		if commitErr == nil {
+			return nil
 		}
+
+		// failed to commit
+		sess.commitFail = true
+		logger.WithError(commitErr).Debug("failed to commit transaction")
 	}
 
-	return conn, nil
+	if !sess.poormansRollbackFail {
+		// try rollback
+		rollbackErr := conn.PoorMansRollback()
+		if rollbackErr == nil {
+			return nil
+		}
+
+		// failed to rollback
+		sess.poormansRollbackFail = true
+		logger.WithError(rollbackErr).Debug("failed to rollback (poorman) transaction")
+	}
+
+	return xerrors.Errorf("failed to commit/rollback transaction")
 }
 
 // AcquireConnection returns an idle connection
@@ -183,7 +180,7 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 	// check if there are available connections in the pool
 	if sess.connectionPool.AvailableConnections() > 0 {
 		// try to get it from the pool
-		conn, err := sess.getConnectionFromPool()
+		conn, _, err := sess.connectionPool.Get()
 		// ignore error this happens when connections in the pool are all occupied
 		if err != nil {
 			if IsConnectionPoolFullError(err) {
@@ -249,7 +246,7 @@ func (sess *IRODSSession) AcquireConnectionsMulti(number int) ([]*connection.IRO
 	for i := 0; i < number; i++ {
 		if sess.connectionPool.AvailableConnections() > 0 {
 			// try to get it from the pool
-			conn, err := sess.getConnectionFromPool()
+			conn, _, err := sess.connectionPool.Get()
 			if err != nil {
 				if IsConnectionPoolFullError(err) {
 					logger.WithError(err).Debug("failed to get a connection from the pool, the pool is full")
@@ -319,8 +316,14 @@ func (sess *IRODSSession) AcquireUnmanagedConnection() (*connection.IRODSConnect
 	return newConn, nil
 }
 
-// ReturnConnection returns an idle connection
+// ReturnConnection returns an idle connection with transaction close
 func (sess *IRODSSession) ReturnConnection(conn *connection.IRODSConnection) error {
+	logger := log.WithFields(log.Fields{
+		"package":  "session",
+		"struct":   "IRODSSession",
+		"function": "ReturnConnection",
+	})
+
 	sess.mutex.Lock()
 	defer sess.mutex.Unlock()
 
@@ -330,11 +333,23 @@ func (sess *IRODSSession) ReturnConnection(conn *connection.IRODSConnection) err
 			// no share
 			delete(sess.sharedConnections, conn)
 
-			if sess.startNewTransaction && sess.poormansRollbackFail {
-				// discard, since we cannot reuse the connection
-				sess.connectionPool.Discard(conn)
-				return nil
+			conn.Lock()
+			if conn.IsTransactionDirty() {
+				err := sess.endTransaction(conn)
+				if err != nil {
+					conn.Unlock()
+
+					logger.Debug(err)
+
+					// discard, since we cannot reuse the connection
+					sess.connectionPool.Discard(conn)
+					return nil
+				}
+
+				// clear transaction
+				conn.SetTransactionDirty(false)
 			}
+			conn.Unlock()
 
 			err := sess.connectionPool.Return(conn)
 			if err != nil {

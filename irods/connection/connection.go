@@ -42,6 +42,7 @@ type IRODSConnection struct {
 	creationTime            time.Time
 	lastSuccessfulAccess    time.Time
 	clientSignature         string
+	dirtyTransaction        bool
 	mutex                   sync.Mutex
 	locked                  bool // true if mutex is locked
 
@@ -56,9 +57,10 @@ func NewIRODSConnection(account *types.IRODSAccount, requestTimeout time.Duratio
 		tcpBufferSize:   TCPBufferSizeDefault,
 		applicationName: applicationName,
 
-		creationTime:    time.Now(),
-		clientSignature: "",
-		mutex:           sync.Mutex{},
+		creationTime:     time.Now(),
+		clientSignature:  "",
+		dirtyTransaction: false,
+		mutex:            sync.Mutex{},
 
 		metrics: &metrics.IRODSMetrics{},
 	}
@@ -72,9 +74,10 @@ func NewIRODSConnectionWithMetrics(account *types.IRODSAccount, requestTimeout t
 		tcpBufferSize:   TCPBufferSizeDefault,
 		applicationName: applicationName,
 
-		creationTime:    time.Now(),
-		clientSignature: "",
-		mutex:           sync.Mutex{},
+		creationTime:     time.Now(),
+		clientSignature:  "",
+		dirtyTransaction: false,
+		mutex:            sync.Mutex{},
 
 		metrics: metrics,
 	}
@@ -140,6 +143,16 @@ func (conn *IRODSConnection) GetLastSuccessfulAccess() time.Time {
 // GetClientSignature returns client signature to be used in password obfuscation
 func (conn *IRODSConnection) GetClientSignature() string {
 	return conn.clientSignature
+}
+
+// SetTransactionDirty sets if transaction is dirty
+func (conn *IRODSConnection) SetTransactionDirty(dirtyTransaction bool) {
+	conn.dirtyTransaction = dirtyTransaction
+}
+
+// IsTransactionDirty returns true if transaction is dirty
+func (conn *IRODSConnection) IsTransactionDirty() bool {
+	return conn.dirtyTransaction
 }
 
 // Connect connects to iRODS
@@ -373,7 +386,7 @@ func (conn *IRODSConnection) sslStartup() error {
 	caCertPool := x509.NewCertPool()
 	caCert, err := irodsSSLConfig.ReadCACert()
 	if err != nil {
-		logger.Error("failed to read CA cert, ignoring...")
+		logger.WithError(err).Warn("failed to read CA cert, ignoring...")
 	} else {
 		caCertPool.AppendCertsFromPEM(caCert)
 	}
