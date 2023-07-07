@@ -11,77 +11,84 @@ import (
 	"golang.org/x/xerrors"
 )
 
-type HashType string
-
-const (
-	SHA256 = "SHA256"
-	SHA512 = "SHA512"
-	MD5    = "MD5"
-)
-
-func Checksum(conn *connection.IRODSConnection, irodsPath string) (HashType, []byte, error) {
+// GetDataObjectChecksum returns a data object checksum for the path
+func GetDataObjectChecksum(conn *connection.IRODSConnection, path string, resource string) (*types.IRODSChecksum, error) {
 	if conn == nil || !conn.IsConnected() {
-		return "", nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
 	if metrics != nil {
-		metrics.IncreaseCounterForDataObjectOpen(1)
+		metrics.IncreaseCounterForStat(1)
 	}
 
 	// lock the connection
 	conn.Lock()
 	defer conn.Unlock()
 
-	fileOpenMode := types.FileOpenMode("r")
-	resource := conn.GetAccount().DefaultResource
-	flag := fileOpenMode.GetFlag()
-	request := &message.ChecksumRequest{
-		Path:          irodsPath,
-		CreateMode:    0,
-		OpenFlags:     flag,
-		Offset:        0,
-		Size:          -1,
-		Threads:       0,
-		OperationType: 0,
-		KeyVals:       message.IRODSMessageSSKeyVal{},
+	// use default resource when resource param is empty
+	if len(resource) == 0 {
+		account := conn.GetAccount()
+		resource = account.DefaultResource
 	}
 
-	if len(resource) > 0 {
-		request.KeyVals.Add(string(common.DEST_RESC_NAME_KW), resource)
-	}
-
-	response := message.ChecksumResponse{}
-
+	request := message.NewIRODSMessageChecksumRequest(path, resource)
+	response := message.IRODSMessageChecksumResponse{}
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return "", nil, types.NewFileNotFoundErrorf("could not find a data object")
+			return nil, types.NewFileNotFoundErrorf("failed to find a data object")
 		}
-
-		return "", nil, err
+		return nil, xerrors.Errorf("failed to get data object checksum: %w", err)
 	}
 
-	return splitChecksum(response.Checksum)
+	algorithm, checksum, err := splitChecksum(response.Checksum)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to split data object checksum: %w", err)
+	}
+
+	return &types.IRODSChecksum{
+		Algorithm: algorithm,
+		Checksum:  checksum,
+	}, nil
 }
 
-func splitChecksum(checksum string) (HashType, []byte, error) {
-	sp := strings.Split(checksum, ":")
+func splitChecksum(checksumString string) (types.ChecksumAlgorithm, []byte, error) {
+	sp := strings.Split(checksumString, ":")
 	if len(sp) != 2 {
-		return "", nil, xerrors.Errorf("unexpected checksum: %v", string(checksum))
+		return types.ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unexpected checksum: %v", string(checksumString))
 	}
-	inHashType := sp[0]
-	hash, err := base64.StdEncoding.DecodeString(sp[1])
-	var hashType HashType
 
-	if inHashType == "sha2" && len(hash) == 256/8 {
-		hashType = SHA256
-	} else if inHashType == "sha2" && len(hash) == 512/8 {
-		hashType = SHA512
-	} else if strings.ToLower(string(inHashType)) == "md5" {
-		hashType = MD5
-	} else {
-		return "", nil, xerrors.Errorf("unknown hash type: %s", hashType)
+	algorithm := sp[0]
+	checksum, err := base64.StdEncoding.DecodeString(sp[1])
+	if err != nil {
+		return types.ChecksumAlgorithmUnknown, nil, xerrors.Errorf("failed to base64 decode checksum: %v", err)
 	}
-	return hashType, hash, err
+
+	switch strings.ToLower(algorithm) {
+	case "sha2":
+		if len(checksum) == 256/8 {
+			return types.ChecksumAlgorithmSHA256, checksum, nil
+		} else if len(checksum) == 512/8 {
+			return types.ChecksumAlgorithmSHA512, checksum, nil
+		} else {
+			return types.ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unknown checksum algorithm: %s len %d", algorithm, len(checksum))
+		}
+	case "sha256":
+		if len(checksum) == 256/8 {
+			return types.ChecksumAlgorithmSHA256, checksum, nil
+		} else {
+			return types.ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unknown checksum algorithm: %s len %d", algorithm, len(checksum))
+		}
+	case "sha512":
+		if len(checksum) == 512/8 {
+			return types.ChecksumAlgorithmSHA512, checksum, nil
+		} else {
+			return types.ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unknown checksum algorithm: %s len %d", algorithm, len(checksum))
+		}
+	case "md5":
+		return types.ChecksumAlgorithmMD5, checksum, nil
+	default:
+		return types.ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unknown checksum algorithm: %s len %d", algorithm, len(checksum))
+	}
 }
