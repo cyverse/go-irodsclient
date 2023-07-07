@@ -1,6 +1,9 @@
 package fs
 
 import (
+	"encoding/base64"
+	"strings"
+
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/message"
@@ -8,9 +11,17 @@ import (
 	"golang.org/x/xerrors"
 )
 
-func Checksum(conn *connection.IRODSConnection, irodsPath string) (string, error) {
+type HashType string
+
+const (
+	SHA256 = "SHA256"
+	SHA512 = "SHA512"
+	MD5    = "MD5"
+)
+
+func Checksum(conn *connection.IRODSConnection, irodsPath string) (HashType, []byte, error) {
 	if conn == nil || !conn.IsConnected() {
-		return "", xerrors.Errorf("connection is nil or disconnected")
+		return "", nil, xerrors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -45,11 +56,32 @@ func Checksum(conn *connection.IRODSConnection, irodsPath string) (string, error
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return "", types.NewFileNotFoundErrorf("could not find a data object")
+			return "", nil, types.NewFileNotFoundErrorf("could not find a data object")
 		}
 
-		return "", err
+		return "", nil, err
 	}
 
-	return response.Checksum, nil
+	return splitChecksum(response.Checksum)
+}
+
+func splitChecksum(checksum string) (HashType, []byte, error) {
+	sp := strings.Split(checksum, ":")
+	if len(sp) != 2 {
+		return "", nil, xerrors.Errorf("unexpected checksum: %v", string(checksum))
+	}
+	inHashType := sp[0]
+	hash, err := base64.StdEncoding.DecodeString(sp[1])
+	var hashType HashType
+
+	if inHashType == "sha2" && len(hash) == 256/8 {
+		hashType = SHA256
+	} else if inHashType == "sha2" && len(hash) == 512/8 {
+		hashType = SHA512
+	} else if strings.ToLower(string(inHashType)) == "md5" {
+		hashType = MD5
+	} else {
+		return "", nil, xerrors.Errorf("unknown hash type: %s", hashType)
+	}
+	return hashType, hash, err
 }
