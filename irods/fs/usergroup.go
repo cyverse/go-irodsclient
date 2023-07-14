@@ -106,7 +106,7 @@ func GetGroup(conn *connection.IRODSConnection, group string) (*types.IRODSUser,
 	}
 
 	if len(users) == 0 {
-		return nil, types.NewFileNotFoundErrorf("failed to find a group '%s'", group)
+		return nil, xerrors.Errorf("failed to find the group for name %s: %w", group, types.NewFileNotFoundError())
 	}
 
 	return users[0], nil

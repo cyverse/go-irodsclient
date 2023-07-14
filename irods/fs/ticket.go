@@ -45,7 +45,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticketName st
 	err = queryResult.CheckError()
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, types.NewFileNotFoundErrorf("failed to find a ticket")
+			return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewFileNotFoundError())
 		}
 
 		return nil, xerrors.Errorf("received a ticket query error: %w", err)
@@ -53,7 +53,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticketName st
 
 	if queryResult.RowCount != 1 {
 		// file not found
-		return nil, types.NewFileNotFoundErrorf("failed to find a ticket")
+		return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewFileNotFoundError())
 	}
 
 	if queryResult.AttributeCount > len(queryResult.SQLResult) {
@@ -98,7 +98,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticketName st
 	}
 
 	if ticketID == -1 {
-		return nil, types.NewFileNotFoundErrorf("failed to find a ticket")
+		return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewFileNotFoundError())
 	}
 
 	return &types.IRODSTicketForAnonymousAccess{
@@ -138,7 +138,7 @@ func GetTicket(conn *connection.IRODSConnection, ticketName string) (*types.IROD
 		}
 	}
 
-	return nil, types.NewFileNotFoundErrorf("failed to find ticket %s", ticketName)
+	return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewFileNotFoundError())
 }
 
 // GetTicketForDataObjects returns ticket information for the ticket name string
@@ -179,7 +179,7 @@ func GetTicketForDataObjects(conn *connection.IRODSConnection, ticketName string
 	err = queryResult.CheckError()
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, types.NewFileNotFoundErrorf("failed to find a ticket")
+			return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewFileNotFoundError())
 		}
 
 		return nil, xerrors.Errorf("received a ticket query error: %w", err)
@@ -187,7 +187,7 @@ func GetTicketForDataObjects(conn *connection.IRODSConnection, ticketName string
 
 	if queryResult.RowCount != 1 {
 		// file not found
-		return nil, types.NewFileNotFoundErrorf("failed to find a ticket")
+		return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewFileNotFoundError())
 	}
 
 	if queryResult.AttributeCount > len(queryResult.SQLResult) {
@@ -289,7 +289,7 @@ func GetTicketForDataObjects(conn *connection.IRODSConnection, ticketName string
 	}
 
 	if ticketID == -1 {
-		return nil, types.NewFileNotFoundErrorf("failed to find a ticket")
+		return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewFileNotFoundError())
 	}
 
 	return &types.IRODSTicket{
@@ -347,7 +347,7 @@ func GetTicketForCollections(conn *connection.IRODSConnection, ticketName string
 	err = queryResult.CheckError()
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, types.NewFileNotFoundErrorf("failed to find a ticket")
+			return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewFileNotFoundError())
 		}
 
 		return nil, xerrors.Errorf("received a ticket query error: %w", err)
@@ -355,7 +355,7 @@ func GetTicketForCollections(conn *connection.IRODSConnection, ticketName string
 
 	if queryResult.RowCount != 1 {
 		// file not found
-		return nil, types.NewFileNotFoundErrorf("failed to find a ticket")
+		return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewFileNotFoundError())
 	}
 
 	if queryResult.AttributeCount > len(queryResult.SQLResult) {
@@ -451,7 +451,7 @@ func GetTicketForCollections(conn *connection.IRODSConnection, ticketName string
 	}
 
 	if ticketID == -1 {
-		return nil, types.NewFileNotFoundErrorf("failed to find a ticket")
+		return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewFileNotFoundError())
 	}
 
 	return &types.IRODSTicket{

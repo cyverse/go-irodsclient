@@ -1,37 +1,21 @@
 package session
 
 import (
-	"fmt"
+	"errors"
+
+	"golang.org/x/xerrors"
 )
 
-// ConnectionPoolFullError ...
-type ConnectionPoolFullError struct {
-	message string
+var (
+	connectionPoolFullError error = xerrors.New("connection pool is full")
+)
+
+// NewConnectionPoolFullError creates an error for full connection pool
+func NewConnectionPoolFullError() error {
+	return connectionPoolFullError
 }
 
-// NewConnectionPoolFullError creates ConnectionPoolFullError struct
-func NewConnectionPoolFullError(message string) *ConnectionPoolFullError {
-	return &ConnectionPoolFullError{
-		message: message,
-	}
-}
-
-// NewConnectionPoolFullErrorf creates ConnectionPoolFullError struct
-func NewConnectionPoolFullErrorf(format string, v ...interface{}) *ConnectionPoolFullError {
-	return &ConnectionPoolFullError{
-		message: fmt.Sprintf(format, v...),
-	}
-}
-
-func (e *ConnectionPoolFullError) Error() string {
-	return e.message
-}
-
-// IsConnectionPoolFullError evaluates if the given error is ConnectionPoolFullError
+// IsConnectionPoolFullError evaluates if the given error is connection full error
 func IsConnectionPoolFullError(err error) bool {
-	if _, ok := err.(*ConnectionPoolFullError); ok {
-		return true
-	}
-
-	return false
+	return errors.Is(err, connectionPoolFullError)
 }

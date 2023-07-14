@@ -37,7 +37,7 @@ func CloseDataObjectReplica(conn *connection.IRODSConnection, handle *types.IROD
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return types.NewFileNotFoundErrorf("failed to find a data object")
+			return xerrors.Errorf("failed to find the data object for path %s: %w", handle.Path, types.NewFileNotFoundError())
 		}
 		return xerrors.Errorf("failed to close data object replica: %w", err)
 	}

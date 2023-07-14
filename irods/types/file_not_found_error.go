@@ -1,37 +1,21 @@
 package types
 
 import (
-	"fmt"
+	"errors"
+
+	"golang.org/x/xerrors"
 )
 
-// FileNotFoundError ...
-type FileNotFoundError struct {
-	message string
+var (
+	fileNotFoundError error = xerrors.New("data object/collection not found")
+)
+
+// NewFileNotFoundError creates an error for file not found
+func NewFileNotFoundError() error {
+	return fileNotFoundError
 }
 
-// NewFileNotFoundError creates FileNotFoundError struct
-func NewFileNotFoundError(message string) *FileNotFoundError {
-	return &FileNotFoundError{
-		message: message,
-	}
-}
-
-// NewFileNotFoundErrorf creates FileNotFoundError struct
-func NewFileNotFoundErrorf(format string, v ...interface{}) *FileNotFoundError {
-	return &FileNotFoundError{
-		message: fmt.Sprintf(format, v...),
-	}
-}
-
-func (e *FileNotFoundError) Error() string {
-	return e.message
-}
-
-// IsFileNotFoundError evaluates if the given error is FileNotFoundError
+// IsFileNotFoundError evaluates if the given error is file not found error
 func IsFileNotFoundError(err error) bool {
-	if _, ok := err.(*FileNotFoundError); ok {
-		return true
-	}
-
-	return false
+	return errors.Is(err, fileNotFoundError)
 }

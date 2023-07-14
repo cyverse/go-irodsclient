@@ -1,37 +1,21 @@
 package types
 
 import (
-	"fmt"
+	"errors"
+
+	"golang.org/x/xerrors"
 )
 
-// CollectionNotEmptyError ...
-type CollectionNotEmptyError struct {
-	message string
+var (
+	collectionNotEmptyError error = xerrors.New("collection is not empty")
+)
+
+// NewCollectionNotEmptyError creates an error for collection not empty
+func NewCollectionNotEmptyError() error {
+	return collectionNotEmptyError
 }
 
-// NewCollectionNotEmptyError creates CollectionNotEmptyError struct
-func NewCollectionNotEmptyError(message string) *CollectionNotEmptyError {
-	return &CollectionNotEmptyError{
-		message: message,
-	}
-}
-
-// NewCollectionNotEmptyErrorf creates CollectionNotEmptyError struct
-func NewCollectionNotEmptyErrorf(format string, v ...interface{}) *CollectionNotEmptyError {
-	return &CollectionNotEmptyError{
-		message: fmt.Sprintf(format, v...),
-	}
-}
-
-func (e *CollectionNotEmptyError) Error() string {
-	return e.message
-}
-
-// IsCollectionNotEmptyError evaluates if the given error is CollectionNotEmptyError
+// IsCollectionNotEmptyError evaluates if the given error is collection not empty error
 func IsCollectionNotEmptyError(err error) bool {
-	if _, ok := err.(*CollectionNotEmptyError); ok {
-		return true
-	}
-
-	return false
+	return errors.Is(err, collectionNotEmptyError)
 }
