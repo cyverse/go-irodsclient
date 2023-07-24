@@ -10,18 +10,22 @@ import (
 	"golang.org/x/xerrors"
 )
 
+// TransactionFailureHandler is an handler that is called when transaction operation fails
+type TransactionFailureHandler func(commitFail bool, poormansRollbackFail bool)
+
 // IRODSSession manages connections to iRODS
 type IRODSSession struct {
-	account               *types.IRODSAccount
-	config                *IRODSSessionConfig
-	connectionPool        *ConnectionPool
-	sharedConnections     map[*connection.IRODSConnection]int
-	startNewTransaction   bool
-	commitFail            bool
-	poormansRollbackFail  bool
-	supportParallelUpload bool
-	metrics               metrics.IRODSMetrics
-	mutex                 sync.Mutex
+	account                   *types.IRODSAccount
+	config                    *IRODSSessionConfig
+	connectionPool            *ConnectionPool
+	sharedConnections         map[*connection.IRODSConnection]int
+	startNewTransaction       bool
+	commitFail                bool
+	poormansRollbackFail      bool
+	transactionFailureHandler TransactionFailureHandler
+	supportParallelUpload     bool
+	metrics                   metrics.IRODSMetrics
+	mutex                     sync.Mutex
 }
 
 // NewIRODSSession create a IRODSSession
@@ -37,10 +41,11 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 		sharedConnections: map[*connection.IRODSConnection]int{},
 
 		// transaction
-		startNewTransaction:   config.StartNewTransaction,
-		commitFail:            false,
-		poormansRollbackFail:  false,
-		supportParallelUpload: false,
+		startNewTransaction:       config.StartNewTransaction,
+		commitFail:                false,
+		poormansRollbackFail:      false,
+		transactionFailureHandler: nil,
+		supportParallelUpload:     false,
 
 		metrics: metrics.IRODSMetrics{},
 
@@ -116,6 +121,21 @@ func (sess *IRODSSession) GetAccount() *types.IRODSAccount {
 	return sess.account
 }
 
+// SetTransactionFailureHandler sets transaction failure handler
+func (sess *IRODSSession) SetTransactionFailureHandler(handler TransactionFailureHandler) {
+	sess.transactionFailureHandler = handler
+}
+
+// SetCommitFail sets commit fail
+func (sess *IRODSSession) SetCommitFail(commitFail bool) {
+	sess.commitFail = commitFail
+}
+
+// SetPoormansRollbackFail sets poormans rollback fail
+func (sess *IRODSSession) SetPoormansRollbackFail(poormansRollbackFail bool) {
+	sess.poormansRollbackFail = poormansRollbackFail
+}
+
 // endTransaction ends transaction
 func (sess *IRODSSession) endTransaction(conn *connection.IRODSConnection) error {
 	logger := log.WithFields(log.Fields{
@@ -149,6 +169,10 @@ func (sess *IRODSSession) endTransaction(conn *connection.IRODSConnection) error
 		// failed to commit
 		sess.commitFail = true
 		logger.WithError(commitErr).Debug("failed to commit transaction")
+
+		if sess.transactionFailureHandler != nil {
+			sess.transactionFailureHandler(sess.commitFail, sess.poormansRollbackFail)
+		}
 	}
 
 	if !sess.poormansRollbackFail {
@@ -161,6 +185,10 @@ func (sess *IRODSSession) endTransaction(conn *connection.IRODSConnection) error
 		// failed to rollback
 		sess.poormansRollbackFail = true
 		logger.WithError(rollbackErr).Debug("failed to rollback (poorman) transaction")
+
+		if sess.transactionFailureHandler != nil {
+			sess.transactionFailureHandler(sess.commitFail, sess.poormansRollbackFail)
+		}
 	}
 
 	return xerrors.Errorf("failed to commit/rollback transaction")

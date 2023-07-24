@@ -42,6 +42,19 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*File
 		return nil, err
 	}
 
+	ioTransactionFailureHandler := func(commitFail bool, poormansRollbackFail bool) {
+		metaSession.SetCommitFail(commitFail)
+		metaSession.SetPoormansRollbackFail(poormansRollbackFail)
+	}
+
+	metaTransactionFailureHandler := func(commitFail bool, poormansRollbackFail bool) {
+		ioSession.SetCommitFail(commitFail)
+		ioSession.SetPoormansRollbackFail(poormansRollbackFail)
+	}
+
+	ioSession.SetTransactionFailureHandler(ioTransactionFailureHandler)
+	metaSession.SetTransactionFailureHandler(metaTransactionFailureHandler)
+
 	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime, config.CacheTimeoutSettings, config.InvalidateParentEntryCacheImmediately)
 
 	fs := &FileSystem{
