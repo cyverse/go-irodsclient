@@ -237,16 +237,6 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 
 	fileLength := stat.Size()
 
-	conn, err := session.AcquireUnmanagedConnection()
-	if err != nil {
-		return xerrors.Errorf("failed to get connection: %w", err)
-	}
-	defer session.DiscardConnection(conn)
-
-	if conn == nil || !conn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
-	}
-
 	numTasks := taskNum
 	if numTasks <= 0 {
 		numTasks = util.GetNumTasksForParallelTransfer(fileLength)
@@ -255,6 +245,16 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 	if numTasks == 1 {
 		// serial upload
 		return UploadDataObject(session, localPath, irodsPath, resource, replicate, callback)
+	}
+
+	conn, err := session.AcquireUnmanagedConnection()
+	if err != nil {
+		return xerrors.Errorf("failed to get connection: %w", err)
+	}
+	defer session.DiscardConnection(conn)
+
+	if conn == nil || !conn.IsConnected() {
+		return xerrors.Errorf("connection is nil or disconnected")
 	}
 
 	logger.Debugf("upload data object in parallel - %s, size(%d), threads(%d)", irodsPath, fileLength, numTasks)
