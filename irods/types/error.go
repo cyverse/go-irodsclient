@@ -5,7 +5,33 @@ import (
 	"fmt"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
+	"golang.org/x/xerrors"
 )
+
+var (
+	collectionNotEmptyError error = xerrors.New("collection is not empty")
+	fileNotFoundError       error = xerrors.New("data object/collection not found")
+)
+
+// NewCollectionNotEmptyError creates an error for collection not empty
+func NewCollectionNotEmptyError() error {
+	return collectionNotEmptyError
+}
+
+// IsCollectionNotEmptyError evaluates if the given error is collection not empty error
+func IsCollectionNotEmptyError(err error) bool {
+	return errors.Is(err, collectionNotEmptyError)
+}
+
+// NewFileNotFoundError creates an error for file not found
+func NewFileNotFoundError() error {
+	return fileNotFoundError
+}
+
+// IsFileNotFoundError evaluates if the given error is file not found error
+func IsFileNotFoundError(err error) bool {
+	return errors.Is(err, fileNotFoundError)
+}
 
 // IRODSError contains irods error information
 type IRODSError struct {
