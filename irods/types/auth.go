@@ -25,7 +25,7 @@ func GetAuthScheme(authScheme string) (AuthScheme, error) {
 		return AuthSchemeNative, nil
 	case string(AuthSchemeGSI):
 		return AuthSchemeGSI, nil
-	case string(AuthSchemePAM):
+	case string(AuthSchemePAM), "pam_password":
 		return AuthSchemePAM, nil
 	default:
 		return AuthSchemeNative, xerrors.Errorf("cannot parse string %s", authScheme)
