@@ -292,6 +292,7 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 		taskConn, taskErr := session.AcquireUnmanagedConnection()
 		if taskErr != nil {
 			errChan <- xerrors.Errorf("failed to get connection: %w", taskErr)
+			return
 		}
 		defer session.DiscardConnection(taskConn)
 
