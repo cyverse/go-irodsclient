@@ -211,7 +211,7 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 		conn, _, err := sess.connectionPool.Get()
 		// ignore error this happens when connections in the pool are all occupied
 		if err != nil {
-			if IsConnectionPoolFullError(err) {
+			if types.IsConnectionPoolFullError(err) {
 				logger.WithError(err).Debug("failed to get a connection from the pool, the pool is full")
 				// fall below
 			}
@@ -276,7 +276,7 @@ func (sess *IRODSSession) AcquireConnectionsMulti(number int) ([]*connection.IRO
 			// try to get it from the pool
 			conn, _, err := sess.connectionPool.Get()
 			if err != nil {
-				if IsConnectionPoolFullError(err) {
+				if types.IsConnectionPoolFullError(err) {
 					logger.WithError(err).Debug("failed to get a connection from the pool, the pool is full")
 				}
 
