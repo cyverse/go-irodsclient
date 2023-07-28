@@ -32,7 +32,7 @@ func CloseDataObjectReplica(conn *connection.IRODSConnection, handle *types.IROD
 		return xerrors.Errorf("does not support close replica in current iRODS Version")
 	}
 
-	request := message.NewIRODSMessageCloseDataObjectReplicaRequest(handle.FileDescriptor, false, false, false, false)
+	request := message.NewIRODSMessageCloseDataObjectReplicaRequest(handle.FileDescriptor, false, false, false, false, false)
 	response := message.IRODSMessageCloseDataObjectReplicaResponse{}
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
@@ -308,7 +308,12 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 			errChan <- taskErr
 			return
 		}
-		defer CloseDataObjectReplica(taskConn, taskHandle)
+		defer func() {
+			errClose := CloseDataObjectReplica(taskConn, taskHandle)
+			if errClose != nil {
+				errChan <- errClose
+			}
+		}()
 
 		f, taskErr := os.OpenFile(localPath, os.O_RDONLY, 0)
 		if taskErr != nil {
@@ -341,8 +346,10 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 
 			bytesRead, taskReadErr := f.ReadAt(buffer[:bufferLen], taskOffset+(taskLength-taskRemain))
 			if bytesRead > 0 {
+				//logger.Debugf("upload '%s' offset: %d, length: %d", irodsPath, taskOffset+(taskLength-taskRemain), bytesRead)
 				taskWriteErr := WriteDataObjectWithTrackerCallBack(taskConn, taskHandle, buffer[:bytesRead], blockWriteCallback)
 				if taskWriteErr != nil {
+					//logger.WithError(taskWriteErr).Debugf("upload '%s' failed offset: %d, length: %d", irodsPath, taskOffset+(taskLength-taskRemain), bytesRead)
 					errChan <- taskWriteErr
 					return
 				}
