@@ -181,6 +181,38 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 	return nil
 }
 
+// UploadFileFromBuffer uploads buffer data to irods
+func (fs *FileSystem) UploadFileFromBuffer(buffer []byte, irodsPath string, resource string, replicate bool, callback common.TrackerCallBack) error {
+	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
+
+	irodsFilePath := irodsDestPath
+
+	entry, err := fs.Stat(irodsDestPath)
+	if err != nil {
+		if !types.IsFileNotFoundError(err) {
+			return err
+		}
+	} else {
+		switch entry.Type {
+		case FileEntry:
+			// do nothing
+		case DirectoryEntry:
+			return xerrors.Errorf("invalid entry type %s. Destination must be a file", entry.Type)
+		default:
+			return xerrors.Errorf("unknown entry type %s", entry.Type)
+		}
+	}
+
+	err = irods_fs.UploadDataObjectFromBuffer(fs.ioSession, buffer, irodsFilePath, resource, replicate, callback)
+	if err != nil {
+		return err
+	}
+
+	fs.invalidateCacheForFileCreate(irodsFilePath)
+	fs.cachePropagation.PropagateFileCreate(irodsFilePath)
+	return nil
+}
+
 // UploadFileAsync uploads a local file to irods
 func (fs *FileSystem) UploadFileAsync(localPath string, irodsPath string, resource string, replicate bool, callback common.TrackerCallBack) error {
 	localSrcPath := util.GetCorrectLocalPath(localPath)

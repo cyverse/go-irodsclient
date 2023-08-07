@@ -44,6 +44,68 @@ func CloseDataObjectReplica(conn *connection.IRODSConnection, handle *types.IROD
 	return nil
 }
 
+// UploadDataObjectFromBuffer put a data object to the iRODS path from bytes.Buffer
+func UploadDataObjectFromBuffer(session *session.IRODSSession, buffer []byte, irodsPath string, resource string, replicate bool, callback common.TrackerCallBack) error {
+	// use default resource when resource param is empty
+	if len(resource) == 0 {
+		account := session.GetAccount()
+		resource = account.DefaultResource
+	}
+
+	fileLength := int64(len(buffer))
+
+	conn, err := session.AcquireConnection()
+	if err != nil {
+		return xerrors.Errorf("failed to get connection: %w", err)
+	}
+	defer session.ReturnConnection(conn)
+
+	if conn == nil || !conn.IsConnected() {
+		return xerrors.Errorf("connection is nil or disconnected")
+	}
+
+	// open a new file
+	handle, err := OpenDataObjectWithOperation(conn, irodsPath, resource, "w+", common.OPER_TYPE_NONE)
+	if err != nil {
+		return err
+	}
+
+	totalBytesUploaded := int64(0)
+	if callback != nil {
+		callback(totalBytesUploaded, fileLength)
+	}
+
+	// block write call-back
+	var blockWriteCallback common.TrackerCallBack
+	if callback != nil {
+		blockWriteCallback = func(processed int64, total int64) {
+			callback(totalBytesUploaded+processed, fileLength)
+		}
+	}
+
+	// copy
+	writeErr := WriteDataObjectWithTrackerCallBack(conn, handle, buffer, blockWriteCallback)
+	if callback != nil {
+		callback(totalBytesUploaded, fileLength)
+	}
+
+	CloseDataObject(conn, handle)
+
+	if writeErr != nil {
+		return writeErr
+	}
+
+	// replicate
+	if replicate {
+		replErr := ReplicateDataObject(conn, irodsPath, "", true, false)
+		if replErr != nil {
+			return replErr
+		}
+	}
+
+	return nil
+}
+
 // UploadDataObject put a data object at the local path to the iRODS path
 func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath string, resource string, replicate bool, callback common.TrackerCallBack) error {
 	logger := log.WithFields(log.Fields{
