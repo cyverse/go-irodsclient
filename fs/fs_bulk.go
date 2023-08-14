@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 
@@ -45,6 +46,22 @@ func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath 
 	}
 
 	return irods_fs.DownloadDataObject(fs.ioSession, irodsSrcPath, resource, localFilePath, srcStat.Size, callback)
+}
+
+// DownloadFileToBuffer downloads a file to buffer
+func (fs *FileSystem) DownloadFileToBuffer(irodsPath string, resource string, buffer bytes.Buffer, callback common.TrackerCallBack) error {
+	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
+
+	srcStat, err := fs.Stat(irodsSrcPath)
+	if err != nil {
+		return xerrors.Errorf("failed to stat for path %s: %w", irodsSrcPath, types.NewFileNotFoundError())
+	}
+
+	if srcStat.Type == DirectoryEntry {
+		return xerrors.Errorf("cannot download a collection %s", irodsSrcPath)
+	}
+
+	return irods_fs.DownloadDataObjectToBuffer(fs.ioSession, irodsSrcPath, resource, buffer, srcStat.Size, callback)
 }
 
 // DownloadFileParallel downloads a file to local in parallel
@@ -182,7 +199,7 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 }
 
 // UploadFileFromBuffer uploads buffer data to irods
-func (fs *FileSystem) UploadFileFromBuffer(buffer []byte, irodsPath string, resource string, replicate bool, callback common.TrackerCallBack) error {
+func (fs *FileSystem) UploadFileFromBuffer(buffer bytes.Buffer, irodsPath string, resource string, replicate bool, callback common.TrackerCallBack) error {
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
 	irodsFilePath := irodsDestPath

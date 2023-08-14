@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"bytes"
 	"io"
 	"os"
 	"sync"
@@ -44,15 +45,15 @@ func CloseDataObjectReplica(conn *connection.IRODSConnection, handle *types.IROD
 	return nil
 }
 
-// UploadDataObjectFromBuffer put a data object to the iRODS path from bytes.Buffer
-func UploadDataObjectFromBuffer(session *session.IRODSSession, buffer []byte, irodsPath string, resource string, replicate bool, callback common.TrackerCallBack) error {
+// UploadDataObjectFromBuffer put a data object to the iRODS path from buffer
+func UploadDataObjectFromBuffer(session *session.IRODSSession, buffer bytes.Buffer, irodsPath string, resource string, replicate bool, callback common.TrackerCallBack) error {
 	// use default resource when resource param is empty
 	if len(resource) == 0 {
 		account := session.GetAccount()
 		resource = account.DefaultResource
 	}
 
-	fileLength := int64(len(buffer))
+	fileLength := int64(buffer.Len())
 
 	conn, err := session.AcquireConnection()
 	if err != nil {
@@ -84,7 +85,7 @@ func UploadDataObjectFromBuffer(session *session.IRODSSession, buffer []byte, ir
 	}
 
 	// copy
-	writeErr := WriteDataObjectWithTrackerCallBack(conn, handle, buffer, blockWriteCallback)
+	writeErr := WriteDataObjectWithTrackerCallBack(conn, handle, buffer.Bytes(), blockWriteCallback)
 	if callback != nil {
 		callback(totalBytesUploaded, fileLength)
 	}
@@ -701,6 +702,74 @@ func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPa
 	}()
 
 	return outputChan, errChan
+}
+
+// DownloadDataObjectToBuffer downloads a data object at the iRODS path to buffer
+func DownloadDataObjectToBuffer(session *session.IRODSSession, irodsPath string, resource string, buffer bytes.Buffer, dataObjectLength int64, callback common.TrackerCallBack) error {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "DownloadDataObject",
+	})
+
+	logger.Debugf("download data object - %s", irodsPath)
+
+	// use default resource when resource param is empty
+	if len(resource) == 0 {
+		account := session.GetAccount()
+		resource = account.DefaultResource
+	}
+
+	conn, err := session.AcquireConnection()
+	if err != nil {
+		return xerrors.Errorf("failed top get connection: %w", err)
+	}
+	defer session.ReturnConnection(conn)
+
+	if conn == nil || !conn.IsConnected() {
+		return xerrors.Errorf("connection is nil or disconnected")
+	}
+
+	handle, _, err := OpenDataObject(conn, irodsPath, resource, "r")
+	if err != nil {
+		return err
+	}
+	defer CloseDataObject(conn, handle)
+
+	totalBytesDownloaded := int64(0)
+	if callback != nil {
+		callback(totalBytesDownloaded, dataObjectLength)
+	}
+
+	// block read call-back
+	var blockReadCallback common.TrackerCallBack
+	if callback != nil {
+		blockReadCallback = func(processed int64, total int64) {
+			callback(totalBytesDownloaded+processed, dataObjectLength)
+		}
+	}
+
+	buffer2 := make([]byte, common.ReadWriteBufferSize)
+	// copy
+	for {
+		readLen, readErr := ReadDataObjectWithTrackerCallBack(conn, handle, buffer2, blockReadCallback)
+		if readErr != nil && readErr != io.EOF {
+			return readErr
+		}
+
+		_, writeErr := buffer.Write(buffer2[:readLen])
+		if writeErr != nil {
+			return xerrors.Errorf("failed to write to buffer: %w", writeErr)
+		}
+
+		totalBytesDownloaded += int64(readLen)
+		if callback != nil {
+			callback(totalBytesDownloaded, dataObjectLength)
+		}
+
+		if readErr == io.EOF {
+			return nil
+		}
+	}
 }
 
 // DownloadDataObject downloads a data object at the iRODS path to the local path
