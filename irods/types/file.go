@@ -55,25 +55,25 @@ const (
 )
 
 // GetFlag returns file open flag
-func (mode *FileOpenMode) GetFlag() int {
+func (mode FileOpenMode) GetFlag() int {
 	flag, _ := mode.GetFlagSeekToEnd()
 	return flag
 }
 
 // SeekToEnd returns if the mode needs seeking to end
-func (mode *FileOpenMode) SeekToEnd() bool {
+func (mode FileOpenMode) SeekToEnd() bool {
 	_, seekToEnd := mode.GetFlagSeekToEnd()
 	return seekToEnd
 }
 
 // GetFlagSeekToEnd returns file open flag and returns true if file pointer moves to the file end
-func (mode *FileOpenMode) GetFlagSeekToEnd() (int, bool) {
+func (mode FileOpenMode) GetFlagSeekToEnd() (int, bool) {
 	logger := log.WithFields(log.Fields{
 		"package":  "types",
 		"function": "GetFileOpenFlagSeekToEnd",
 	})
 
-	switch *mode {
+	switch mode {
 	case FileOpenModeReadOnly:
 		return int(O_RDONLY), false
 	case FileOpenModeReadWrite:
@@ -87,14 +87,14 @@ func (mode *FileOpenMode) GetFlagSeekToEnd() (int, bool) {
 	case FileOpenModeReadAppend:
 		return int(O_RDWR) | int(O_CREAT), true
 	default:
-		logger.Errorf("Unhandled file open mode %s", *mode)
+		logger.Errorf("Unhandled file open mode %s", mode)
 		return -1, false
 	}
 }
 
 // IsRead returns true if the file open mode is for read
-func (mode *FileOpenMode) IsRead() bool {
-	switch *mode {
+func (mode FileOpenMode) IsRead() bool {
+	switch mode {
 	case FileOpenModeReadOnly, FileOpenModeReadWrite, FileOpenModeReadAppend:
 		return true
 	default:
@@ -103,13 +103,13 @@ func (mode *FileOpenMode) IsRead() bool {
 }
 
 // IsReadOnly returns true if the file open mode is for read-only
-func (mode *FileOpenMode) IsReadOnly() bool {
-	return *mode == FileOpenModeReadOnly
+func (mode FileOpenMode) IsReadOnly() bool {
+	return mode == FileOpenModeReadOnly
 }
 
 // IsWrite returns true if the file open mode is for write
-func (mode *FileOpenMode) IsWrite() bool {
-	switch *mode {
+func (mode FileOpenMode) IsWrite() bool {
+	switch mode {
 	case FileOpenModeReadWrite, FileOpenModeWriteOnly, FileOpenModeWriteTruncate, FileOpenModeAppend, FileOpenModeReadAppend:
 		return true
 	default:
@@ -118,8 +118,8 @@ func (mode *FileOpenMode) IsWrite() bool {
 }
 
 // IsWriteOnly returns true if the file open mode is for write-only
-func (mode *FileOpenMode) IsWriteOnly() bool {
-	switch *mode {
+func (mode FileOpenMode) IsWriteOnly() bool {
+	switch mode {
 	case FileOpenModeWriteOnly, FileOpenModeWriteTruncate, FileOpenModeAppend:
 		return true
 	default:
@@ -128,8 +128,8 @@ func (mode *FileOpenMode) IsWriteOnly() bool {
 }
 
 // IsOpeningExisting returns true if the file open mode is for opening existing file
-func (mode *FileOpenMode) IsOpeningExisting() bool {
-	switch *mode {
+func (mode FileOpenMode) IsOpeningExisting() bool {
+	switch mode {
 	case FileOpenModeReadOnly, FileOpenModeReadWrite, FileOpenModeReadAppend, FileOpenModeAppend:
 		return true
 	default:

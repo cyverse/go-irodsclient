@@ -22,6 +22,10 @@ const (
 	ADMIN_KW           KeyWord = "irodsAdmin"
 	COLLECTION_TYPE_KW KeyWord = "collectionType"
 
+	LOCK_TYPE_KW KeyWord = "lockType"
+	LOCK_CMD_KW  KeyWord = "lockCmd"
+	LOCK_FD_KW   KeyWord = "lockFd"
+
 	RESC_HIER_STR_KW      KeyWord = "resc_hier"
 	REPLICA_TOKEN_KW      KeyWord = "replicaToken"
 	DEST_RESC_HIER_STR_KW KeyWord = "dest_resc_hier"

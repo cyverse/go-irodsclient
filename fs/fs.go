@@ -26,6 +26,7 @@ type FileSystem struct {
 	cachePropagation     *FileSystemCachePropagation
 	cacheEventHandlerMap *FilesystemCacheEventHandlerMap
 	fileHandleMap        *FileHandleMap
+	fileLockHandleMap    *FileLockHandleMap
 }
 
 // NewFileSystem creates a new FileSystem
@@ -66,6 +67,7 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*File
 		cache:                cache,
 		cacheEventHandlerMap: NewFilesystemCacheEventHandlerMap(),
 		fileHandleMap:        NewFileHandleMap(),
+		fileLockHandleMap:    NewFileLockHandleMap(),
 	}
 
 	cachePropagation := NewFileSystemCachePropagation(fs)
@@ -100,6 +102,7 @@ func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName strin
 		cache:                cache,
 		cacheEventHandlerMap: NewFilesystemCacheEventHandlerMap(),
 		fileHandleMap:        NewFileHandleMap(),
+		fileLockHandleMap:    NewFileLockHandleMap(),
 	}
 
 	cachePropagation := NewFileSystemCachePropagation(fs)
@@ -133,6 +136,7 @@ func NewFileSystemWithSessionConfig(account *types.IRODSAccount, sessConfig *ses
 		cache:                cache,
 		cacheEventHandlerMap: NewFilesystemCacheEventHandlerMap(),
 		fileHandleMap:        NewFileHandleMap(),
+		fileLockHandleMap:    NewFileLockHandleMap(),
 	}
 
 	cachePropagation := NewFileSystemCachePropagation(fs)
@@ -145,7 +149,12 @@ func NewFileSystemWithSessionConfig(account *types.IRODSAccount, sessConfig *ses
 func (fs *FileSystem) Release() {
 	handles := fs.fileHandleMap.PopAll()
 	for _, handle := range handles {
-		handle.closeWithoutFSHandleManagement()
+		handle.Close()
+	}
+
+	lockHandles := fs.fileLockHandleMap.PopAll()
+	for _, handle := range lockHandles {
+		handle.Unlock()
 	}
 
 	fs.cacheEventHandlerMap.Release()

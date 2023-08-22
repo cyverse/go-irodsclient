@@ -70,7 +70,7 @@ func (handle *FileHandle) IsWriteOnlyMode() bool {
 	return handle.openmode.IsWriteOnly()
 }
 
-// GetIRODSFileHandle returns iRODS File Handle file
+// GetIRODSFileHandle returns iRODS File Handle
 func (handle *FileHandle) GetIRODSFileHandle() *types.IRODSFileHandle {
 	return handle.irodsfilehandle
 }
@@ -82,24 +82,6 @@ func (handle *FileHandle) GetEntry() *Entry {
 
 // Close closes the file
 func (handle *FileHandle) Close() error {
-	handle.mutex.Lock()
-	defer handle.mutex.Unlock()
-
-	defer handle.filesystem.ioSession.ReturnConnection(handle.connection)
-
-	err := irods_fs.CloseDataObject(handle.connection, handle.irodsfilehandle)
-	handle.filesystem.fileHandleMap.Remove(handle.id)
-
-	if handle.IsWriteMode() {
-		handle.filesystem.invalidateCacheForFileUpdate(handle.entry.Path)
-		handle.filesystem.cachePropagation.PropagateFileUpdate(handle.entry.Path)
-	}
-
-	return err
-}
-
-// Close closes the file
-func (handle *FileHandle) closeWithoutFSHandleManagement() error {
 	handle.mutex.Lock()
 	defer handle.mutex.Unlock()
 

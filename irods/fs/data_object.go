@@ -1940,6 +1940,121 @@ func CloseDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHa
 	return nil
 }
 
+// LockDataObject locks a data object for the path, returns a file lock handle
+func LockDataObject(conn *connection.IRODSConnection, path string, lockType types.DataObjectLockType, lockCommand types.DataObjectLockCommand) (*types.IRODSFileLockHandle, error) {
+	if conn == nil || !conn.IsConnected() {
+		return nil, xerrors.Errorf("connection is nil or disconnected")
+	}
+
+	if lockType != types.DataObjectLockTypeRead && lockType != types.DataObjectLockTypeWrite {
+		return nil, xerrors.Errorf("lock type is neither read nor write")
+	}
+
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForDataObjectOpen(1)
+	}
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	request := message.NewIRODSMessageLockDataObjectRequest(path, lockType, lockCommand)
+	response := message.IRODSMessageLockDataObjectResponse{}
+	err := conn.RequestAndCheck(request, &response, nil)
+	if err != nil {
+		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+			return nil, xerrors.Errorf("failed to find the data object for path %s: %w", path, types.NewFileNotFoundError())
+		}
+		return nil, xerrors.Errorf("failed to lock data object: %w", err)
+	}
+
+	handle := &types.IRODSFileLockHandle{
+		FileDescriptor: response.GetFileDescriptor(),
+		Path:           path,
+		OpenMode:       lockType.GetFileOpenMode(),
+		Type:           lockType,
+		Command:        lockCommand,
+	}
+
+	if metrics != nil {
+		metrics.IncreaseCounterForOpenFileHandles(1)
+	}
+
+	return handle, nil
+}
+
+// GetLockDataObject returns a data object lock for the path, returns a file lock handle
+func GetLockDataObject(conn *connection.IRODSConnection, path string) (*types.IRODSFileLockHandle, error) {
+	if conn == nil || !conn.IsConnected() {
+		return nil, xerrors.Errorf("connection is nil or disconnected")
+	}
+
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForDataObjectOpen(1)
+	}
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	request := message.NewIRODSMessageLockDataObjectRequest(path, types.DataObjectLockTypeWrite, types.DataObjectLockCommandGetLock)
+	response := message.IRODSMessageLockDataObjectResponse{}
+	err := conn.RequestAndCheck(request, &response, nil)
+	if err != nil {
+		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+			return nil, xerrors.Errorf("failed to find the data object for path %s: %w", path, types.NewFileNotFoundError())
+		}
+		return nil, xerrors.Errorf("failed to get data object lock: %w", err)
+	}
+
+	handle := &types.IRODSFileLockHandle{
+		FileDescriptor: response.GetFileDescriptor(),
+		Path:           path,
+		OpenMode:       types.DataObjectLockTypeWrite.GetFileOpenMode(),
+		Type:           types.DataObjectLockTypeWrite,
+		Command:        types.DataObjectLockCommandGetLock,
+	}
+
+	if metrics != nil {
+		metrics.IncreaseCounterForOpenFileHandles(1)
+	}
+
+	return handle, nil
+}
+
+// UnlockDataObject unlocks a file handle of a data object
+func UnlockDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileLockHandle) error {
+	if conn == nil || !conn.IsConnected() {
+		return xerrors.Errorf("connection is nil or disconnected")
+	}
+
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForDataObjectClose(1)
+	}
+
+	if metrics != nil {
+		metrics.DecreaseCounterForOpenFileHandles(1)
+	}
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	request := message.NewIRODSMessageUnlockDataObjectRequest(handle.Path, handle.FileDescriptor)
+	response := message.IRODSMessageUnlockDataObjectResponse{}
+	err := conn.RequestAndCheck(request, &response, nil)
+	if err != nil {
+		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+			return xerrors.Errorf("failed to find the data object for path %s: %w", handle.Path, types.NewFileNotFoundError())
+		}
+		return xerrors.Errorf("failed to unlock data object: %w", err)
+	}
+	return nil
+}
+
 // AddDataObjectMeta sets metadata of a data object for the path to the given key values.
 // metadata.AVUID is ignored
 func AddDataObjectMeta(conn *connection.IRODSConnection, path string, metadata *types.IRODSMeta) error {

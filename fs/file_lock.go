@@ -8,6 +8,8 @@ import (
 	"golang.org/x/xerrors"
 )
 
+// this is a file lock managed by go-irodsclient. Not same as fs file lock
+
 // FileLock is a lock for a file
 type FileLock struct {
 	path       string

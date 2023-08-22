@@ -104,7 +104,7 @@ const (
 	RM_COLL_AN                   APINumber = 679
 	MOD_COLL_AN                  APINumber = 680
 	COLL_CREATE_AN               APINumber = 681
-	RM_COLL_OLD_AN               APINumber = 682
+	DATA_OBJ_UNLOCK_AN           APINumber = 682
 	REG_COLL_AN                  APINumber = 683
 	PHY_BUNDLE_COLL_AN           APINumber = 684
 	UNBUN_AND_REG_PHY_BUNFILE_AN APINumber = 685
