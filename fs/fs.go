@@ -26,7 +26,6 @@ type FileSystem struct {
 	cachePropagation     *FileSystemCachePropagation
 	cacheEventHandlerMap *FilesystemCacheEventHandlerMap
 	fileHandleMap        *FileHandleMap
-	fileLockHandleMap    *FileLockHandleMap
 }
 
 // NewFileSystem creates a new FileSystem
@@ -67,7 +66,6 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*File
 		cache:                cache,
 		cacheEventHandlerMap: NewFilesystemCacheEventHandlerMap(),
 		fileHandleMap:        NewFileHandleMap(),
-		fileLockHandleMap:    NewFileLockHandleMap(),
 	}
 
 	cachePropagation := NewFileSystemCachePropagation(fs)
@@ -102,7 +100,6 @@ func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName strin
 		cache:                cache,
 		cacheEventHandlerMap: NewFilesystemCacheEventHandlerMap(),
 		fileHandleMap:        NewFileHandleMap(),
-		fileLockHandleMap:    NewFileLockHandleMap(),
 	}
 
 	cachePropagation := NewFileSystemCachePropagation(fs)
@@ -136,7 +133,6 @@ func NewFileSystemWithSessionConfig(account *types.IRODSAccount, sessConfig *ses
 		cache:                cache,
 		cacheEventHandlerMap: NewFilesystemCacheEventHandlerMap(),
 		fileHandleMap:        NewFileHandleMap(),
-		fileLockHandleMap:    NewFileLockHandleMap(),
 	}
 
 	cachePropagation := NewFileSystemCachePropagation(fs)
@@ -150,11 +146,6 @@ func (fs *FileSystem) Release() {
 	handles := fs.fileHandleMap.PopAll()
 	for _, handle := range handles {
 		handle.Close()
-	}
-
-	lockHandles := fs.fileLockHandleMap.PopAll()
-	for _, handle := range lockHandles {
-		handle.Unlock()
 	}
 
 	fs.cacheEventHandlerMap.Release()
@@ -766,10 +757,10 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 		id:              xid.New().String(),
 		filesystem:      fs,
 		connection:      conn,
-		irodsfilehandle: handle,
+		irodsFileHandle: handle,
 		entry:           entry,
 		offset:          offset,
-		openmode:        types.FileOpenMode(mode),
+		openMode:        types.FileOpenMode(mode),
 	}
 
 	fs.fileHandleMap.Add(fileHandle)
@@ -817,10 +808,10 @@ func (fs *FileSystem) CreateFile(path string, resource string, mode string) (*Fi
 		id:              xid.New().String(),
 		filesystem:      fs,
 		connection:      conn,
-		irodsfilehandle: handle,
+		irodsFileHandle: handle,
 		entry:           entry,
 		offset:          offset,
-		openmode:        types.FileOpenMode(mode),
+		openMode:        types.FileOpenMode(mode),
 	}
 
 	fs.fileHandleMap.Add(fileHandle)
