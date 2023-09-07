@@ -293,12 +293,14 @@ func (handle *FileHandle) UnlockDataObject() error {
 	handle.mutex.Lock()
 	defer handle.mutex.Unlock()
 
-	err := irods_fs.UnlockDataObject(handle.connection, handle.irodsFileLockHandle)
-	if err != nil {
-		return err
-	}
+	if handle.irodsFileLockHandle != nil {
+		err := irods_fs.UnlockDataObject(handle.connection, handle.irodsFileLockHandle)
+		if err != nil {
+			return err
+		}
 
-	handle.irodsFileLockHandle = nil
+		handle.irodsFileLockHandle = nil
+	}
 
 	return nil
 }

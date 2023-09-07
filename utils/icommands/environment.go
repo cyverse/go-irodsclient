@@ -8,6 +8,8 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
 	"golang.org/x/xerrors"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -140,7 +142,16 @@ func (manager *ICommandsEnvironmentManager) GetPasswordFilePath() string {
 
 // Load loads from environment file
 func (manager *ICommandsEnvironmentManager) Load(processID int) error {
+	logger := log.WithFields(log.Fields{
+		"package":  "icommands",
+		"struct":   "ICommandsEnvironmentManager",
+		"function": "Load",
+	})
+
 	environmentFilePath := manager.GetEnvironmentFilePath()
+
+	logger.Debugf("reading environment file %s", environmentFilePath)
+
 	env, err := CreateICommandsEnvironmentFromFile(environmentFilePath)
 	if err != nil {
 		return xerrors.Errorf("failed to create icommands environment from file %s: %w", environmentFilePath, err)
@@ -151,9 +162,11 @@ func (manager *ICommandsEnvironmentManager) Load(processID int) error {
 	// read session
 	sessionFilePath := manager.GetSessionFilePath(processID)
 	if util.ExistFile(sessionFilePath) {
+		logger.Debugf("reading environment session file %s", sessionFilePath)
+
 		session, err := CreateICommandsEnvironmentFromFile(sessionFilePath)
 		if err != nil {
-			return xerrors.Errorf("failed to create icommands environment from file %s: %w", sessionFilePath, err)
+			return xerrors.Errorf("failed to create icommands environment session from file %s: %w", sessionFilePath, err)
 		}
 
 		manager.Session = session
@@ -161,22 +174,27 @@ func (manager *ICommandsEnvironmentManager) Load(processID int) error {
 
 	// read password (.irodsA)
 	passwordFilePath := manager.GetPasswordFilePath()
+
+	logger.Debugf("reading environment password file %s", passwordFilePath)
+
 	password, err := DecodePasswordFile(passwordFilePath, manager.UID)
 	if err != nil {
-		return xerrors.Errorf("failed to decode password file %s: %w", passwordFilePath, err)
-	}
+		logger.Debugf("failed to decode password file %s - %s", passwordFilePath, err.Error())
+		//return xerrors.Errorf("failed to decode password file %s: %w", passwordFilePath, err)
+		// continue
+	} else {
+		manager.Password = password
+		manager.IsPasswordPamToken = false
 
-	manager.Password = password
-	manager.IsPasswordPamToken = false
+		authScheme, err := types.GetAuthScheme(manager.Environment.AuthenticationScheme)
+		if err != nil {
+			return xerrors.Errorf("failed to get auth scheme %s: %w", manager.Environment.AuthenticationScheme, err)
+		}
 
-	authScheme, err := types.GetAuthScheme(manager.Environment.AuthenticationScheme)
-	if err != nil {
-		return xerrors.Errorf("failed to get auth scheme %s: %w", manager.Environment.AuthenticationScheme, err)
-	}
-
-	if authScheme == types.AuthSchemePAM {
-		// if auth scheme is PAM auth, password read from .irodsA is pam token
-		manager.IsPasswordPamToken = true
+		if authScheme == types.AuthSchemePAM {
+			// if auth scheme is PAM auth, password read from .irodsA is pam token
+			manager.IsPasswordPamToken = true
+		}
 	}
 
 	return nil

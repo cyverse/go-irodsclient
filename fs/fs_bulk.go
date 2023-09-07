@@ -48,6 +48,45 @@ func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath 
 	return irods_fs.DownloadDataObject(fs.ioSession, irodsSrcPath, resource, localFilePath, srcStat.Size, callback)
 }
 
+/*
+// DownloadFileWithProgressFile downloads a file to local and creates an intermediate progress file
+func (fs *FileSystem) DownloadFileWithProgressFile(irodsPath string, resource string, localPath string, progressFilePath string, callback common.TrackerCallBack) error {
+	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
+	localDestPath := util.GetCorrectLocalPath(localPath)
+	localProgressFilePath := util.GetCorrectLocalPath(progressFilePath)
+
+	localFilePath := localDestPath
+
+	srcStat, err := fs.Stat(irodsSrcPath)
+	if err != nil {
+		return xerrors.Errorf("failed to stat for path %s: %w", irodsSrcPath, types.NewFileNotFoundError())
+	}
+
+	if srcStat.Type == DirectoryEntry {
+		return xerrors.Errorf("cannot download a collection %s", irodsSrcPath)
+	}
+
+	destStat, err := os.Stat(localDestPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// file not exists, it's a file
+			// pass
+		} else {
+			return err
+		}
+	} else {
+		if destStat.IsDir() {
+			irodsFileName := util.GetIRODSPathFileName(irodsSrcPath)
+			localFilePath = filepath.Join(localDestPath, irodsFileName)
+		} else {
+			return xerrors.Errorf("file %s already exists", localDestPath)
+		}
+	}
+
+	return irods_fs.DownloadDataObject(fs.ioSession, irodsSrcPath, resource, localFilePath, srcStat.Size, callback)
+}
+*/
+
 // DownloadFileToBuffer downloads a file to buffer
 func (fs *FileSystem) DownloadFileToBuffer(irodsPath string, resource string, buffer bytes.Buffer, callback common.TrackerCallBack) error {
 	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
