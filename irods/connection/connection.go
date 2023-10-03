@@ -165,6 +165,8 @@ func (conn *IRODSConnection) Connect() error {
 
 	conn.connected = false
 
+	conn.account.FixAuthConfiguration()
+
 	err := conn.account.Validate()
 	if err != nil {
 		return xerrors.Errorf("invalid account (%s): %w", err.Error(), types.NewConnectionConfigError())
@@ -208,6 +210,7 @@ func (conn *IRODSConnection) Connect() error {
 
 	conn.socket = socket
 	var irodsVersion *types.IRODSVersion
+
 	if conn.requiresCSNegotiation() {
 		// client-server negotiation
 		irodsVersion, err = conn.connectWithCSNegotiation()

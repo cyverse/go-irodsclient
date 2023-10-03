@@ -21,7 +21,7 @@ const (
 // GetAuthScheme returns AuthScheme value from string
 func GetAuthScheme(authScheme string) (AuthScheme, error) {
 	switch strings.TrimSpace(strings.ToLower(authScheme)) {
-	case string(AuthSchemeNative):
+	case string(AuthSchemeNative), "":
 		return AuthSchemeNative, nil
 	case string(AuthSchemeGSI):
 		return AuthSchemeGSI, nil

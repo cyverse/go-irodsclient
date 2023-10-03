@@ -80,23 +80,16 @@ func CreateICommandsEnvironmentFromJSON(jsonBytes []byte) (*ICommandsEnvironment
 
 // ToIRODSAccount creates IRODSAccount
 func (env *ICommandsEnvironment) ToIRODSAccount() *types.IRODSAccount {
-	authScheme := types.AuthSchemeNative
-	if len(env.AuthenticationScheme) > 0 {
-		authScheme, _ = types.GetAuthScheme(env.AuthenticationScheme)
-	}
+	authScheme, _ := types.GetAuthScheme(env.AuthenticationScheme)
 
 	negotiationRequired := false
 	negotiationPolicy, _ := types.GetCSNegotiationRequire(env.ClientServerPolicy)
-	if authScheme == types.AuthSchemePAM {
-		negotiationRequired = true
-		negotiationPolicy = types.CSNegotiationRequireSSL
-	}
 
 	if strings.ToLower(env.ClientServerNegotiation) == "request_server_negotiation" {
 		negotiationRequired = true
 	}
 
-	return &types.IRODSAccount{
+	account := &types.IRODSAccount{
 		AuthenticationScheme:    authScheme,
 		ClientServerNegotiation: negotiationRequired,
 		CSNegotiationPolicy:     negotiationPolicy,
@@ -117,6 +110,10 @@ func (env *ICommandsEnvironment) ToIRODSAccount() *types.IRODSAccount {
 			HashRounds:          env.EncryptionNumHashRounds,
 		},
 	}
+
+	account.FixAuthConfiguration()
+
+	return account
 }
 
 // ToJSON converts to JSON bytes

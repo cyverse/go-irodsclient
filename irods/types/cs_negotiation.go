@@ -26,7 +26,7 @@ func GetCSNegotiationRequire(require string) (CSNegotiationRequire, error) {
 		csNegotiationPolicy = CSNegotiationRequireTCP
 	case string(CSNegotiationRequireSSL), "SSL":
 		csNegotiationPolicy = CSNegotiationRequireSSL
-	case string(CSNegotiationDontCare), "DONT_CARE":
+	case string(CSNegotiationDontCare), "DONT_CARE", "":
 		csNegotiationPolicy = CSNegotiationDontCare
 	default:
 		csNegotiationPolicy = CSNegotiationRequireTCP
