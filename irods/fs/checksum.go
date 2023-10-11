@@ -1,9 +1,6 @@
 package fs
 
 import (
-	"encoding/base64"
-	"strings"
-
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/message"
@@ -42,53 +39,10 @@ func GetDataObjectChecksum(conn *connection.IRODSConnection, path string, resour
 		return nil, xerrors.Errorf("failed to get data object checksum: %w", err)
 	}
 
-	algorithm, checksum, err := splitChecksum(response.Checksum)
+	checksum, err := types.CreateIRODSChecksum(response.Checksum)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to split data object checksum: %w", err)
+		return nil, xerrors.Errorf("failed to create iRODS checksum: %w", err)
 	}
 
-	return &types.IRODSChecksum{
-		Algorithm: algorithm,
-		Checksum:  checksum,
-	}, nil
-}
-
-func splitChecksum(checksumString string) (types.ChecksumAlgorithm, []byte, error) {
-	sp := strings.Split(checksumString, ":")
-	if len(sp) != 2 {
-		return types.ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unexpected checksum: %v", string(checksumString))
-	}
-
-	algorithm := sp[0]
-	checksum, err := base64.StdEncoding.DecodeString(sp[1])
-	if err != nil {
-		return types.ChecksumAlgorithmUnknown, nil, xerrors.Errorf("failed to base64 decode checksum: %v", err)
-	}
-
-	switch strings.ToLower(algorithm) {
-	case "sha2":
-		if len(checksum) == 256/8 {
-			return types.ChecksumAlgorithmSHA256, checksum, nil
-		} else if len(checksum) == 512/8 {
-			return types.ChecksumAlgorithmSHA512, checksum, nil
-		} else {
-			return types.ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unknown checksum algorithm: %s len %d", algorithm, len(checksum))
-		}
-	case "sha256":
-		if len(checksum) == 256/8 {
-			return types.ChecksumAlgorithmSHA256, checksum, nil
-		} else {
-			return types.ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unknown checksum algorithm: %s len %d", algorithm, len(checksum))
-		}
-	case "sha512":
-		if len(checksum) == 512/8 {
-			return types.ChecksumAlgorithmSHA512, checksum, nil
-		} else {
-			return types.ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unknown checksum algorithm: %s len %d", algorithm, len(checksum))
-		}
-	case "md5":
-		return types.ChecksumAlgorithmMD5, checksum, nil
-	default:
-		return types.ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unknown checksum algorithm: %s len %d", algorithm, len(checksum))
-	}
+	return checksum, nil
 }

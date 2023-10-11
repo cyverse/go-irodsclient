@@ -134,7 +134,7 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 					replica := &types.IRODSReplica{
 						Number:            -1,
 						Owner:             "",
-						CheckSum:          "",
+						Checksum:          nil,
 						Status:            "",
 						ResourceName:      "",
 						Path:              "",
@@ -180,7 +180,11 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
 					pagenatedDataObjects[row].Replicas[0].Owner = value
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
-					pagenatedDataObjects[row].Replicas[0].CheckSum = value
+					checksum, err := types.CreateIRODSChecksum(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse data object checksum '%s': %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
 					pagenatedDataObjects[row].Replicas[0].Status = value
 				case int(common.ICAT_COLUMN_D_RESC_NAME):
@@ -322,7 +326,7 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 					replica := &types.IRODSReplica{
 						Number:            -1,
 						Owner:             "",
-						CheckSum:          "",
+						Checksum:          nil,
 						Status:            "",
 						ResourceName:      "",
 						Path:              "",
@@ -368,7 +372,11 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
 					pagenatedDataObjects[row].Replicas[0].Owner = value
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
-					pagenatedDataObjects[row].Replicas[0].CheckSum = value
+					checksum, err := types.CreateIRODSChecksum(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse data object checksum '%s': %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
 					pagenatedDataObjects[row].Replicas[0].Status = value
 				case int(common.ICAT_COLUMN_D_RESC_NAME):
@@ -516,7 +524,7 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 					replica := &types.IRODSReplica{
 						Number:            -1,
 						Owner:             "",
-						CheckSum:          "",
+						Checksum:          nil,
 						Status:            "",
 						ResourceName:      "",
 						Path:              "",
@@ -563,7 +571,11 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
 					pagenatedDataObjects[row].Replicas[0].Owner = value
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
-					pagenatedDataObjects[row].Replicas[0].CheckSum = value
+					checksum, err := types.CreateIRODSChecksum(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse data object checksum '%s': %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
 					pagenatedDataObjects[row].Replicas[0].Status = value
 				case int(common.ICAT_COLUMN_D_RESC_NAME):
@@ -701,7 +713,7 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 					replica := &types.IRODSReplica{
 						Number:            -1,
 						Owner:             "",
-						CheckSum:          "",
+						Checksum:          nil,
 						Status:            "",
 						ResourceName:      "",
 						Path:              "",
@@ -748,7 +760,11 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
 					pagenatedDataObjects[row].Replicas[0].Owner = value
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
-					pagenatedDataObjects[row].Replicas[0].CheckSum = value
+					checksum, err := types.CreateIRODSChecksum(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse data object checksum '%s': %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
 					pagenatedDataObjects[row].Replicas[0].Status = value
 				case int(common.ICAT_COLUMN_D_RESC_NAME):
@@ -2204,7 +2220,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 					replica := &types.IRODSReplica{
 						Number:            -1,
 						Owner:             "",
-						CheckSum:          "",
+						Checksum:          nil,
 						Status:            "",
 						ResourceName:      "",
 						Path:              "",
@@ -2267,7 +2283,11 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
 					pagenatedDataObjects[row].Replicas[0].Owner = value
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
-					pagenatedDataObjects[row].Replicas[0].CheckSum = value
+					checksum, err := types.CreateIRODSChecksum(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse data object checksum '%s': %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
 					pagenatedDataObjects[row].Replicas[0].Status = value
 				case int(common.ICAT_COLUMN_D_RESC_NAME):
@@ -2409,7 +2429,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 					replica := &types.IRODSReplica{
 						Number:            -1,
 						Owner:             "",
-						CheckSum:          "",
+						Checksum:          nil,
 						Status:            "",
 						ResourceName:      "",
 						Path:              "",
@@ -2472,7 +2492,11 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
 					pagenatedDataObjects[row].Replicas[0].Owner = value
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
-					pagenatedDataObjects[row].Replicas[0].CheckSum = value
+					checksum, err := types.CreateIRODSChecksum(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse data object checksum '%s': %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
 					pagenatedDataObjects[row].Replicas[0].Status = value
 				case int(common.ICAT_COLUMN_D_RESC_NAME):
@@ -2622,7 +2646,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 					replica := &types.IRODSReplica{
 						Number:            -1,
 						Owner:             "",
-						CheckSum:          "",
+						Checksum:          nil,
 						Status:            "",
 						ResourceName:      "",
 						Path:              "",
@@ -2685,7 +2709,11 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
 					pagenatedDataObjects[row].Replicas[0].Owner = value
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
-					pagenatedDataObjects[row].Replicas[0].CheckSum = value
+					checksum, err := types.CreateIRODSChecksum(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse data object checksum '%s': %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
 					pagenatedDataObjects[row].Replicas[0].Status = value
 				case int(common.ICAT_COLUMN_D_RESC_NAME):
@@ -2828,7 +2856,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 					replica := &types.IRODSReplica{
 						Number:            -1,
 						Owner:             "",
-						CheckSum:          "",
+						Checksum:          nil,
 						Status:            "",
 						ResourceName:      "",
 						Path:              "",
@@ -2891,7 +2919,11 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
 					pagenatedDataObjects[row].Replicas[0].Owner = value
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
-					pagenatedDataObjects[row].Replicas[0].CheckSum = value
+					checksum, err := types.CreateIRODSChecksum(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse data object checksum '%s': %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
 					pagenatedDataObjects[row].Replicas[0].Status = value
 				case int(common.ICAT_COLUMN_D_RESC_NAME):

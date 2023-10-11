@@ -168,7 +168,7 @@ func parallelUploadReplication(t *testing.T, sess *session.IRODSSession, filenam
 	}
 	assert.Equal(t, 2, len(obj.Replicas))
 
-	assert.Equal(t, obj.Replicas[0].CheckSum, obj.Replicas[1].CheckSum)
+	assert.Equal(t, obj.Replicas[0].Checksum.GetOriginalChecksum(), obj.Replicas[1].Checksum.GetOriginalChecksum())
 	assert.Equal(t, obj.Replicas[0].Status, obj.Replicas[1].Status)
 
 	// delete

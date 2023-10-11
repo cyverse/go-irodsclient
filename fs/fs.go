@@ -740,15 +740,16 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 	if entry == nil {
 		// create a new
 		entry = &Entry{
-			ID:         0,
-			Type:       FileEntry,
-			Name:       util.GetIRODSPathFileName(irodsPath),
-			Path:       irodsPath,
-			Owner:      fs.account.ClientUser,
-			Size:       0,
-			CreateTime: time.Now(),
-			ModifyTime: time.Now(),
-			CheckSum:   "",
+			ID:                0,
+			Type:              FileEntry,
+			Name:              util.GetIRODSPathFileName(irodsPath),
+			Path:              irodsPath,
+			Owner:             fs.account.ClientUser,
+			Size:              0,
+			CreateTime:        time.Now(),
+			ModifyTime:        time.Now(),
+			CheckSumAlgorithm: "",
+			CheckSum:          "",
 		}
 	}
 
@@ -877,31 +878,42 @@ func (fs *FileSystem) getCollectionFromEntry(entry *Entry) *types.IRODSCollectio
 
 func (fs *FileSystem) getEntryFromCollection(collection *types.IRODSCollection) *Entry {
 	return &Entry{
-		ID:         collection.ID,
-		Type:       DirectoryEntry,
-		Name:       collection.Name,
-		Path:       collection.Path,
-		Owner:      collection.Owner,
-		Size:       0,
-		DataType:   "",
-		CreateTime: collection.CreateTime,
-		ModifyTime: collection.ModifyTime,
-		CheckSum:   "",
+		ID:                collection.ID,
+		Type:              DirectoryEntry,
+		Name:              collection.Name,
+		Path:              collection.Path,
+		Owner:             collection.Owner,
+		Size:              0,
+		DataType:          "",
+		CreateTime:        collection.CreateTime,
+		ModifyTime:        collection.ModifyTime,
+		CheckSumAlgorithm: "",
+		CheckSum:          "",
 	}
 }
 
 func (fs *FileSystem) getEntryFromDataObject(dataobject *types.IRODSDataObject) *Entry {
+	checksum := dataobject.Replicas[0].Checksum
+	checksumAlgorithm := ""
+	checksumString := ""
+
+	if checksum != nil {
+		checksumAlgorithm = checksum.GetChecksumAlgorithm()
+		checksumString = checksum.GetChecksumString()
+	}
+
 	return &Entry{
-		ID:         dataobject.ID,
-		Type:       FileEntry,
-		Name:       dataobject.Name,
-		Path:       dataobject.Path,
-		Owner:      dataobject.Replicas[0].Owner,
-		Size:       dataobject.Size,
-		DataType:   dataobject.DataType,
-		CreateTime: dataobject.Replicas[0].CreateTime,
-		ModifyTime: dataobject.Replicas[0].ModifyTime,
-		CheckSum:   dataobject.Replicas[0].CheckSum,
+		ID:                dataobject.ID,
+		Type:              FileEntry,
+		Name:              dataobject.Name,
+		Path:              dataobject.Path,
+		Owner:             dataobject.Replicas[0].Owner,
+		Size:              dataobject.Size,
+		DataType:          dataobject.DataType,
+		CreateTime:        dataobject.Replicas[0].CreateTime,
+		ModifyTime:        dataobject.Replicas[0].ModifyTime,
+		CheckSumAlgorithm: checksumAlgorithm,
+		CheckSum:          checksumString,
 	}
 }
 

@@ -12,8 +12,7 @@ type IRODSReplica struct {
 	// Owner has the owner's name
 	Owner string
 
-	// CheckSum has the checksum of the file
-	CheckSum     string
+	Checksum     *IRODSChecksum
 	Status       string
 	ResourceName string
 
@@ -29,5 +28,5 @@ type IRODSReplica struct {
 
 // ToString stringifies the object
 func (obj *IRODSReplica) ToString() string {
-	return fmt.Sprintf("<IRODSReplica %d %s %s %s %s %s>", obj.Number, obj.CheckSum, obj.Status, obj.ResourceName, obj.CreateTime, obj.ModifyTime)
+	return fmt.Sprintf("<IRODSReplica %d %s %s %s %s>", obj.Number, obj.Status, obj.ResourceName, obj.CreateTime, obj.ModifyTime)
 }

@@ -17,16 +17,17 @@ const (
 
 // Entry is a struct for filesystem entry
 type Entry struct {
-	ID         int64
-	Type       EntryType
-	Name       string
-	Path       string
-	Owner      string
-	Size       int64
-	DataType   string
-	CreateTime time.Time
-	ModifyTime time.Time
-	CheckSum   string
+	ID                int64
+	Type              EntryType
+	Name              string
+	Path              string
+	Owner             string
+	Size              int64
+	DataType          string
+	CreateTime        time.Time
+	ModifyTime        time.Time
+	CheckSumAlgorithm string
+	CheckSum          string
 }
 
 // ToString stringifies the object
