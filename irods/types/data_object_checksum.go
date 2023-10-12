@@ -76,17 +76,16 @@ func ParseIRODSChecksum(checksumString string) (ChecksumAlgorithm, []byte, error
 		return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unexpected checksum: %v", string(checksumString))
 	}
 
+	algorithm := ""
+	checksum := ""
+
 	if len(sp) == 1 {
-		checksum, err := base64.StdEncoding.DecodeString(checksumString)
-		if err != nil {
-			return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("failed to base64 decode checksum: %v", err)
-		}
-
-		return ChecksumAlgorithmMD5, checksum, nil
+		algorithm = string(ChecksumAlgorithmMD5)
+		checksum = checksumString
+	} else if len(sp) >= 2 {
+		algorithm = sp[0]
+		checksum = sp[1]
 	}
-
-	algorithm := sp[0]
-	checksum := sp[1]
 
 	switch strings.ToLower(algorithm) {
 	case "sha2":
