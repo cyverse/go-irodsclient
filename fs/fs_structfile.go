@@ -7,7 +7,7 @@ import (
 )
 
 // ExtractStructFile extracts a struct file
-func (fs *FileSystem) ExtractStructFile(path string, targetCollection string, resource string, dataType types.DataType, force bool) error {
+func (fs *FileSystem) ExtractStructFile(path string, targetCollection string, resource string, dataType types.DataType, force bool, bulkReg bool) error {
 	irodsPath := util.GetCorrectIRODSPath(path)
 	targetIrodsPath := util.GetCorrectIRODSPath(targetCollection)
 
@@ -21,7 +21,7 @@ func (fs *FileSystem) ExtractStructFile(path string, targetCollection string, re
 	// discard the connection after use to avoid file descriptor error.
 	defer fs.metaSession.DiscardConnection(conn)
 
-	err = irods_fs.ExtractStructFile(conn, irodsPath, targetIrodsPath, resource, dataType, force)
+	err = irods_fs.ExtractStructFile(conn, irodsPath, targetIrodsPath, resource, dataType, force, bulkReg)
 	if err != nil {
 		return err
 	}

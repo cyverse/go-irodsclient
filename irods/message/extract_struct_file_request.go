@@ -19,7 +19,7 @@ type IRODSMessageExtractStructFileRequest struct {
 }
 
 // NewIRODSMessageExtractStructFileRequest creates a IRODSMessageExtractstructfileRequest message
-func NewIRODSMessageExtractStructFileRequest(path string, targetCollection string, resource string, dataType types.DataType, force bool) *IRODSMessageExtractStructFileRequest {
+func NewIRODSMessageExtractStructFileRequest(path string, targetCollection string, resource string, dataType types.DataType, force bool, bulkReg bool) *IRODSMessageExtractStructFileRequest {
 	request := &IRODSMessageExtractStructFileRequest{
 		Path:             path,
 		TargetCollection: targetCollection,
@@ -42,7 +42,9 @@ func NewIRODSMessageExtractStructFileRequest(path string, targetCollection strin
 		request.KeyVals.Add(string(common.FORCE_FLAG_KW), "")
 	}
 
-	request.KeyVals.Add(string(common.BULK_OPR_KW), "")
+	if bulkReg {
+		request.KeyVals.Add(string(common.BULK_OPR_KW), "")
+	}
 
 	return request
 }

@@ -9,7 +9,7 @@ import (
 )
 
 // ExtractStructFile extracts a struct file for the path
-func ExtractStructFile(conn *connection.IRODSConnection, path string, target string, resource string, dataType types.DataType, force bool) error {
+func ExtractStructFile(conn *connection.IRODSConnection, path string, target string, resource string, dataType types.DataType, force bool, bulkReg bool) error {
 	if conn == nil || !conn.IsConnected() {
 		return xerrors.Errorf("connection is nil or disconnected")
 	}
@@ -31,7 +31,7 @@ func ExtractStructFile(conn *connection.IRODSConnection, path string, target str
 		resource = account.DefaultResource
 	}
 
-	request := message.NewIRODSMessageExtractStructFileRequest(path, target, resource, dataType, force)
+	request := message.NewIRODSMessageExtractStructFileRequest(path, target, resource, dataType, force, bulkReg)
 	response := message.IRODSMessageRemoveDataObjectResponse{}
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
