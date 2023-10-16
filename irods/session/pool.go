@@ -167,7 +167,7 @@ func (pool *ConnectionPool) Get() (*connection.IRODSConnection, bool, error) {
 	defer pool.mutex.Unlock()
 
 	if len(pool.occupiedConnections) >= pool.config.MaxCap {
-		return nil, false, types.NewConnectionPoolFullError()
+		return nil, false, types.NewConnectionPoolFullError(len(pool.occupiedConnections), pool.config.MaxCap)
 	}
 
 	var err error
@@ -221,7 +221,7 @@ func (pool *ConnectionPool) GetNew() (*connection.IRODSConnection, error) {
 	defer pool.mutex.Unlock()
 
 	if len(pool.occupiedConnections) >= pool.config.MaxCap {
-		return nil, types.NewConnectionPoolFullError()
+		return nil, types.NewConnectionPoolFullError(len(pool.occupiedConnections), pool.config.MaxCap)
 	}
 
 	// full - close an idle connection and create a new one

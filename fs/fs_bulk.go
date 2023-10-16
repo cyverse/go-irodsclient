@@ -21,7 +21,7 @@ func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath 
 
 	srcStat, err := fs.Stat(irodsSrcPath)
 	if err != nil {
-		return xerrors.Errorf("failed to stat for path %s: %w", irodsSrcPath, types.NewFileNotFoundError())
+		return xerrors.Errorf("failed to stat for path %s: %w", irodsSrcPath, types.NewFileNotFoundError(irodsSrcPath))
 	}
 
 	if srcStat.Type == DirectoryEntry {
@@ -93,7 +93,7 @@ func (fs *FileSystem) DownloadFileToBuffer(irodsPath string, resource string, bu
 
 	srcStat, err := fs.Stat(irodsSrcPath)
 	if err != nil {
-		return xerrors.Errorf("failed to stat for path %s: %w", irodsSrcPath, types.NewFileNotFoundError())
+		return xerrors.Errorf("failed to stat for path %s: %w", irodsSrcPath, types.NewFileNotFoundError(irodsSrcPath))
 	}
 
 	if srcStat.Type == DirectoryEntry {
@@ -112,7 +112,7 @@ func (fs *FileSystem) DownloadFileParallel(irodsPath string, resource string, lo
 
 	srcStat, err := fs.Stat(irodsSrcPath)
 	if err != nil {
-		return xerrors.Errorf("failed to stat for path %s: %w", irodsSrcPath, types.NewFileNotFoundError())
+		return xerrors.Errorf("failed to stat for path %s: %w", irodsSrcPath, types.NewFileNotFoundError(irodsSrcPath))
 	}
 
 	if srcStat.Type == DirectoryEntry {
@@ -151,7 +151,7 @@ func (fs *FileSystem) DownloadFileParallelInBlocksAsync(irodsPath string, resour
 
 	srcStat, err := fs.Stat(irodsSrcPath)
 	if err != nil {
-		errChan <- xerrors.Errorf("failed to stat for path %s: %w", irodsSrcPath, types.NewFileNotFoundError())
+		errChan <- xerrors.Errorf("failed to stat for path %s: %w", irodsSrcPath, types.NewFileNotFoundError(irodsSrcPath))
 		close(outputChan)
 		close(errChan)
 		return outputChan, errChan
@@ -201,13 +201,13 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 	if err != nil {
 		if os.IsNotExist(err) {
 			// file not exists
-			return xerrors.Errorf("failed to stat for local path %s: %w", localSrcPath, types.NewFileNotFoundError())
+			return xerrors.Errorf("failed to stat for local path %s: %w", localSrcPath, types.NewFileNotFoundError(localSrcPath))
 		}
 		return err
 	}
 
 	if stat.IsDir() {
-		return xerrors.Errorf("failed to find a file for local path %s, the path is for a directory: %w", localSrcPath, types.NewFileNotFoundError())
+		return xerrors.Errorf("failed to find a file for local path %s, the path is for a directory: %w", localSrcPath, types.NewFileNotFoundError(localSrcPath))
 	}
 
 	entry, err := fs.Stat(irodsDestPath)
@@ -280,13 +280,13 @@ func (fs *FileSystem) UploadFileAsync(localPath string, irodsPath string, resour
 	if err != nil {
 		if os.IsNotExist(err) {
 			// file not exists
-			return xerrors.Errorf("failed to stat for local path %s: %w", localSrcPath, types.NewFileNotFoundError())
+			return xerrors.Errorf("failed to stat for local path %s: %w", localSrcPath, types.NewFileNotFoundError(localSrcPath))
 		}
 		return err
 	}
 
 	if stat.IsDir() {
-		return xerrors.Errorf("failed to find a file for local path %s, the path is for a directory: %w", localSrcPath, types.NewFileNotFoundError())
+		return xerrors.Errorf("failed to find a file for local path %s, the path is for a directory: %w", localSrcPath, types.NewFileNotFoundError(localSrcPath))
 	}
 
 	entry, err := fs.Stat(irodsDestPath)
@@ -327,13 +327,13 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 	if err != nil {
 		if os.IsNotExist(err) {
 			// file not exists
-			return xerrors.Errorf("failed to stat for local path %s: %w", localSrcPath, types.NewFileNotFoundError())
+			return xerrors.Errorf("failed to stat for local path %s: %w", localSrcPath, types.NewFileNotFoundError(localSrcPath))
 		}
 		return err
 	}
 
 	if srcStat.IsDir() {
-		return xerrors.Errorf("failed to find a file for local path %s, the path is for a directory: %w", localSrcPath, types.NewFileNotFoundError())
+		return xerrors.Errorf("failed to find a file for local path %s, the path is for a directory: %w", localSrcPath, types.NewFileNotFoundError(localSrcPath))
 	}
 
 	destStat, err := fs.Stat(irodsDestPath)
@@ -377,7 +377,7 @@ func (fs *FileSystem) UploadFileParallelInBlocksAsync(localPath string, irodsPat
 	if err != nil {
 		if os.IsNotExist(err) {
 			// file not exists
-			errChan <- xerrors.Errorf("failed to stat for local path %s: %w", localSrcPath, types.NewFileNotFoundError())
+			errChan <- xerrors.Errorf("failed to stat for local path %s: %w", localSrcPath, types.NewFileNotFoundError(localSrcPath))
 			close(outputChan)
 			close(errChan)
 			return outputChan, errChan
@@ -390,7 +390,7 @@ func (fs *FileSystem) UploadFileParallelInBlocksAsync(localPath string, irodsPat
 	}
 
 	if srcStat.IsDir() {
-		errChan <- xerrors.Errorf("failed to find a file for local path %s, the path is for a directory: %w", localSrcPath, types.NewFileNotFoundError())
+		errChan <- xerrors.Errorf("failed to find a file for local path %s, the path is for a directory: %w", localSrcPath, types.NewFileNotFoundError(localSrcPath))
 		close(outputChan)
 		close(errChan)
 		return outputChan, errChan

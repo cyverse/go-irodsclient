@@ -412,3 +412,10 @@ func (account *IRODSAccount) FixAuthConfiguration() {
 		account.ClientServerNegotiation = true
 	}
 }
+
+func (account *IRODSAccount) GetRedacted() *IRODSAccount {
+	account2 := IRODSAccount{}
+	account2 = *account
+	account2.Password = "<Redacted>"
+	return &account2
+}

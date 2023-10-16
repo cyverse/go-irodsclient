@@ -169,7 +169,7 @@ func (conn *IRODSConnection) Connect() error {
 
 	err := conn.account.Validate()
 	if err != nil {
-		return xerrors.Errorf("invalid account (%s): %w", err.Error(), types.NewConnectionConfigError())
+		return xerrors.Errorf("invalid account (%s): %w", err.Error(), types.NewConnectionConfigError(conn.account))
 	}
 
 	// lock the connection
@@ -240,7 +240,7 @@ func (conn *IRODSConnection) Connect() error {
 		err = conn.loginPAM()
 	default:
 		logger.Errorf("unknown Authentication Scheme - %s", conn.account.AuthenticationScheme)
-		return xerrors.Errorf("unknown Authentication Scheme - %s: %w", conn.account.AuthenticationScheme, types.NewConnectionConfigError())
+		return xerrors.Errorf("unknown Authentication Scheme - %s: %w", conn.account.AuthenticationScheme, types.NewConnectionConfigError(conn.account))
 	}
 
 	if err != nil {
@@ -254,7 +254,7 @@ func (conn *IRODSConnection) Connect() error {
 		req := message.NewIRODSMessageTicketAdminRequest("session", conn.account.Ticket)
 		err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
 		if err != nil {
-			return xerrors.Errorf("received supply ticket error (%s): %w", err.Error(), types.NewAuthError())
+			return xerrors.Errorf("received supply ticket error (%s): %w", err.Error(), types.NewAuthError(conn.account))
 		}
 	}
 
@@ -384,7 +384,7 @@ func (conn *IRODSConnection) sslStartup() error {
 
 	irodsSSLConfig := conn.account.SSLConfiguration
 	if irodsSSLConfig == nil {
-		return xerrors.Errorf("SSL Configuration is not set: %w", types.NewConnectionConfigError())
+		return xerrors.Errorf("SSL Configuration is not set: %w", types.NewConnectionConfigError(conn.account))
 	}
 
 	caCertPool := x509.NewCertPool()
@@ -442,12 +442,12 @@ func (conn *IRODSConnection) login(password string) error {
 	authChallenge := message.IRODSMessageAuthChallengeResponse{}
 	err := conn.Request(authRequest, &authChallenge, nil)
 	if err != nil {
-		return xerrors.Errorf("failed to receive authentication challenge message body (%s): %w", err.Error(), types.NewAuthError())
+		return xerrors.Errorf("failed to receive authentication challenge message body (%s): %w", err.Error(), types.NewAuthError(conn.account))
 	}
 
 	challengeBytes, err := authChallenge.GetChallenge()
 	if err != nil {
-		return xerrors.Errorf("failed to get authentication challenge (%s): %w", err.Error(), types.NewAuthError())
+		return xerrors.Errorf("failed to get authentication challenge (%s): %w", err.Error(), types.NewAuthError(conn.account))
 	}
 
 	// save client signature
@@ -459,7 +459,7 @@ func (conn *IRODSConnection) login(password string) error {
 	authResult := message.IRODSMessageAuthResult{}
 	err = conn.RequestAndCheck(authResponse, &authResult, nil)
 	if err != nil {
-		return xerrors.Errorf("received irods authentication error (%s): %w", err.Error(), types.NewAuthError())
+		return xerrors.Errorf("received irods authentication error (%s): %w", err.Error(), types.NewAuthError(conn.account))
 	}
 	return nil
 }
@@ -476,7 +476,7 @@ func (conn *IRODSConnection) loginNative(password string) error {
 }
 
 func (conn *IRODSConnection) loginGSI() error {
-	return xerrors.Errorf("GSI login is not yet implemented: %w", types.NewAuthError())
+	return xerrors.Errorf("GSI login is not yet implemented: %w", types.NewAuthError(conn.account))
 }
 
 func (conn *IRODSConnection) loginPAM() error {
@@ -503,7 +503,7 @@ func (conn *IRODSConnection) loginPAM() error {
 	pamAuthResponse := message.IRODSMessagePamAuthResponse{}
 	err := conn.Request(pamAuthRequest, &pamAuthResponse, nil)
 	if err != nil {
-		return xerrors.Errorf("failed to receive an authentication challenge message (%s): %w", err.Error(), types.NewAuthError())
+		return xerrors.Errorf("failed to receive an authentication challenge message (%s): %w", err.Error(), types.NewAuthError(conn.account))
 	}
 
 	// save irods generated password for possible future use

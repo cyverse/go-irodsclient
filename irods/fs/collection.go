@@ -73,14 +73,14 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 	err = queryResult.CheckError()
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError())
+			return nil, xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError(path))
 		}
 		return nil, xerrors.Errorf("received collection query error: %w", err)
 	}
 
 	if queryResult.RowCount != 1 {
 		// file not found
-		return nil, xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError())
+		return nil, xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError(path))
 	}
 
 	if queryResult.AttributeCount > len(queryResult.SQLResult) {
@@ -129,7 +129,7 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 	}
 
 	if collectionID == -1 {
-		return nil, xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError())
+		return nil, xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError(path))
 	}
 
 	return &types.IRODSCollection{
@@ -609,9 +609,9 @@ func DeleteCollection(conn *connection.IRODSConnection, path string, recurse boo
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError())
+			return xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError(path))
 		} else if types.GetIRODSErrorCode(err) == common.CAT_COLLECTION_NOT_EMPTY {
-			return xerrors.Errorf("the collection for path %s is empty: %w", path, types.NewCollectionNotEmptyError())
+			return xerrors.Errorf("the collection for path %s is empty: %w", path, types.NewCollectionNotEmptyError(path))
 		}
 
 		return xerrors.Errorf("received delete collection error: %w", err)
@@ -658,7 +658,7 @@ func MoveCollection(conn *connection.IRODSConnection, srcPath string, destPath s
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return xerrors.Errorf("failed to find the collection for path %s: %w", srcPath, types.NewFileNotFoundError())
+			return xerrors.Errorf("failed to find the collection for path %s: %w", srcPath, types.NewFileNotFoundError(srcPath))
 		}
 		return xerrors.Errorf("received move collection error: %w", err)
 	}
@@ -720,7 +720,7 @@ func DeleteCollectionMeta(conn *connection.IRODSConnection, path string, metadat
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError())
+			return xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError(path))
 		}
 		return xerrors.Errorf("received delete collection meta error: %w", err)
 	}
@@ -993,7 +993,7 @@ func ChangeCollectionAccess(conn *connection.IRODSConnection, path string, acces
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError())
+			return xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError(path))
 		}
 		return xerrors.Errorf("received change collection access error: %w", err)
 	}
@@ -1026,7 +1026,7 @@ func SetAccessInherit(conn *connection.IRODSConnection, path string, inherit, re
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError())
+			return xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError(path))
 		}
 		return xerrors.Errorf("received set access inherit error: %w", err)
 	}

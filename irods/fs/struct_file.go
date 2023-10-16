@@ -36,7 +36,7 @@ func ExtractStructFile(conn *connection.IRODSConnection, path string, target str
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return xerrors.Errorf("failed to find the data object for path %s: %w", path, types.NewFileNotFoundError())
+			return xerrors.Errorf("failed to find the data object for path %s: %w", path, types.NewFileNotFoundError(path))
 		}
 		return xerrors.Errorf("received extract struct file error: %w", err)
 	}

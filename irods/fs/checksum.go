@@ -34,7 +34,7 @@ func GetDataObjectChecksum(conn *connection.IRODSConnection, path string, resour
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, xerrors.Errorf("failed to find the data object for path %s: %w", path, types.NewFileNotFoundError())
+			return nil, xerrors.Errorf("failed to find the data object for path %s: %w", path, types.NewFileNotFoundError(path))
 		}
 		return nil, xerrors.Errorf("failed to get data object checksum: %w", err)
 	}

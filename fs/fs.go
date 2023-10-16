@@ -225,7 +225,7 @@ func (fs *FileSystem) Stat(p string) (*Entry, error) {
 	// check if a negative cache for the given path exists
 	if fs.cache.HasNegativeEntryCache(irodsPath) {
 		// has a negative cache - fail fast
-		return nil, xerrors.Errorf("failed to find the data object or the collection for path %s: %w", irodsPath, types.NewFileNotFoundError())
+		return nil, xerrors.Errorf("failed to find the data object or the collection for path %s: %w", irodsPath, types.NewFileNotFoundError(irodsPath))
 	}
 
 	// check if a cached Entry for the given path exists
@@ -249,7 +249,7 @@ func (fs *FileSystem) Stat(p string) (*Entry, error) {
 		if !dirEntryExist {
 			// dir entry not exist - fail fast
 			fs.cache.AddNegativeEntryCache(irodsPath)
-			return nil, xerrors.Errorf("failed to find the data object or the collection for path %s: %w", irodsPath, types.NewFileNotFoundError())
+			return nil, xerrors.Errorf("failed to find the data object or the collection for path %s: %w", irodsPath, types.NewFileNotFoundError(irodsPath))
 		}
 	}
 
@@ -276,7 +276,7 @@ func (fs *FileSystem) Stat(p string) (*Entry, error) {
 
 	// not a collection, not a data object
 	fs.cache.AddNegativeEntryCache(irodsPath)
-	return nil, xerrors.Errorf("failed to find the data object or the collection for path %s: %w", irodsPath, types.NewFileNotFoundError())
+	return nil, xerrors.Errorf("failed to find the data object or the collection for path %s: %w", irodsPath, types.NewFileNotFoundError(irodsPath))
 }
 
 // StatDir returns status of a directory
@@ -845,13 +845,13 @@ func (fs *FileSystem) getCollectionNoCache(path string) (*Entry, error) {
 		return entry, nil
 	}
 
-	return nil, xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError())
+	return nil, xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError(path))
 }
 
 // getCollection returns collection entry
 func (fs *FileSystem) getCollection(path string) (*Entry, error) {
 	if fs.cache.HasNegativeEntryCache(path) {
-		return nil, xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError())
+		return nil, xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError(path))
 	}
 
 	// check cache first
@@ -1019,13 +1019,13 @@ func (fs *FileSystem) getDataObjectWithConnectionNoCache(conn *connection.IRODSC
 		return entry, nil
 	}
 
-	return nil, xerrors.Errorf("failed to find the data object for path %s: %w", path, types.NewFileNotFoundError())
+	return nil, xerrors.Errorf("failed to find the data object for path %s: %w", path, types.NewFileNotFoundError(path))
 }
 
 // getDataObjectWithConnection returns an entry for data object
 func (fs *FileSystem) getDataObjectWithConnection(conn *connection.IRODSConnection, path string) (*Entry, error) {
 	if fs.cache.HasNegativeEntryCache(path) {
-		return nil, xerrors.Errorf("failed to find the data object for path %s: %w", path, types.NewFileNotFoundError())
+		return nil, xerrors.Errorf("failed to find the data object for path %s: %w", path, types.NewFileNotFoundError(path))
 	}
 
 	// check cache first
@@ -1068,13 +1068,13 @@ func (fs *FileSystem) getDataObjectNoCache(path string) (*Entry, error) {
 		return entry, nil
 	}
 
-	return nil, xerrors.Errorf("failed to find the data object for path %s: %w", path, types.NewFileNotFoundError())
+	return nil, xerrors.Errorf("failed to find the data object for path %s: %w", path, types.NewFileNotFoundError(path))
 }
 
 // getDataObject returns an entry for data object
 func (fs *FileSystem) getDataObject(path string) (*Entry, error) {
 	if fs.cache.HasNegativeEntryCache(path) {
-		return nil, xerrors.Errorf("failed to find the data object for path %s: %w", path, types.NewFileNotFoundError())
+		return nil, xerrors.Errorf("failed to find the data object for path %s: %w", path, types.NewFileNotFoundError(path))
 	}
 
 	// check cache first
