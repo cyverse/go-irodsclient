@@ -36,6 +36,15 @@ type IRODSChecksum struct {
 
 // CreateIRODSChecksum creates IRODSChecksum from checksum string
 func CreateIRODSChecksum(checksumString string) (*IRODSChecksum, error) {
+	if len(checksumString) == 0 {
+		// completely normal
+		return &IRODSChecksum{
+			OriginalChecksum: "",
+			Algorithm:        "",
+			Checksum:         nil,
+		}, nil
+	}
+
 	algorithm, checksum, err := ParseIRODSChecksum(checksumString)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to split data object checksum: %w", err)
