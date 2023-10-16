@@ -45,7 +45,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticketName st
 	err = queryResult.CheckError()
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewFileNotFoundError())
+			return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewTicketNotFoundError(ticketName))
 		}
 
 		return nil, xerrors.Errorf("received a ticket query error: %w", err)
@@ -53,7 +53,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticketName st
 
 	if queryResult.RowCount != 1 {
 		// file not found
-		return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewFileNotFoundError())
+		return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewTicketNotFoundError(ticketName))
 	}
 
 	if queryResult.AttributeCount > len(queryResult.SQLResult) {
@@ -98,7 +98,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticketName st
 	}
 
 	if ticketID == -1 {
-		return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewFileNotFoundError())
+		return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewTicketNotFoundError(ticketName))
 	}
 
 	return &types.IRODSTicketForAnonymousAccess{
@@ -138,7 +138,7 @@ func GetTicket(conn *connection.IRODSConnection, ticketName string) (*types.IROD
 		}
 	}
 
-	return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewFileNotFoundError())
+	return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewTicketNotFoundError(ticketName))
 }
 
 // GetTicketForDataObjects returns ticket information for the ticket name string
@@ -179,7 +179,7 @@ func GetTicketForDataObjects(conn *connection.IRODSConnection, ticketName string
 	err = queryResult.CheckError()
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewFileNotFoundError())
+			return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewTicketNotFoundError(ticketName))
 		}
 
 		return nil, xerrors.Errorf("received a ticket query error: %w", err)
@@ -187,7 +187,7 @@ func GetTicketForDataObjects(conn *connection.IRODSConnection, ticketName string
 
 	if queryResult.RowCount != 1 {
 		// file not found
-		return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewFileNotFoundError())
+		return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewTicketNotFoundError(ticketName))
 	}
 
 	if queryResult.AttributeCount > len(queryResult.SQLResult) {
@@ -289,7 +289,7 @@ func GetTicketForDataObjects(conn *connection.IRODSConnection, ticketName string
 	}
 
 	if ticketID == -1 {
-		return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewFileNotFoundError())
+		return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewTicketNotFoundError(ticketName))
 	}
 
 	return &types.IRODSTicket{
@@ -347,7 +347,7 @@ func GetTicketForCollections(conn *connection.IRODSConnection, ticketName string
 	err = queryResult.CheckError()
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewFileNotFoundError())
+			return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewTicketNotFoundError(ticketName))
 		}
 
 		return nil, xerrors.Errorf("received a ticket query error: %w", err)
@@ -355,7 +355,7 @@ func GetTicketForCollections(conn *connection.IRODSConnection, ticketName string
 
 	if queryResult.RowCount != 1 {
 		// file not found
-		return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewFileNotFoundError())
+		return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewTicketNotFoundError(ticketName))
 	}
 
 	if queryResult.AttributeCount > len(queryResult.SQLResult) {
@@ -451,7 +451,7 @@ func GetTicketForCollections(conn *connection.IRODSConnection, ticketName string
 	}
 
 	if ticketID == -1 {
-		return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewFileNotFoundError())
+		return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewTicketNotFoundError(ticketName))
 	}
 
 	return &types.IRODSTicket{
@@ -1246,7 +1246,7 @@ func CreateTicket(conn *connection.IRODSConnection, ticketName string, ticketTyp
 		ticketName = xid.New().String()
 	}
 
-	req := message.NewIRODSMessageTicketAdminRequest("create", ticketName, string(ticketType), path)
+	req := message.NewIRODSMessageTicketAdminRequest("create", ticketName, string(ticketType), path, ticketName)
 
 	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
 	if err != nil {
@@ -1307,7 +1307,7 @@ func ClearTicketWriteFileLimit(conn *connection.IRODSConnection, ticketName stri
 
 // ModifyTicketWriteByteLimit modifies the write byte limit of the given ticket
 func ModifyTicketWriteByteLimit(conn *connection.IRODSConnection, ticketName string, bytes int64) error {
-	return ModifyTicket(conn, ticketName, "write-byte", fmt.Sprintf("%d", bytes))
+	return ModifyTicket(conn, ticketName, "write-bytes", fmt.Sprintf("%d", bytes))
 }
 
 // ClearTicketWriteByteLimit clears the write byte limit of the given ticket
@@ -1349,7 +1349,7 @@ func RemoveTicketAllowedHost(conn *connection.IRODSConnection, ticketName string
 func ModifyTicketExpirationTime(conn *connection.IRODSConnection, ticketName string, expirationTime time.Time) error {
 	expirationTimeString := util.GetIRODSDateTimeStringForTicket(expirationTime)
 
-	return ModifyTicket(conn, ticketName, "expiry", expirationTimeString)
+	return ModifyTicket(conn, ticketName, "expire", expirationTimeString)
 }
 
 // ClearTicketExpirationTime clears the expiration time of the given ticket

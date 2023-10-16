@@ -9,13 +9,14 @@ import (
 
 // IRODSMessageTicketAdminRequest stores ticket admin request
 type IRODSMessageTicketAdminRequest struct {
-	XMLName xml.Name `xml:"ticketAdminInp_PI"`
-	Action  string   `xml:"arg1"` // session, create, or mod
-	Ticket  string   `xml:"arg2"` // ticket name
-	Arg3    string   `xml:"arg3"`
-	Arg4    string   `xml:"arg4"`
-	Arg5    string   `xml:"arg5"`
-	Arg6    string   `xml:"arg6"`
+	XMLName xml.Name             `xml:"ticketAdminInp_PI"`
+	Action  string               `xml:"arg1"` // session, create, or mod
+	Ticket  string               `xml:"arg2"` // ticket name
+	Arg3    string               `xml:"arg3"` // ticket type
+	Arg4    string               `xml:"arg4"` // path
+	Arg5    string               `xml:"arg5"` // ticket name again
+	Arg6    string               `xml:"arg6"`
+	KeyVals IRODSMessageSSKeyVal `xml:"KeyValPair_PI"`
 }
 
 // NewIRODSMessageTicketAdminRequest creates a new IRODSMessageTicketAdminRequest
@@ -23,6 +24,9 @@ func NewIRODSMessageTicketAdminRequest(action string, ticket string, args ...str
 	request := &IRODSMessageTicketAdminRequest{
 		Action: action,
 		Ticket: ticket,
+		KeyVals: IRODSMessageSSKeyVal{
+			Length: 0,
+		},
 	}
 
 	if len(args) > 0 {
@@ -42,6 +46,11 @@ func NewIRODSMessageTicketAdminRequest(action string, ticket string, args ...str
 	}
 
 	return request
+}
+
+// AddKeyVal adds a key-value pair
+func (msg *IRODSMessageTicketAdminRequest) AddKeyVal(key common.KeyWord, val string) {
+	msg.KeyVals.Add(string(key), val)
 }
 
 // GetBytes returns byte array
