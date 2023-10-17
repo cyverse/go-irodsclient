@@ -621,6 +621,17 @@ func (fs *FileSystem) MakeDir(path string, recurse bool) error {
 	}
 	defer fs.metaSession.ReturnConnection(conn)
 
+	dirEntry, err := fs.StatDir(path)
+	if err == nil {
+		if dirEntry.ID > 0 {
+			// already exists
+			if recurse {
+				return nil
+			}
+			return types.NewFileAlreadyExistError(path)
+		}
+	}
+
 	err = irods_fs.CreateCollection(conn, irodsPath, recurse)
 	if err != nil {
 		return err

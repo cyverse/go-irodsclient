@@ -204,6 +204,39 @@ func IsFileNotFoundError(err error) bool {
 	return errors.Is(err, &FileNotFoundError{})
 }
 
+// FileAlreadyExistError contains file already exist error information
+type FileAlreadyExistError struct {
+	Path string
+}
+
+// NewFileAlreadyExistError creates an error for file already exist
+func NewFileAlreadyExistError(p string) error {
+	return &FileAlreadyExistError{
+		Path: p,
+	}
+}
+
+// Error returns error message
+func (err *FileAlreadyExistError) Error() string {
+	return fmt.Sprintf("data object/collection already exist for path %s", err.Path)
+}
+
+// Is tests type of error
+func (err *FileAlreadyExistError) Is(other error) bool {
+	_, ok := other.(*FileAlreadyExistError)
+	return ok
+}
+
+// ToString stringifies the object
+func (err *FileAlreadyExistError) ToString() string {
+	return fmt.Sprintf("<FileAlreadyExistError %s>", err.Path)
+}
+
+// IsFileAlreadyExistError checks if the given error is FileAlreadyExistError
+func IsFileAlreadyExistError(err error) bool {
+	return errors.Is(err, &FileAlreadyExistError{})
+}
+
 // TicketNotFoundError contains ticket not found error information
 type TicketNotFoundError struct {
 	Ticket string
