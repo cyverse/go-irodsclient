@@ -1457,7 +1457,7 @@ func OpenDataObjectWithReplicaToken(conn *connection.IRODSConnection, path strin
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return nil, -1, xerrors.Errorf("failed to find the data object for path %s: %w", path, types.NewFileNotFoundError(path))
 		}
-		return nil, -1, xerrors.Errorf("failed top open data object with replica token: %w", err)
+		return nil, -1, xerrors.Errorf("failed to open data object with replica token: %w", err)
 	}
 
 	handle := &types.IRODSFileHandle{

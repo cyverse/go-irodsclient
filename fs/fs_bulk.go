@@ -40,8 +40,6 @@ func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath 
 		if destStat.IsDir() {
 			irodsFileName := util.GetIRODSPathFileName(irodsSrcPath)
 			localFilePath = filepath.Join(localDestPath, irodsFileName)
-		} else {
-			return xerrors.Errorf("file %s already exists", localDestPath)
 		}
 	}
 
@@ -78,8 +76,6 @@ func (fs *FileSystem) DownloadFileWithProgressFile(irodsPath string, resource st
 		if destStat.IsDir() {
 			irodsFileName := util.GetIRODSPathFileName(irodsSrcPath)
 			localFilePath = filepath.Join(localDestPath, irodsFileName)
-		} else {
-			return xerrors.Errorf("file %s already exists", localDestPath)
 		}
 	}
 
@@ -131,8 +127,6 @@ func (fs *FileSystem) DownloadFileParallel(irodsPath string, resource string, lo
 		if destStat.IsDir() {
 			irodsFileName := util.GetIRODSPathFileName(irodsSrcPath)
 			localFilePath = filepath.Join(localDestPath, irodsFileName)
-		} else {
-			return xerrors.Errorf("file %s already exists", localDestPath)
 		}
 	}
 
@@ -179,11 +173,6 @@ func (fs *FileSystem) DownloadFileParallelInBlocksAsync(irodsPath string, resour
 		if destStat.IsDir() {
 			irodsFileName := util.GetIRODSPathFileName(irodsSrcPath)
 			localFilePath = filepath.Join(localDestPath, irodsFileName)
-		} else {
-			errChan <- xerrors.Errorf("file %s already exists", localDestPath)
-			close(outputChan)
-			close(errChan)
-			return outputChan, errChan
 		}
 	}
 

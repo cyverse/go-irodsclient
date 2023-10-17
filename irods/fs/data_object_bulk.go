@@ -721,7 +721,7 @@ func DownloadDataObjectToBuffer(session *session.IRODSSession, irodsPath string,
 
 	conn, err := session.AcquireConnection()
 	if err != nil {
-		return xerrors.Errorf("failed top get connection: %w", err)
+		return xerrors.Errorf("failed to get connection: %w", err)
 	}
 	defer session.ReturnConnection(conn)
 
@@ -789,7 +789,7 @@ func DownloadDataObject(session *session.IRODSSession, irodsPath string, resourc
 
 	conn, err := session.AcquireConnection()
 	if err != nil {
-		return xerrors.Errorf("failed top get connection: %w", err)
+		return xerrors.Errorf("failed to get connection: %w", err)
 	}
 	defer session.ReturnConnection(conn)
 
@@ -805,7 +805,7 @@ func DownloadDataObject(session *session.IRODSSession, irodsPath string, resourc
 
 	f, err := os.Create(localPath)
 	if err != nil {
-		return xerrors.Errorf("failed top create file %s: %w", localPath, err)
+		return xerrors.Errorf("failed to create file %s: %w", localPath, err)
 	}
 	defer f.Close()
 
