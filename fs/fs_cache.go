@@ -13,10 +13,12 @@ func (fs *FileSystem) ClearCache() {
 	fs.cache.ClearDirCache()
 }
 
+// AddCacheEventHandler adds cache event handler
 func (fs *FileSystem) AddCacheEventHandler(handler FilesystemCacheEventHandler) string {
 	return fs.cacheEventHandlerMap.AddEventHandler(handler)
 }
 
+// RemoveCacheEventHandler removes cache event handler
 func (fs *FileSystem) RemoveCacheEventHandler(handlerID string) {
 	fs.cacheEventHandlerMap.RemoveEventHandler(handlerID)
 }

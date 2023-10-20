@@ -21,7 +21,7 @@ func (fs *FileSystem) ListProcesses(address string, zone string) ([]*types.IRODS
 	return processes, nil
 }
 
-// ListGroups lists all groups
+// ListAllProcesses lists all processes
 func (fs *FileSystem) ListAllProcesses() ([]*types.IRODSProcess, error) {
 	return fs.ListProcesses("", "")
 }

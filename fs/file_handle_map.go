@@ -11,6 +11,7 @@ import (
 // FileHandleMapEventHandler is a event handler for FileHandleMap
 type FileHandleMapEventHandler func(path string, id string, empty bool)
 
+// FileHandleMapEventHandlerWrap is wrapper event handler
 type FileHandleMapEventHandlerWrap struct {
 	id      string
 	path    string
@@ -231,7 +232,7 @@ func (fileHandleMap *FileHandleMap) ListByPath(path string) []*FileHandle {
 	return handles
 }
 
-// ListPathsUnderDir returns paths of file handles under given parent path
+// ListPathsInDir returns paths of file handles under given parent path
 func (fileHandleMap *FileHandleMap) ListPathsInDir(parentPath string) []string {
 	fileHandleMap.mutex.RLock()
 	defer fileHandleMap.mutex.RUnlock()

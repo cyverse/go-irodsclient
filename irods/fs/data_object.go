@@ -1197,7 +1197,7 @@ func MoveDataObject(conn *connection.IRODSConnection, srcPath string, destPath s
 }
 
 // CopyDataObject creates a copy of a data object for the path
-func CopyDataObject(conn *connection.IRODSConnection, srcPath string, destPath string) error {
+func CopyDataObject(conn *connection.IRODSConnection, srcPath string, destPath string, force bool) error {
 	if conn == nil || !conn.IsConnected() {
 		return xerrors.Errorf("connection is nil or disconnected")
 	}
@@ -1211,7 +1211,7 @@ func CopyDataObject(conn *connection.IRODSConnection, srcPath string, destPath s
 	conn.Lock()
 	defer conn.Unlock()
 
-	request := message.NewIRODSMessageCopyDataObjectRequest(srcPath, destPath)
+	request := message.NewIRODSMessageCopyDataObjectRequest(srcPath, destPath, force)
 	response := message.IRODSMessageCopyDataObjectResponse{}
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {

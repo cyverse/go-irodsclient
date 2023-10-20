@@ -324,7 +324,7 @@ func (cache *FileSystemCache) AddACLsCache(path string, accesses []*types.IRODSA
 	cache.aclCache.Set(path, accesses, ttl)
 }
 
-// AddACLsCache adds multiple ACLs caches
+// AddACLsCacheMulti adds multiple ACLs caches
 func (cache *FileSystemCache) AddACLsCacheMulti(accesses []*types.IRODSAccess) {
 	m := map[string][]*types.IRODSAccess{}
 

@@ -379,17 +379,16 @@ func (fs *FileSystem) RemoveFile(path string, force bool) error {
 	if util.WaitTimeout(&wg, fs.config.OperationTimeout) {
 		// timed out
 		return xerrors.Errorf("failed to remove file, there are files still opened")
-	} else {
-		// wait done
-		err = irods_fs.DeleteDataObject(conn, irodsPath, force)
-		if err != nil {
-			return err
-		}
-
-		fs.invalidateCacheForFileRemove(irodsPath)
-		fs.cachePropagation.PropagateFileRemove(irodsPath)
 	}
 
+	// wait done
+	err = irods_fs.DeleteDataObject(conn, irodsPath, force)
+	if err != nil {
+		return err
+	}
+
+	fs.invalidateCacheForFileRemove(irodsPath)
+	fs.cachePropagation.PropagateFileRemove(irodsPath)
 	return nil
 }
 
@@ -644,7 +643,7 @@ func (fs *FileSystem) MakeDir(path string, recurse bool) error {
 }
 
 // CopyFile copies a file
-func (fs *FileSystem) CopyFile(srcPath string, destPath string) error {
+func (fs *FileSystem) CopyFile(srcPath string, destPath string, force bool) error {
 	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
 	irodsDestPath := util.GetCorrectIRODSPath(destPath)
 
@@ -655,11 +654,11 @@ func (fs *FileSystem) CopyFile(srcPath string, destPath string) error {
 		destFilePath = util.MakeIRODSPath(irodsDestPath, srcFileName)
 	}
 
-	return fs.CopyFileToFile(irodsSrcPath, destFilePath)
+	return fs.CopyFileToFile(irodsSrcPath, destFilePath, force)
 }
 
 // CopyFileToFile copies a file
-func (fs *FileSystem) CopyFileToFile(srcPath string, destPath string) error {
+func (fs *FileSystem) CopyFileToFile(srcPath string, destPath string, force bool) error {
 	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
 	irodsDestPath := util.GetCorrectIRODSPath(destPath)
 
@@ -669,7 +668,7 @@ func (fs *FileSystem) CopyFileToFile(srcPath string, destPath string) error {
 	}
 	defer fs.metaSession.ReturnConnection(conn)
 
-	err = irods_fs.CopyDataObject(conn, irodsSrcPath, irodsDestPath)
+	err = irods_fs.CopyDataObject(conn, irodsSrcPath, irodsDestPath, force)
 	if err != nil {
 		return err
 	}

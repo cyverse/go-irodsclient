@@ -37,6 +37,7 @@ func NewFileSystemCachePropagation(fs *FileSystem) *FileSystemCachePropagation {
 	return cachePropagation
 }
 
+// Release releases resources
 func (propagation *FileSystemCachePropagation) Release() {
 	filesystemCacheEventHandlersMutex.Lock()
 	defer filesystemCacheEventHandlersMutex.Unlock()

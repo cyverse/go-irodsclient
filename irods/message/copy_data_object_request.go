@@ -14,8 +14,8 @@ type IRODSMessageCopyDataObjectRequest struct {
 }
 
 // NewIRODSMessageCopyDataObjectRequest creates a IRODSMessageCopyDataObjectRequest message
-func NewIRODSMessageCopyDataObjectRequest(srcPath string, destPath string) *IRODSMessageCopyDataObjectRequest {
-	return &IRODSMessageCopyDataObjectRequest{
+func NewIRODSMessageCopyDataObjectRequest(srcPath string, destPath string, force bool) *IRODSMessageCopyDataObjectRequest {
+	request := &IRODSMessageCopyDataObjectRequest{
 		Paths: []IRODSMessageDataObjectRequest{
 			{
 				Path:          srcPath,
@@ -42,6 +42,19 @@ func NewIRODSMessageCopyDataObjectRequest(srcPath string, destPath string) *IROD
 				},
 			},
 		},
+	}
+
+	if force {
+		request.Paths[1].KeyVals.Add(string(common.FORCE_FLAG_KW), "")
+	}
+
+	return request
+}
+
+// AddKeyVal adds a key-value pair
+func (msg *IRODSMessageCopyDataObjectRequest) AddKeyVal(key common.KeyWord, val string) {
+	if len(msg.Paths) >= 2 {
+		msg.Paths[1].KeyVals.Add(string(key), val)
 	}
 }
 

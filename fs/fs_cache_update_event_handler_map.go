@@ -22,6 +22,7 @@ const (
 	FilesystemCacheDirRemoveEvent FilesystemCacheEventType = "dir remove"
 )
 
+// FilesystemCacheEventHandler is a cache event handler type
 type FilesystemCacheEventHandler func(path string, eventType FilesystemCacheEventType)
 
 // FilesystemCacheEventHandlerMap manages FilesystemCacheEventHandler
@@ -38,6 +39,7 @@ func NewFilesystemCacheEventHandlerMap() *FilesystemCacheEventHandlerMap {
 	}
 }
 
+// Release releases resources
 func (handlerMap *FilesystemCacheEventHandlerMap) Release() {
 	handlerMap.mutex.Lock()
 	defer handlerMap.mutex.Unlock()
@@ -45,6 +47,7 @@ func (handlerMap *FilesystemCacheEventHandlerMap) Release() {
 	handlerMap.handlers = map[string]FilesystemCacheEventHandler{}
 }
 
+// AddEventHandler adds cache eventh handler
 func (handlerMap *FilesystemCacheEventHandlerMap) AddEventHandler(handler FilesystemCacheEventHandler) string {
 	handlerID := xid.New().String()
 
@@ -56,6 +59,7 @@ func (handlerMap *FilesystemCacheEventHandlerMap) AddEventHandler(handler Filesy
 	return handlerID
 }
 
+// RemoveEventHandler removes cache eventh handler
 func (handlerMap *FilesystemCacheEventHandlerMap) RemoveEventHandler(handlerID string) {
 	handlerMap.mutex.Lock()
 	defer handlerMap.mutex.Unlock()
@@ -63,6 +67,7 @@ func (handlerMap *FilesystemCacheEventHandlerMap) RemoveEventHandler(handlerID s
 	delete(handlerMap.handlers, handlerID)
 }
 
+// GetEventHandler returns event handler for the id
 func (handlerMap *FilesystemCacheEventHandlerMap) GetEventHandler(handlerID string) FilesystemCacheEventHandler {
 	handlerMap.mutex.RLock()
 	defer handlerMap.mutex.RUnlock()
@@ -70,6 +75,7 @@ func (handlerMap *FilesystemCacheEventHandlerMap) GetEventHandler(handlerID stri
 	return handlerMap.handlers[handlerID]
 }
 
+// GetEventHandlers returns all event handlers
 func (handlerMap *FilesystemCacheEventHandlerMap) GetEventHandlers() []FilesystemCacheEventHandler {
 	handlerMap.mutex.RLock()
 	defer handlerMap.mutex.RUnlock()
@@ -82,18 +88,20 @@ func (handlerMap *FilesystemCacheEventHandlerMap) GetEventHandlers() []Filesyste
 	return handlers
 }
 
+// GetEventHandlerIDs returns all event handler ids
 func (handlerMap *FilesystemCacheEventHandlerMap) GetEventHandlerIDs() []string {
 	handlerMap.mutex.RLock()
 	defer handlerMap.mutex.RUnlock()
 
 	handlerIDs := []string{}
-	for handlerID, _ := range handlerMap.handlers {
+	for handlerID := range handlerMap.handlers {
 		handlerIDs = append(handlerIDs, handlerID)
 	}
 
 	return handlerIDs
 }
 
+// SendEvent sends event
 func (handlerMap *FilesystemCacheEventHandlerMap) SendEvent(path string, eventType FilesystemCacheEventType) {
 	handlerMap.mutex.RLock()
 	defer handlerMap.mutex.RUnlock()
@@ -103,22 +111,27 @@ func (handlerMap *FilesystemCacheEventHandlerMap) SendEvent(path string, eventTy
 	}
 }
 
+// SendFileCreateEvent sends file create event
 func (handlerMap *FilesystemCacheEventHandlerMap) SendFileCreateEvent(path string) {
 	handlerMap.SendEvent(path, FilesystemCacheFileCreateEvent)
 }
 
+// SendFileRemoveEvent sends file remove event
 func (handlerMap *FilesystemCacheEventHandlerMap) SendFileRemoveEvent(path string) {
 	handlerMap.SendEvent(path, FilesystemCacheFileRemoveEvent)
 }
 
+// SendFileUpdateEvent sends file update event
 func (handlerMap *FilesystemCacheEventHandlerMap) SendFileUpdateEvent(path string) {
 	handlerMap.SendEvent(path, FilesystemCacheFileUpdateEvent)
 }
 
+// SendDirCreateEvent sends dir create event
 func (handlerMap *FilesystemCacheEventHandlerMap) SendDirCreateEvent(path string) {
 	handlerMap.SendEvent(path, FilesystemCacheDirCreateEvent)
 }
 
+// SendDirRemoveEvent sends dir remove event
 func (handlerMap *FilesystemCacheEventHandlerMap) SendDirRemoveEvent(path string) {
 	handlerMap.SendEvent(path, FilesystemCacheDirRemoveEvent)
 }

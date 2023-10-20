@@ -134,7 +134,7 @@ func (fs *FileSystem) ListTicketUserNameRestrictions(ticketID int64) ([]string, 
 	return usernames, err
 }
 
-// ListTicketGroupNameRestrictions lists all group name restrictions for the given ticket
+// ListTicketUserGroupRestrictions lists all group name restrictions for the given ticket
 func (fs *FileSystem) ListTicketUserGroupRestrictions(ticketID int64) ([]string, error) {
 	conn, err := fs.metaSession.AcquireConnection()
 	if err != nil {
