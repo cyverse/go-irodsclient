@@ -150,14 +150,16 @@ func (manager *ICommandsEnvironmentManager) Load(processID int) error {
 
 	environmentFilePath := manager.GetEnvironmentFilePath()
 
-	logger.Debugf("reading environment file %s", environmentFilePath)
+	if util.ExistFile(environmentFilePath) {
+		logger.Debugf("reading environment file %s", environmentFilePath)
 
-	env, err := CreateICommandsEnvironmentFromFile(environmentFilePath)
-	if err != nil {
-		return xerrors.Errorf("failed to create icommands environment from file %s: %w", environmentFilePath, err)
+		env, err := CreateICommandsEnvironmentFromFile(environmentFilePath)
+		if err != nil {
+			return xerrors.Errorf("failed to create icommands environment from file %s: %w", environmentFilePath, err)
+		}
+
+		manager.Environment = env
 	}
-
-	manager.Environment = env
 
 	// read session
 	sessionFilePath := manager.GetSessionFilePath(processID)
@@ -174,26 +176,27 @@ func (manager *ICommandsEnvironmentManager) Load(processID int) error {
 
 	// read password (.irodsA)
 	passwordFilePath := manager.GetPasswordFilePath()
+	if util.ExistFile(passwordFilePath) {
+		logger.Debugf("reading environment password file %s", passwordFilePath)
 
-	logger.Debugf("reading environment password file %s", passwordFilePath)
-
-	password, err := DecodePasswordFile(passwordFilePath, manager.UID)
-	if err != nil {
-		logger.Debugf("failed to decode password file %s - %s", passwordFilePath, err.Error())
-		//return xerrors.Errorf("failed to decode password file %s: %w", passwordFilePath, err)
-		// continue
-	} else {
-		manager.Password = password
-		manager.IsPasswordPamToken = false
-
-		authScheme, err := types.GetAuthScheme(manager.Environment.AuthenticationScheme)
+		password, err := DecodePasswordFile(passwordFilePath, manager.UID)
 		if err != nil {
-			return xerrors.Errorf("failed to get auth scheme %s: %w", manager.Environment.AuthenticationScheme, err)
-		}
+			logger.Debugf("failed to decode password file %s - %s", passwordFilePath, err.Error())
+			//return xerrors.Errorf("failed to decode password file %s: %w", passwordFilePath, err)
+			// continue
+		} else {
+			manager.Password = password
+			manager.IsPasswordPamToken = false
 
-		if authScheme == types.AuthSchemePAM {
-			// if auth scheme is PAM auth, password read from .irodsA is pam token
-			manager.IsPasswordPamToken = true
+			authScheme, err := types.GetAuthScheme(manager.Environment.AuthenticationScheme)
+			if err != nil {
+				return xerrors.Errorf("failed to get auth scheme %s: %w", manager.Environment.AuthenticationScheme, err)
+			}
+
+			if authScheme == types.AuthSchemePAM {
+				// if auth scheme is PAM auth, password read from .irodsA is pam token
+				manager.IsPasswordPamToken = true
+			}
 		}
 	}
 
