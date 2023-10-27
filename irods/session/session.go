@@ -23,18 +23,15 @@ type IRODSSession struct {
 	commitFail                bool
 	poormansRollbackFail      bool
 	transactionFailureHandler TransactionFailureHandler
-	supportParallelUpload     bool
-	metrics                   metrics.IRODSMetrics
-	mutex                     sync.Mutex
+
+	supportParallelUpload    bool
+	supportParallelUploadSet bool
+	metrics                  metrics.IRODSMetrics
+	mutex                    sync.Mutex
 }
 
 // NewIRODSSession create a IRODSSession
 func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*IRODSSession, error) {
-	logger := log.WithFields(log.Fields{
-		"package":  "session",
-		"function": "NewIRODSSession",
-	})
-
 	sess := IRODSSession{
 		account:           account,
 		config:            config,
@@ -46,6 +43,7 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 		poormansRollbackFail:      false,
 		transactionFailureHandler: nil,
 		supportParallelUpload:     false,
+		supportParallelUploadSet:  false,
 
 		metrics: metrics.IRODSMetrics{},
 
@@ -70,45 +68,14 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 	}
 	sess.connectionPool = pool
 
-	// check connection
-	logger.Debugf("testing connection")
-	err = sess.checkConnection()
-	if err != nil {
-		return nil, xerrors.Errorf("failed to check transaction: %w", err)
-	}
-
-	return &sess, nil
-}
-
-// checkConnection checks connection
-func (sess *IRODSSession) checkConnection() error {
-	logger := log.WithFields(log.Fields{
-		"package":  "session",
-		"function": "checkConnection",
-	})
-
-	conn, _, err := sess.connectionPool.Get()
-	if err != nil {
-		return xerrors.Errorf("failed to get a test connection: %w", err)
-	}
-
-	conn.Lock()
-
-	// check parallel upload
-	sess.supportParallelUpload = conn.SupportParallelUpload()
-	logger.Debugf("support parallel upload: %t", sess.supportParallelUpload)
-
-	// check transaction
+	// set transaction config
 	// when the user is anonymous, we cannot use transaction since we don't have access to home dir
 	if sess.account.ClientUser == "anonymous" {
 		sess.commitFail = true
 		sess.poormansRollbackFail = true
 	}
 
-	conn.Unlock()
-
-	sess.connectionPool.Return(conn)
-	return nil
+	return &sess, nil
 }
 
 // GetConfig returns a configuration
@@ -224,6 +191,10 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 				sess.sharedConnections[conn] = 1
 			}
 
+			// check parallel upload
+			sess.supportParallelUpload = conn.SupportParallelUpload()
+			sess.supportParallelUploadSet = true
+
 			return conn, nil
 		}
 	}
@@ -322,6 +293,11 @@ func (sess *IRODSSession) AcquireConnectionsMulti(number int) ([]*connection.IRO
 		acquiredConnections = append(acquiredConnections, conn)
 	}
 
+	if !sess.supportParallelUploadSet {
+		sess.supportParallelUpload = acquiredConnections[0].SupportParallelUpload()
+		sess.supportParallelUploadSet = true
+	}
+
 	return acquiredConnections, nil
 }
 
@@ -333,6 +309,9 @@ func (sess *IRODSSession) AcquireUnmanagedConnection() (*connection.IRODSConnect
 		"function": "AcquireUnmanagedConnection",
 	})
 
+	sess.mutex.Lock()
+	defer sess.mutex.Unlock()
+
 	// create a new one
 	newConn := connection.NewIRODSConnection(sess.account, sess.config.OperationTimeout, sess.config.ApplicationName)
 	err := newConn.Connect()
@@ -341,6 +320,12 @@ func (sess *IRODSSession) AcquireUnmanagedConnection() (*connection.IRODSConnect
 	}
 
 	logger.Debug("Created a new unmanaged connection")
+
+	if !sess.supportParallelUploadSet {
+		sess.supportParallelUpload = newConn.SupportParallelUpload()
+		sess.supportParallelUploadSet = true
+	}
+
 	return newConn, nil
 }
 
@@ -436,6 +421,32 @@ func (sess *IRODSSession) Release() {
 
 // SupportParallelUpload returns if parallel upload is supported
 func (sess *IRODSSession) SupportParallelUpload() bool {
+	logger := log.WithFields(log.Fields{
+		"package":  "session",
+		"function": "SupportParallelUpload",
+	})
+
+	sess.mutex.Lock()
+	defer sess.mutex.Unlock()
+
+	if !sess.supportParallelUploadSet {
+		conn, _, err := sess.connectionPool.Get()
+		if err != nil {
+			return false
+		}
+
+		conn.Lock()
+
+		// check parallel upload
+		sess.supportParallelUpload = conn.SupportParallelUpload()
+		logger.Debugf("support parallel upload: %t", sess.supportParallelUpload)
+
+		conn.Unlock()
+
+		sess.connectionPool.Return(conn)
+		sess.supportParallelUploadSet = true
+	}
+
 	return sess.supportParallelUpload
 }
 

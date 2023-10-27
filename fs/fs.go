@@ -198,13 +198,7 @@ func (fs *FileSystem) GetServerVersion() (*types.IRODSVersion, error) {
 
 // SupportParallelUpload returns if the server supports parallel upload
 func (fs *FileSystem) SupportParallelUpload() bool {
-	conn, err := fs.metaSession.AcquireConnection()
-	if err != nil {
-		return false
-	}
-	defer fs.metaSession.ReturnConnection(conn)
-
-	return conn.SupportParallelUpload()
+	return fs.metaSession.SupportParallelUpload()
 }
 
 // GetMetrics returns metrics
