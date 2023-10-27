@@ -3,23 +3,27 @@ package fs
 import "time"
 
 const (
+	//
+	// FileSystemConnectionInitNumberDefault is a default value of connection init number
+	FileSystemConnectionInitNumberDefault = 0
 	// FileSystemConnectionMaxMin is a minimum number of connection max value
 	FileSystemConnectionMaxMin = 5
 	// FileSystemConnectionMaxDefault is a default number of connection max value
 	FileSystemConnectionMaxDefault = 10
-	// FileSystemConnectionMetaDefault is a default number of connection for metadata operations
+	// FileSystemConnectionMetaDefault is a default number of metadata operation connection
 	FileSystemConnectionMetaDefault = 2
-	// ConnectionLifespanDefault is a default lifespan of a connection
-	ConnectionLifespanDefault = 1 * time.Hour
-	// FileSystemTimeoutDefault is a default timeout value
+	// FileSystemConnectionLifespanDefault is a default lifespan of a connection
+	FileSystemConnectionLifespanDefault = 1 * time.Hour
+	// FileSystemTimeoutDefault is a default value of timeout
 	FileSystemTimeoutDefault = 5 * time.Minute
-	// TCPBufferSizeDefault is a default value for tcp buffer size
-	TCPBufferSizeDefault = 4 * 1024 * 1024
+	// FileSystemTCPBufferSizeDefault is a default value of tcp buffer size
+	FileSystemTCPBufferSizeDefault = 4 * 1024 * 1024
 )
 
 // FileSystemConfig is a struct for file system configuration
 type FileSystemConfig struct {
 	ApplicationName       string
+	ConnectionInitNumber  int
 	ConnectionLifespan    time.Duration
 	OperationTimeout      time.Duration
 	ConnectionIdleTimeout time.Duration
@@ -38,7 +42,7 @@ type FileSystemConfig struct {
 }
 
 // NewFileSystemConfig create a FileSystemConfig
-func NewFileSystemConfig(applicationName string, connectionLifespan time.Duration, operationTimeout time.Duration, connectionIdleTimeout time.Duration, connectionMax int, tcpBufferSize int, cacheTimeout time.Duration, cacheCleanupTime time.Duration, cacheTimeoutSettings []MetadataCacheTimeoutSetting, startNewTransaction bool, invalidateParentEntryCacheImmediately bool) *FileSystemConfig {
+func NewFileSystemConfig(applicationName string, connectionInitNumber int, connectionLifespan time.Duration, operationTimeout time.Duration, connectionIdleTimeout time.Duration, connectionMax int, tcpBufferSize int, cacheTimeout time.Duration, cacheCleanupTime time.Duration, cacheTimeoutSettings []MetadataCacheTimeoutSetting, startNewTransaction bool, invalidateParentEntryCacheImmediately bool) *FileSystemConfig {
 	connMax := connectionMax
 	if connMax < FileSystemConnectionMaxMin {
 		connMax = FileSystemConnectionMaxMin
@@ -46,6 +50,7 @@ func NewFileSystemConfig(applicationName string, connectionLifespan time.Duratio
 
 	return &FileSystemConfig{
 		ApplicationName:                       applicationName,
+		ConnectionInitNumber:                  connectionInitNumber,
 		ConnectionLifespan:                    connectionLifespan,
 		OperationTimeout:                      operationTimeout,
 		ConnectionIdleTimeout:                 connectionIdleTimeout,
@@ -63,11 +68,12 @@ func NewFileSystemConfig(applicationName string, connectionLifespan time.Duratio
 func NewFileSystemConfigWithDefault(applicationName string) *FileSystemConfig {
 	return &FileSystemConfig{
 		ApplicationName:                       applicationName,
-		ConnectionLifespan:                    ConnectionLifespanDefault,
+		ConnectionInitNumber:                  FileSystemConnectionInitNumberDefault,
+		ConnectionLifespan:                    FileSystemConnectionLifespanDefault,
 		OperationTimeout:                      FileSystemTimeoutDefault,
 		ConnectionIdleTimeout:                 FileSystemTimeoutDefault,
 		ConnectionMax:                         FileSystemConnectionMaxDefault,
-		TcpBufferSize:                         TCPBufferSizeDefault,
+		TcpBufferSize:                         FileSystemTCPBufferSizeDefault,
 		CacheTimeout:                          FileSystemTimeoutDefault,
 		CacheTimeoutSettings:                  []MetadataCacheTimeoutSetting{},
 		CacheCleanupTime:                      FileSystemTimeoutDefault,

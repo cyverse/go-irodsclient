@@ -30,13 +30,13 @@ type FileSystem struct {
 
 // NewFileSystem creates a new FileSystem
 func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*FileSystem, error) {
-	ioSessionConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax, config.TcpBufferSize, config.StartNewTransaction)
+	ioSessionConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionInitNumber, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax, config.TcpBufferSize, config.StartNewTransaction)
 	ioSession, err := session.NewIRODSSession(account, ioSessionConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	metaSessionConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, FileSystemConnectionMetaDefault, config.TcpBufferSize, config.StartNewTransaction)
+	metaSessionConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionInitNumber, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, FileSystemConnectionMetaDefault, config.TcpBufferSize, config.StartNewTransaction)
 	metaSession, err := session.NewIRODSSession(account, metaSessionConfig)
 	if err != nil {
 		return nil, err
@@ -77,13 +77,13 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*File
 // NewFileSystemWithDefault creates a new FileSystem with default configurations
 func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName string) (*FileSystem, error) {
 	config := NewFileSystemConfigWithDefault(applicationName)
-	ioSessionConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax, config.TcpBufferSize, config.StartNewTransaction)
+	ioSessionConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionInitNumber, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax, config.TcpBufferSize, config.StartNewTransaction)
 	ioSession, err := session.NewIRODSSession(account, ioSessionConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	metaSessionConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, FileSystemConnectionMetaDefault, config.TcpBufferSize, config.StartNewTransaction)
+	metaSessionConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionInitNumber, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, FileSystemConnectionMetaDefault, config.TcpBufferSize, config.StartNewTransaction)
 	metaSession, err := session.NewIRODSSession(account, metaSessionConfig)
 	if err != nil {
 		return nil, err
@@ -116,7 +116,7 @@ func NewFileSystemWithSessionConfig(account *types.IRODSAccount, sessConfig *ses
 		return nil, err
 	}
 
-	metaSessionConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, FileSystemConnectionMetaDefault, config.TcpBufferSize, config.StartNewTransaction)
+	metaSessionConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionInitNumber, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, FileSystemConnectionMetaDefault, config.TcpBufferSize, config.StartNewTransaction)
 	metaSession, err := session.NewIRODSSession(account, metaSessionConfig)
 	if err != nil {
 		return nil, err

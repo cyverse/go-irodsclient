@@ -48,7 +48,7 @@ func main() {
 	// Create a file system
 	appName := "get_ticket_anon"
 	config := fs.NewFileSystemConfigWithDefault(appName)
-	sessConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax, config.TcpBufferSize, config.StartNewTransaction)
+	sessConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionInitNumber, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax, config.TcpBufferSize, config.StartNewTransaction)
 	sess, err := session.NewIRODSSession(account, sessConfig)
 	if err != nil {
 		logger.Error(err)
