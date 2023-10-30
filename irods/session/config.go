@@ -5,6 +5,8 @@ import (
 )
 
 const (
+	// IRODSSessionConnectionErrorTimeoutDefault is a default value of connection error timeout
+	IRODSSessionConnectionErrorTimeoutDefault = 1 * time.Minute
 	// IRODSSessionConnectionInitNumberDefault is a default value of connection init number
 	IRODSSessionConnectionInitNumberDefault = 0
 	// IRODSSessionConnectionMaxMin is a minimum value of connection max
@@ -21,47 +23,50 @@ const (
 
 // IRODSSessionConfig is for session configuration
 type IRODSSessionConfig struct {
-	ApplicationName       string
-	ConnectionLifespan    time.Duration
-	OperationTimeout      time.Duration
-	ConnectionIdleTimeout time.Duration
-	ConnectionMax         int
-	ConnectionInitNumber  int
-	ConnectionMaxIdle     int
-	TcpBufferSize         int
-	StartNewTransaction   bool
+	ApplicationName        string
+	ConnectionErrorTimeout time.Duration
+	ConnectionLifespan     time.Duration
+	OperationTimeout       time.Duration
+	ConnectionIdleTimeout  time.Duration
+	ConnectionMax          int
+	ConnectionInitNumber   int
+	ConnectionMaxIdle      int
+	TcpBufferSize          int
+	StartNewTransaction    bool
 }
 
 // NewIRODSSessionConfig create a IRODSSessionConfig
-func NewIRODSSessionConfig(applicationName string, connectionInitNumber int, connectionLifespan time.Duration, operationTimeout time.Duration, idleTimeout time.Duration, connectionMax int, tcpBufferSize int, startNewTransaction bool) *IRODSSessionConfig {
+func NewIRODSSessionConfig(applicationName string, connectionErrorTimeout time.Duration, connectionInitNumber int, connectionLifespan time.Duration, operationTimeout time.Duration, idleTimeout time.Duration, connectionMax int, tcpBufferSize int, startNewTransaction bool) *IRODSSessionConfig {
 	if connectionMax < IRODSSessionConnectionMaxMin {
 		connectionMax = IRODSSessionConnectionMaxMin
 	}
 
 	return &IRODSSessionConfig{
-		ApplicationName:       applicationName,
-		ConnectionLifespan:    connectionLifespan,
-		OperationTimeout:      operationTimeout,
-		ConnectionIdleTimeout: idleTimeout,
-		ConnectionMax:         connectionMax,
-		ConnectionInitNumber:  connectionInitNumber,
-		ConnectionMaxIdle:     IRODSSessionConnectionMaxMin,
-		TcpBufferSize:         tcpBufferSize,
-		StartNewTransaction:   startNewTransaction,
+		ApplicationName:        applicationName,
+		ConnectionErrorTimeout: connectionErrorTimeout,
+		ConnectionLifespan:     connectionLifespan,
+		OperationTimeout:       operationTimeout,
+		ConnectionIdleTimeout:  idleTimeout,
+		ConnectionMax:          connectionMax,
+		ConnectionInitNumber:   connectionInitNumber,
+		ConnectionMaxIdle:      IRODSSessionConnectionMaxMin,
+		TcpBufferSize:          tcpBufferSize,
+		StartNewTransaction:    startNewTransaction,
 	}
 }
 
 // NewIRODSSessionConfigWithDefault create a IRODSSessionConfig with a default settings
 func NewIRODSSessionConfigWithDefault(applicationName string) *IRODSSessionConfig {
 	return &IRODSSessionConfig{
-		ApplicationName:       applicationName,
-		ConnectionLifespan:    IRODSSessionConnectionLifespanDefault,
-		OperationTimeout:      IRODSSessionTimeoutDefault,
-		ConnectionIdleTimeout: IRODSSessionTimeoutDefault,
-		ConnectionMax:         IRODSSessionConnectionMaxDefault,
-		ConnectionInitNumber:  IRODSSessionConnectionInitNumberDefault,
-		ConnectionMaxIdle:     IRODSSessionConnectionMaxMin,
-		TcpBufferSize:         IRODSSessionTCPBufferSizeDefault,
-		StartNewTransaction:   true,
+		ApplicationName:        applicationName,
+		ConnectionErrorTimeout: IRODSSessionConnectionErrorTimeoutDefault,
+		ConnectionLifespan:     IRODSSessionConnectionLifespanDefault,
+		OperationTimeout:       IRODSSessionTimeoutDefault,
+		ConnectionIdleTimeout:  IRODSSessionTimeoutDefault,
+		ConnectionMax:          IRODSSessionConnectionMaxDefault,
+		ConnectionInitNumber:   IRODSSessionConnectionInitNumberDefault,
+		ConnectionMaxIdle:      IRODSSessionConnectionMaxMin,
+		TcpBufferSize:          IRODSSessionTCPBufferSizeDefault,
+		StartNewTransaction:    true,
 	}
 }

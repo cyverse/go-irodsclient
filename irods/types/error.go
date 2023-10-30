@@ -369,3 +369,22 @@ func GetIRODSErrorCode(err error) common.ErrorCode {
 	}
 	return common.ErrorCode(0)
 }
+
+// IsPermanantFailure returns if given error is permanant failure
+func IsPermanantFailure(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if IsAuthError(err) {
+		return true
+	} else if IsConnectionConfigError(err) {
+		return true
+	} else if IsConnectionError(err) {
+		return false
+	} else if IsConnectionPoolFullError(err) {
+		return false
+	}
+
+	return false
+}

@@ -2,6 +2,7 @@ package session
 
 import (
 	"sync"
+	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/metrics"
@@ -24,10 +25,14 @@ type IRODSSession struct {
 	poormansRollbackFail      bool
 	transactionFailureHandler TransactionFailureHandler
 
+	lastConnectionError     error
+	lastConnectionErrorTime time.Time
+
 	supportParallelUpload    bool
 	supportParallelUploadSet bool
-	metrics                  metrics.IRODSMetrics
-	mutex                    sync.Mutex
+
+	metrics metrics.IRODSMetrics
+	mutex   sync.Mutex
 }
 
 // NewIRODSSession create a IRODSSession
@@ -42,8 +47,12 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 		commitFail:                false,
 		poormansRollbackFail:      false,
 		transactionFailureHandler: nil,
-		supportParallelUpload:     false,
-		supportParallelUploadSet:  false,
+
+		lastConnectionError:     nil,
+		lastConnectionErrorTime: time.Time{},
+
+		supportParallelUpload:    false,
+		supportParallelUploadSet: false,
 
 		metrics: metrics.IRODSMetrics{},
 
@@ -64,6 +73,9 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 
 	pool, err := NewConnectionPool(&poolConfig, &sess.metrics)
 	if err != nil {
+		sess.lastConnectionError = err
+		sess.lastConnectionErrorTime = time.Now()
+
 		return nil, xerrors.Errorf("failed to create connection pool: %w", err)
 	}
 	sess.connectionPool = pool
@@ -76,6 +88,41 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 	}
 
 	return &sess, nil
+}
+
+// IsConnectionError returns if there is a failure
+func (sess *IRODSSession) GetLastConnectionError() (time.Time, error) {
+	sess.mutex.Lock()
+	defer sess.mutex.Unlock()
+
+	return sess.lastConnectionErrorTime, sess.lastConnectionError
+}
+
+func (sess *IRODSSession) getPendingError() error {
+	if sess.lastConnectionError == nil {
+		return nil
+	}
+
+	if types.IsPermanantFailure(sess.lastConnectionError) {
+		return sess.lastConnectionError
+	}
+
+	// transitive error
+	// check timeout
+	if sess.lastConnectionErrorTime.Add(sess.config.ConnectionErrorTimeout).Before(time.Now()) {
+		// passed timeout
+		return nil
+	}
+
+	return sess.lastConnectionError
+}
+
+// IsPermanantFailure returns if there is a failure that is unfixable, permanant
+func (sess *IRODSSession) IsPermanantFailure() bool {
+	sess.mutex.Lock()
+	defer sess.mutex.Unlock()
+
+	return types.IsPermanantFailure(sess.lastConnectionError)
 }
 
 // GetConfig returns a configuration
@@ -172,6 +219,12 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 	sess.mutex.Lock()
 	defer sess.mutex.Unlock()
 
+	// return last error
+	pendingErr := sess.getPendingError()
+	if pendingErr != nil {
+		return nil, pendingErr
+	}
+
 	// check if there are available connections in the pool
 	if sess.connectionPool.AvailableConnections() > 0 {
 		// try to get it from the pool
@@ -181,6 +234,12 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 			if types.IsConnectionPoolFullError(err) {
 				logger.WithError(err).Debug("failed to get a connection from the pool, the pool is full")
 				// fall below
+			} else {
+				// fail
+				sess.lastConnectionError = err
+				sess.lastConnectionErrorTime = time.Now()
+
+				return nil, err
 			}
 		} else {
 			// put to share
@@ -191,9 +250,10 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 				sess.sharedConnections[conn] = 1
 			}
 
-			// check parallel upload
-			sess.supportParallelUpload = conn.SupportParallelUpload()
-			sess.supportParallelUploadSet = true
+			if !sess.supportParallelUploadSet {
+				sess.supportParallelUpload = conn.SupportParallelUpload()
+				sess.supportParallelUploadSet = true
+			}
 
 			return conn, nil
 		}
@@ -239,6 +299,12 @@ func (sess *IRODSSession) AcquireConnectionsMulti(number int) ([]*connection.IRO
 	sess.mutex.Lock()
 	defer sess.mutex.Unlock()
 
+	// return last error
+	pendingErr := sess.getPendingError()
+	if pendingErr != nil {
+		return nil, pendingErr
+	}
+
 	connections := map[*connection.IRODSConnection]bool{}
 
 	// check if there are available connections in the pool
@@ -249,9 +315,14 @@ func (sess *IRODSSession) AcquireConnectionsMulti(number int) ([]*connection.IRO
 			if err != nil {
 				if types.IsConnectionPoolFullError(err) {
 					logger.WithError(err).Debug("failed to get a connection from the pool, the pool is full")
-				}
+					// fall below
+				} else {
+					// fail
+					sess.lastConnectionError = err
+					sess.lastConnectionErrorTime = time.Now()
 
-				// fall through
+					return nil, err
+				}
 				break
 			} else {
 				connections[conn] = true
@@ -294,8 +365,10 @@ func (sess *IRODSSession) AcquireConnectionsMulti(number int) ([]*connection.IRO
 	}
 
 	if !sess.supportParallelUploadSet {
-		sess.supportParallelUpload = acquiredConnections[0].SupportParallelUpload()
-		sess.supportParallelUploadSet = true
+		if len(acquiredConnections) > 0 {
+			sess.supportParallelUpload = acquiredConnections[0].SupportParallelUpload()
+			sess.supportParallelUploadSet = true
+		}
 	}
 
 	return acquiredConnections, nil
@@ -312,10 +385,19 @@ func (sess *IRODSSession) AcquireUnmanagedConnection() (*connection.IRODSConnect
 	sess.mutex.Lock()
 	defer sess.mutex.Unlock()
 
+	// return last error
+	pendingErr := sess.getPendingError()
+	if pendingErr != nil {
+		return nil, pendingErr
+	}
+
 	// create a new one
 	newConn := connection.NewIRODSConnection(sess.account, sess.config.OperationTimeout, sess.config.ApplicationName)
 	err := newConn.Connect()
 	if err != nil {
+		sess.lastConnectionError = err
+		sess.lastConnectionErrorTime = time.Now()
+
 		return nil, xerrors.Errorf("failed to connect to irods server: %w", err)
 	}
 
@@ -416,6 +498,8 @@ func (sess *IRODSSession) Release() {
 	// we will disconnect it when calling pool.Release
 	sess.sharedConnections = map[*connection.IRODSConnection]int{}
 
+	sess.lastConnectionError = nil
+
 	sess.connectionPool.Release()
 }
 
@@ -429,9 +513,20 @@ func (sess *IRODSSession) SupportParallelUpload() bool {
 	sess.mutex.Lock()
 	defer sess.mutex.Unlock()
 
+	// return last error
+	pendingErr := sess.getPendingError()
+	if pendingErr != nil {
+		return false
+	}
+
 	if !sess.supportParallelUploadSet {
 		conn, _, err := sess.connectionPool.Get()
 		if err != nil {
+			if !types.IsConnectionPoolFullError(err) {
+				sess.lastConnectionError = err
+				sess.lastConnectionErrorTime = time.Now()
+			}
+
 			return false
 		}
 
