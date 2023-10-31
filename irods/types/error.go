@@ -21,7 +21,7 @@ func NewConnectionConfigError(config *IRODSAccount) error {
 
 // Error returns error message
 func (err *ConnectionConfigError) Error() string {
-	return "connection configuration error"
+	return fmt.Sprintf("connection configuration error (iRODS server: '%s:%d')", err.Config.Host, err.Config.Port)
 }
 
 // Is tests type of error
@@ -84,7 +84,7 @@ func NewAuthError(config *IRODSAccount) error {
 
 // Error returns error message
 func (err *AuthError) Error() string {
-	return "connection pool is full"
+	return fmt.Sprintf("authentication error (auth scheme: '%s', username: '%s', zone: '%s')", err.Config.AuthenticationScheme, err.Config.ClientUser, err.Config.ClientZone)
 }
 
 // Is tests type of error
@@ -105,21 +105,21 @@ func IsAuthError(err error) bool {
 
 // ConnectionPoolFullError contains connection pool full error information
 type ConnectionPoolFullError struct {
-	Requested int
-	Max       int
+	Occupied int
+	Max      int
 }
 
 // NewConnectionPoolFullError creates an error for connection poll full
 func NewConnectionPoolFullError(requested int, max int) error {
 	return &ConnectionPoolFullError{
-		Requested: requested,
-		Max:       requested,
+		Occupied: requested,
+		Max:      requested,
 	}
 }
 
 // Error returns error message
 func (err *ConnectionPoolFullError) Error() string {
-	return "connection pool is full"
+	return fmt.Sprintf("connection pool is full (occupied: %d, max: %d)", err.Occupied, err.Max)
 }
 
 // Is tests type of error
