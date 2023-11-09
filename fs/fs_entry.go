@@ -34,3 +34,8 @@ type Entry struct {
 func (entry *Entry) ToString() string {
 	return fmt.Sprintf("<Entry %d %s %s %s %d %s %s %s>", entry.ID, entry.Type, entry.Path, entry.Owner, entry.Size, entry.DataType, entry.CreateTime, entry.ModifyTime)
 }
+
+// IsDir returns if the entry is for directory
+func (entry *Entry) IsDir() bool {
+	return entry.Type == DirectoryEntry
+}
