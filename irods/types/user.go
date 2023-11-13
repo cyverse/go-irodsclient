@@ -24,6 +24,26 @@ type IRODSUser struct {
 	Type IRODSUserType
 }
 
+// IsGroup returns true if type is IRODSUserRodsGroup
+func (user *IRODSUser) IsGroup() bool {
+	return user.Type == IRODSUserRodsGroup
+}
+
+// IsUser returns true if type is IRODSUserRodsUser
+func (user *IRODSUser) IsUser() bool {
+	return user.Type == IRODSUserRodsUser
+}
+
+// IsAdminGroup returns true if type is IRODSUserGroupAdmin
+func (user *IRODSUser) IsAdminGroup() bool {
+	return user.Type == IRODSUserGroupAdmin
+}
+
+// IsAdminUser returns true if type is IRODSUserRodsAdmin
+func (user *IRODSUser) IsAdminUser() bool {
+	return user.Type == IRODSUserRodsAdmin
+}
+
 // ToString stringifies the object
 func (user *IRODSUser) ToString() string {
 	return fmt.Sprintf("<IRODSUser %d %s %s %s>", user.ID, user.Name, user.Zone, string(user.Type))

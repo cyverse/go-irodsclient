@@ -46,6 +46,11 @@ type IRODSTicket struct {
 	WriteByteCount int64
 }
 
+// IsReadWrite returns true if the ticket is TicketTypeWrite
+func (ticket *IRODSTicket) IsReadWrite() bool {
+	return ticket.Type == TicketTypeWrite
+}
+
 // ToString stringifies the object
 func (ticket *IRODSTicket) ToString() string {
 	return fmt.Sprintf("<IRODSTicket %d %s %s %s %s>", ticket.ID, ticket.Name, ticket.Owner, ticket.OwnerZone, ticket.Path)
