@@ -222,7 +222,7 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 	// return last error
 	pendingErr := sess.getPendingError()
 	if pendingErr != nil {
-		return nil, pendingErr
+		return nil, xerrors.Errorf("failed to get a connection from the pool because pending error is found: %w", pendingErr)
 	}
 
 	// check if there are available connections in the pool
@@ -302,7 +302,7 @@ func (sess *IRODSSession) AcquireConnectionsMulti(number int) ([]*connection.IRO
 	// return last error
 	pendingErr := sess.getPendingError()
 	if pendingErr != nil {
-		return nil, pendingErr
+		return nil, xerrors.Errorf("failed to get a connection from the pool because pending error is found: %w", pendingErr)
 	}
 
 	connections := map[*connection.IRODSConnection]bool{}
@@ -388,7 +388,7 @@ func (sess *IRODSSession) AcquireUnmanagedConnection() (*connection.IRODSConnect
 	// return last error
 	pendingErr := sess.getPendingError()
 	if pendingErr != nil {
-		return nil, pendingErr
+		return nil, xerrors.Errorf("failed to get a connection because pending error is found: %w", pendingErr)
 	}
 
 	// create a new one
