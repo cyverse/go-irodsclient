@@ -2,6 +2,7 @@ package connection
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
@@ -179,7 +180,12 @@ func (conn *IRODSConnection) Connect() error {
 	server := fmt.Sprintf("%s:%d", conn.account.Host, conn.account.Port)
 	logger.Debugf("Connecting to %s", server)
 
-	socket, err := net.Dial("tcp", server)
+	// must connect to the server in 10 sec
+	var dialer net.Dialer
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelFunc()
+
+	socket, err := dialer.DialContext(ctx, "tcp", server)
 	if err != nil {
 		connErr := xerrors.Errorf("failed to connect to specified host %s and port %d (%s): %w", conn.account.Host, conn.account.Port, err.Error(), types.NewConnectionError())
 		logger.Errorf("%+v", connErr)
