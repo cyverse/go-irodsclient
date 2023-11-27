@@ -532,6 +532,10 @@ func (conn *IRODSConnection) disconnectNow() error {
 		conn.metrics.DecreaseConnectionsOpened(1)
 	}
 
+	if err == nil {
+		return nil
+	}
+
 	return xerrors.Errorf("failed to close socket: %w", err)
 }
 
