@@ -846,6 +846,110 @@ func DownloadDataObject(session *session.IRODSSession, irodsPath string, resourc
 	}
 }
 
+// ResumeDownloadDataObject resumes downloading a data object at the iRODS path to the local path
+func ResumeDownloadDataObject(session *session.IRODSSession, irodsPath string, resource string, localPath string, dataObjectLength int64, callback common.TrackerCallBack) error {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "ResumeDownloadDataObject",
+	})
+
+	logger.Debugf("resume downloading data object - %s", irodsPath)
+
+	// use default resource when resource param is empty
+	if len(resource) == 0 {
+		account := session.GetAccount()
+		resource = account.DefaultResource
+	}
+
+	conn, err := session.AcquireConnection()
+	if err != nil {
+		return xerrors.Errorf("failed to get connection: %w", err)
+	}
+	defer session.ReturnConnection(conn)
+
+	if conn == nil || !conn.IsConnected() {
+		return xerrors.Errorf("connection is nil or disconnected")
+	}
+
+	handle, _, err := OpenDataObject(conn, irodsPath, resource, "r")
+	if err != nil {
+		return err
+	}
+	defer CloseDataObject(conn, handle)
+
+	offset := int64(0)
+	localStat, err := os.Stat(localPath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			// error
+			return xerrors.Errorf("failed to stat file %s: %w", localPath, err)
+		}
+	} else {
+		// exist, but dir
+		if localStat.IsDir() {
+			return xerrors.Errorf("failed to create file %s, there exists a dir in the same name: %w", localPath, err)
+		}
+
+		offset = localStat.Size()
+	}
+
+	localHandle, err := os.OpenFile(localPath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
+	if err != nil {
+		return xerrors.Errorf("failed to create file %s: %w", localPath, err)
+	}
+	defer localHandle.Close()
+
+	if offset > 0 {
+		newOffset, err := SeekDataObject(conn, handle, offset, types.SeekSet)
+		if err != nil {
+			return xerrors.Errorf("failed to seek data object %s to offset %d: %w", irodsPath, offset, err)
+		}
+
+		if newOffset != offset {
+			return xerrors.Errorf("failed to seek data object %s to offset %d, seeked to %d", irodsPath, offset, newOffset)
+		}
+	}
+
+	totalBytesDownloaded := int64(offset)
+	if callback != nil {
+		if totalBytesDownloaded > 0 {
+			callback(0, dataObjectLength)
+		}
+		callback(totalBytesDownloaded, dataObjectLength)
+	}
+
+	// block read call-back
+	var blockReadCallback common.TrackerCallBack
+	if callback != nil {
+		blockReadCallback = func(processed int64, total int64) {
+			callback(totalBytesDownloaded+processed, dataObjectLength)
+		}
+	}
+
+	buffer := make([]byte, common.ReadWriteBufferSize)
+	// copy
+	for {
+		readLen, readErr := ReadDataObjectWithTrackerCallBack(conn, handle, buffer, blockReadCallback)
+		if readErr != nil && readErr != io.EOF {
+			return readErr
+		}
+
+		_, writeErr := localHandle.Write(buffer[:readLen])
+		if writeErr != nil {
+			return xerrors.Errorf("failed to write to file %s: %w", localPath, writeErr)
+		}
+
+		totalBytesDownloaded += int64(readLen)
+		if callback != nil {
+			callback(totalBytesDownloaded, dataObjectLength)
+		}
+
+		if readErr == io.EOF {
+			return nil
+		}
+	}
+}
+
 // DownloadDataObjectParallel downloads a data object at the iRODS path to the local path in parallel
 // Partitions a file into n (taskNum) tasks and downloads in parallel
 func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string, resource string, localPath string, dataObjectLength int64, taskNum int, callback common.TrackerCallBack) error {
