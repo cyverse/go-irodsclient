@@ -27,6 +27,7 @@ const (
 	defaultPasswordKey string = "a9_3fker"
 )
 
+// GetPasswordPadded returns password with padding
 func GetPasswordPadded(newPassword string) string {
 	pwdLen := len(newPassword)
 	if pwdLen > common.MaxPasswordLength {
@@ -69,6 +70,7 @@ func ObfuscateNewPassword(newPassword string, oldPassword string, signature stri
 	return ScrambleV2(newPassword, oldPassword, signature)
 }
 
+// ScrambleV2 scrambles string (ver2)
 func ScrambleV2(newPassword string, oldPassword string, signature string) string {
 	v2prefixLen := len(v2Prefix)
 	if v2prefixLen > 10 {
@@ -103,6 +105,7 @@ func ScrambleV2(newPassword string, oldPassword string, signature string) string
 	return Scramble(toScramble, hashedKey, "", true)
 }
 
+// Scramble scrambles string
 func Scramble(toScramble string, key string, scramblePrefix string, blockChaining bool) string {
 	if key == "" {
 		key = defaultPasswordKey
@@ -142,6 +145,7 @@ func Scramble(toScramble string, key string, scramblePrefix string, blockChainin
 	return scramblePrefix + scrambledStr.String()
 }
 
+// GetEncoderRing returns encoder ring
 func GetEncoderRing(key string) []byte {
 	keyBuf := make([]byte, 100)
 

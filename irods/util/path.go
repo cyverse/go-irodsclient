@@ -3,6 +3,7 @@ package util
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"golang.org/x/xerrors"
 )
@@ -10,6 +11,53 @@ import (
 // GetCorrectLocalPath corrects the path
 func GetCorrectLocalPath(p string) string {
 	return filepath.Clean(p)
+}
+
+func GetBasename(p string) string {
+	p = strings.TrimRight(p, string(os.PathSeparator))
+	p = strings.TrimRight(p, "/")
+
+	idx1 := strings.LastIndex(p, string(os.PathSeparator))
+	idx2 := strings.LastIndex(p, "/")
+
+	if idx1 < 0 && idx2 < 0 {
+		return p
+	}
+
+	if idx1 >= idx2 {
+		return p[idx1+1:]
+	}
+	return p[idx2+1:]
+}
+
+func GetDir(p string) string {
+	idx1 := strings.LastIndex(p, string(os.PathSeparator))
+	idx2 := strings.LastIndex(p, "/")
+
+	if idx1 < 0 && idx2 < 0 {
+		return "/"
+	}
+
+	if idx1 >= idx2 {
+		return p[:idx1]
+	}
+	return p[:idx2]
+}
+
+func Join(p1 string, p2 ...string) string {
+	sep := "/"
+
+	if strings.Contains(p1, string(os.PathSeparator)) {
+		sep = string(os.PathSeparator)
+	} else if strings.Contains(p1, "/") {
+		sep = "/"
+	}
+
+	p := []string{}
+	p = append(p, p1)
+	p = append(p, p2...)
+
+	return strings.Join(p, sep)
 }
 
 func ExpandHomeDir(path string) (string, error) {

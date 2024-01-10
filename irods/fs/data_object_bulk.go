@@ -68,7 +68,7 @@ func UploadDataObjectFromBuffer(session *session.IRODSSession, buffer bytes.Buff
 	// open a new file
 	handle, err := OpenDataObjectWithOperation(conn, irodsPath, resource, "w+", common.OPER_TYPE_NONE)
 	if err != nil {
-		return err
+		return xerrors.Errorf("failed to open data object %s: %w", irodsPath, err)
 	}
 
 	totalBytesUploaded := int64(0)
@@ -76,18 +76,10 @@ func UploadDataObjectFromBuffer(session *session.IRODSSession, buffer bytes.Buff
 		callback(totalBytesUploaded, fileLength)
 	}
 
-	// block write call-back
-	var blockWriteCallback common.TrackerCallBack
-	if callback != nil {
-		blockWriteCallback = func(processed int64, total int64) {
-			callback(totalBytesUploaded+processed, fileLength)
-		}
-	}
-
 	// copy
-	writeErr := WriteDataObjectWithTrackerCallBack(conn, handle, buffer.Bytes(), blockWriteCallback)
+	writeErr := WriteDataObjectWithTrackerCallBack(conn, handle, buffer.Bytes(), nil)
 	if callback != nil {
-		callback(totalBytesUploaded, fileLength)
+		callback(fileLength, fileLength)
 	}
 
 	CloseDataObject(conn, handle)
@@ -127,7 +119,7 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 
 	fileLength := stat.Size()
 
-	logger.Debugf("upload data object - %s", localPath)
+	logger.Debugf("upload data object %s", localPath)
 
 	conn, err := session.AcquireConnection()
 	if err != nil {
@@ -148,7 +140,7 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 	// open a new file
 	handle, err := OpenDataObjectWithOperation(conn, irodsPath, resource, "w+", common.OPER_TYPE_NONE)
 	if err != nil {
-		return err
+		return xerrors.Errorf("failed to open data object %s: %w", irodsPath, err)
 	}
 
 	totalBytesUploaded := int64(0)
@@ -157,9 +149,8 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 	}
 
 	// block write call-back
-	var blockWriteCallback common.TrackerCallBack
-	if callback != nil {
-		blockWriteCallback = func(processed int64, total int64) {
+	blockWriteCallback := func(processed int64, total int64) {
+		if callback != nil {
 			callback(totalBytesUploaded+processed, fileLength)
 		}
 	}
@@ -185,7 +176,7 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 			if readErr == io.EOF {
 				break
 			} else {
-				writeErr = xerrors.Errorf("failed to read from file %s: %w", localPath, readErr)
+				writeErr = xerrors.Errorf("failed to read file %s: %w", localPath, readErr)
 				break
 			}
 		}
@@ -208,11 +199,11 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 	return nil
 }
 
-// UploadDataObjectAsync put a data object at the local path to the iRODS path
-func UploadDataObjectAsync(session *session.IRODSSession, localPath string, irodsPath string, resource string, replicate bool, callback common.TrackerCallBack) error {
+// UploadDataObjectResumable put a data object at the local path to the iRODS path with support of transfer resume
+func UploadDataObjectResumable(session *session.IRODSSession, localPath string, irodsPath string, resource string, replicate bool, callback common.TrackerCallBack) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "fs",
-		"function": "UploadDataObjectAsync",
+		"function": "UploadDataObjectResumable",
 	})
 
 	// use default resource when resource param is empty
@@ -228,49 +219,152 @@ func UploadDataObjectAsync(session *session.IRODSSession, localPath string, irod
 
 	fileLength := stat.Size()
 
-	logger.Debugf("upload data object - %s", localPath)
+	logger.Debugf("uploading data object %s", localPath)
+
+	// create transfer status
+	transferStatusIRODS, err := GetOrNewDataObjectTransferStatusIRODS(session, irodsPath, resource, fileLength, 1)
+	if err != nil {
+		return xerrors.Errorf("failed to read transfer status file for %s: %w", irodsPath, err)
+	}
+
+	err = transferStatusIRODS.CreateStatusFile()
+	if err != nil {
+		return xerrors.Errorf("failed to create transfer status file for %s: %w", irodsPath, err)
+	}
+
+	err = transferStatusIRODS.WriteHeader()
+	if err != nil {
+		transferStatusIRODS.CloseStatusFile()
+		return xerrors.Errorf("failed to write transfer status file header for %s: %w", irodsPath, err)
+	}
 
 	conn, err := session.AcquireConnection()
 	if err != nil {
+		transferStatusIRODS.CloseStatusFile()
 		return xerrors.Errorf("failed to get connection: %w", err)
 	}
 	defer session.ReturnConnection(conn)
 
 	if conn == nil || !conn.IsConnected() {
+		transferStatusIRODS.CloseStatusFile()
 		return xerrors.Errorf("connection is nil or disconnected")
 	}
 
 	f, err := os.OpenFile(localPath, os.O_RDONLY, 0)
 	if err != nil {
+		transferStatusIRODS.CloseStatusFile()
 		return xerrors.Errorf("failed to open file %s: %w", localPath, err)
 	}
 	defer f.Close()
 
 	// open a new file
-	handle, err := OpenDataObjectWithOperation(conn, irodsPath, resource, "w+", common.OPER_TYPE_NONE)
+	handle, err := OpenDataObjectWithOperation(conn, irodsPath, resource, "w", common.OPER_TYPE_NONE)
 	if err != nil {
-		return err
+		transferStatusIRODS.CloseStatusFile()
+		return xerrors.Errorf("failed to open data object %s: %w", irodsPath, err)
 	}
 
-	totalBytesUploaded := int64(0)
+	// seek to last failure point
+	transferStatus := transferStatusIRODS.GetStatus()
+	lastOffset := int64(0)
+	if transferStatus != nil {
+		if transferStatusEntry, ok := transferStatus.StatusMap[0]; ok {
+			lastOffset = transferStatusEntry.StartOffset + transferStatusEntry.CompletedLength
+		}
+	}
+
+	if lastOffset > 0 {
+		logger.Debugf("resuming uploading file object %s from offset %d", localPath, lastOffset)
+
+		newOffset, err := f.Seek(lastOffset, io.SeekStart)
+		if err != nil {
+			transferStatusIRODS.CloseStatusFile()
+			CloseDataObject(conn, handle)
+			return xerrors.Errorf("failed to seek file %s to offset %d: %w", localPath, lastOffset, err)
+		}
+
+		offset, err := SeekDataObject(conn, handle, lastOffset, types.SeekSet)
+		if err != nil {
+			transferStatusIRODS.CloseStatusFile()
+			CloseDataObject(conn, handle)
+			return xerrors.Errorf("failed to seek data object %s to offset %d: %w", irodsPath, lastOffset, err)
+		}
+
+		if newOffset != offset {
+			transferStatusIRODS.CloseStatusFile()
+			CloseDataObject(conn, handle)
+			return xerrors.Errorf("failed to seek file and data object to target offset %d", lastOffset)
+		}
+	}
+
+	totalBytesUploaded := lastOffset
 	if callback != nil {
-		callback(totalBytesUploaded, fileLength)
+		if lastOffset > 0 {
+			callback(0, fileLength)
+		}
+		callback(lastOffset, fileLength)
+	}
+
+	// block write call-back
+	blockWriteCallback := func(processed int64, total int64) {
+		if callback != nil {
+			callback(totalBytesUploaded+processed, fileLength)
+		}
 	}
 
 	// copy
-	writeErr := WriteDataObjectAsyncWithTrackerCallBack(conn, handle, f, fileLength, callback)
+	buffer := make([]byte, common.ReadWriteBufferSize)
+	var writeErr error
+	for {
+		bytesRead, readErr := f.Read(buffer)
+		if bytesRead > 0 {
+			writeErr = WriteDataObjectWithTrackerCallBack(conn, handle, buffer[:bytesRead], blockWriteCallback)
+			if writeErr != nil {
+				break
+			}
+
+			totalBytesUploaded += int64(bytesRead)
+
+			// write status
+			transferStatusEntry := &DataObjectTransferStatusEntry{
+				StartOffset:     0,
+				Length:          fileLength,
+				CompletedLength: totalBytesUploaded,
+			}
+			transferStatusIRODS.WriteStatus(transferStatusEntry)
+
+			if callback != nil {
+				callback(totalBytesUploaded, fileLength)
+			}
+		}
+
+		if readErr != nil {
+			if readErr == io.EOF {
+				break
+			} else {
+				writeErr = xerrors.Errorf("failed to read file %s: %w", localPath, readErr)
+				break
+			}
+		}
+	}
+
+	transferStatusIRODS.CloseStatusFile()
 	CloseDataObject(conn, handle)
 
 	if writeErr != nil {
 		return writeErr
 	}
 
+	// replicate
 	if replicate {
 		replErr := ReplicateDataObject(conn, irodsPath, "", true, false)
 		if replErr != nil {
 			return replErr
 		}
 	}
+
+	transferStatusIRODS.DeleteStatusFile()
+
 	return nil
 }
 
@@ -320,7 +414,7 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 		return xerrors.Errorf("connection is nil or disconnected")
 	}
 
-	logger.Debugf("upload data object in parallel - %s, size(%d), threads(%d)", irodsPath, fileLength, numTasks)
+	logger.Debugf("upload data object in parallel %s, size(%d), threads(%d)", irodsPath, fileLength, numTasks)
 
 	// open a new file
 	handle, err := OpenDataObjectForPutParallel(conn, irodsPath, resource, "w+", common.OPER_TYPE_NONE, numTasks, fileLength)
@@ -330,6 +424,7 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 
 	replicaToken, resourceHierarchy, err := GetReplicaAccessInfo(conn, handle)
 	if err != nil {
+		CloseDataObject(conn, handle)
 		return err
 	}
 
@@ -339,13 +434,8 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 	taskWaitGroup := sync.WaitGroup{}
 
 	totalBytesUploaded := int64(0)
-
-	// block write call-back
-	var blockWriteCallback common.TrackerCallBack
 	if callback != nil {
-		blockWriteCallback = func(processed int64, total int64) {
-			callback(totalBytesUploaded+processed, fileLength)
-		}
+		callback(totalBytesUploaded, fileLength)
 	}
 
 	uploadTask := func(taskOffset int64, taskLength int64) {
@@ -400,7 +490,7 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 
 		// copy
 		buffer := make([]byte, common.ReadWriteBufferSize)
-
+		var taskWriteErr error
 		for taskRemain > 0 {
 			bufferLen := common.ReadWriteBufferSize
 			if taskRemain < int64(bufferLen) {
@@ -409,30 +499,31 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 
 			bytesRead, taskReadErr := f.ReadAt(buffer[:bufferLen], taskOffset+(taskLength-taskRemain))
 			if bytesRead > 0 {
-				//logger.Debugf("upload '%s' offset: %d, length: %d", irodsPath, taskOffset+(taskLength-taskRemain), bytesRead)
-				taskWriteErr := WriteDataObjectWithTrackerCallBack(taskConn, taskHandle, buffer[:bytesRead], blockWriteCallback)
+				taskWriteErr = WriteDataObjectWithTrackerCallBack(taskConn, taskHandle, buffer[:bytesRead], nil)
 				if taskWriteErr != nil {
-					//logger.WithError(taskWriteErr).Debugf("upload '%s' failed offset: %d, length: %d", irodsPath, taskOffset+(taskLength-taskRemain), bytesRead)
-					errChan <- taskWriteErr
-					return
+					break
 				}
 
 				atomic.AddInt64(&totalBytesUploaded, int64(bytesRead))
 				if callback != nil {
 					callback(totalBytesUploaded, fileLength)
 				}
-			}
 
-			taskRemain -= int64(bytesRead)
+				taskRemain -= int64(bytesRead)
+			}
 
 			if taskReadErr != nil {
 				if taskReadErr == io.EOF {
-					return
+					break
+				} else {
+					taskWriteErr = xerrors.Errorf("failed to read file %s: %w", localPath, taskReadErr)
+					break
 				}
-
-				errChan <- xerrors.Errorf("failed to read from file %s: %w", localPath, taskReadErr)
-				return
 			}
+		}
+
+		if taskWriteErr != nil {
+			errChan <- taskWriteErr
 		}
 	}
 
@@ -442,9 +533,6 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 	}
 
 	offset := int64(0)
-	if callback != nil {
-		callback(totalBytesUploaded, fileLength)
-	}
 
 	for i := 0; i < numTasks; i++ {
 		taskWaitGroup.Add(1)
@@ -456,6 +544,7 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 	taskWaitGroup.Wait()
 
 	if len(errChan) > 0 {
+		CloseDataObject(conn, handle)
 		return <-errChan
 	}
 
@@ -475,13 +564,18 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 	return nil
 }
 
-// UploadDataObjectParallelInBlockAsync put a data object at the local path to the iRODS path in parallel
-// Chunks a file into fixed-size blocks and transfers them using n (taskNum) tasks in parallel
-func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPath string, irodsPath string, resource string, blockLength int64, taskNum int, replicate bool) (chan int64, chan error) {
+// UploadDataObjectParallelResumable put a data object at the local path to the iRODS path in parallel with support of transfer resume
+// Partitions a file into n (taskNum) tasks and uploads in parallel
+func UploadDataObjectParallelResumable(session *session.IRODSSession, localPath string, irodsPath string, resource string, taskNum int, replicate bool, callback common.TrackerCallBack) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "fs",
-		"function": "UploadDataObjectParallelInBlockAsync",
+		"function": "UploadDataObjectParallelResumable",
 	})
+
+	if !session.SupportParallelUpload() {
+		// serial upload
+		return UploadDataObjectResumable(session, localPath, irodsPath, resource, replicate, callback)
+	}
 
 	// use default resource when resource param is empty
 	if len(resource) == 0 {
@@ -491,40 +585,10 @@ func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPa
 
 	stat, err := os.Stat(localPath)
 	if err != nil {
-		outputChan := make(chan int64, 1)
-		errChan := make(chan error, 1)
-		errChan <- xerrors.Errorf("failed to stat file %s: %w", localPath, err)
-		close(outputChan)
-		close(errChan)
-		return outputChan, errChan
+		return xerrors.Errorf("failed to stat file %s: %w", localPath, err)
 	}
 
 	fileLength := stat.Size()
-
-	conn, err := session.AcquireUnmanagedConnection()
-	if err != nil {
-		outputChan := make(chan int64, 1)
-		errChan := make(chan error, 1)
-		errChan <- xerrors.Errorf("failed to get connection: %w", err)
-		close(outputChan)
-		close(errChan)
-		return outputChan, errChan
-	}
-	defer session.DiscardConnection(conn)
-
-	if conn == nil || !conn.IsConnected() {
-		outputChan := make(chan int64, 1)
-		errChan := make(chan error, 1)
-		errChan <- xerrors.Errorf("connection is nil or disconnected")
-		close(outputChan)
-		close(errChan)
-		return outputChan, errChan
-	}
-
-	blockSize := blockLength
-	if blockSize <= 0 {
-		blockSize = util.GetBlockSizeForParallelTransfer(fileLength)
-	}
 
 	numTasks := taskNum
 	if numTasks <= 0 {
@@ -532,72 +596,83 @@ func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPa
 	}
 
 	if numTasks == 1 {
-		blockSize = fileLength
-	}
-
-	numBlocks := fileLength / blockSize
-	if fileLength%blockSize != 0 {
-		numBlocks++
-	}
-
-	if !conn.SupportParallelUpload() || numTasks <= 1 {
 		// serial upload
-		outputChan := make(chan int64, 1)
-		errChan := make(chan error, 1)
-
-		err := UploadDataObject(session, localPath, irodsPath, resource, replicate, nil)
-		if err != nil {
-			errChan <- err
-			close(outputChan)
-			close(errChan)
-			return outputChan, errChan
-		}
-
-		outputChan <- 0
-		close(outputChan)
-		close(errChan)
-		return outputChan, errChan
+		return UploadDataObjectResumable(session, localPath, irodsPath, resource, replicate, callback)
 	}
 
-	logger.Debugf("upload data object in parallel - %s, size(%d), threads(%d), block_size(%d)", irodsPath, fileLength, numTasks, blockSize)
+	// create transfer status
+	transferStatusIRODS, err := GetOrNewDataObjectTransferStatusIRODS(session, irodsPath, resource, fileLength, numTasks)
+	if err != nil {
+		return xerrors.Errorf("failed to read transfer status file for %s: %w", irodsPath, err)
+	}
 
-	inputChan := make(chan int64, numBlocks)
-	outputChan := make(chan int64, numBlocks)
-	errChan := make(chan error, numBlocks)
+	// if previous transfer used different number of threads, use old value
+	numTasks = transferStatusIRODS.status.Threads
+
+	logger.Debugf("use %d tasks to updload", numTasks)
+
+	if numTasks == 1 {
+		// serial upload
+		return UploadDataObjectResumable(session, localPath, irodsPath, resource, replicate, callback)
+	}
+
+	err = transferStatusIRODS.CreateStatusFile()
+	if err != nil {
+		return xerrors.Errorf("failed to create transfer status file for %s: %w", irodsPath, err)
+	}
+
+	err = transferStatusIRODS.WriteHeader()
+	if err != nil {
+		transferStatusIRODS.CloseStatusFile()
+		return xerrors.Errorf("failed to write transfer status file header for %s: %w", irodsPath, err)
+	}
+
+	conn, err := session.AcquireUnmanagedConnection()
+	if err != nil {
+		transferStatusIRODS.CloseStatusFile()
+		return xerrors.Errorf("failed to get connection: %w", err)
+	}
+	defer session.DiscardConnection(conn)
+
+	if conn == nil || !conn.IsConnected() {
+		transferStatusIRODS.CloseStatusFile()
+		return xerrors.Errorf("connection is nil or disconnected")
+	}
+
+	logger.Debugf("uploading data object in parallel %s, size(%d)", irodsPath, fileLength)
 
 	// open a new file
-	handle, err := OpenDataObjectForPutParallel(conn, irodsPath, resource, "w+", common.OPER_TYPE_NONE, numTasks, fileLength)
+	handle, err := OpenDataObjectForPutParallel(conn, irodsPath, resource, "w", common.OPER_TYPE_NONE, numTasks, fileLength)
 	if err != nil {
-		errChan <- err
-		close(outputChan)
-		close(errChan)
-		return outputChan, errChan
+		transferStatusIRODS.CloseStatusFile()
+		return xerrors.Errorf("failed to open data object %s: %w", irodsPath, err)
 	}
 
 	replicaToken, resourceHierarchy, err := GetReplicaAccessInfo(conn, handle)
 	if err != nil {
-		errChan <- err
-		close(outputChan)
-		close(errChan)
-		return outputChan, errChan
+		transferStatusIRODS.CloseStatusFile()
+		CloseDataObject(conn, handle)
+		return xerrors.Errorf("failed to get replica access info for data object %s: %w", irodsPath, err)
 	}
 
-	offset := int64(0)
-	for offset < fileLength {
-		inputChan <- offset
-		offset += blockSize
-	}
-	close(inputChan)
+	logger.Debugf("replicaToken %s, resourceHierarchy %s", replicaToken, resourceHierarchy)
 
+	errChan := make(chan error, numTasks)
 	taskWaitGroup := sync.WaitGroup{}
 
-	uploadTask := func() {
+	totalBytesUploaded := int64(0)
+	if callback != nil {
+		callback(totalBytesUploaded, fileLength)
+	}
+
+	uploadTask := func(taskOffset int64, taskLength int64) {
 		defer taskWaitGroup.Done()
 
 		// we will not reuse connection from the pool, as it should use fresh one
 		taskConn, taskErr := session.AcquireUnmanagedConnection()
 		if taskErr != nil {
 			errChan <- xerrors.Errorf("failed to get connection: %w", taskErr)
+			return
 		}
 		defer session.DiscardConnection(taskConn)
 
@@ -608,12 +683,17 @@ func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPa
 
 		// open the file with read-write mode
 		// to not seek to end
-		taskHandle, _, taskErr := OpenDataObjectWithReplicaToken(taskConn, irodsPath, resource, "r+", replicaToken, resourceHierarchy, numTasks, fileLength)
+		taskHandle, _, taskErr := OpenDataObjectWithReplicaToken(taskConn, irodsPath, resource, "w", replicaToken, resourceHierarchy, numTasks, fileLength)
 		if taskErr != nil {
 			errChan <- taskErr
 			return
 		}
-		defer CloseDataObjectReplica(taskConn, taskHandle)
+		defer func() {
+			errClose := CloseDataObjectReplica(taskConn, taskHandle)
+			if errClose != nil {
+				errChan <- errClose
+			}
+		}()
 
 		f, taskErr := os.OpenFile(localPath, os.O_RDONLY, 0)
 		if taskErr != nil {
@@ -622,86 +702,132 @@ func UploadDataObjectParallelInBlockAsync(session *session.IRODSSession, localPa
 		}
 		defer f.Close()
 
-		buffer := make([]byte, common.ReadWriteBufferSize)
-		for {
-			taskOffset, ok := <-inputChan
-			if !ok {
-				break
+		// seek to last failure point
+		transferStatus := transferStatusIRODS.GetStatus()
+		lastOffset := int64(taskOffset)
+		if transferStatus != nil {
+			if transferStatusEntry, ok := transferStatus.StatusMap[taskOffset]; ok {
+				lastOffset = transferStatusEntry.StartOffset + transferStatusEntry.CompletedLength
+			}
+		}
+
+		if lastOffset > 0 {
+			logger.Debugf("resuming uploading data object %s for task offset %d from offset %d", localPath, taskOffset, lastOffset)
+
+			newOffset, err := f.Seek(lastOffset, io.SeekStart)
+			if err != nil {
+				errChan <- xerrors.Errorf("failed to seek file %s to offset %d: %w", localPath, lastOffset, err)
+				return
 			}
 
-			taskNewOffset, taskErr := SeekDataObject(taskConn, taskHandle, taskOffset, types.SeekSet)
+			taskNewOffset, taskErr := SeekDataObject(taskConn, taskHandle, lastOffset, types.SeekSet)
 			if taskErr != nil {
-				errChan <- taskErr
+				errChan <- xerrors.Errorf("failed to seek data object %s to offset %d: %w", irodsPath, lastOffset, taskErr)
 				return
 			}
 
-			if taskNewOffset != taskOffset {
-				errChan <- xerrors.Errorf("failed to seek to target offset %d", taskOffset)
+			if newOffset != taskNewOffset {
+				errChan <- xerrors.Errorf("failed to seek file and data object to target offset %d", lastOffset)
 				return
 			}
+		}
 
-			taskRemain := blockSize
+		taskRemain := taskLength - (lastOffset - taskOffset)
+		if lastOffset-taskOffset > 0 {
+			// increase counter
+			atomic.AddInt64(&totalBytesUploaded, lastOffset-taskOffset)
+			if callback != nil {
+				callback(totalBytesUploaded, fileLength)
+			}
+		}
 
-			// copy
-			for taskRemain > 0 {
-				bufferLen := common.ReadWriteBufferSize
-				if taskRemain < int64(bufferLen) {
-					bufferLen = int(taskRemain)
+		// copy
+		buffer := make([]byte, common.ReadWriteBufferSize)
+		var taskWriteErr error
+		for taskRemain > 0 {
+			bufferLen := common.ReadWriteBufferSize
+			if taskRemain < int64(bufferLen) {
+				bufferLen = int(taskRemain)
+			}
+
+			bytesRead, taskReadErr := f.ReadAt(buffer[:bufferLen], taskOffset+(taskLength-taskRemain))
+			if bytesRead > 0 {
+				taskWriteErr = WriteDataObjectWithTrackerCallBack(taskConn, taskHandle, buffer[:bytesRead], nil)
+				if taskWriteErr != nil {
+					return
 				}
 
-				bytesRead, taskReadErr := f.ReadAt(buffer[:bufferLen], taskOffset+(blockSize-taskRemain))
-				if bytesRead > 0 {
-					taskWriteErr := WriteDataObject(taskConn, taskHandle, buffer[:bytesRead])
-					if taskWriteErr != nil {
-						errChan <- taskWriteErr
-						return
-					}
+				atomic.AddInt64(&totalBytesUploaded, int64(bytesRead))
+
+				// write status
+				transferStatusEntry := &DataObjectTransferStatusEntry{
+					StartOffset:     taskOffset,
+					Length:          taskLength,
+					CompletedLength: (taskLength - taskRemain) + int64(bytesRead),
+				}
+				transferStatusIRODS.WriteStatus(transferStatusEntry)
+
+				if callback != nil {
+					callback(totalBytesUploaded, fileLength)
 				}
 
 				taskRemain -= int64(bytesRead)
-
-				if taskReadErr != nil {
-					if taskReadErr == io.EOF {
-						break
-					}
-
-					errChan <- xerrors.Errorf("failed to read from file %s: %w", localPath, taskReadErr)
-					return
-				}
 			}
 
-			// copy done
-			outputChan <- taskOffset
+			if taskReadErr != nil {
+				if taskReadErr == io.EOF {
+					break
+				} else {
+					taskWriteErr = xerrors.Errorf("failed to read file %s: %w", localPath, taskReadErr)
+					break
+				}
+			}
+		}
+
+		if taskWriteErr != nil {
+			errChan <- taskWriteErr
 		}
 	}
+
+	lengthPerThread := fileLength / int64(numTasks)
+	if fileLength%int64(numTasks) > 0 {
+		lengthPerThread++
+	}
+
+	offset := int64(0)
 
 	for i := 0; i < numTasks; i++ {
 		taskWaitGroup.Add(1)
-		go uploadTask()
+
+		go uploadTask(offset, lengthPerThread)
+		offset += lengthPerThread
 	}
 
-	go func() {
-		// all tasks are done
-		taskWaitGroup.Wait()
+	taskWaitGroup.Wait()
 
-		err = CloseDataObject(conn, handle)
+	if len(errChan) > 0 {
+		transferStatusIRODS.CloseStatusFile()
+		CloseDataObject(conn, handle)
+		return <-errChan
+	}
+
+	transferStatusIRODS.CloseStatusFile()
+	err = CloseDataObject(conn, handle)
+	if err != nil {
+		return err
+	}
+
+	// replicate
+	if replicate {
+		err = ReplicateDataObject(conn, irodsPath, "", true, false)
 		if err != nil {
-			errChan <- err
-		} else {
-			// replicate
-			if replicate {
-				err = ReplicateDataObject(conn, irodsPath, "", true, false)
-				if err != nil {
-					errChan <- err
-				}
-			}
+			return err
 		}
+	}
 
-		close(outputChan)
-		close(errChan)
-	}()
+	transferStatusIRODS.DeleteStatusFile()
 
-	return outputChan, errChan
+	return nil
 }
 
 // DownloadDataObjectToBuffer downloads a data object at the iRODS path to buffer
@@ -711,7 +837,7 @@ func DownloadDataObjectToBuffer(session *session.IRODSSession, irodsPath string,
 		"function": "DownloadDataObject",
 	})
 
-	logger.Debugf("download data object - %s", irodsPath)
+	logger.Debugf("download data object %s", irodsPath)
 
 	// use default resource when resource param is empty
 	if len(resource) == 0 {
@@ -731,7 +857,7 @@ func DownloadDataObjectToBuffer(session *session.IRODSSession, irodsPath string,
 
 	handle, _, err := OpenDataObject(conn, irodsPath, resource, "r")
 	if err != nil {
-		return err
+		return xerrors.Errorf("failed to open data object %s: %w", irodsPath, err)
 	}
 	defer CloseDataObject(conn, handle)
 
@@ -749,37 +875,46 @@ func DownloadDataObjectToBuffer(session *session.IRODSSession, irodsPath string,
 	}
 
 	buffer2 := make([]byte, common.ReadWriteBufferSize)
+	var writeErr error
 	// copy
 	for {
-		readLen, readErr := ReadDataObjectWithTrackerCallBack(conn, handle, buffer2, blockReadCallback)
-		if readErr != nil && readErr != io.EOF {
-			return readErr
+		bytesRead, readErr := ReadDataObjectWithTrackerCallBack(conn, handle, buffer2, blockReadCallback)
+		if bytesRead > 0 {
+			_, writeErr := buffer.Write(buffer2[:bytesRead])
+			if writeErr != nil {
+				break
+			}
+
+			totalBytesDownloaded += int64(bytesRead)
+			if callback != nil {
+				callback(totalBytesDownloaded, dataObjectLength)
+			}
 		}
 
-		_, writeErr := buffer.Write(buffer2[:readLen])
-		if writeErr != nil {
-			return xerrors.Errorf("failed to write to buffer: %w", writeErr)
-		}
-
-		totalBytesDownloaded += int64(readLen)
-		if callback != nil {
-			callback(totalBytesDownloaded, dataObjectLength)
-		}
-
-		if readErr == io.EOF {
-			return nil
+		if readErr != nil {
+			if readErr == io.EOF {
+				break
+			} else {
+				return xerrors.Errorf("failed to read data object %s: %w", irodsPath, readErr)
+			}
 		}
 	}
+
+	if writeErr != nil {
+		return writeErr
+	}
+
+	return nil
 }
 
 // DownloadDataObject downloads a data object at the iRODS path to the local path
-func DownloadDataObject(session *session.IRODSSession, irodsPath string, resource string, localPath string, dataObjectLength int64, callback common.TrackerCallBack) error {
+func DownloadDataObject(session *session.IRODSSession, irodsPath string, resource string, localPath string, fileLength int64, callback common.TrackerCallBack) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "fs",
 		"function": "DownloadDataObject",
 	})
 
-	logger.Debugf("download data object - %s", irodsPath)
+	logger.Debugf("download data object %s", irodsPath)
 
 	// use default resource when resource param is empty
 	if len(resource) == 0 {
@@ -799,7 +934,7 @@ func DownloadDataObject(session *session.IRODSSession, irodsPath string, resourc
 
 	handle, _, err := OpenDataObject(conn, irodsPath, resource, "r")
 	if err != nil {
-		return err
+		return xerrors.Errorf("failed to open data object %s: %w", irodsPath, err)
 	}
 	defer CloseDataObject(conn, handle)
 
@@ -811,49 +946,56 @@ func DownloadDataObject(session *session.IRODSSession, irodsPath string, resourc
 
 	totalBytesDownloaded := int64(0)
 	if callback != nil {
-		callback(totalBytesDownloaded, dataObjectLength)
+		callback(totalBytesDownloaded, fileLength)
 	}
 
 	// block read call-back
-	var blockReadCallback common.TrackerCallBack
-	if callback != nil {
-		blockReadCallback = func(processed int64, total int64) {
-			callback(totalBytesDownloaded+processed, dataObjectLength)
-		}
-	}
-
-	buffer := make([]byte, common.ReadWriteBufferSize)
-	// copy
-	for {
-		readLen, readErr := ReadDataObjectWithTrackerCallBack(conn, handle, buffer, blockReadCallback)
-		if readErr != nil && readErr != io.EOF {
-			return readErr
-		}
-
-		_, writeErr := f.Write(buffer[:readLen])
-		if writeErr != nil {
-			return xerrors.Errorf("failed to write to file %s: %w", localPath, writeErr)
-		}
-
-		totalBytesDownloaded += int64(readLen)
+	blockReadCallback := func(processed int64, total int64) {
 		if callback != nil {
-			callback(totalBytesDownloaded, dataObjectLength)
-		}
-
-		if readErr == io.EOF {
-			return nil
+			callback(totalBytesDownloaded+processed, fileLength)
 		}
 	}
+
+	// copy
+	buffer := make([]byte, common.ReadWriteBufferSize)
+	var writeErr error
+	for {
+		bytesRead, readErr := ReadDataObjectWithTrackerCallBack(conn, handle, buffer, blockReadCallback)
+		if bytesRead > 0 {
+			_, writeErr = f.Write(buffer[:bytesRead])
+			if writeErr != nil {
+				break
+			}
+
+			totalBytesDownloaded += int64(bytesRead)
+			if callback != nil {
+				callback(totalBytesDownloaded, fileLength)
+			}
+		}
+
+		if readErr != nil {
+			if readErr == io.EOF {
+				break
+			} else {
+				writeErr = xerrors.Errorf("failed to read data object %s: %w", irodsPath, readErr)
+				break
+			}
+		}
+	}
+
+	if writeErr != nil {
+		return writeErr
+	}
+
+	return nil
 }
 
-// ResumeDownloadDataObject resumes downloading a data object at the iRODS path to the local path
-func ResumeDownloadDataObject(session *session.IRODSSession, irodsPath string, resource string, localPath string, dataObjectLength int64, callback common.TrackerCallBack) error {
+// DownloadDataObjectResumable downloads a data object at the iRODS path to the local path with support of transfer resume
+func DownloadDataObjectResumable(session *session.IRODSSession, irodsPath string, resource string, localPath string, fileLength int64, callback common.TrackerCallBack) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "fs",
-		"function": "ResumeDownloadDataObject",
+		"function": "DownloadDataObjectResumable",
 	})
-
-	logger.Debugf("resume downloading data object - %s", irodsPath)
 
 	// use default resource when resource param is empty
 	if len(resource) == 0 {
@@ -861,98 +1003,146 @@ func ResumeDownloadDataObject(session *session.IRODSSession, irodsPath string, r
 		resource = account.DefaultResource
 	}
 
+	logger.Debugf("download data object %s", irodsPath)
+
+	// create transfer status
+	transferStatusLocal, err := GetOrNewDataObjectTransferStatusLocal(localPath, fileLength, 1)
+	if err != nil {
+		return xerrors.Errorf("failed to read transfer status file for %s: %w", localPath, err)
+	}
+
+	err = transferStatusLocal.CreateStatusFile()
+	if err != nil {
+		return xerrors.Errorf("failed to create transfer status file for %s: %w", localPath, err)
+	}
+
+	err = transferStatusLocal.WriteHeader()
+	if err != nil {
+		transferStatusLocal.CloseStatusFile()
+		return xerrors.Errorf("failed to write transfer status file header for %s: %w", localPath, err)
+	}
+
 	conn, err := session.AcquireConnection()
 	if err != nil {
+		transferStatusLocal.CloseStatusFile()
 		return xerrors.Errorf("failed to get connection: %w", err)
 	}
 	defer session.ReturnConnection(conn)
 
 	if conn == nil || !conn.IsConnected() {
+		transferStatusLocal.CloseStatusFile()
 		return xerrors.Errorf("connection is nil or disconnected")
 	}
 
 	handle, _, err := OpenDataObject(conn, irodsPath, resource, "r")
 	if err != nil {
-		return err
-	}
-	defer CloseDataObject(conn, handle)
-
-	offset := int64(0)
-	localStat, err := os.Stat(localPath)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			// error
-			return xerrors.Errorf("failed to stat file %s: %w", localPath, err)
-		}
-	} else {
-		// exist, but dir
-		if localStat.IsDir() {
-			return xerrors.Errorf("failed to create file %s, there exists a dir in the same name: %w", localPath, err)
-		}
-
-		offset = localStat.Size()
+		transferStatusLocal.CloseStatusFile()
+		return xerrors.Errorf("failed to open data object %s: %w", irodsPath, err)
 	}
 
-	localHandle, err := os.OpenFile(localPath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
+	f, err := os.OpenFile(localPath, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
+		transferStatusLocal.CloseStatusFile()
 		return xerrors.Errorf("failed to create file %s: %w", localPath, err)
 	}
-	defer localHandle.Close()
+	defer f.Close()
 
-	if offset > 0 {
-		newOffset, err := SeekDataObject(conn, handle, offset, types.SeekSet)
+	// seek to last failure point
+	transferStatus := transferStatusLocal.GetStatus()
+	lastOffset := int64(0)
+	if transferStatus != nil {
+		if transferStatusEntry, ok := transferStatus.StatusMap[0]; ok {
+			lastOffset = transferStatusEntry.StartOffset + transferStatusEntry.CompletedLength
+		}
+	}
+
+	if lastOffset > 0 {
+		logger.Debugf("resuming downloading data object %s from offset %d", irodsPath, lastOffset)
+
+		newOffset, err := SeekDataObject(conn, handle, lastOffset, types.SeekSet)
 		if err != nil {
-			return xerrors.Errorf("failed to seek data object %s to offset %d: %w", irodsPath, offset, err)
+			transferStatusLocal.CloseStatusFile()
+			return xerrors.Errorf("failed to seek data object %s to offset %d: %w", irodsPath, lastOffset, err)
+		}
+
+		offset, err := f.Seek(lastOffset, io.SeekStart)
+		if err != nil {
+			transferStatusLocal.CloseStatusFile()
+			return xerrors.Errorf("failed to seek file %s to offset %d: %w", localPath, lastOffset, err)
 		}
 
 		if newOffset != offset {
-			return xerrors.Errorf("failed to seek data object %s to offset %d, seeked to %d", irodsPath, offset, newOffset)
+			transferStatusLocal.CloseStatusFile()
+			return xerrors.Errorf("failed to seek file and data object to target offset %d", lastOffset)
 		}
 	}
 
-	totalBytesDownloaded := int64(offset)
+	totalBytesDownloaded := lastOffset
 	if callback != nil {
-		if totalBytesDownloaded > 0 {
-			callback(0, dataObjectLength)
+		if lastOffset > 0 {
+			callback(0, fileLength)
 		}
-		callback(totalBytesDownloaded, dataObjectLength)
+		callback(lastOffset, fileLength)
 	}
 
 	// block read call-back
-	var blockReadCallback common.TrackerCallBack
-	if callback != nil {
-		blockReadCallback = func(processed int64, total int64) {
-			callback(totalBytesDownloaded+processed, dataObjectLength)
-		}
-	}
-
-	buffer := make([]byte, common.ReadWriteBufferSize)
-	// copy
-	for {
-		readLen, readErr := ReadDataObjectWithTrackerCallBack(conn, handle, buffer, blockReadCallback)
-		if readErr != nil && readErr != io.EOF {
-			return readErr
-		}
-
-		_, writeErr := localHandle.Write(buffer[:readLen])
-		if writeErr != nil {
-			return xerrors.Errorf("failed to write to file %s: %w", localPath, writeErr)
-		}
-
-		totalBytesDownloaded += int64(readLen)
+	blockReadCallback := func(processed int64, total int64) {
 		if callback != nil {
-			callback(totalBytesDownloaded, dataObjectLength)
-		}
-
-		if readErr == io.EOF {
-			return nil
+			callback(totalBytesDownloaded+processed, fileLength)
 		}
 	}
+
+	// copy
+	buffer := make([]byte, common.ReadWriteBufferSize)
+	var writeErr error
+	for {
+		bytesRead, readErr := ReadDataObjectWithTrackerCallBack(conn, handle, buffer, blockReadCallback)
+		if bytesRead > 0 {
+			_, writeErr = f.Write(buffer[:bytesRead])
+			if writeErr != nil {
+				break
+			}
+
+			totalBytesDownloaded += int64(bytesRead)
+
+			// write status
+			transferStatusEntry := &DataObjectTransferStatusEntry{
+				StartOffset:     0,
+				Length:          fileLength,
+				CompletedLength: totalBytesDownloaded,
+			}
+			transferStatusLocal.WriteStatus(transferStatusEntry)
+
+			if callback != nil {
+				callback(totalBytesDownloaded, fileLength)
+			}
+		}
+
+		if readErr != nil {
+			if readErr == io.EOF {
+				break
+			} else {
+				writeErr = xerrors.Errorf("failed to read from data object %s: %w", irodsPath, readErr)
+				break
+			}
+		}
+	}
+
+	transferStatusLocal.CloseStatusFile()
+	CloseDataObject(conn, handle)
+
+	if writeErr != nil {
+		return writeErr
+	}
+
+	transferStatusLocal.DeleteStatusFile()
+
+	return nil
 }
 
 // DownloadDataObjectParallel downloads a data object at the iRODS path to the local path in parallel
 // Partitions a file into n (taskNum) tasks and downloads in parallel
-func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string, resource string, localPath string, dataObjectLength int64, taskNum int, callback common.TrackerCallBack) error {
+func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string, resource string, localPath string, fileLength int64, taskNum int, callback common.TrackerCallBack) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "fs",
 		"function": "DownloadDataObjectParallel",
@@ -966,14 +1156,19 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 
 	numTasks := taskNum
 	if numTasks <= 0 {
-		numTasks = util.GetNumTasksForParallelTransfer(dataObjectLength)
+		numTasks = util.GetNumTasksForParallelTransfer(fileLength)
 	}
 
 	if numTasks > session.GetConfig().ConnectionMax {
 		numTasks = session.GetConfig().ConnectionMax
 	}
 
-	logger.Debugf("download data object in parallel - %s, size(%d), threads(%d)", irodsPath, dataObjectLength, numTasks)
+	if numTasks == 1 {
+		// serial download
+		return DownloadDataObject(session, irodsPath, resource, localPath, fileLength, callback)
+	}
+
+	logger.Debugf("download data object in parallel %s, size(%d), threads(%d)", irodsPath, fileLength, numTasks)
 
 	// create an empty file
 	f, err := os.Create(localPath)
@@ -986,9 +1181,12 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 	taskWaitGroup := sync.WaitGroup{}
 
 	totalBytesDownloaded := int64(0)
+	if callback != nil {
+		callback(totalBytesDownloaded, fileLength)
+	}
 
-	// block reads
-	blockReads := make([]int64, numTasks)
+	// task progress
+	taskProgress := make([]int64, numTasks)
 
 	// get connections
 	connections, err := session.AcquireConnectionsMulti(numTasks)
@@ -996,8 +1194,9 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 		return xerrors.Errorf("failed to get connection: %w", err)
 	}
 
-	downloadTask := func(taskID int, taskConn *connection.IRODSConnection, taskOffset int64, taskLength int64) {
-		blockReads[taskID] = 0
+	downloadTask := func(taskID int, taskOffset int64, taskLength int64) {
+		taskProgress[taskID] = 0
+		taskConn := connections[taskID]
 
 		defer taskWaitGroup.Done()
 
@@ -1013,7 +1212,12 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 			errChan <- taskErr
 			return
 		}
-		defer CloseDataObject(taskConn, taskHandle)
+		defer func() {
+			errClose := CloseDataObject(taskConn, taskHandle)
+			if errClose != nil {
+				errChan <- errClose
+			}
+		}()
 
 		f, taskErr := os.OpenFile(localPath, os.O_WRONLY, 0)
 		if taskErr != nil {
@@ -1033,15 +1237,13 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 			return
 		}
 
-		var blockReadCallback common.TrackerCallBack
-		if callback != nil {
-			blockReadCallback = func(processed int64, total int64) {
-				if processed > 0 {
-					delta := processed - blockReads[taskID]
-					blockReads[taskID] = processed
+		blockReadCallback := func(processed int64, total int64) {
+			if processed > 0 {
+				delta := processed - taskProgress[taskID]
+				taskProgress[taskID] = processed
 
-					atomic.AddInt64(&totalBytesDownloaded, int64(delta))
-					callback(totalBytesDownloaded, dataObjectLength)
+				if callback != nil {
+					callback(totalBytesDownloaded+delta, fileLength)
 				}
 			}
 		}
@@ -1050,49 +1252,52 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 
 		// copy
 		buffer := make([]byte, common.ReadWriteBufferSize)
+		var taskWriteErr error
 		for taskRemain > 0 {
-			toCopy := taskRemain
-			if toCopy >= int64(common.ReadWriteBufferSize) {
-				toCopy = int64(common.ReadWriteBufferSize)
+			bufferLen := common.ReadWriteBufferSize
+			if taskRemain < int64(bufferLen) {
+				bufferLen = int(taskRemain)
 			}
 
-			blockReads[taskID] = 0
-			readLen, readTaskErr := ReadDataObjectWithTrackerCallBack(taskConn, taskHandle, buffer[:toCopy], blockReadCallback)
-			if readLen > 0 {
-				_, writeTaskErr := f.WriteAt(buffer[:readLen], taskOffset+(taskLength-taskRemain))
-				if writeTaskErr != nil {
-					errChan <- xerrors.Errorf("failed to write to file %s: %w", localPath, writeTaskErr)
-					return
+			taskProgress[taskID] = 0
+
+			bytesRead, taskReadErr := ReadDataObjectWithTrackerCallBack(taskConn, taskHandle, buffer[:bufferLen], blockReadCallback)
+			if bytesRead > 0 {
+				_, taskWriteErr = f.WriteAt(buffer[:bytesRead], taskOffset+(taskLength-taskRemain))
+				if taskWriteErr != nil {
+					break
 				}
-				taskRemain -= int64(readLen)
+
+				atomic.AddInt64(&totalBytesDownloaded, int64(bytesRead))
+
+				taskRemain -= int64(bytesRead)
 			}
 
-			if readTaskErr != nil && readTaskErr != io.EOF {
-				errChan <- readTaskErr
-				return
+			if taskReadErr != nil {
+				if taskReadErr == io.EOF {
+					break
+				} else {
+					taskWriteErr = xerrors.Errorf("failed to read data object %s: %w", irodsPath, taskReadErr)
+				}
 			}
+		}
 
-			if readTaskErr == io.EOF {
-				// EOF
-				return
-			}
+		if taskWriteErr != nil {
+			errChan <- taskWriteErr
 		}
 	}
 
-	lengthPerThread := dataObjectLength / int64(numTasks)
-	if dataObjectLength%int64(numTasks) > 0 {
+	lengthPerThread := fileLength / int64(numTasks)
+	if fileLength%int64(numTasks) > 0 {
 		lengthPerThread++
 	}
 
 	offset := int64(0)
-	if callback != nil {
-		callback(totalBytesDownloaded, dataObjectLength)
-	}
 
 	for i := 0; i < numTasks; i++ {
 		taskWaitGroup.Add(1)
 
-		go downloadTask(i, connections[i], offset, lengthPerThread)
+		go downloadTask(i, offset, lengthPerThread)
 		offset += lengthPerThread
 	}
 
@@ -1105,12 +1310,12 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 	return nil
 }
 
-// DownloadDataObjectParallelInBlocksAsync downloads a data object at the iRODS path to the local path in parallel
-// Chunks a file into fixed-size blocks and transfers them using n (taskNum) tasks in parallel
-func DownloadDataObjectParallelInBlocksAsync(session *session.IRODSSession, irodsPath string, resource string, localPath string, dataObjectLength int64, blockLength int64, taskNum int) (chan int64, chan error) {
+// DownloadDataObjectParallelResumable downloads a data object at the iRODS path to the local path in parallel with support of transfer resume
+// Partitions a file into n (taskNum) tasks and downloads in parallel
+func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPath string, resource string, localPath string, fileLength int64, taskNum int, callback common.TrackerCallBack) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "fs",
-		"function": "DownloadDataObjectParallelInBlocksAsync",
+		"function": "DownloadDataObjectParallelResumable",
 	})
 
 	// use default resource when resource param is empty
@@ -1119,14 +1324,9 @@ func DownloadDataObjectParallelInBlocksAsync(session *session.IRODSSession, irod
 		resource = account.DefaultResource
 	}
 
-	blockSize := blockLength
-	if blockSize <= 0 {
-		blockSize = util.GetBlockSizeForParallelTransfer(dataObjectLength)
-	}
-
 	numTasks := taskNum
 	if numTasks <= 0 {
-		numTasks = util.GetNumTasksForParallelTransfer(dataObjectLength)
+		numTasks = util.GetNumTasksForParallelTransfer(fileLength)
 	}
 
 	if numTasks > session.GetConfig().ConnectionMax {
@@ -1134,45 +1334,67 @@ func DownloadDataObjectParallelInBlocksAsync(session *session.IRODSSession, irod
 	}
 
 	if numTasks == 1 {
-		blockSize = dataObjectLength
+		// serial download
+		return DownloadDataObjectResumable(session, irodsPath, resource, localPath, fileLength, callback)
 	}
 
-	numBlocks := dataObjectLength / blockSize
-	if dataObjectLength%blockSize != 0 {
-		numBlocks++
+	logger.Debugf("downloading data object in parallel %s, size(%d)", irodsPath, fileLength)
+
+	// create transfer status
+	transferStatusLocal, err := GetOrNewDataObjectTransferStatusLocal(localPath, fileLength, numTasks)
+	if err != nil {
+		return xerrors.Errorf("failed to read transfer status file for %s: %w", localPath, err)
 	}
 
-	logger.Debugf("download data object in parallel - %s, size(%d), threads(%d), block_size(%d)", irodsPath, dataObjectLength, numTasks, blockSize)
+	// if previous transfer used different number of threads, use old value
+	numTasks = transferStatusLocal.status.Threads
 
-	inputChan := make(chan int64, numBlocks)
-	outputChan := make(chan int64, numBlocks)
-	errChan := make(chan error, numBlocks)
+	logger.Debugf("use %d tasks to download", numTasks)
+
+	if numTasks == 1 {
+		// serial download
+		return DownloadDataObjectResumable(session, irodsPath, resource, localPath, fileLength, callback)
+	}
+
+	err = transferStatusLocal.CreateStatusFile()
+	if err != nil {
+		return xerrors.Errorf("failed to create transfer status file for %s: %w", localPath, err)
+	}
+
+	err = transferStatusLocal.WriteHeader()
+	if err != nil {
+		transferStatusLocal.CloseStatusFile()
+		return xerrors.Errorf("failed to write transfer status file header for %s: %w", localPath, err)
+	}
 
 	// create an empty file
 	f, err := os.Create(localPath)
 	if err != nil {
-		errChan <- xerrors.Errorf("failed to create file %s: %w", localPath, err)
-		return outputChan, errChan
+		return xerrors.Errorf("failed to create file %s: %w", localPath, err)
 	}
 	f.Close()
 
-	offset := int64(0)
-	for offset < dataObjectLength {
-		inputChan <- offset
-		offset += blockSize
-	}
-	close(inputChan)
-
+	errChan := make(chan error, numTasks)
 	taskWaitGroup := sync.WaitGroup{}
+
+	totalBytesDownloaded := int64(0)
+	if callback != nil {
+		callback(totalBytesDownloaded, fileLength)
+	}
+
+	// task progress
+	taskProgress := make([]int64, numTasks)
 
 	// get connections
 	connections, err := session.AcquireConnectionsMulti(numTasks)
 	if err != nil {
-		errChan <- xerrors.Errorf("failed to get connection: %w", err)
-		return outputChan, errChan
+		return xerrors.Errorf("failed to get connection: %w", err)
 	}
 
-	downloadTask := func(taskConn *connection.IRODSConnection) {
+	downloadTask := func(taskID int, taskOffset int64, taskLength int64) {
+		taskProgress[taskID] = 0
+		taskConn := connections[taskID]
+
 		defer taskWaitGroup.Done()
 
 		defer session.ReturnConnection(taskConn)
@@ -1187,7 +1409,12 @@ func DownloadDataObjectParallelInBlocksAsync(session *session.IRODSSession, irod
 			errChan <- taskErr
 			return
 		}
-		defer CloseDataObject(taskConn, taskHandle)
+		defer func() {
+			errClose := CloseDataObject(taskConn, taskHandle)
+			if errClose != nil {
+				errChan <- errClose
+			}
+		}()
 
 		f, taskErr := os.OpenFile(localPath, os.O_WRONLY, 0)
 		if taskErr != nil {
@@ -1196,71 +1423,129 @@ func DownloadDataObjectParallelInBlocksAsync(session *session.IRODSSession, irod
 		}
 		defer f.Close()
 
+		// seek to last failure point
+		transferStatus := transferStatusLocal.GetStatus()
+		lastOffset := int64(taskOffset)
+		if transferStatus != nil {
+			if transferStatusEntry, ok := transferStatus.StatusMap[taskOffset]; ok {
+				lastOffset = transferStatusEntry.StartOffset + transferStatusEntry.CompletedLength
+			}
+		}
+
+		if lastOffset > 0 {
+			logger.Debugf("resuming downloading data object %s for task offset %d from offset %d", irodsPath, taskOffset, lastOffset)
+
+			newOffset, err := SeekDataObject(taskConn, taskHandle, lastOffset, types.SeekSet)
+			if err != nil {
+				errChan <- xerrors.Errorf("failed to seek data object %s to offset %d: %w", irodsPath, lastOffset, err)
+				return
+			}
+
+			taskNewOffset, taskErr := f.Seek(lastOffset, io.SeekStart)
+			if taskErr != nil {
+				errChan <- xerrors.Errorf("failed to seek file %s to offset %d: %w", localPath, lastOffset, err)
+				return
+			}
+
+			if newOffset != taskNewOffset {
+				errChan <- xerrors.Errorf("failed to seek file and data object to target offset %d", lastOffset)
+				return
+			}
+		}
+
+		blockReadCallback := func(processed int64, total int64) {
+			if processed > 0 {
+				delta := processed - taskProgress[taskID]
+				taskProgress[taskID] = processed
+
+				if callback != nil {
+					callback(totalBytesDownloaded+delta, fileLength)
+				}
+			}
+		}
+
+		taskRemain := taskLength - (lastOffset - taskOffset)
+		if lastOffset-taskOffset > 0 {
+			// increase counter
+			atomic.AddInt64(&totalBytesDownloaded, lastOffset-taskOffset)
+			if callback != nil {
+				callback(totalBytesDownloaded, fileLength)
+			}
+		}
+
+		// copy
 		buffer := make([]byte, common.ReadWriteBufferSize)
-		for {
-			taskOffset, ok := <-inputChan
-			if !ok {
-				break
+		var taskWriteErr error
+		for taskRemain > 0 {
+			bufferLen := common.ReadWriteBufferSize
+			if taskRemain < int64(bufferLen) {
+				bufferLen = int(taskRemain)
 			}
 
-			taskNewOffset, seekErr := SeekDataObject(taskConn, taskHandle, taskOffset, types.SeekSet)
-			if seekErr != nil {
-				errChan <- seekErr
-				return
+			taskProgress[taskID] = 0
+
+			bytesRead, taskReadErr := ReadDataObjectWithTrackerCallBack(taskConn, taskHandle, buffer[:bufferLen], blockReadCallback)
+			if bytesRead > 0 {
+				_, taskWriteErr := f.WriteAt(buffer[:bytesRead], taskOffset+(taskLength-taskRemain))
+				if taskWriteErr != nil {
+					break
+				}
+
+				atomic.AddInt64(&totalBytesDownloaded, int64(bytesRead))
+
+				// write status
+				transferStatusEntry := &DataObjectTransferStatusEntry{
+					StartOffset:     taskOffset,
+					Length:          taskLength,
+					CompletedLength: (taskLength - taskRemain) + int64(bytesRead),
+				}
+				transferStatusLocal.WriteStatus(transferStatusEntry)
+
+				if callback != nil {
+					callback(totalBytesDownloaded, fileLength)
+				}
+
+				taskRemain -= int64(bytesRead)
 			}
 
-			if taskNewOffset != taskOffset {
-				errChan <- xerrors.Errorf("failed to seek to target offset %d", taskOffset)
-				return
-			}
-
-			taskRemain := blockSize
-
-			// copy
-			for taskRemain > 0 {
-				toCopy := taskRemain
-				if toCopy >= int64(common.ReadWriteBufferSize) {
-					toCopy = int64(common.ReadWriteBufferSize)
-				}
-
-				readLen, readTaskErr := ReadDataObject(taskConn, taskHandle, buffer[:toCopy])
-				if readLen > 0 {
-					_, writeTaskErr := f.WriteAt(buffer[:readLen], taskOffset+(blockSize-taskRemain))
-					if writeTaskErr != nil {
-						errChan <- xerrors.Errorf("failed to write to file %s: %w", localPath, writeTaskErr)
-						return
-					}
-					taskRemain -= int64(readLen)
-				}
-
-				if readTaskErr != nil && readTaskErr != io.EOF {
-					errChan <- readTaskErr
-					return
-				}
-
-				if readTaskErr == io.EOF {
-					// EOF
-					return
+			if taskReadErr != nil {
+				if taskReadErr == io.EOF {
+					break
+				} else {
+					taskWriteErr = xerrors.Errorf("failed to read from file %s: %w", irodsPath, taskReadErr)
 				}
 			}
+		}
 
-			// copy done
-			outputChan <- taskOffset
+		if taskWriteErr != nil {
+			errChan <- taskWriteErr
 		}
 	}
 
-	for i := 0; i < numTasks; i++ {
-		taskWaitGroup.Add(1)
-		go downloadTask(connections[i])
+	lengthPerThread := fileLength / int64(numTasks)
+	if fileLength%int64(numTasks) > 0 {
+		lengthPerThread++
 	}
 
-	go func() {
-		// all tasks are done
-		taskWaitGroup.Wait()
+	offset := int64(0)
 
-		close(outputChan)
-		close(errChan)
-	}()
+	for i := 0; i < numTasks; i++ {
+		taskWaitGroup.Add(1)
 
-	return outputChan, errChan
+		go downloadTask(i, offset, lengthPerThread)
+		offset += lengthPerThread
+	}
+
+	taskWaitGroup.Wait()
+
+	if len(errChan) > 0 {
+		transferStatusLocal.CloseStatusFile()
+		return <-errChan
+	}
+
+	transferStatusLocal.CloseStatusFile()
+
+	transferStatusLocal.DeleteStatusFile()
+
+	return nil
 }

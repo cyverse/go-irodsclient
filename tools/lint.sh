@@ -16,8 +16,11 @@ if ! command -v ineffassign &> /dev/null ; then
 fi
 
 if ! command -v misspell &> /dev/null ; then
+    go get github.com/client9/misspell/cmd/misspell
     go install github.com/client9/misspell/cmd/misspell
 fi
+
+go mod tidy
 
 
 for PACKAGE in "fs" "irods" "test"
