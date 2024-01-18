@@ -5,7 +5,7 @@ import (
 
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"golang.org/x/xerrors"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 const (
