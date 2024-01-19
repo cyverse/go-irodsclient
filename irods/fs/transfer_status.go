@@ -419,7 +419,7 @@ func GetDataObjectTransferStatusLocal(localPath string) (*DataObjectTransferStat
 func GetOrNewDataObjectTransferStatusLocal(localPath string, size int64, threads int) (*DataObjectTransferStatusLocal, error) {
 	status, err := GetDataObjectTransferStatusLocal(localPath)
 	if err != nil {
-		if types.IsFileNotFoundError(err) {
+		if os.IsNotExist(err) {
 			// status file not found
 			status := NewDataObjectTransferStatusLocal(localPath, size, threads)
 			return status, nil
