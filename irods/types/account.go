@@ -110,7 +110,7 @@ func CreateIRODSProxyAccount(host string, port int, clientUser string, clientZon
 
 // CreateIRODSAccountFromYAML creates IRODSAccount from YAML
 func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
-	y := make(map[interface{}]interface{})
+	y := make(map[string]interface{})
 
 	err := yaml.Unmarshal(yamlBytes, &y)
 	if err != nil {
@@ -138,9 +138,9 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 		}
 	}
 
-	host := make(map[interface{}]interface{})
+	host := make(map[string]interface{})
 	if val, ok := y["host"]; ok {
-		host = val.(map[interface{}]interface{})
+		host = val.(map[string]interface{})
 	}
 
 	hostname := ""
@@ -159,9 +159,9 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 	}
 
 	// proxy user
-	proxyUser := make(map[interface{}]interface{})
+	proxyUser := make(map[string]interface{})
 	if val, ok := y["proxy_user"]; ok {
-		proxyUser = val.(map[interface{}]interface{})
+		proxyUser = val.(map[string]interface{})
 	}
 
 	proxyUsername := ""
@@ -185,9 +185,9 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 	}
 
 	// client user
-	clientUser := make(map[interface{}]interface{})
+	clientUser := make(map[string]interface{})
 	if val, ok := y["client_user"]; ok {
-		clientUser = val.(map[interface{}]interface{})
+		clientUser = val.(map[string]interface{})
 	}
 
 	clientUsername := ""
@@ -205,9 +205,9 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 	}
 
 	// normal user
-	user := make(map[interface{}]interface{})
+	user := make(map[string]interface{})
 	if val, ok := y["user"]; ok {
-		user = val.(map[interface{}]interface{})
+		user = val.(map[string]interface{})
 	}
 
 	if val, ok := user["username"]; ok {
@@ -230,9 +230,9 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 	}
 
 	// PAM Configuration
-	pamConfig := make(map[interface{}]interface{})
+	pamConfig := make(map[string]interface{})
 	if val, ok := y["pam"]; ok {
-		pamConfig = val.(map[interface{}]interface{})
+		pamConfig = val.(map[string]interface{})
 	}
 
 	pamTTL := 0
@@ -242,9 +242,9 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 
 	// SSL Configuration
 	hasSSLConfig := false
-	sslConfig := make(map[interface{}]interface{})
+	sslConfig := make(map[string]interface{})
 	if val, ok := y["ssl"]; ok {
-		sslConfig = val.(map[interface{}]interface{})
+		sslConfig = val.(map[string]interface{})
 		hasSSLConfig = true
 	}
 
