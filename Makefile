@@ -19,7 +19,9 @@ examples:
 	CGO_ENABLED=0 GOOS=linux go build -o ./examples/upload/upload.out ./examples/upload/upload.go
 	CGO_ENABLED=0 GOOS=linux go build -o ./examples/upload_parallel/upload_parallel.out ./examples/upload_parallel/upload_parallel.go
 	CGO_ENABLED=0 GOOS=linux go build -o ./examples/download/download.out ./examples/download/download.go
+	CGO_ENABLED=0 GOOS=linux go build -o ./examples/download_resumable/download_resumable.out ./examples/download_resumable/download_resumable.go
 	CGO_ENABLED=0 GOOS=linux go build -o ./examples/download_parallel/download_parallel.out ./examples/download_parallel/download_parallel.go
+	CGO_ENABLED=0 GOOS=linux go build -o ./examples/download_parallel_resumable/download_parallel_resumable.out ./examples/download_parallel_resumable/download_parallel_resumable.go
 	CGO_ENABLED=0 GOOS=linux go build -o ./examples/delete_file/delete_file.out ./examples/delete_file/delete_file.go
 	CGO_ENABLED=0 GOOS=linux go build -o ./examples/delete_dir/delete_dir.out ./examples/delete_dir/delete_dir.go
 	CGO_ENABLED=0 GOOS=linux go build -o ./examples/make_dir/make_dir.out ./examples/make_dir/make_dir.go

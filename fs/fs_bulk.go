@@ -211,53 +211,6 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 	return nil
 }
 
-// UploadFileResumable uploads a local file to irods with support of transfer resume
-func (fs *FileSystem) UploadFileResumable(localPath string, irodsPath string, resource string, replicate bool, callback common.TrackerCallBack) error {
-	localSrcPath := util.GetCorrectLocalPath(localPath)
-	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
-
-	irodsFilePath := irodsDestPath
-
-	stat, err := os.Stat(localSrcPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			// file not exists
-			return xerrors.Errorf("failed to stat for local path %s: %w", localSrcPath, types.NewFileNotFoundError(localSrcPath))
-		}
-		return err
-	}
-
-	if stat.IsDir() {
-		return xerrors.Errorf("failed to find a file for local path %s, the path is for a directory: %w", localSrcPath, types.NewFileNotFoundError(localSrcPath))
-	}
-
-	entry, err := fs.Stat(irodsDestPath)
-	if err != nil {
-		if !types.IsFileNotFoundError(err) {
-			return err
-		}
-	} else {
-		switch entry.Type {
-		case FileEntry:
-			// do nothing
-		case DirectoryEntry:
-			localFileName := filepath.Base(localSrcPath)
-			irodsFilePath = util.MakeIRODSPath(irodsDestPath, localFileName)
-		default:
-			return xerrors.Errorf("unknown entry type %s", entry.Type)
-		}
-	}
-
-	err = irods_fs.UploadDataObjectResumable(fs.ioSession, localSrcPath, irodsFilePath, resource, replicate, callback)
-	if err != nil {
-		return err
-	}
-
-	fs.invalidateCacheForFileCreate(irodsFilePath)
-	fs.cachePropagation.PropagateFileCreate(irodsFilePath)
-	return nil
-}
-
 // UploadFileFromBuffer uploads buffer data to irods
 func (fs *FileSystem) UploadFileFromBuffer(buffer bytes.Buffer, irodsPath string, resource string, replicate bool, callback common.TrackerCallBack) error {
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
@@ -328,53 +281,6 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 	}
 
 	err = irods_fs.UploadDataObjectParallel(fs.ioSession, localSrcPath, irodsFilePath, resource, taskNum, replicate, callback)
-	if err != nil {
-		return err
-	}
-
-	fs.invalidateCacheForFileCreate(irodsFilePath)
-	fs.cachePropagation.PropagateFileCreate(irodsFilePath)
-	return nil
-}
-
-// UploadFileParallelResumable uploads a local file to irods in parallel with support of transfer resume
-func (fs *FileSystem) UploadFileParallelResumable(localPath string, irodsPath string, resource string, taskNum int, replicate bool, callback common.TrackerCallBack) error {
-	localSrcPath := util.GetCorrectLocalPath(localPath)
-	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
-
-	irodsFilePath := irodsDestPath
-
-	srcStat, err := os.Stat(localSrcPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			// file not exists
-			return xerrors.Errorf("failed to stat for local path %s: %w", localSrcPath, types.NewFileNotFoundError(localSrcPath))
-		}
-		return err
-	}
-
-	if srcStat.IsDir() {
-		return xerrors.Errorf("failed to find a file for local path %s, the path is for a directory: %w", localSrcPath, types.NewFileNotFoundError(localSrcPath))
-	}
-
-	destStat, err := fs.Stat(irodsDestPath)
-	if err != nil {
-		if !types.IsFileNotFoundError(err) {
-			return err
-		}
-	} else {
-		switch destStat.Type {
-		case FileEntry:
-			// do nothing
-		case DirectoryEntry:
-			localFileName := filepath.Join(localSrcPath)
-			irodsFilePath = util.MakeIRODSPath(irodsDestPath, localFileName)
-		default:
-			return xerrors.Errorf("unknown entry type %s", destStat.Type)
-		}
-	}
-
-	err = irods_fs.UploadDataObjectParallelResumable(fs.ioSession, localSrcPath, irodsFilePath, resource, taskNum, replicate, callback)
 	if err != nil {
 		return err
 	}
