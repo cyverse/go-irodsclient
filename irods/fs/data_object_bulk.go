@@ -1368,7 +1368,7 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 	}
 
 	// create an empty file
-	f, err := os.Create(localPath)
+	f, err := os.OpenFile(localPath, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
 		return xerrors.Errorf("failed to create file %s: %w", localPath, err)
 	}
