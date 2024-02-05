@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	environmentDirDefault string = "~/.irods"
-	passwordFilename      string = ".irodsA"
-	environmentFilename   string = "irods_environment.json"
+	environmentDirDefault   string = "~/.irods"
+	passwordFilenameDefault string = ".irodsA"
+	environmentFilename     string = "irods_environment.json"
 )
 
 // ICommandsEnvironmentManager is a struct that manages icommands environment files
@@ -137,7 +137,11 @@ func (manager *ICommandsEnvironmentManager) GetSessionFilePath(processID int) st
 
 // GetPasswordFilePath returns password file (.irodsA) path
 func (manager *ICommandsEnvironmentManager) GetPasswordFilePath() string {
-	return filepath.Join(manager.HomeEnvironmentDirPath, passwordFilename)
+	if manager.Environment.AuthenticationFile != "" {
+		return manager.Environment.AuthenticationFile
+	}
+
+	return filepath.Join(manager.HomeEnvironmentDirPath, passwordFilenameDefault)
 }
 
 // Load loads from environment file
@@ -238,7 +242,7 @@ func (manager *ICommandsEnvironmentManager) SaveEnvironment() error {
 		return xerrors.Errorf("failed to write environment to file %s: %w", environmentFilePath, err)
 	}
 
-	passwordFilePath := filepath.Join(manager.HomeEnvironmentDirPath, passwordFilename)
+	passwordFilePath := manager.GetPasswordFilePath()
 	err = EncodePasswordFile(passwordFilePath, manager.Password, manager.UID)
 	if err != nil {
 		return xerrors.Errorf("failed to encode password file %s: %w", passwordFilePath, err)
