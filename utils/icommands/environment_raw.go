@@ -56,6 +56,7 @@ func CreateICommandsEnvironmentFromFile(envPath string) (*ICommandsEnvironment, 
 
 func getDefaultICommandsEnvironment() *ICommandsEnvironment {
 	return &ICommandsEnvironment{
+		AuthenticationFile:      ".irodsA",
 		Port:                    1247,
 		AuthenticationScheme:    "native",
 		ClientServerNegotiation: "", // don't perform negotiation
