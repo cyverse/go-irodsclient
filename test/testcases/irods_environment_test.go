@@ -2,6 +2,7 @@ package testcases
 
 import (
 	"os"
+	"path"
 	"testing"
 
 	"github.com/cyverse/go-irodsclient/test/server"
@@ -12,6 +13,7 @@ import (
 func TestIRODSEnvironment(t *testing.T) {
 	t.Run("test SaveAndLoadEnv", testSaveAndLoadEnv)
 	t.Run("test SaveAndLoadEnvSession", testSaveAndLoadEnvSession)
+	t.Run("test ConfiguredAuthFilePath", testConfiguredAuthFilePath)
 }
 
 func testSaveAndLoadEnv(t *testing.T) {
@@ -43,6 +45,47 @@ func testSaveAndLoadEnv(t *testing.T) {
 
 	err = os.RemoveAll("~/.irods2")
 	failError(t, err)
+}
+
+func testConfiguredAuthFilePath(t *testing.T) {
+	account, err := server.GetLocalAccount()
+	failError(t, err)
+
+	envMgr, err := icommands.CreateIcommandsEnvironmentManagerFromIRODSAccount(account)
+	failError(t, err)
+
+	// Create a safe temporary directory in TMPDIR
+	dir, err := os.MkdirTemp("", ".irods")
+	defer func(d string) {
+		e := os.RemoveAll(d)
+		if e != nil {
+			failError(t, e)
+		}
+	}(dir)
+
+	failError(t, err)
+
+	envFilePath := path.Join(dir, "irods_environment.json")
+	authFilePath := path.Join(dir, "configured_irodsA")
+
+	err = envMgr.SetEnvironmentFilePath(envFilePath)
+	failError(t, err)
+
+	envMgr.Environment.AuthenticationFile = authFilePath
+	err = envMgr.SaveEnvironment()
+	failError(t, err)
+
+	envMgr2, err := icommands.CreateIcommandsEnvironmentManager()
+	failError(t, err)
+
+	err = envMgr2.SetEnvironmentFilePath(envFilePath)
+	failError(t, err)
+
+	err = envMgr2.Load(os.Getppid())
+	failError(t, err)
+
+	assert.Equal(t, authFilePath, envMgr2.Environment.AuthenticationFile, "Configured auth file path should be loaded")
+	assert.Equal(t, authFilePath, envMgr2.GetPasswordFilePath(), "Configured auth file path should be returned")
 }
 
 func testSaveAndLoadEnvSession(t *testing.T) {

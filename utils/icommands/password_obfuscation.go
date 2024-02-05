@@ -37,7 +37,7 @@ var (
 	}
 )
 
-// DecodePasswordFile decodes password string in .irodsA file
+// DecodePasswordFile decodes password string in an auth file (defaults to .irodsA)
 func DecodePasswordFile(path string, uid int) (string, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
@@ -47,9 +47,10 @@ func DecodePasswordFile(path string, uid int) (string, error) {
 	return DecodePasswordString(string(content), uid), nil
 }
 
-// EncodePasswordFile encodes password string and store in .irodsA file
+// EncodePasswordFile encodes password string and stores it in an auth file (defaults to .irodsA)
 func EncodePasswordFile(path string, s string, uid int) error {
 	content := EncodePasswordString(s, uid)
+
 	err := os.WriteFile(path, []byte(content), 0600)
 	if err != nil {
 		return xerrors.Errorf("failed to write file %s: %w", path, err)
@@ -57,7 +58,7 @@ func EncodePasswordFile(path string, s string, uid int) error {
 	return nil
 }
 
-// DecodePasswordString decodes password string in .irodsA file
+// DecodePasswordString decodes password string in an auth file (defaults to .irodsA)
 func DecodePasswordString(encodedPassword string, uid int) string {
 	s := []byte(encodedPassword)
 
@@ -122,7 +123,7 @@ func DecodePasswordString(encodedPassword string, uid int) string {
 	return string(decodedString)
 }
 
-// EncodePasswordString encodes password string to be stored in .irodsA file
+// EncodePasswordString encodes password string to be stored in an auth file (defaults to .irodsA)
 func EncodePasswordString(s string, uid int) string {
 	// mtime & 65535 needs to be within 20 seconds of the
 	// .irodsA file's mtime & 65535
