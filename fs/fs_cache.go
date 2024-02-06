@@ -124,6 +124,56 @@ func (fs *FileSystem) invalidateCacheForDirRemove(path string, recurse bool) {
 	fs.cacheEventHandlerMap.SendDirRemoveEvent(path)
 }
 
+// invalidateCacheForDirExtract invalidates cache for bundle extraction of the given dir
+// this occurs when extracting bundle files
+func (fs *FileSystem) invalidateCacheForDirExtract(path string) {
+	entry := fs.cache.GetEntryCache(path)
+
+	// we need to expunge all negatie entry caches under irodsDestPath
+	// since it also creates sub-directories/files
+	fs.cache.RemoveAllNegativeEntryCacheForPath(path)
+
+	fs.cache.RemoveEntryCache(path)
+	fs.cache.RemoveMetadataCache(path)
+
+	if entry != nil {
+		if entry.Type == DirectoryEntry {
+			dirEntries := fs.cache.GetDirCache(path)
+			for _, dirEntry := range dirEntries {
+				// do it recursively
+				fs.invalidateCacheForRemoveInternal(dirEntry, true)
+			}
+		}
+	}
+
+	fs.cache.RemoveDirCache(path)
+	fs.cache.RemoveACLsCache(path)
+
+	// parent dir's entry also changes
+	fs.cache.RemoveParentDirCache(path)
+	// parent dir's dir entry also changes
+	parentPath := util.GetIRODSPathDirname(path)
+	parentDirEntries := fs.cache.GetDirCache(parentPath)
+	if parentDirEntries != nil {
+		exist := false
+		for _, parentDirEntry := range parentDirEntries {
+			if parentDirEntry == path {
+				exist = true
+				break
+			}
+		}
+
+		if !exist {
+			parentDirEntries = append(parentDirEntries, path)
+		}
+
+		fs.cache.AddDirCache(parentPath, parentDirEntries)
+	}
+
+	// send event
+	fs.cacheEventHandlerMap.SendDirCreateEvent(path)
+}
+
 // invalidateCacheForFileCreate invalidates cache for creation of the given file
 func (fs *FileSystem) invalidateCacheForFileCreate(path string) {
 	fs.cache.RemoveNegativeEntryCache(path)

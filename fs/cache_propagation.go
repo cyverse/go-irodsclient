@@ -57,6 +57,8 @@ func (propagation *FileSystemCachePropagation) handle(path string, eventType Fil
 		propagation.filesystem.invalidateCacheForDirCreate(path)
 	case FilesystemCacheDirRemoveEvent:
 		propagation.filesystem.invalidateCacheForDirRemove(path, true)
+	case FilesystemCacheDirExtractEvent:
+		propagation.filesystem.invalidateCacheForDirExtract(path)
 	default:
 		// unhandled
 	}
@@ -82,6 +84,11 @@ func (propagation *FileSystemCachePropagation) PropagateDirCreate(path string) {
 // PropagateDirRemove propagates fs cache update event for dir remove
 func (propagation *FileSystemCachePropagation) PropagateDirRemove(path string) {
 	propagation.Propagate(path, FilesystemCacheDirRemoveEvent)
+}
+
+// PropagateDirExtract propagates fs cache update event for dir extract
+func (propagation *FileSystemCachePropagation) PropagateDirExtract(path string) {
+	propagation.Propagate(path, FilesystemCacheDirExtractEvent)
 }
 
 // PropagateFileCreate propagates fs cache update event for file create

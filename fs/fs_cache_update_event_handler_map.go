@@ -20,6 +20,8 @@ const (
 	FilesystemCacheDirCreateEvent FilesystemCacheEventType = "dir create"
 	// FilesystemCacheDirRemoveEvent is an event type for dir removal
 	FilesystemCacheDirRemoveEvent FilesystemCacheEventType = "dir remove"
+	// FilesystemCacheDirExtractEvent is an event type for dir extract
+	FilesystemCacheDirExtractEvent FilesystemCacheEventType = "dir extract"
 )
 
 // FilesystemCacheEventHandler is a cache event handler type
@@ -134,4 +136,9 @@ func (handlerMap *FilesystemCacheEventHandlerMap) SendDirCreateEvent(path string
 // SendDirRemoveEvent sends dir remove event
 func (handlerMap *FilesystemCacheEventHandlerMap) SendDirRemoveEvent(path string) {
 	handlerMap.SendEvent(path, FilesystemCacheDirRemoveEvent)
+}
+
+// SendDirExtractEvent sends dir extract event
+func (handlerMap *FilesystemCacheEventHandlerMap) SendDirExtractEvent(path string) {
+	handlerMap.SendEvent(path, FilesystemCacheDirExtractEvent)
 }
