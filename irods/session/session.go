@@ -24,6 +24,7 @@ type IRODSSession struct {
 	commitFail                bool
 	poormansRollbackFail      bool
 	transactionFailureHandler TransactionFailureHandler
+	addressResolver           AddressResolver
 
 	lastConnectionError     error
 	lastConnectionErrorTime time.Time
@@ -37,6 +38,11 @@ type IRODSSession struct {
 
 // NewIRODSSession create a IRODSSession
 func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*IRODSSession, error) {
+	return NewIRODSSessionWithAddressResolver(account, config, nil)
+}
+
+// NewIRODSSessionWithAddressResolver create a IRODSSession
+func NewIRODSSessionWithAddressResolver(account *types.IRODSAccount, config *IRODSSessionConfig, addressResolver AddressResolver) (*IRODSSession, error) {
 	sess := IRODSSession{
 		account:           account,
 		config:            config,
@@ -47,6 +53,7 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 		commitFail:                false,
 		poormansRollbackFail:      false,
 		transactionFailureHandler: nil,
+		addressResolver:           addressResolver,
 
 		lastConnectionError:     nil,
 		lastConnectionErrorTime: time.Time{},
@@ -59,8 +66,14 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 		mutex: sync.Mutex{},
 	}
 
+	// resolve host address
+	poolAccount := *account
+	if addressResolver != nil {
+		poolAccount.Host = addressResolver(poolAccount.Host)
+	}
+
 	poolConfig := ConnectionPoolConfig{
-		Account:          account,
+		Account:          &poolAccount,
 		ApplicationName:  config.ApplicationName,
 		InitialCap:       config.ConnectionInitNumber,
 		MaxIdle:          config.ConnectionMaxIdle,
@@ -556,4 +569,14 @@ func (sess *IRODSSession) ConnectionTotal() int {
 // GetMetrics returns metrics
 func (sess *IRODSSession) GetMetrics() *metrics.IRODSMetrics {
 	return &sess.metrics
+}
+
+// GetRedirectionConnection returns redirection connection to resource server
+func (sess *IRODSSession) GetRedirectionConnection(controlConnection *connection.IRODSConnection, redirectionInfo *types.IRODSRedirectionInfo) *connection.IRODSResourceServerConnection {
+	resourceServerInfo := *redirectionInfo
+	if sess.addressResolver != nil {
+		resourceServerInfo.Host = sess.addressResolver(resourceServerInfo.Host)
+	}
+
+	return connection.NewIRODSResourceServerConnectionWithMetrics(controlConnection, &resourceServerInfo, &sess.metrics)
 }

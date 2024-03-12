@@ -37,9 +37,11 @@ type IRODSConnection struct {
 	applicationName string
 
 	connected               bool
+	isSSLSocket             bool
 	socket                  net.Conn
 	serverVersion           *types.IRODSVersion
 	generatedPasswordForPAM string // used for PAM auth
+	sslSharedSecret         []byte
 	creationTime            time.Time
 	lastSuccessfulAccess    time.Time
 	clientSignature         string
@@ -126,9 +128,19 @@ func (conn *IRODSConnection) GetGeneratedPasswordForPAMAuth() string {
 	return conn.generatedPasswordForPAM
 }
 
+// GetSSLSharedSecret returns ssl shared secret
+func (conn *IRODSConnection) GetSSLSharedSecret() []byte {
+	return conn.sslSharedSecret
+}
+
 // IsConnected returns if the connection is live
 func (conn *IRODSConnection) IsConnected() bool {
 	return conn.connected
+}
+
+// IsSSL returns if the connection is ssl
+func (conn *IRODSConnection) IsSSL() bool {
+	return conn.isSSLSocket
 }
 
 // GetCreationTime returns creation time
@@ -417,6 +429,7 @@ func (conn *IRODSConnection) sslStartup() error {
 
 	// from now on use ssl socket
 	conn.socket = sslSocket
+	conn.isSSLSocket = true
 
 	// Generate a key (shared secret)
 	encryptionKey := make([]byte, irodsSSLConfig.EncryptionKeySize)
@@ -438,6 +451,8 @@ func (conn *IRODSConnection) sslStartup() error {
 	if err != nil {
 		return xerrors.Errorf("failed to send ssl shared secret message (%s): %w", err.Error(), types.NewConnectionError())
 	}
+
+	conn.sslSharedSecret = encryptionKey
 
 	return nil
 }
@@ -593,7 +608,6 @@ func (conn *IRODSConnection) SendWithTrackerCallBack(buffer []byte, size int, ca
 		return xerrors.Errorf("connection must be locked before use")
 	}
 
-	// use sslSocket
 	if conn.requestTimeout > 0 {
 		conn.socket.SetWriteDeadline(time.Now().Add(conn.requestTimeout))
 	}
@@ -625,7 +639,6 @@ func (conn *IRODSConnection) SendFromReader(src io.Reader, size int) error {
 		return xerrors.Errorf("connection must be locked before use")
 	}
 
-	// use sslSocket
 	if conn.requestTimeout > 0 {
 		conn.socket.SetWriteDeadline(time.Now().Add(conn.requestTimeout))
 	}

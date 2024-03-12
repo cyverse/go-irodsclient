@@ -8,6 +8,7 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/session"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
+	"github.com/cyverse/go-irodsclient/test/server"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
 
@@ -15,35 +16,35 @@ import (
 )
 
 var (
-	checksumAPITestID = xid.New().String()
+	redirectionToResourceAPITestID = xid.New().String()
 )
 
-func TestChecksumAPI(t *testing.T) {
+func TestRedirectionToResourceAPI(t *testing.T) {
 	setup()
 	defer shutdown()
 
 	log.SetLevel(log.DebugLevel)
 
-	makeHomeDir(t, checksumAPITestID)
+	makeHomeDir(t, redirectionToResourceAPITestID)
 
-	t.Run("test Checksum", testChecksum)
+	t.Run("test DownloadDataObjectFromResourceServer", testDownloadDataObjectFromResourceServer)
 }
 
-func testChecksum(t *testing.T) {
+func testDownloadDataObjectFromResourceServer(t *testing.T) {
 	account := GetTestAccount()
 
 	account.ClientServerNegotiation = false
 
 	sessionConfig := session.NewIRODSSessionConfigWithDefault("go-irodsclient-test")
 
-	sess, err := session.NewIRODSSession(account, sessionConfig)
+	sess, err := session.NewIRODSSessionWithAddressResolver(account, sessionConfig, server.AddressResolver)
 	failError(t, err)
 	defer sess.Release()
 
 	conn, err := sess.AcquireConnection()
 	failError(t, err)
 
-	homedir := getHomeDir(checksumAPITestID)
+	homedir := getHomeDir(redirectionToResourceAPITestID)
 
 	// gen very large file
 	testval := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" // 62
@@ -69,9 +70,6 @@ func testChecksum(t *testing.T) {
 	err = f.Close()
 	failError(t, err)
 
-	localHash, err := util.HashLocalFile(filename, string(types.ChecksumAlgorithmSHA256))
-	failError(t, err)
-
 	// upload
 	irodsPath := homedir + "/" + filename
 
@@ -80,9 +78,15 @@ func testChecksum(t *testing.T) {
 		callbackCalled++
 	}
 
-	err = fs.UploadDataObject(sess, filename, irodsPath, "", false, callBack)
+	err = fs.UploadDataObjectParallel(sess, filename, irodsPath, "", 4, false, callBack)
 	failError(t, err)
 	assert.Greater(t, callbackCalled, 10) // at least called 10 times
+
+	checksumOriginal, err := util.HashLocalFile(filename, string(types.ChecksumAlgorithmSHA1))
+	failError(t, err)
+
+	err = os.Remove(filename)
+	failError(t, err)
 
 	coll, err := fs.GetCollection(conn, homedir)
 	failError(t, err)
@@ -93,20 +97,21 @@ func testChecksum(t *testing.T) {
 	assert.NotEmpty(t, obj.ID)
 	assert.Equal(t, int64(fileSize), obj.Size)
 
-	objChecksum, err := fs.GetDataObjectChecksum(conn, irodsPath, "")
+	// get
+	err = fs.DownloadDataObjectFromResourceServer(sess, irodsPath, "", filename, int64(fileSize), callBack)
 	failError(t, err)
 
-	assert.NotEmpty(t, objChecksum.Checksum)
-	assert.Equal(t, types.ChecksumAlgorithmSHA256, objChecksum.Algorithm)
-	assert.Equal(t, localHash, objChecksum.Checksum)
-	//t.Logf("alg: %s, checksum: %s", objChecksum.Algorithm, objChecksum.GetChecksumString())
+	checksumNew, err := util.HashLocalFile(filename, string(types.ChecksumAlgorithmSHA1))
+	failError(t, err)
 
-	// delete
 	err = os.Remove(filename)
 	failError(t, err)
 
+	// delete
 	err = fs.DeleteDataObject(conn, irodsPath, true)
 	failError(t, err)
+
+	assert.Equal(t, checksumOriginal, checksumNew)
 
 	sess.ReturnConnection(conn)
 }

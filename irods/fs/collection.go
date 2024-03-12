@@ -67,6 +67,9 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 	queryResult := message.IRODSMessageQueryResponse{}
 	err := conn.Request(query, &queryResult, nil)
 	if err != nil {
+		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+			return nil, xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError(path))
+		}
 		return nil, xerrors.Errorf("failed to receive collection query result message: %w", err)
 	}
 
@@ -174,6 +177,10 @@ func ListCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			}
 			return nil, xerrors.Errorf("failed to receive a collection metadata query result message: %w", err)
 		}
 
@@ -277,6 +284,10 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			}
 			return nil, xerrors.Errorf("failed to receive a collection access query result message: %w", err)
 		}
 

@@ -40,6 +40,39 @@ func IsConnectionConfigError(err error) bool {
 	return errors.Is(err, &ConnectionConfigError{})
 }
 
+// ResourceServerConnectionConfigError contains resource server connection config error information
+type ResourceServerConnectionConfigError struct {
+	Config *IRODSRedirectionInfo
+}
+
+// NewResourceServerConnectionConfigError creates a resource server connection config error
+func NewResourceServerConnectionConfigError(config *IRODSRedirectionInfo) error {
+	return &ResourceServerConnectionConfigError{
+		Config: config,
+	}
+}
+
+// Error returns error message
+func (err *ResourceServerConnectionConfigError) Error() string {
+	return fmt.Sprintf("resource server connection configuration error (iRODS server: '%s:%d')", err.Config.Host, err.Config.Port)
+}
+
+// Is tests type of error
+func (err *ResourceServerConnectionConfigError) Is(other error) bool {
+	_, ok := other.(*ResourceServerConnectionConfigError)
+	return ok
+}
+
+// ToString stringifies the object
+func (err *ResourceServerConnectionConfigError) ToString() string {
+	return "<ResourceServerConnectionConfigError>"
+}
+
+// IsResourceServerConnectionConfigError evaluates if the given error is resource server connection config error
+func IsResourceServerConnectionConfigError(err error) bool {
+	return errors.Is(err, &ResourceServerConnectionConfigError{})
+}
+
 // ConnectionError contains connection error information
 type ConnectionError struct {
 }

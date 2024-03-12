@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"path"
 	"runtime"
+	"strings"
 
 	"github.com/cyverse/go-irodsclient/irods/types"
 	log "github.com/sirupsen/logrus"
@@ -14,6 +15,7 @@ import (
 const (
 	// must have the same information as in `docker-compose.yml` and `config.inc`
 	testServerContainer     string = "irods_test-irods-1"
+	testServerContainerDNS  string = "irods_test_irods_1.irods_test_default"
 	testServerHost          string = "localhost"
 	testServerPort          int    = 1247
 	testServerAdminUser     string = "rods"
@@ -91,4 +93,12 @@ func GetLocalAccount() (*types.IRODSAccount, error) {
 	}
 
 	return account, nil
+}
+
+func AddressResolver(address string) string {
+	if strings.ToLower(address) == testServerContainerDNS {
+		return testServerHost
+	}
+
+	return address
 }

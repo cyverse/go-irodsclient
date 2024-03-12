@@ -8,14 +8,14 @@ import (
 	"golang.org/x/xerrors"
 )
 
-// IRODSMessageGetDataObjectStatResponse stores file stat request
+// IRODSMessageGetDataObjectStatResponse stores file stat response
 type IRODSMessageGetDataObjectStatResponse struct {
 	XMLName                  xml.Name                       `xml:"RodsObjStat_PI"`
 	Size                     int64                          `xml:"objSize"`
 	Type                     int                            `xml:"objType"`
 	DataMode                 int                            `xml:"dataMode"`
 	DataID                   string                         `xml:"dataId"`
-	ChkSum                   string                         `xml:"chksum"`
+	CheckSum                 string                         `xml:"chksum"`
 	Owner                    string                         `xml:"ownerName"`
 	Zone                     string                         `xml:"ownerZone"`
 	CreateTime               string                         `xml:"createTime"`
@@ -57,10 +57,14 @@ func (msg *IRODSMessageGetDataObjectStatResponse) FromMessage(msgIn *IRODSMessag
 		return xerrors.Errorf("empty message body")
 	}
 
-	err := msg.FromBytes(msgIn.Body.Message)
 	msg.Result = int(msgIn.Body.IntInfo)
-	if err != nil {
-		return xerrors.Errorf("failed to get irods message from message body")
+
+	if msgIn.Body.Message != nil {
+		err := msg.FromBytes(msgIn.Body.Message)
+		if err != nil {
+			return xerrors.Errorf("failed to get irods message from message body")
+		}
 	}
+
 	return nil
 }

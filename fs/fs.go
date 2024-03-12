@@ -29,15 +29,15 @@ type FileSystem struct {
 }
 
 // NewFileSystem creates a new FileSystem
-func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*FileSystem, error) {
+func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig, addressResolver session.AddressResolver) (*FileSystem, error) {
 	ioSessionConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionErrorTimeout, config.ConnectionInitNumber, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax, config.TCPBufferSize, config.StartNewTransaction)
-	ioSession, err := session.NewIRODSSession(account, ioSessionConfig)
+	ioSession, err := session.NewIRODSSessionWithAddressResolver(account, ioSessionConfig, addressResolver)
 	if err != nil {
 		return nil, err
 	}
 
 	metaSessionConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionErrorTimeout, config.ConnectionInitNumber, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, FileSystemConnectionMetaDefault, config.TCPBufferSize, config.StartNewTransaction)
-	metaSession, err := session.NewIRODSSession(account, metaSessionConfig)
+	metaSession, err := session.NewIRODSSessionWithAddressResolver(account, metaSessionConfig, addressResolver)
 	if err != nil {
 		return nil, err
 	}
@@ -109,15 +109,15 @@ func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName strin
 }
 
 // NewFileSystemWithSessionConfig creates a new FileSystem with custom session configurations
-func NewFileSystemWithSessionConfig(account *types.IRODSAccount, sessConfig *session.IRODSSessionConfig) (*FileSystem, error) {
+func NewFileSystemWithSessionConfig(account *types.IRODSAccount, sessConfig *session.IRODSSessionConfig, addressResolver session.AddressResolver) (*FileSystem, error) {
 	config := NewFileSystemConfigWithDefault(sessConfig.ApplicationName)
-	ioSession, err := session.NewIRODSSession(account, sessConfig)
+	ioSession, err := session.NewIRODSSessionWithAddressResolver(account, sessConfig, addressResolver)
 	if err != nil {
 		return nil, err
 	}
 
 	metaSessionConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionErrorTimeout, config.ConnectionInitNumber, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, FileSystemConnectionMetaDefault, config.TCPBufferSize, config.StartNewTransaction)
-	metaSession, err := session.NewIRODSSession(account, metaSessionConfig)
+	metaSession, err := session.NewIRODSSessionWithAddressResolver(account, metaSessionConfig, addressResolver)
 	if err != nil {
 		return nil, err
 	}

@@ -378,7 +378,7 @@ func testCreateDeleteIRODSCollection(t *testing.T) {
 	assert.NotEmpty(t, collection.ID)
 
 	// delete
-	err = fs.DeleteCollection(conn, newCollectionPath, true, false)
+	err = fs.DeleteCollection(conn, newCollectionPath, true, true)
 	failError(t, err)
 
 	_, err = fs.GetCollection(conn, newCollectionPath)
@@ -387,6 +387,8 @@ func testCreateDeleteIRODSCollection(t *testing.T) {
 		if types.IsFileNotFoundError(err) {
 			// Okay!
 			deleted = true
+		} else {
+			failError(t, err)
 		}
 	}
 
@@ -429,7 +431,7 @@ func testCreateMoveDeleteIRODSCollection(t *testing.T) {
 	assert.NotEmpty(t, new2Collection.ID)
 
 	// delete
-	err = fs.DeleteCollection(conn, new2CollectionPath, true, false)
+	err = fs.DeleteCollection(conn, new2CollectionPath, true, true)
 	failError(t, err)
 
 	_, err = fs.GetCollection(conn, new2CollectionPath)
@@ -438,6 +440,8 @@ func testCreateMoveDeleteIRODSCollection(t *testing.T) {
 		if types.IsFileNotFoundError(err) {
 			// Okay!
 			deleted = true
+		} else {
+			failError(t, err)
 		}
 	}
 
@@ -482,6 +486,8 @@ func testCreateDeleteIRODSDataObject(t *testing.T) {
 		if types.IsFileNotFoundError(err) {
 			// Okay!
 			deleted = true
+		} else {
+			failError(t, err)
 		}
 	}
 

@@ -32,7 +32,7 @@ func testUpDownMBFiles(t *testing.T) {
 
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
-	filesystem, err := fs.NewFileSystem(account, fsConfig)
+	filesystem, err := fs.NewFileSystem(account, fsConfig, nil)
 	failError(t, err)
 	defer filesystem.Release()
 

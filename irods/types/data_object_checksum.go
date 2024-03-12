@@ -9,24 +9,6 @@ import (
 	"golang.org/x/xerrors"
 )
 
-// ChecksumAlgorithm determines checksum algorithm
-type ChecksumAlgorithm string
-
-const (
-	// ChecksumAlgorithmSHA1 is for SHA1
-	ChecksumAlgorithmSHA1 ChecksumAlgorithm = "SHA-1"
-	// ChecksumAlgorithmSHA256 is for SHA256
-	ChecksumAlgorithmSHA256 ChecksumAlgorithm = "SHA-256"
-	// ChecksumAlgorithmSHA512 is for SHA512
-	ChecksumAlgorithmSHA512 ChecksumAlgorithm = "SHA-512"
-	// ChecksumAlgorithmADLER32 is for ADLER32
-	ChecksumAlgorithmADLER32 ChecksumAlgorithm = "ADLER-32"
-	// ChecksumAlgorithmMD5 is for MD5
-	ChecksumAlgorithmMD5 ChecksumAlgorithm = "MD5"
-	// ChecksumAlgorithmUnknown is for unknown algorithm
-	ChecksumAlgorithmUnknown ChecksumAlgorithm = ""
-)
-
 // IRODSChecksum contains data object hash information
 type IRODSChecksum struct {
 	OriginalChecksum string
