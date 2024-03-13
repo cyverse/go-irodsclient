@@ -630,7 +630,7 @@ func (conn *IRODSConnection) SendWithTrackerCallBack(buffer []byte, size int, ca
 }
 
 // SendFromReader sends data from Reader
-func (conn *IRODSConnection) SendFromReader(src io.Reader, size int) error {
+func (conn *IRODSConnection) SendFromReader(src io.Reader, size int64) error {
 	if conn.socket == nil {
 		return xerrors.Errorf("failed to send data - socket closed")
 	}
@@ -643,20 +643,21 @@ func (conn *IRODSConnection) SendFromReader(src io.Reader, size int) error {
 		conn.socket.SetWriteDeadline(time.Now().Add(conn.requestTimeout))
 	}
 
-	copyLen, err := io.CopyN(conn.socket, src, int64(size))
-	if err != nil {
-		conn.socketFail()
-		return xerrors.Errorf("failed to send data: %w", err)
-	}
-
-	if copyLen != int64(size) {
-		conn.socketFail()
-		return xerrors.Errorf("failed to send data. failed to send data fully (requested %d vs sent %d)", size, copyLen)
+	copyLen, err := io.CopyN(conn.socket, src, size)
+	if copyLen != size {
+		return xerrors.Errorf("failed to send data. src returned EOF (requested %d, copied %d)", size, copyLen)
 	}
 
 	if copyLen > 0 {
 		if conn.metrics != nil {
 			conn.metrics.IncreaseBytesSent(uint64(copyLen))
+		}
+	}
+
+	if err != nil {
+		if err != io.EOF {
+			conn.socketFail()
+			return xerrors.Errorf("failed to send data: %w", err)
 		}
 	}
 
@@ -702,7 +703,7 @@ func (conn *IRODSConnection) RecvWithTrackerCallBack(buffer []byte, size int, ca
 }
 
 // RecvToWriter receives a message to Writer
-func (conn *IRODSConnection) RecvToWriter(writer io.Writer, size int) (int, error) {
+func (conn *IRODSConnection) RecvToWriter(writer io.Writer, size int64) (int64, error) {
 	if conn.socket == nil {
 		return 0, xerrors.Errorf("failed to receive data - socket closed")
 	}
@@ -715,21 +716,23 @@ func (conn *IRODSConnection) RecvToWriter(writer io.Writer, size int) (int, erro
 		conn.socket.SetReadDeadline(time.Now().Add(conn.requestTimeout))
 	}
 
-	copyLen, err := io.CopyN(writer, conn.socket, int64(size))
-	if err != nil {
-		conn.socketFail()
-		return int(copyLen), xerrors.Errorf("failed to receive data: %w", err)
-	}
-
+	copyLen, err := io.CopyN(writer, conn.socket, size)
 	if copyLen > 0 {
 		if conn.metrics != nil {
 			conn.metrics.IncreaseBytesReceived(uint64(copyLen))
 		}
 	}
 
+	if err != nil {
+		if err != io.EOF {
+			conn.socketFail()
+			return copyLen, xerrors.Errorf("failed to receive data: %w", err)
+		}
+	}
+
 	conn.lastSuccessfulAccess = time.Now()
 
-	return int(copyLen), nil
+	return copyLen, nil
 }
 
 // SendMessage makes the message into bytes

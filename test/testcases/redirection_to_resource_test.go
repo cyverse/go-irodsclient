@@ -27,7 +27,7 @@ func TestRedirectionToResourceAPI(t *testing.T) {
 
 	makeHomeDir(t, redirectionToResourceAPITestID)
 
-	//t.Run("test DownloadDataObjectFromResourceServer", testDownloadDataObjectFromResourceServer)
+	t.Run("test DownloadDataObjectFromResourceServer", testDownloadDataObjectFromResourceServer)
 	t.Run("test UploadDataObjectFromResourceServer", testUploadDataObjectFromResourceServer)
 }
 
