@@ -21,6 +21,14 @@ func NewIRODSMessageResourceServerTransferEncryptionHeader(keySize int) *IRODSMe
 	}
 }
 
+// GetBytes returns byte array
+func (msg *IRODSMessageResourceServerTransferEncryptionHeader) GetBytes() ([]byte, error) {
+	buf := make([]byte, 4+msg.keySize)
+	binary.BigEndian.PutUint32(buf, uint32(msg.Length))
+	copy(buf[4:], msg.IV)
+	return buf, nil
+}
+
 // FromBytes returns struct from bytes
 func (msg *IRODSMessageResourceServerTransferEncryptionHeader) FromBytes(bytes []byte) error {
 	if len(bytes) < 4+msg.keySize {

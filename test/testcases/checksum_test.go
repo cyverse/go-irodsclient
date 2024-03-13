@@ -46,30 +46,12 @@ func testChecksum(t *testing.T) {
 	homedir := getHomeDir(checksumAPITestID)
 
 	// gen very large file
-	testval := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" // 62
-	fileSize := 100 * 1024 * 1024                                               // 100MB
-
 	filename := "test_large_file.bin"
-	bufSize := 1024
-	buf := make([]byte, bufSize)
-
-	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	fileSize := 100 * 1024 * 1024 // 100MB
+	filepath, err := createLocalTestFile(filename, int64(fileSize))
 	failError(t, err)
 
-	for i := 0; i < fileSize/bufSize; i++ {
-		// fill buf
-		for j := 0; j < bufSize; j++ {
-			buf[j] = testval[j%len(testval)]
-		}
-
-		_, err = f.Write(buf)
-		failError(t, err)
-	}
-
-	err = f.Close()
-	failError(t, err)
-
-	localHash, err := util.HashLocalFile(filename, string(types.ChecksumAlgorithmSHA256))
+	localHash, err := util.HashLocalFile(filepath, string(types.ChecksumAlgorithmSHA256))
 	failError(t, err)
 
 	// upload
@@ -80,9 +62,13 @@ func testChecksum(t *testing.T) {
 		callbackCalled++
 	}
 
-	err = fs.UploadDataObject(sess, filename, irodsPath, "", false, callBack)
+	err = fs.UploadDataObject(sess, filepath, irodsPath, "", false, callBack)
 	failError(t, err)
 	assert.Greater(t, callbackCalled, 10) // at least called 10 times
+
+	// delete
+	err = os.Remove(filepath)
+	failError(t, err)
 
 	coll, err := fs.GetCollection(conn, homedir)
 	failError(t, err)
@@ -100,10 +86,6 @@ func testChecksum(t *testing.T) {
 	assert.Equal(t, types.ChecksumAlgorithmSHA256, objChecksum.Algorithm)
 	assert.Equal(t, localHash, objChecksum.Checksum)
 	//t.Logf("alg: %s, checksum: %s", objChecksum.Algorithm, objChecksum.GetChecksumString())
-
-	// delete
-	err = os.Remove(filename)
-	failError(t, err)
 
 	err = fs.DeleteDataObject(conn, irodsPath, true)
 	failError(t, err)

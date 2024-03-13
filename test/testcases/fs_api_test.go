@@ -870,35 +870,18 @@ func testParallelUploadAndDownloadDataObject(t *testing.T) {
 	homedir := getHomeDir(fsAPITestID)
 
 	// gen very large file
-	testval := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" // 62
-	fileSize := 100 * 1024 * 1024                                               // 100MB
+	fileSize := 100 * 1024 * 1024 // 100MB
 
 	filename := "test_large_file.bin"
-	bufSize := 1024
-	buf := make([]byte, bufSize)
-
-	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
-	failError(t, err)
-
-	for i := 0; i < fileSize/bufSize; i++ {
-		// fill buf
-		for j := 0; j < bufSize; j++ {
-			buf[j] = testval[j%len(testval)]
-		}
-
-		_, err = f.Write(buf)
-		failError(t, err)
-	}
-
-	err = f.Close()
+	filepath, err := createLocalTestFile(filename, int64(fileSize))
 	failError(t, err)
 
 	// upload
 	irodsPath := homedir + "/" + filename
-	err = fs.UploadDataObjectParallel(sess, filename, irodsPath, "", 4, false, nil)
+	err = fs.UploadDataObjectParallel(sess, filepath, irodsPath, "", 4, false, nil)
 	failError(t, err)
 
-	err = os.Remove(filename)
+	err = os.Remove(filepath)
 	failError(t, err)
 
 	// get

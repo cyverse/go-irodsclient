@@ -382,39 +382,39 @@ func (conn *IRODSResourceServerConnection) RecvToWriter(writer io.Writer, size i
 }
 
 // Decrypt decrypts byte buf
-func (conn *IRODSResourceServerConnection) Decrypt(iv []byte, source []byte, dest []byte) error {
+func (conn *IRODSResourceServerConnection) Decrypt(iv []byte, source []byte, dest []byte) (int, error) {
 	if !conn.controlConnection.isSSLSocket {
-		return xerrors.Errorf("the connection is not SSL encrypted")
+		return 0, xerrors.Errorf("the connection is not SSL encrypted")
 	}
 
 	sslConf := conn.controlConnection.account.SSLConfiguration
 
 	encryptionAlg := types.GetEncryptionAlgorithm(sslConf.EncryptionAlgorithm)
 
-	err := util.Decrypt(encryptionAlg, conn.controlConnection.sslSharedSecret, iv, source, dest)
+	len, err := util.Decrypt(encryptionAlg, conn.controlConnection.sslSharedSecret, iv, source, dest)
 	if err != nil {
-		return xerrors.Errorf("failed to decrypt data: %w", err)
+		return 0, xerrors.Errorf("failed to decrypt data: %w", err)
 	}
 
-	return err
+	return len, nil
 }
 
 // Decrypt decrypts byte buf
-func (conn *IRODSResourceServerConnection) Encrypt(iv []byte, source []byte, dest []byte) error {
+func (conn *IRODSResourceServerConnection) Encrypt(iv []byte, source []byte, dest []byte) (int, error) {
 	if !conn.controlConnection.isSSLSocket {
-		return xerrors.Errorf("the connection is not SSL encrypted")
+		return 0, xerrors.Errorf("the connection is not SSL encrypted")
 	}
 
 	sslConf := conn.controlConnection.account.SSLConfiguration
 
 	encryptionAlg := types.GetEncryptionAlgorithm(sslConf.EncryptionAlgorithm)
 
-	err := util.Encrypt(encryptionAlg, conn.controlConnection.sslSharedSecret, iv, source, dest)
+	len, err := util.Encrypt(encryptionAlg, conn.controlConnection.sslSharedSecret, iv, source, dest)
 	if err != nil {
-		return xerrors.Errorf("failed to encrypt data: %w", err)
+		return 0, xerrors.Errorf("failed to encrypt data: %w", err)
 	}
 
-	return err
+	return len, nil
 }
 
 // GetMetrics returns metrics
