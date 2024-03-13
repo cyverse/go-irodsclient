@@ -30,7 +30,7 @@ func testMakeDir(t *testing.T) {
 
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
-	filesystem, err := fs.NewFileSystem(account, fsConfig, nil)
+	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
 	defer filesystem.Release()
 
@@ -96,7 +96,7 @@ func testMakeDirCacheEvent(t *testing.T) {
 		eventPathsReceived = append(eventPathsReceived, path)
 	}
 
-	filesystem, err := fs.NewFileSystem(account, fsConfig, nil)
+	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
 	defer filesystem.Release()
 

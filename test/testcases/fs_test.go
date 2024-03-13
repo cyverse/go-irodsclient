@@ -47,7 +47,7 @@ func testListEntries(t *testing.T) {
 
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
-	filesystem, err := fs.NewFileSystem(account, fsConfig, nil)
+	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
 	defer filesystem.Release()
 
@@ -78,7 +78,7 @@ func testListEntriesByMeta(t *testing.T) {
 
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
-	filesystem, err := fs.NewFileSystem(account, fsConfig, nil)
+	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
 	defer filesystem.Release()
 
@@ -105,7 +105,7 @@ func testListACLs(t *testing.T) {
 
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
-	filesystem, err := fs.NewFileSystem(account, fsConfig, nil)
+	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
 	defer filesystem.Release()
 
@@ -127,7 +127,7 @@ func testReadWrite(t *testing.T) {
 
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
-	filesystem, err := fs.NewFileSystem(account, fsConfig, nil)
+	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
 	defer filesystem.Release()
 
@@ -177,7 +177,7 @@ func testCreateStat(t *testing.T) {
 
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
-	filesystem, err := fs.NewFileSystem(account, fsConfig, nil)
+	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
 	defer filesystem.Release()
 
@@ -235,7 +235,7 @@ func testSpecialCharInName(t *testing.T) {
 
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
-	filesystem, err := fs.NewFileSystem(account, fsConfig, nil)
+	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
 	defer filesystem.Release()
 
@@ -287,7 +287,7 @@ func testWriteRename(t *testing.T) {
 
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
-	filesystem, err := fs.NewFileSystem(account, fsConfig, nil)
+	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
 	defer filesystem.Release()
 
@@ -351,7 +351,7 @@ func testWriteRenameDir(t *testing.T) {
 
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
-	filesystem, err := fs.NewFileSystem(account, fsConfig, nil)
+	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
 	defer filesystem.Release()
 
@@ -422,7 +422,7 @@ func testRemoveClose(t *testing.T) {
 
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
-	filesystem, err := fs.NewFileSystem(account, fsConfig, nil)
+	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
 	defer filesystem.Release()
 

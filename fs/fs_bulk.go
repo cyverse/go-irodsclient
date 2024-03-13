@@ -21,7 +21,7 @@ func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath 
 
 	srcStat, err := fs.Stat(irodsSrcPath)
 	if err != nil {
-		return xerrors.Errorf("failed to stat for path %s: %w", irodsSrcPath, types.NewFileNotFoundError(irodsSrcPath))
+		return xerrors.Errorf("failed to find a data object for path %s: %w", irodsSrcPath, types.NewFileNotFoundError(irodsSrcPath))
 	}
 
 	if srcStat.Type == DirectoryEntry {
@@ -55,7 +55,7 @@ func (fs *FileSystem) DownloadFileResumable(irodsPath string, resource string, l
 
 	srcStat, err := fs.Stat(irodsSrcPath)
 	if err != nil {
-		return xerrors.Errorf("failed to stat for path %s: %w", irodsSrcPath, types.NewFileNotFoundError(irodsSrcPath))
+		return xerrors.Errorf("failed to find a data object for path %s: %w", irodsSrcPath, types.NewFileNotFoundError(irodsSrcPath))
 	}
 
 	if srcStat.Type == DirectoryEntry {
@@ -86,7 +86,7 @@ func (fs *FileSystem) DownloadFileToBuffer(irodsPath string, resource string, bu
 
 	srcStat, err := fs.Stat(irodsSrcPath)
 	if err != nil {
-		return xerrors.Errorf("failed to stat for path %s: %w", irodsSrcPath, types.NewFileNotFoundError(irodsSrcPath))
+		return xerrors.Errorf("failed to find a data object for path %s: %w", irodsSrcPath, types.NewFileNotFoundError(irodsSrcPath))
 	}
 
 	if srcStat.Type == DirectoryEntry {
@@ -105,7 +105,7 @@ func (fs *FileSystem) DownloadFileParallel(irodsPath string, resource string, lo
 
 	srcStat, err := fs.Stat(irodsSrcPath)
 	if err != nil {
-		return xerrors.Errorf("failed to stat for path %s: %w", irodsSrcPath, types.NewFileNotFoundError(irodsSrcPath))
+		return xerrors.Errorf("failed to find a data object for path %s: %w", irodsSrcPath, types.NewFileNotFoundError(irodsSrcPath))
 	}
 
 	if srcStat.Type == DirectoryEntry {
@@ -139,7 +139,7 @@ func (fs *FileSystem) DownloadFileParallelResumable(irodsPath string, resource s
 
 	srcStat, err := fs.Stat(irodsSrcPath)
 	if err != nil {
-		return xerrors.Errorf("failed to stat for path %s: %w", irodsSrcPath, types.NewFileNotFoundError(irodsSrcPath))
+		return xerrors.Errorf("failed to find a data object for path %s: %w", irodsSrcPath, types.NewFileNotFoundError(irodsSrcPath))
 	}
 
 	if srcStat.Type == DirectoryEntry {
@@ -164,6 +164,40 @@ func (fs *FileSystem) DownloadFileParallelResumable(irodsPath string, resource s
 	return irods_fs.DownloadDataObjectParallelResumable(fs.ioSession, irodsSrcPath, resource, localFilePath, srcStat.Size, taskNum, callback)
 }
 
+// DownloadFileRedirectToResource downloads a file from resource to local in parallel
+func (fs *FileSystem) DownloadFileRedirectToResource(irodsPath string, resource string, localPath string, callback common.TrackerCallBack) error {
+	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
+	localDestPath := util.GetCorrectLocalPath(localPath)
+
+	localFilePath := localDestPath
+
+	srcStat, err := fs.Stat(irodsSrcPath)
+	if err != nil {
+		return xerrors.Errorf("failed to find a data object for path %s: %w", irodsSrcPath, types.NewFileNotFoundError(irodsSrcPath))
+	}
+
+	if srcStat.Type == DirectoryEntry {
+		return xerrors.Errorf("cannot download a collection %s", irodsSrcPath)
+	}
+
+	destStat, err := os.Stat(localDestPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// file not exists, it's a file
+			// pass
+		} else {
+			return err
+		}
+	} else {
+		if destStat.IsDir() {
+			irodsFileName := util.GetIRODSPathFileName(irodsSrcPath)
+			localFilePath = filepath.Join(localDestPath, irodsFileName)
+		}
+	}
+
+	return irods_fs.DownloadDataObjectFromResourceServer(fs.ioSession, irodsSrcPath, resource, localFilePath, srcStat.Size, callback)
+}
+
 // UploadFile uploads a local file to irods
 func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource string, replicate bool, callback common.TrackerCallBack) error {
 	localSrcPath := util.GetCorrectLocalPath(localPath)
@@ -175,7 +209,7 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 	if err != nil {
 		if os.IsNotExist(err) {
 			// file not exists
-			return xerrors.Errorf("failed to stat for local path %s: %w", localSrcPath, types.NewFileNotFoundError(localSrcPath))
+			return xerrors.Errorf("failed to find a file for local path %s: %w", localSrcPath, types.NewFileNotFoundError(localSrcPath))
 		}
 		return err
 	}
@@ -254,7 +288,7 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 	if err != nil {
 		if os.IsNotExist(err) {
 			// file not exists
-			return xerrors.Errorf("failed to stat for local path %s: %w", localSrcPath, types.NewFileNotFoundError(localSrcPath))
+			return xerrors.Errorf("failed to find a file for local path %s: %w", localSrcPath, types.NewFileNotFoundError(localSrcPath))
 		}
 		return err
 	}
@@ -281,6 +315,53 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 	}
 
 	err = irods_fs.UploadDataObjectParallel(fs.ioSession, localSrcPath, irodsFilePath, resource, taskNum, replicate, callback)
+	if err != nil {
+		return err
+	}
+
+	fs.invalidateCacheForFileCreate(irodsFilePath)
+	fs.cachePropagation.PropagateFileCreate(irodsFilePath)
+	return nil
+}
+
+// UploadFileParallelRedirectToResource uploads a file from local to resource server in parallel
+func (fs *FileSystem) UploadFileParallelRedirectToResource(localPath string, irodsPath string, resource string, replicate bool, callback common.TrackerCallBack) error {
+	localSrcPath := util.GetCorrectLocalPath(localPath)
+	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
+
+	irodsFilePath := irodsDestPath
+
+	srcStat, err := os.Stat(localSrcPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// file not exists
+			return xerrors.Errorf("failed to find a file for local path %s: %w", localSrcPath, types.NewFileNotFoundError(localSrcPath))
+		}
+		return err
+	}
+
+	if srcStat.IsDir() {
+		return xerrors.Errorf("failed to find a file for local path %s, the path is for a directory: %w", localSrcPath, types.NewFileNotFoundError(localSrcPath))
+	}
+
+	destStat, err := fs.Stat(irodsDestPath)
+	if err != nil {
+		if !types.IsFileNotFoundError(err) {
+			return err
+		}
+	} else {
+		switch destStat.Type {
+		case FileEntry:
+			// do nothing
+		case DirectoryEntry:
+			localFileName := filepath.Join(localSrcPath)
+			irodsFilePath = util.MakeIRODSPath(irodsDestPath, localFileName)
+		default:
+			return xerrors.Errorf("unknown entry type %s", destStat.Type)
+		}
+	}
+
+	err = irods_fs.UploadDataObjectToResourceServer(fs.ioSession, localSrcPath, irodsFilePath, resource, replicate, callback)
 	if err != nil {
 		return err
 	}

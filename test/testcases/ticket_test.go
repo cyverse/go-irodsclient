@@ -36,7 +36,7 @@ func testCreateAndRemoveTickets(t *testing.T) {
 
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
-	filesystem, err := fs.NewFileSystem(account, fsConfig, nil)
+	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
 	defer filesystem.Release()
 
@@ -116,7 +116,7 @@ func testUpdateTicket(t *testing.T) {
 
 	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
 
-	filesystem, err := fs.NewFileSystem(account, fsConfig, nil)
+	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
 	defer filesystem.Release()
 
