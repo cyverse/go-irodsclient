@@ -135,7 +135,7 @@ func parallelUploadReplication(t *testing.T, sess *session.IRODSSession, filenam
 	assert.GreaterOrEqual(t, 1, len(obj.Replicas))
 
 	if len(obj.Replicas) >= 2 {
-		assert.Equal(t, obj.Replicas[0].Checksum.GetOriginalChecksum(), obj.Replicas[1].Checksum.GetOriginalChecksum())
+		assert.Equal(t, obj.Replicas[0].Checksum.Checksum, obj.Replicas[1].Checksum.Checksum)
 		assert.Equal(t, obj.Replicas[0].Status, obj.Replicas[1].Status)
 	}
 

@@ -798,8 +798,8 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 			Size:              0,
 			CreateTime:        time.Now(),
 			ModifyTime:        time.Now(),
-			CheckSumAlgorithm: "",
-			CheckSum:          "",
+			CheckSumAlgorithm: types.ChecksumAlgorithmUnknown,
+			CheckSum:          nil,
 		}
 	}
 
@@ -937,19 +937,20 @@ func (fs *FileSystem) getEntryFromCollection(collection *types.IRODSCollection) 
 		DataType:          "",
 		CreateTime:        collection.CreateTime,
 		ModifyTime:        collection.ModifyTime,
-		CheckSumAlgorithm: "",
-		CheckSum:          "",
+		CheckSumAlgorithm: types.ChecksumAlgorithmUnknown,
+		CheckSum:          nil,
 	}
 }
 
 func (fs *FileSystem) getEntryFromDataObject(dataobject *types.IRODSDataObject) *Entry {
 	checksum := dataobject.Replicas[0].Checksum
-	checksumAlgorithm := ""
-	checksumString := ""
 
-	if checksum != nil {
-		checksumAlgorithm = checksum.GetChecksumAlgorithm()
-		checksumString = checksum.GetChecksumString()
+	checksumAlgorithm := types.ChecksumAlgorithmUnknown
+	var checksumString []byte
+
+	if checksum != nil && len(checksum.Checksum) > 0 {
+		checksumAlgorithm = checksum.Algorithm
+		checksumString = checksum.Checksum
 	}
 
 	return &Entry{

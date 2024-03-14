@@ -11,9 +11,9 @@ import (
 
 // IRODSChecksum contains data object hash information
 type IRODSChecksum struct {
-	OriginalChecksum string
-	Algorithm        ChecksumAlgorithm
-	Checksum         []byte
+	IRODSChecksumString string
+	Algorithm           ChecksumAlgorithm
+	Checksum            []byte
 }
 
 // CreateIRODSChecksum creates IRODSChecksum from checksum string
@@ -21,9 +21,9 @@ func CreateIRODSChecksum(checksumString string) (*IRODSChecksum, error) {
 	if len(checksumString) == 0 {
 		// completely normal
 		return &IRODSChecksum{
-			OriginalChecksum: "",
-			Algorithm:        "",
-			Checksum:         nil,
+			IRODSChecksumString: "",
+			Algorithm:           "",
+			Checksum:            nil,
 		}, nil
 	}
 
@@ -33,30 +33,15 @@ func CreateIRODSChecksum(checksumString string) (*IRODSChecksum, error) {
 	}
 
 	return &IRODSChecksum{
-		OriginalChecksum: checksumString,
-		Algorithm:        algorithm,
-		Checksum:         checksum,
+		IRODSChecksumString: checksumString,
+		Algorithm:           algorithm,
+		Checksum:            checksum,
 	}, nil
 }
 
 // ToString stringifies the object
 func (checksum *IRODSChecksum) ToString() string {
 	return fmt.Sprintf("<IRODSChecksum %s %x>", checksum.Algorithm, checksum.Checksum)
-}
-
-// GetChecksumString returns checksum in string
-func (checksum *IRODSChecksum) GetChecksumString() string {
-	return hex.EncodeToString(checksum.Checksum)
-}
-
-// GetOriginalChecksum returns original checksum in string
-func (checksum *IRODSChecksum) GetOriginalChecksum() string {
-	return checksum.OriginalChecksum
-}
-
-// GetHashAlgorithm returns checksum algorithm
-func (checksum *IRODSChecksum) GetChecksumAlgorithm() string {
-	return string(checksum.Algorithm)
 }
 
 // ParseIRODSChecksum parses iRODS checksum string
@@ -78,70 +63,39 @@ func ParseIRODSChecksum(checksumString string) (ChecksumAlgorithm, []byte, error
 		checksum = sp[1]
 	}
 
-	switch strings.ToLower(algorithm) {
-	case "sha2":
-		checksumBase64, err := base64.StdEncoding.DecodeString(checksum)
+	var checksumBytes []byte
+	var err error
+	if strings.HasPrefix(strings.ToLower(algorithm), "sha") {
+		// sha-x algorithms are encoded with base64
+		checksumBytes, err = base64.StdEncoding.DecodeString(checksum)
 		if err != nil {
 			return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("failed to base64 decode checksum: %v", err)
 		}
-
-		if len(checksumBase64) == 256/8 {
-			return ChecksumAlgorithmSHA256, checksumBase64, nil
-		} else if len(checksumBase64) == 512/8 {
-			return ChecksumAlgorithmSHA512, checksumBase64, nil
-		}
-		return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unknown checksum algorithm: %s len %d", algorithm, len(checksumBase64))
-	case "sha256", strings.ToLower(string(ChecksumAlgorithmSHA256)):
-		checksumBase64, err := base64.StdEncoding.DecodeString(checksum)
-		if err != nil {
-			return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("failed to base64 decode checksum: %v", err)
-		}
-
-		if len(checksumBase64) == 256/8 {
-			return ChecksumAlgorithmSHA256, checksumBase64, nil
-		}
-		return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unknown checksum algorithm: %s len %d", algorithm, len(checksumBase64))
-	case "sha512", strings.ToLower(string(ChecksumAlgorithmSHA512)):
-		checksumBase64, err := base64.StdEncoding.DecodeString(checksum)
-		if err != nil {
-			return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("failed to base64 decode checksum: %v", err)
-		}
-
-		if len(checksumBase64) == 512/8 {
-			return ChecksumAlgorithmSHA512, checksumBase64, nil
-		}
-		return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unknown checksum algorithm: %s len %d", algorithm, len(checksumBase64))
-	case "sha1", strings.ToLower(string(ChecksumAlgorithmSHA1)):
-		checksumBase64, err := base64.StdEncoding.DecodeString(checksum)
-		if err != nil {
-			return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("failed to base64 decode checksum: %v", err)
-		}
-
-		if len(checksumBase64) == 160/8 {
-			return ChecksumAlgorithmSHA1, checksumBase64, nil
-		}
-		return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unknown checksum algorithm: %s len %d", algorithm, len(checksumBase64))
-	case "adler32", strings.ToLower(string(ChecksumAlgorithmADLER32)):
-		checksumHex, err := hex.DecodeString(checksum)
+	} else {
+		// hex encoded
+		checksumBytes, err = hex.DecodeString(checksum)
 		if err != nil {
 			return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("failed to hex decode checksum: %v", err)
 		}
-
-		if len(checksumHex) == 32/8 {
-			return ChecksumAlgorithmADLER32, checksumHex, nil
-		}
-		return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unknown checksum algorithm: %s len %d", algorithm, len(checksumHex))
-	case strings.ToLower(string(ChecksumAlgorithmMD5)):
-		checksumHex, err := hex.DecodeString(checksum)
-		if err != nil {
-			return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("failed to hex decode checksum: %v", err)
-		}
-
-		if len(checksumHex) == 128/8 {
-			return ChecksumAlgorithmMD5, checksumHex, nil
-		}
-		return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unknown checksum algorithm: %s len %d", algorithm, len(checksumHex))
-	default:
-		return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unknown checksum algorithm: %s", algorithm)
 	}
+
+	if strings.ToLower(algorithm) == "sha2" {
+		// sha256 or sha512
+		if len(checksumBytes) == GetChecksumDigestSize(ChecksumAlgorithmSHA256) {
+			return ChecksumAlgorithmSHA256, checksumBytes, nil
+		} else if len(checksumBytes) == GetChecksumDigestSize(ChecksumAlgorithmSHA512) {
+			return ChecksumAlgorithmSHA512, checksumBytes, nil
+		}
+	}
+
+	checksumAlgorithm := GetChecksumAlgorithm(algorithm)
+	if checksumAlgorithm == ChecksumAlgorithmUnknown {
+		return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unknown checksum algorithm: %s len %d", algorithm, len(checksumBytes))
+	}
+
+	if len(checksumBytes) != GetChecksumDigestSize(checksumAlgorithm) {
+		return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unknown checksum algorithm: %s len %d", algorithm, len(checksumBytes))
+	}
+
+	return checksumAlgorithm, checksumBytes, nil
 }

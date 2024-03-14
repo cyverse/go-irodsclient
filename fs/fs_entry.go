@@ -3,6 +3,8 @@ package fs
 import (
 	"fmt"
 	"time"
+
+	"github.com/cyverse/go-irodsclient/irods/types"
 )
 
 // EntryType defines types of Entry
@@ -26,8 +28,8 @@ type Entry struct {
 	DataType          string
 	CreateTime        time.Time
 	ModifyTime        time.Time
-	CheckSumAlgorithm string
-	CheckSum          string
+	CheckSumAlgorithm types.ChecksumAlgorithm
+	CheckSum          []byte
 }
 
 // ToString stringifies the object

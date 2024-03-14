@@ -40,6 +40,24 @@ func GetChecksumAlgorithm(checksumAlgorithm string) ChecksumAlgorithm {
 	}
 }
 
+// GetChecksumDigestSize returns checksum digest size
+func GetChecksumDigestSize(checksumAlgorithm ChecksumAlgorithm) int {
+	switch checksumAlgorithm {
+	case ChecksumAlgorithmSHA256:
+		return 256 / 8
+	case ChecksumAlgorithmSHA512:
+		return 512 / 8
+	case ChecksumAlgorithmSHA1:
+		return 160 / 8
+	case ChecksumAlgorithmADLER32:
+		return 32 / 8
+	case ChecksumAlgorithmMD5:
+		return 128 / 8
+	default:
+		return 0
+	}
+}
+
 // EncryptionAlgorithm determines encryption algorithm
 type EncryptionAlgorithm string
 
