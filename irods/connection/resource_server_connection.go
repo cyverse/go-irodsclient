@@ -104,6 +104,41 @@ func (conn *IRODSResourceServerConnection) GetLastSuccessfulAccess() time.Time {
 	return conn.lastSuccessfulAccess
 }
 
+// setSocketOpt sets socket opts
+func (conn *IRODSResourceServerConnection) setSocketOpt(socket net.Conn, bufferSize int) {
+	logger := log.WithFields(log.Fields{
+		"package":  "connection",
+		"struct":   "IRODSResourceServerConnection",
+		"function": "setSocketOpt",
+	})
+
+	if tcpSocket, ok := socket.(*net.TCPConn); ok {
+		// TCP socket
+
+		// nodelay is default
+		//tcpSocket.SetNoDelay(true)
+
+		tcpSocket.SetKeepAlive(true)
+
+		// TCP buffer size
+		if bufferSize <= 0 {
+			bufferSize = TCPBufferSizeDefault
+		}
+
+		sockErr := tcpSocket.SetReadBuffer(bufferSize)
+		if sockErr != nil {
+			sockBuffErr := xerrors.Errorf("failed to set tcp read buffer size %d: %w", bufferSize, sockErr)
+			logger.Errorf("%+v", sockBuffErr)
+		}
+
+		sockErr = tcpSocket.SetWriteBuffer(bufferSize)
+		if sockErr != nil {
+			sockBuffErr := xerrors.Errorf("failed to set tcp write buffer size %d: %w", bufferSize, sockErr)
+			logger.Errorf("%+v", sockBuffErr)
+		}
+	}
+}
+
 // Connect connects to iRODS
 func (conn *IRODSResourceServerConnection) Connect() error {
 	logger := log.WithFields(log.Fields{
@@ -142,19 +177,7 @@ func (conn *IRODSResourceServerConnection) Connect() error {
 		return connErr
 	}
 
-	if tcpSocket, ok := socket.(*net.TCPConn); ok {
-		sockErr := tcpSocket.SetReadBuffer(conn.tcpBufferSize)
-		if sockErr != nil {
-			sockBuffErr := xerrors.Errorf("failed to set tcp read buffer size %d: %w", conn.tcpBufferSize, sockErr)
-			logger.Errorf("%+v", sockBuffErr)
-		}
-
-		sockErr = tcpSocket.SetWriteBuffer(conn.tcpBufferSize)
-		if sockErr != nil {
-			sockBuffErr := xerrors.Errorf("failed to set tcp write buffer size %d: %w", conn.tcpBufferSize, sockErr)
-			logger.Errorf("%+v", sockBuffErr)
-		}
-	}
+	conn.setSocketOpt(socket, conn.tcpBufferSize)
 
 	if conn.metrics != nil {
 		conn.metrics.IncreaseConnectionsOpened(1)

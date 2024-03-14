@@ -84,6 +84,7 @@ func testCreateAndRemoveUser(t *testing.T) {
 		ProxyZone:               account.ProxyZone,
 		Password:                testPassword,
 		DefaultResource:         account.DefaultResource,
+		PamToken:                account.PamToken,
 		PamTTL:                  account.PamTTL,
 	}
 

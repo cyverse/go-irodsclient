@@ -41,7 +41,7 @@ func main() {
 		panic(err)
 	}
 
-	logger.Debugf("Account : %v", account.MaskSensitiveData())
+	logger.Debugf("Account : %v", account.GetRedacted())
 
 	// Create a file system
 	appName := "list_acls"

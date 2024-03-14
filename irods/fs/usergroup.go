@@ -508,7 +508,7 @@ func ChangeUserPassword(conn *connection.IRODSConnection, username string, zone 
 
 	oldPassword := account.Password
 	if account.AuthenticationScheme == types.AuthSchemePAM {
-		oldPassword = conn.GetGeneratedPasswordForPAMAuth()
+		oldPassword = conn.GetPAMToken()
 	}
 
 	scrambledPassword := util.ObfuscateNewPassword(newPassword, oldPassword, conn.GetClientSignature())

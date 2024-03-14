@@ -81,7 +81,7 @@ func CreateICommandsEnvironmentFromJSON(jsonBytes []byte) (*ICommandsEnvironment
 
 // ToIRODSAccount creates IRODSAccount
 func (env *ICommandsEnvironment) ToIRODSAccount() *types.IRODSAccount {
-	authScheme, _ := types.GetAuthScheme(env.AuthenticationScheme)
+	authScheme := types.GetAuthScheme(env.AuthenticationScheme)
 
 	negotiationRequired := false
 	negotiationPolicy, _ := types.GetCSNegotiationRequire(env.ClientServerPolicy)
@@ -103,6 +103,7 @@ func (env *ICommandsEnvironment) ToIRODSAccount() *types.IRODSAccount {
 		Password:                "",
 		DefaultResource:         env.DefaultResource,
 		PamTTL:                  types.PamTTLDefault,
+		PamToken:                "",
 		SSLConfiguration: &types.IRODSSSLConfig{
 			CACertificateFile:   env.SSLCACertificateFile,
 			EncryptionKeySize:   env.EncryptionKeySize,

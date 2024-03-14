@@ -29,6 +29,7 @@ type IRODSAccount struct {
 	Ticket                  string
 	DefaultResource         string
 	PamTTL                  int
+	PamToken                string
 	SSLConfiguration        *IRODSSSLConfig
 }
 
@@ -49,6 +50,7 @@ func CreateIRODSAccount(host string, port int, user string, zone string,
 		Ticket:                  "",
 		DefaultResource:         defaultResource,
 		PamTTL:                  PamTTLDefault,
+		PamToken:                "",
 		SSLConfiguration:        nil,
 	}
 
@@ -74,6 +76,7 @@ func CreateIRODSAccountForTicket(host string, port int, user string, zone string
 		Ticket:                  ticket,
 		DefaultResource:         defaultResource,
 		PamTTL:                  PamTTLDefault,
+		PamToken:                "",
 		SSLConfiguration:        nil,
 	}
 
@@ -100,6 +103,7 @@ func CreateIRODSProxyAccount(host string, port int, clientUser string, clientZon
 		Ticket:                  "",
 		DefaultResource:         defaultResource,
 		PamTTL:                  PamTTLDefault,
+		PamToken:                "",
 		SSLConfiguration:        nil,
 	}
 
@@ -119,8 +123,8 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 
 	authScheme := AuthSchemeNative
 	if val, ok := y["auth_scheme"]; ok {
-		authScheme, err = GetAuthScheme(val.(string))
-		if err != nil {
+		authScheme = GetAuthScheme(val.(string))
+		if authScheme == AuthSchemeUnknown {
 			authScheme = AuthSchemeNative
 		}
 	}
@@ -240,6 +244,11 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 		pamTTL = val.(int)
 	}
 
+	pamToken := ""
+	if val, ok := pamConfig["token"]; ok {
+		pamToken = val.(string)
+	}
+
 	// SSL Configuration
 	hasSSLConfig := false
 	sslConfig := make(map[string]interface{})
@@ -295,6 +304,7 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 		Ticket:                  ticket,
 		DefaultResource:         defaultResource,
 		PamTTL:                  pamTTL,
+		PamToken:                pamToken,
 		SSLConfiguration:        irodsSSLConfig,
 	}
 
@@ -324,14 +334,6 @@ func (account *IRODSAccount) UseProxyAccess() bool {
 // UseTicket returns whether it uses ticket for access control
 func (account *IRODSAccount) UseTicket() bool {
 	return len(account.Ticket) > 0
-}
-
-// MaskSensitiveData returns IRODSAccount object with sensitive data masked
-func (account *IRODSAccount) MaskSensitiveData() *IRODSAccount {
-	maskedAccount := *account
-	maskedAccount.Password = "<password masked>"
-	maskedAccount.Ticket = "<ticket masked>"
-	return &maskedAccount
 }
 
 // Validate validates iRODS account
@@ -364,8 +366,8 @@ func (account *IRODSAccount) Validate() error {
 		return xerrors.Errorf("empty zone")
 	}
 
-	if len(account.AuthenticationScheme) == 0 {
-		return xerrors.Errorf("empty authentication scheme")
+	if account.AuthenticationScheme == AuthSchemeUnknown {
+		return xerrors.Errorf("unknown authentication scheme")
 	}
 
 	if account.AuthenticationScheme != AuthSchemeNative && account.CSNegotiationPolicy != CSNegotiationRequireSSL {
@@ -404,6 +406,10 @@ func (account *IRODSAccount) validateUsername(username string) error {
 }
 
 func (account *IRODSAccount) FixAuthConfiguration() {
+	if account.AuthenticationScheme == AuthSchemeUnknown {
+		account.AuthenticationScheme = AuthSchemeNative
+	}
+
 	if account.AuthenticationScheme != AuthSchemeNative {
 		account.CSNegotiationPolicy = CSNegotiationRequireSSL
 	}
@@ -417,5 +423,8 @@ func (account *IRODSAccount) GetRedacted() *IRODSAccount {
 	account2 := IRODSAccount{}
 	account2 = *account
 	account2.Password = "<Redacted>"
+	account2.PamToken = "<Redacted>"
+	account2.Ticket = "<Redacted>"
+
 	return &account2
 }

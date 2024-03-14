@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/cyverse/go-irodsclient/utils/icommands"
+	"github.com/cyverse/go-irodsclient/icommands"
 	"github.com/sethvargo/go-password/password"
 	"github.com/stretchr/testify/assert"
 )

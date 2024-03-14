@@ -2,8 +2,6 @@ package types
 
 import (
 	"strings"
-
-	"golang.org/x/xerrors"
 )
 
 // AuthScheme defines Authentication Scheme
@@ -16,18 +14,22 @@ const (
 	AuthSchemeGSI AuthScheme = "gsi"
 	// AuthSchemePAM uses PAM authentication scheme
 	AuthSchemePAM AuthScheme = "pam"
+	// AuthSchemeUnknown is unknown scheme
+	AuthSchemeUnknown AuthScheme = ""
 )
 
 // GetAuthScheme returns AuthScheme value from string
-func GetAuthScheme(authScheme string) (AuthScheme, error) {
+func GetAuthScheme(authScheme string) AuthScheme {
 	switch strings.TrimSpace(strings.ToLower(authScheme)) {
-	case string(AuthSchemeNative), "":
-		return AuthSchemeNative, nil
+	case string(AuthSchemeNative):
+		return AuthSchemeNative
 	case string(AuthSchemeGSI):
-		return AuthSchemeGSI, nil
+		return AuthSchemeGSI
 	case string(AuthSchemePAM), "pam_password":
-		return AuthSchemePAM, nil
+		return AuthSchemePAM
+	case string(AuthSchemeUnknown):
+		fallthrough
 	default:
-		return AuthSchemeNative, xerrors.Errorf("cannot parse string %s", authScheme)
+		return AuthSchemeUnknown
 	}
 }

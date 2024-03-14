@@ -36,18 +36,17 @@ type IRODSConnection struct {
 	tcpBufferSize   int
 	applicationName string
 
-	connected               bool
-	isSSLSocket             bool
-	socket                  net.Conn
-	serverVersion           *types.IRODSVersion
-	generatedPasswordForPAM string // used for PAM auth
-	sslSharedSecret         []byte
-	creationTime            time.Time
-	lastSuccessfulAccess    time.Time
-	clientSignature         string
-	dirtyTransaction        bool
-	mutex                   sync.Mutex
-	locked                  bool // true if mutex is locked
+	connected            bool
+	isSSLSocket          bool
+	socket               net.Conn
+	serverVersion        *types.IRODSVersion
+	sslSharedSecret      []byte
+	creationTime         time.Time
+	lastSuccessfulAccess time.Time
+	clientSignature      string
+	dirtyTransaction     bool
+	mutex                sync.Mutex
+	locked               bool // true if mutex is locked
 
 	metrics *metrics.IRODSMetrics
 }
@@ -123,9 +122,9 @@ func (conn *IRODSConnection) requiresCSNegotiation() bool {
 	return conn.account.ClientServerNegotiation
 }
 
-// GetGeneratedPasswordForPAMAuth returns generated Password For PAM Auth
-func (conn *IRODSConnection) GetGeneratedPasswordForPAMAuth() string {
-	return conn.generatedPasswordForPAM
+// GetPAMToken returns server generated token For PAM Auth
+func (conn *IRODSConnection) GetPAMToken() string {
+	return conn.account.PamToken
 }
 
 // GetSSLSharedSecret returns ssl shared secret
@@ -168,6 +167,41 @@ func (conn *IRODSConnection) IsTransactionDirty() bool {
 	return conn.dirtyTransaction
 }
 
+// setSocketOpt sets socket opts
+func (conn *IRODSConnection) setSocketOpt(socket net.Conn, bufferSize int) {
+	logger := log.WithFields(log.Fields{
+		"package":  "connection",
+		"struct":   "IRODSConnection",
+		"function": "setSocketOpt",
+	})
+
+	if tcpSocket, ok := socket.(*net.TCPConn); ok {
+		// TCP socket
+
+		// nodelay is default
+		//tcpSocket.SetNoDelay(true)
+
+		tcpSocket.SetKeepAlive(true)
+
+		// TCP buffer size
+		if bufferSize <= 0 {
+			bufferSize = TCPBufferSizeDefault
+		}
+
+		sockErr := tcpSocket.SetReadBuffer(bufferSize)
+		if sockErr != nil {
+			sockBuffErr := xerrors.Errorf("failed to set tcp read buffer size %d: %w", bufferSize, sockErr)
+			logger.Errorf("%+v", sockBuffErr)
+		}
+
+		sockErr = tcpSocket.SetWriteBuffer(bufferSize)
+		if sockErr != nil {
+			sockBuffErr := xerrors.Errorf("failed to set tcp write buffer size %d: %w", bufferSize, sockErr)
+			logger.Errorf("%+v", sockBuffErr)
+		}
+	}
+}
+
 // Connect connects to iRODS
 func (conn *IRODSConnection) Connect() error {
 	logger := log.WithFields(log.Fields{
@@ -208,19 +242,7 @@ func (conn *IRODSConnection) Connect() error {
 		return connErr
 	}
 
-	if tcpSocket, ok := socket.(*net.TCPConn); ok {
-		sockErr := tcpSocket.SetReadBuffer(conn.tcpBufferSize)
-		if sockErr != nil {
-			sockBuffErr := xerrors.Errorf("failed to set tcp read buffer size %d: %w", conn.tcpBufferSize, sockErr)
-			logger.Errorf("%+v", sockBuffErr)
-		}
-
-		sockErr = tcpSocket.SetWriteBuffer(conn.tcpBufferSize)
-		if sockErr != nil {
-			sockBuffErr := xerrors.Errorf("failed to set tcp write buffer size %d: %w", conn.tcpBufferSize, sockErr)
-			logger.Errorf("%+v", sockBuffErr)
-		}
-	}
+	conn.setSocketOpt(socket, conn.tcpBufferSize)
 
 	if conn.metrics != nil {
 		conn.metrics.IncreaseConnectionsOpened(1)
@@ -251,14 +273,17 @@ func (conn *IRODSConnection) Connect() error {
 
 	switch conn.account.AuthenticationScheme {
 	case types.AuthSchemeNative:
-		err = conn.loginNative(conn.account.Password)
+		err = conn.loginNative()
 	case types.AuthSchemeGSI:
 		err = conn.loginGSI()
 	case types.AuthSchemePAM:
-		err = conn.loginPAM()
+		if len(conn.account.PamToken) > 0 {
+			err = conn.loginPAMWithToken()
+		} else {
+			err = conn.loginPAMWithPassword()
+		}
 	default:
-		logger.Errorf("unknown Authentication Scheme - %s", conn.account.AuthenticationScheme)
-		return xerrors.Errorf("unknown Authentication Scheme - %s: %w", conn.account.AuthenticationScheme, types.NewConnectionConfigError(conn.account))
+		err = xerrors.Errorf("unknown Authentication Scheme - %s: %w", conn.account.AuthenticationScheme, types.NewConnectionConfigError(conn.account))
 	}
 
 	if err != nil {
@@ -485,7 +510,7 @@ func (conn *IRODSConnection) login(password string) error {
 	return nil
 }
 
-func (conn *IRODSConnection) loginNative(password string) error {
+func (conn *IRODSConnection) loginNative() error {
 	logger := log.WithFields(log.Fields{
 		"package":  "connection",
 		"struct":   "IRODSConnection",
@@ -493,18 +518,18 @@ func (conn *IRODSConnection) loginNative(password string) error {
 	})
 
 	logger.Debug("Logging in using native authentication method")
-	return conn.login(password)
+	return conn.login(conn.account.Password)
 }
 
 func (conn *IRODSConnection) loginGSI() error {
 	return xerrors.Errorf("GSI login is not yet implemented: %w", types.NewAuthError(conn.account))
 }
 
-func (conn *IRODSConnection) loginPAM() error {
+func (conn *IRODSConnection) loginPAMWithPassword() error {
 	logger := log.WithFields(log.Fields{
 		"package":  "connection",
 		"struct":   "IRODSConnection",
-		"function": "loginPAM",
+		"function": "loginPAMWithPassword",
 	})
 
 	logger.Debug("Logging in using pam authentication method")
@@ -528,10 +553,33 @@ func (conn *IRODSConnection) loginPAM() error {
 	}
 
 	// save irods generated password for possible future use
-	conn.generatedPasswordForPAM = pamAuthResponse.GeneratedPassword
+	conn.account.PamToken = pamAuthResponse.GeneratedPassword
 
 	// retry native auth with generated password
-	return conn.login(conn.generatedPasswordForPAM)
+	return conn.login(conn.account.PamToken)
+}
+
+func (conn *IRODSConnection) loginPAMWithToken() error {
+	logger := log.WithFields(log.Fields{
+		"package":  "connection",
+		"struct":   "IRODSConnection",
+		"function": "loginPAMWithToken",
+	})
+
+	logger.Debug("Logging in using pam authentication method")
+
+	// Check whether ssl has already started, if not, start ssl.
+	if _, ok := conn.socket.(*tls.Conn); !ok {
+		return xerrors.Errorf("connection should be using SSL: %w", types.NewConnectionError())
+	}
+
+	ttl := conn.account.PamTTL
+	if ttl <= 0 {
+		ttl = 1
+	}
+
+	// retry native auth with generated password
+	return conn.login(conn.account.PamToken)
 }
 
 // Disconnect disconnects

@@ -25,7 +25,7 @@ type ICommandsEnvironmentManager struct {
 	EnvironmentFilename    string
 	UID                    int
 	Password               string
-	IsPasswordPamToken     bool
+	PamToken               string
 	Environment            *ICommandsEnvironment
 	Session                *ICommandsEnvironment
 }
@@ -45,7 +45,7 @@ func CreateIcommandsEnvironmentManager() (*ICommandsEnvironmentManager, error) {
 		EnvironmentFilename:    environmentFilename,
 		UID:                    uid,
 		Password:               "",
-		IsPasswordPamToken:     false,
+		PamToken:               "",
 		Environment:            &ICommandsEnvironment{},
 		Session:                &ICommandsEnvironment{},
 	}, nil
@@ -93,7 +93,7 @@ func CreateIcommandsEnvironmentManagerFromIRODSAccount(account *types.IRODSAccou
 	}
 
 	manager.Password = account.Password
-	manager.IsPasswordPamToken = false
+	manager.PamToken = account.PamToken
 
 	return manager, nil
 }
@@ -189,17 +189,13 @@ func (manager *ICommandsEnvironmentManager) Load(processID int) error {
 			//return xerrors.Errorf("failed to decode password file %s: %w", passwordFilePath, err)
 			// continue
 		} else {
-			manager.Password = password
-			manager.IsPasswordPamToken = false
-
-			authScheme, err := types.GetAuthScheme(manager.Environment.AuthenticationScheme)
-			if err != nil {
-				return xerrors.Errorf("failed to get auth scheme %s: %w", manager.Environment.AuthenticationScheme, err)
-			}
-
+			authScheme := types.GetAuthScheme(manager.Environment.AuthenticationScheme)
 			if authScheme == types.AuthSchemePAM {
-				// if auth scheme is PAM auth, password read from .irodsA is pam token
-				manager.IsPasswordPamToken = true
+				manager.Password = ""
+				manager.PamToken = password
+			} else {
+				manager.Password = password
+				manager.PamToken = ""
 			}
 		}
 	}
@@ -214,10 +210,7 @@ func (manager *ICommandsEnvironmentManager) ToIRODSAccount() (*types.IRODSAccoun
 
 	account := manager.Environment.ToIRODSAccount()
 	account.Password = manager.Password
-
-	if manager.IsPasswordPamToken {
-		account.AuthenticationScheme = types.AuthSchemeNative
-	}
+	account.PamToken = manager.PamToken
 
 	return account, nil
 }
@@ -243,7 +236,14 @@ func (manager *ICommandsEnvironmentManager) SaveEnvironment() error {
 	}
 
 	passwordFilePath := manager.GetPasswordFilePath()
-	err = EncodePasswordFile(passwordFilePath, manager.Password, manager.UID)
+	authScheme := types.GetAuthScheme(manager.Environment.AuthenticationScheme)
+
+	password := manager.Password
+	if authScheme == types.AuthSchemePAM {
+		password = manager.PamToken
+	}
+
+	err = EncodePasswordFile(passwordFilePath, password, manager.UID)
 	if err != nil {
 		return xerrors.Errorf("failed to encode password file %s: %w", passwordFilePath, err)
 	}
