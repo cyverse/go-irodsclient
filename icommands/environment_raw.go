@@ -106,6 +106,7 @@ func (env *ICommandsEnvironment) ToIRODSAccount() *types.IRODSAccount {
 		PamToken:                "",
 		SSLConfiguration: &types.IRODSSSLConfig{
 			CACertificateFile:   env.SSLCACertificateFile,
+			CACertificatePath:   env.SSLCACertificatePath,
 			EncryptionKeySize:   env.EncryptionKeySize,
 			EncryptionAlgorithm: env.EncryptionAlgorithm,
 			SaltSize:            env.EncryptionSaltSize,
