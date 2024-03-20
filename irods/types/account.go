@@ -257,9 +257,14 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 		hasSSLConfig = true
 	}
 
-	caCert := ""
+	caCertFile := ""
 	if val, ok := sslConfig["ca_cert_file"]; ok {
-		caCert = val.(string)
+		caCertFile = val.(string)
+	}
+
+	caCertPath := ""
+	if val, ok := sslConfig["ca_cert_path"]; ok {
+		caCertPath = val.(string)
 	}
 
 	keySize := 0
@@ -284,7 +289,7 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 
 	var irodsSSLConfig *IRODSSSLConfig = nil
 	if hasSSLConfig {
-		irodsSSLConfig, err = CreateIRODSSSLConfig(caCert, keySize, algorithm, saltSize, hashRounds)
+		irodsSSLConfig, err = CreateIRODSSSLConfig(caCertFile, caCertPath, keySize, algorithm, saltSize, hashRounds)
 		if err != nil {
 			return nil, xerrors.Errorf("failed to create irods ssl config: %w", err)
 		}

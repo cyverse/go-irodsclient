@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -430,12 +429,9 @@ func (conn *IRODSConnection) sslStartup() error {
 		return xerrors.Errorf("SSL Configuration is not set: %w", types.NewConnectionConfigError(conn.account))
 	}
 
-	caCertPool := x509.NewCertPool()
-	caCert, err := irodsSSLConfig.ReadCACert()
+	caCertPool, err := irodsSSLConfig.LoadCACert()
 	if err != nil {
-		logger.WithError(err).Warn("failed to read CA cert, ignoring...")
-	} else {
-		caCertPool.AppendCertsFromPEM(caCert)
+		return xerrors.Errorf("Failed to load CA Certificates: %w", err)
 	}
 
 	sslConf := &tls.Config{
