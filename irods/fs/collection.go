@@ -325,14 +325,14 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 						Path:        path,
 						UserName:    "",
 						UserZone:    "",
-						AccessLevel: types.IRODSAccessLevelNone,
+						AccessLevel: types.IRODSAccessLevelNull,
 						UserType:    types.IRODSUserRodsUser,
 					}
 				}
 
 				switch sqlResult.AttributeIndex {
 				case int(common.ICAT_COLUMN_COLL_ACCESS_NAME):
-					pagenatedAccesses[row].AccessLevel = types.IRODSAccessLevelType(value)
+					pagenatedAccesses[row].AccessLevel = types.GetIRODSAccessLevelType(value)
 				case int(common.ICAT_COLUMN_USER_TYPE):
 					pagenatedAccesses[row].UserType = types.IRODSUserType(value)
 				case int(common.ICAT_COLUMN_USER_NAME):
@@ -426,7 +426,7 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, path string
 						Path:        "",
 						UserName:    "",
 						UserZone:    "",
-						AccessLevel: types.IRODSAccessLevelNone,
+						AccessLevel: types.IRODSAccessLevelNull,
 						UserType:    types.IRODSUserRodsUser,
 					}
 				}
@@ -435,7 +435,7 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, path string
 				case int(common.ICAT_COLUMN_COLL_NAME):
 					pagenatedAccesses[row].Path = value
 				case int(common.ICAT_COLUMN_COLL_ACCESS_NAME):
-					pagenatedAccesses[row].AccessLevel = types.IRODSAccessLevelType(value)
+					pagenatedAccesses[row].AccessLevel = types.GetIRODSAccessLevelType(value)
 				case int(common.ICAT_COLUMN_USER_TYPE):
 					pagenatedAccesses[row].UserType = types.IRODSUserType(value)
 				case int(common.ICAT_COLUMN_USER_NAME):
