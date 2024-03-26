@@ -506,16 +506,22 @@ func DownloadDataObjectFromResourceServer(session *session.IRODSSession, irodsPa
 	if err != nil {
 		return xerrors.Errorf("failed to get connection: %w", err)
 	}
-	defer session.ReturnConnection(conn)
 
 	if conn == nil || !conn.IsConnected() {
+		session.ReturnConnection(conn)
 		return xerrors.Errorf("connection is nil or disconnected")
 	}
 
 	handle, err := GetDataObjectRedirectionInfoForGet(conn, irodsPath, resource, fileLength)
 	if err != nil {
-		return xerrors.Errorf("failed to get redirection info for data object %s: %w", irodsPath, err)
+		logger.Debugf("failed to get redirection info for data object %s, switch to DownloadDataObjectParallel: %s", irodsPath, err.Error())
+
+		session.ReturnConnection(conn)
+		return DownloadDataObjectParallel(session, irodsPath, resource, localPath, fileLength, 0, callback)
 	}
+
+	// we set deferr return connection here to not occupy connection when switched to DownloadDataObjectParallel
+	defer session.ReturnConnection(conn)
 
 	defer CompleteDataObjectRedirection(conn, handle)
 
@@ -617,16 +623,22 @@ func UploadDataObjectToResourceServer(session *session.IRODSSession, localPath s
 	if err != nil {
 		return xerrors.Errorf("failed to get connection: %w", err)
 	}
-	defer session.ReturnConnection(conn)
 
 	if conn == nil || !conn.IsConnected() {
+		session.ReturnConnection(conn)
 		return xerrors.Errorf("connection is nil or disconnected")
 	}
 
 	handle, err := GetDataObjectRedirectionInfoForPut(conn, irodsPath, resource, fileLength)
 	if err != nil {
-		return xerrors.Errorf("failed to get redirection info for data object %s: %w", irodsPath, err)
+		logger.Debugf("failed to get redirection info for data object %s, switch to UploadDataObjctParallel: %s", irodsPath, err.Error())
+
+		session.ReturnConnection(conn)
+		return UploadDataObjectParallel(session, localPath, irodsPath, resource, 0, replicate, callback)
 	}
+
+	// we set deferr return connection here to not occupy connection when switched to UploadDataObjectParallel
+	defer session.ReturnConnection(conn)
 
 	defer CompleteDataObjectRedirection(conn, handle)
 
