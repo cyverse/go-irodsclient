@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"time"
 
 	"golang.org/x/xerrors"
 )
@@ -40,19 +41,13 @@ type IRODSMeta struct {
 	Name  string
 	Value string
 	Units string
+	// CreateTime has creation time
+	CreateTime time.Time
+	// ModifyTime has last modified time
+	ModifyTime time.Time
 }
 
 // ToString stringifies the object
 func (meta *IRODSMeta) ToString() string {
-	return fmt.Sprintf("<IRODSMeta %d %s %s %s>", meta.AVUID, meta.Name, meta.Value, meta.Units)
-}
-
-// IRODSMetaCollection contains irods data object information
-type IRODSMetaCollection struct {
-	Path string
-}
-
-// ToString stringifies the object
-func (meta *IRODSMetaCollection) ToString() string {
-	return fmt.Sprintf("<IRODSMetaCollection %s>", meta.Path)
+	return fmt.Sprintf("<IRODSMeta %d %s %s %s %s %s>", meta.AVUID, meta.Name, meta.Value, meta.Units, meta.CreateTime, meta.ModifyTime)
 }

@@ -3,6 +3,7 @@ package fs
 import (
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/connection"
@@ -814,7 +815,7 @@ func DeleteUserMeta(conn *connection.IRODSConnection, user string, metadata *typ
 	return conn.RequestAndCheck(request, &response, nil)
 }
 
-// ListUserMeta returns a user metadata for the path
+// ListUserMeta returns all metadata for the user
 func ListUserMeta(conn *connection.IRODSConnection, user string) ([]*types.IRODSMeta, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, xerrors.Errorf("connection is nil or disconnected")
@@ -834,6 +835,8 @@ func ListUserMeta(conn *connection.IRODSConnection, user string) ([]*types.IRODS
 		query.AddSelect(common.ICAT_COLUMN_META_USER_ATTR_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_META_USER_ATTR_VALUE, 1)
 		query.AddSelect(common.ICAT_COLUMN_META_USER_ATTR_UNITS, 1)
+		query.AddSelect(common.ICAT_COLUMN_META_USER_CREATE_TIME, 1)
+		query.AddSelect(common.ICAT_COLUMN_META_USER_MODIFY_TIME, 1)
 
 		nameCondVal := fmt.Sprintf("= '%s'", user)
 		query.AddCondition(common.ICAT_COLUMN_USER_NAME, nameCondVal)
@@ -875,10 +878,12 @@ func ListUserMeta(conn *connection.IRODSConnection, user string) ([]*types.IRODS
 				if pagenatedMetas[row] == nil {
 					// create a new
 					pagenatedMetas[row] = &types.IRODSMeta{
-						AVUID: -1,
-						Name:  "",
-						Value: "",
-						Units: "",
+						AVUID:      -1,
+						Name:       "",
+						Value:      "",
+						Units:      "",
+						CreateTime: time.Time{},
+						ModifyTime: time.Time{},
 					}
 				}
 
@@ -895,6 +900,18 @@ func ListUserMeta(conn *connection.IRODSConnection, user string) ([]*types.IRODS
 					pagenatedMetas[row].Value = value
 				case int(common.ICAT_COLUMN_META_USER_ATTR_UNITS):
 					pagenatedMetas[row].Units = value
+				case int(common.ICAT_COLUMN_META_USER_CREATE_TIME):
+					cT, err := util.GetIRODSDateTime(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse create time '%s': %w", value, err)
+					}
+					pagenatedMetas[row].CreateTime = cT
+				case int(common.ICAT_COLUMN_META_USER_MODIFY_TIME):
+					mT, err := util.GetIRODSDateTime(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse modify time '%s': %w", value, err)
+					}
+					pagenatedMetas[row].ModifyTime = mT
 				default:
 					// ignore
 				}

@@ -857,6 +857,8 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, collection *types.IROD
 		query.AddSelect(common.ICAT_COLUMN_META_DATA_ATTR_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, 1)
 		query.AddSelect(common.ICAT_COLUMN_META_DATA_ATTR_UNITS, 1)
+		query.AddSelect(common.ICAT_COLUMN_META_DATA_CREATE_TIME, 1)
+		query.AddSelect(common.ICAT_COLUMN_META_DATA_MODIFY_TIME, 1)
 
 		collCondVal := fmt.Sprintf("= '%s'", collection.Path)
 		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, collCondVal)
@@ -900,10 +902,12 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, collection *types.IROD
 				if pagenatedMetas[row] == nil {
 					// create a new
 					pagenatedMetas[row] = &types.IRODSMeta{
-						AVUID: -1,
-						Name:  "",
-						Value: "",
-						Units: "",
+						AVUID:      -1,
+						Name:       "",
+						Value:      "",
+						Units:      "",
+						CreateTime: time.Time{},
+						ModifyTime: time.Time{},
 					}
 				}
 
@@ -920,6 +924,18 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, collection *types.IROD
 					pagenatedMetas[row].Value = value
 				case int(common.ICAT_COLUMN_META_DATA_ATTR_UNITS):
 					pagenatedMetas[row].Units = value
+				case int(common.ICAT_COLUMN_META_DATA_CREATE_TIME):
+					cT, err := util.GetIRODSDateTime(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse create time '%s': %w", value, err)
+					}
+					pagenatedMetas[row].CreateTime = cT
+				case int(common.ICAT_COLUMN_META_DATA_MODIFY_TIME):
+					mT, err := util.GetIRODSDateTime(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse modify time '%s': %w", value, err)
+					}
+					pagenatedMetas[row].ModifyTime = mT
 				default:
 					// ignore
 				}
