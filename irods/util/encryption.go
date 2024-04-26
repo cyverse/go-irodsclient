@@ -55,28 +55,45 @@ func Encrypt(algorithm types.EncryptionAlgorithm, key []byte, salt []byte, sourc
 
 // Decrypt decrypts data
 func Decrypt(algorithm types.EncryptionAlgorithm, key []byte, salt []byte, source []byte, dest []byte) (int, error) {
+	blockSize := GetEncryptionBlockSize(algorithm)
+
+	var err error
+	paddedDest := make([]byte, len(dest))
+
 	switch algorithm {
 	case types.EncryptionAlgorithmAES256CBC:
-		return decryptAES256CBC(key, salt, source, dest)
+		_, err = decryptAES256CBC(key, salt, source, paddedDest)
 	case types.EncryptionAlgorithmAES256CTR:
-		return decryptAES256CTR(key, salt, source, dest)
+		_, err = decryptAES256CTR(key, salt, source, paddedDest)
 	case types.EncryptionAlgorithmAES256CFB:
-		return decryptAES256CFB(key, salt, source, dest)
+		_, err = decryptAES256CFB(key, salt, source, paddedDest)
 	case types.EncryptionAlgorithmAES256OFB:
-		return decryptAES256OFB(key, salt, source, dest)
+		_, err = decryptAES256OFB(key, salt, source, paddedDest)
 	case types.EncryptionAlgorithmDES256CBC:
-		return decryptDES256CBC(key, salt, source, dest)
+		_, err = decryptDES256CBC(key, salt, source, paddedDest)
 	case types.EncryptionAlgorithmDES256CTR:
-		return decryptDES256CTR(key, salt, source, dest)
+		_, err = decryptDES256CTR(key, salt, source, paddedDest)
 	case types.EncryptionAlgorithmDES256CFB:
-		return decryptDES256CFB(key, salt, source, dest)
+		_, err = decryptDES256CFB(key, salt, source, paddedDest)
 	case types.EncryptionAlgorithmDES256OFB:
-		return decryptDES256OFB(key, salt, source, dest)
+		_, err = decryptDES256OFB(key, salt, source, paddedDest)
 	case types.EncryptionAlgorithmUnknown:
 		fallthrough
 	default:
 		return 0, xerrors.Errorf("unknown encryption algorithm")
 	}
+
+	if err != nil {
+		return 0, err
+	}
+
+	unpaddedDest, err := stripPkcs7(paddedDest, blockSize)
+	if err != nil {
+		return 0, xerrors.Errorf("failed to strip pkcs7 padding: %w", err)
+	}
+
+	destLen := copy(dest, unpaddedDest)
+	return destLen, nil
 }
 
 func padPkcs7(data []byte, blocksize int) []byte {
@@ -89,6 +106,23 @@ func padPkcs7(data []byte, blocksize int) []byte {
 	copy(pb, data)
 	copy(pb[len(data):], bytes.Repeat([]byte{byte(n)}, n))
 	return pb
+}
+
+func stripPkcs7(data []byte, blockSize int) ([]byte, error) {
+	if len(data) == 0 {
+		return data, nil
+	}
+
+	if (len(data) % blockSize) != 0 {
+		return nil, xerrors.Errorf("unaligned data")
+	}
+
+	padLen := int(data[len(data)-1])
+	ref := bytes.Repeat([]byte{byte(padLen)}, padLen)
+	if padLen > blockSize || padLen == 0 || !bytes.HasSuffix(data, ref) {
+		return nil, xerrors.Errorf("invalid pkcs7 padding")
+	}
+	return data[:len(data)-padLen], nil
 }
 
 func encryptAES256CBC(key []byte, salt []byte, source []byte, dest []byte) (int, error) {

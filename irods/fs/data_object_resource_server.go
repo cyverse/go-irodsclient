@@ -240,6 +240,11 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, contr
 
 		logger.Debugf("downloading file chunk for %s at offset %d, length %d", handle.Path, transferHeader.Offset, transferHeader.Length)
 
+		if len(dataBuffer) < int(transferHeader.Length) {
+			// resize
+			dataBuffer = make([]byte, transferHeader.Length)
+		}
+
 		toGet := transferHeader.Length
 		curOffset := transferHeader.Offset
 		for toGet > 0 {
@@ -256,11 +261,6 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, contr
 				err = encryptionHeader.FromBytes(encryptionHeaderBuffer[:readLen])
 				if err != nil {
 					return xerrors.Errorf("failed to read transfer encryption header from bytes: %w", err)
-				}
-
-				if len(dataBuffer) < int(transferHeader.Length) {
-					// resize
-					dataBuffer = make([]byte, transferHeader.Length)
 				}
 
 				// done reading encryption header
