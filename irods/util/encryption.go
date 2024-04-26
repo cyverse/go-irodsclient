@@ -10,9 +10,24 @@ import (
 	"golang.org/x/xerrors"
 )
 
+// GetEncryptionBlockSize returns block size
+func GetEncryptionBlockSize(algorithm types.EncryptionAlgorithm) int {
+	switch algorithm {
+	case types.EncryptionAlgorithmAES256CBC, types.EncryptionAlgorithmAES256CTR, types.EncryptionAlgorithmAES256CFB, types.EncryptionAlgorithmAES256OFB:
+		return 16
+	case types.EncryptionAlgorithmDES256CBC, types.EncryptionAlgorithmDES256CTR, types.EncryptionAlgorithmDES256CFB, types.EncryptionAlgorithmDES256OFB:
+		return 8
+	case types.EncryptionAlgorithmUnknown:
+		fallthrough
+	default:
+		return 0
+	}
+}
+
 // Encrypt encrypts data
 func Encrypt(algorithm types.EncryptionAlgorithm, key []byte, salt []byte, source []byte, dest []byte) (int, error) {
-	paddedSource := padPkcs7(source, len(salt))
+	blockSize := GetEncryptionBlockSize(algorithm)
+	paddedSource := padPkcs7(source, blockSize)
 
 	switch algorithm {
 	case types.EncryptionAlgorithmAES256CBC:

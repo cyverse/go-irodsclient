@@ -12,6 +12,7 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/message"
 	"github.com/cyverse/go-irodsclient/irods/session"
 	"github.com/cyverse/go-irodsclient/irods/types"
+	"github.com/cyverse/go-irodsclient/irods/util"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/xerrors"
 )
@@ -196,6 +197,12 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, contr
 
 	// encConfig may be nil
 	encConfig := controlConnection.GetAccount().SSLConfiguration
+	encBlocksize := 0
+
+	if controlConnection.IsSSL() {
+		encAlg := types.GetEncryptionAlgorithm(encConfig.EncryptionAlgorithm)
+		encBlocksize = util.GetEncryptionBlockSize(encAlg)
+	}
 
 	totalBytesDownloaded := int64(0)
 	if callback != nil {
@@ -238,7 +245,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, contr
 
 		// read encryption header
 		if controlConnection.IsSSL() {
-			encryptionHeader := message.NewIRODSMessageResourceServerTransferEncryptionHeader(encConfig.EncryptionKeySize)
+			encryptionHeader := message.NewIRODSMessageResourceServerTransferEncryptionHeader(encBlocksize)
 
 			encryptionHeaderBuffer := make([]byte, encryptionHeader.SizeOf())
 			readLen, err := conn.Recv(encryptionHeaderBuffer, encryptionHeader.SizeOf())
@@ -257,17 +264,22 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, contr
 			}
 
 			// done reading encryption header
+			logger.Debugf("encryption header's content len %d, block len %d", encryptionHeader.Length, encBlocksize)
 
 			// size is different as data is encrypted
-			encryptedDataLen := encryptionHeader.Length - encConfig.EncryptionKeySize
+			encryptedDataLen := encryptionHeader.Length - encBlocksize
 			if len(encryptedDataBuffer) < encryptedDataLen {
 				encryptedDataBuffer = make([]byte, encryptedDataLen)
 			}
+
+			logger.Debugf("encrypted data len %d", encryptedDataLen)
 
 			// read data
 			readLen, err = conn.Recv(encryptedDataBuffer, encryptedDataLen)
 			if readLen > 0 {
 				// decrypt
+				logger.Debugf("decrypt data len %d", readLen)
+
 				_, decErr := conn.Decrypt(encryptionHeader.IV, encryptedDataBuffer[:readLen], dataBuffer)
 				if decErr != nil {
 					return xerrors.Errorf("failed to decrypt data: %w", decErr)
@@ -354,13 +366,18 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, controlCo
 
 	// encConfig may be nil
 	encConfig := controlConnection.GetAccount().SSLConfiguration
-	var salt []byte
+	encBlocksize := 0
+	var iv []byte
+
 	if controlConnection.IsSSL() {
 		// set iv
-		salt = make([]byte, encConfig.SaltSize)
-		_, err := rand.Read(salt)
+		encAlg := types.GetEncryptionAlgorithm(encConfig.EncryptionAlgorithm)
+		encBlocksize = util.GetEncryptionBlockSize(encAlg)
+
+		iv = make([]byte, encBlocksize)
+		_, err := rand.Read(iv)
 		if err != nil {
-			return xerrors.Errorf("failed to generate salt: %w", err)
+			return xerrors.Errorf("failed to generate iv: %w", err)
 		}
 	}
 
@@ -405,8 +422,8 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, controlCo
 
 		// read encryption header
 		if controlConnection.IsSSL() {
-			encryptionHeader := message.NewIRODSMessageResourceServerTransferEncryptionHeader(encConfig.EncryptionKeySize)
-			encryptionHeader.IV = salt
+			encryptionHeader := message.NewIRODSMessageResourceServerTransferEncryptionHeader(encBlocksize)
+			encryptionHeader.IV = iv
 
 			if len(dataBuffer) < int(transferHeader.Length) {
 				// resize
@@ -422,12 +439,12 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, controlCo
 			readLen, err := f.ReadAt(dataBuffer, transferHeader.Offset)
 			if readLen > 0 {
 				// encrypt
-				encLen, encErr := conn.Encrypt(salt, dataBuffer[:readLen], encryptedDataBuffer)
+				encLen, encErr := conn.Encrypt(iv, dataBuffer[:readLen], encryptedDataBuffer)
 				if encErr != nil {
 					return xerrors.Errorf("failed to encrypt data: %w", encErr)
 				}
 
-				encryptionHeader.Length = encLen + encConfig.EncryptionKeySize
+				encryptionHeader.Length = encLen + encBlocksize
 			}
 
 			if err != nil {
@@ -446,7 +463,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, controlCo
 				return xerrors.Errorf("failed to write transfer encryption header to resource server: %w", err)
 			}
 
-			encryptedDataLen := encryptionHeader.Length - encConfig.EncryptionKeySize
+			encryptedDataLen := encryptionHeader.Length - encBlocksize
 			writeErr := conn.Send(encryptedDataBuffer, encryptedDataLen)
 			if writeErr != nil {
 				return xerrors.Errorf("failed to write data to %s, offset %d: %w", handle.Path, transferHeader.Offset, writeErr)
