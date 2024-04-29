@@ -58,7 +58,7 @@ func Decrypt(algorithm types.EncryptionAlgorithm, key []byte, salt []byte, sourc
 	blockSize := GetEncryptionBlockSize(algorithm)
 
 	var err error
-	paddedDest := make([]byte, len(dest))
+	paddedDest := make([]byte, len(source))
 
 	switch algorithm {
 	case types.EncryptionAlgorithmAES256CBC:
@@ -119,7 +119,15 @@ func stripPkcs7(data []byte, blockSize int) ([]byte, error) {
 
 	padLen := int(data[len(data)-1])
 	ref := bytes.Repeat([]byte{byte(padLen)}, padLen)
-	if padLen > blockSize || padLen == 0 || !bytes.HasSuffix(data, ref) {
+	if padLen > blockSize {
+		return nil, xerrors.Errorf("invalid pkcs7 padding, padding length %d is larger than block size %d", padLen, blockSize)
+	}
+
+	if padLen == 0 {
+		return nil, xerrors.Errorf("invalid pkcs7 padding, padding length must be non-zero")
+	}
+
+	if !bytes.HasSuffix(data, ref) {
 		return nil, xerrors.Errorf("invalid pkcs7 padding")
 	}
 	return data[:len(data)-padLen], nil
