@@ -413,7 +413,6 @@ func (conn *IRODSResourceServerConnection) Decrypt(iv []byte, source []byte, des
 	}
 
 	sslConf := conn.controlConnection.account.SSLConfiguration
-
 	encryptionAlg := types.GetEncryptionAlgorithm(sslConf.EncryptionAlgorithm)
 
 	len, err := util.Decrypt(encryptionAlg, conn.controlConnection.sslSharedSecret, iv, source, dest)
@@ -431,7 +430,6 @@ func (conn *IRODSResourceServerConnection) Encrypt(iv []byte, source []byte, des
 	}
 
 	sslConf := conn.controlConnection.account.SSLConfiguration
-
 	encryptionAlg := types.GetEncryptionAlgorithm(sslConf.EncryptionAlgorithm)
 
 	len, err := util.Encrypt(encryptionAlg, conn.controlConnection.sslSharedSecret, iv, source, dest)

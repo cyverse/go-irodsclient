@@ -373,19 +373,10 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, controlCo
 	// encConfig may be nil
 	encConfig := controlConnection.GetAccount().SSLConfiguration
 	encKeysize := 0
-	var iv []byte
 
 	if controlConnection.IsSSL() {
 		// set iv
-		encAlg := types.GetEncryptionAlgorithm(encConfig.EncryptionAlgorithm)
 		encKeysize = encConfig.EncryptionKeySize
-		encIV, err := util.GetEncryptionIV(encAlg)
-		if err != nil {
-			return xerrors.Errorf("failed to get encryption iv: %w", err)
-		}
-
-		iv = make([]byte, encKeysize)
-		copy(iv, encIV)
 	}
 
 	totalBytesUploaded := int64(0)
@@ -434,6 +425,16 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, controlCo
 		for toPut > 0 {
 			// read encryption header
 			if controlConnection.IsSSL() {
+				// init iv
+				encAlg := types.GetEncryptionAlgorithm(encConfig.EncryptionAlgorithm)
+				encIV, err := util.GetEncryptionIV(encAlg)
+				if err != nil {
+					return xerrors.Errorf("failed to get encryption iv: %w", err)
+				}
+
+				iv := make([]byte, encKeysize)
+				copy(iv, encIV)
+
 				encryptionHeader := message.NewIRODSMessageResourceServerTransferEncryptionHeader(encKeysize)
 				encryptionHeader.IV = iv
 
@@ -449,6 +450,8 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, controlCo
 
 				// read data
 				readLen, err := f.ReadAt(dataBuffer, curOffset)
+
+				logger.Debugf("read offset %d, len %d", curOffset, readLen)
 				if readLen > 0 {
 					// encrypt
 					encLen, encErr := conn.Encrypt(iv, dataBuffer[:readLen], encryptedDataBuffer)
@@ -456,12 +459,14 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, controlCo
 						return xerrors.Errorf("failed to encrypt data: %w", encErr)
 					}
 
+					logger.Debugf("read offset %d, original len %d, encrypted len %d", curOffset, readLen, encLen)
 					encryptionHeader.Length = encLen + encKeysize
 				}
 
 				if err != nil {
-					if err != io.EOF {
+					if err == io.EOF {
 						cont = false
+					} else {
 						return xerrors.Errorf("failed to read data %s, offset %d: %w", localPath, curOffset, err)
 					}
 				}
@@ -489,7 +494,6 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, controlCo
 
 				toPut -= int64(readLen)
 				curOffset += int64(readLen)
-
 			} else {
 				// normal
 				// write data
@@ -515,9 +519,9 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, controlCo
 					if err == io.EOF {
 						cont = false
 						break
+					} else {
+						return xerrors.Errorf("failed to read data %s, offset %d: %w", localPath, transferHeader.Offset, err)
 					}
-
-					return xerrors.Errorf("failed to read data %s, offset %d: %w", localPath, transferHeader.Offset, err)
 				}
 			}
 		}
