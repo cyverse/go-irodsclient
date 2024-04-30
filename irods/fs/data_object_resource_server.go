@@ -1,7 +1,6 @@
 package fs
 
 import (
-	"crypto/rand"
 	"io"
 	"os"
 	"sync"
@@ -197,11 +196,10 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, contr
 
 	// encConfig may be nil
 	encConfig := controlConnection.GetAccount().SSLConfiguration
-	encBlocksize := 0
+	encKeysize := 0
 
 	if controlConnection.IsSSL() {
-		encAlg := types.GetEncryptionAlgorithm(encConfig.EncryptionAlgorithm)
-		encBlocksize = util.GetEncryptionBlockSize(encAlg)
+		encKeysize = encConfig.EncryptionKeySize
 	}
 
 	totalBytesDownloaded := int64(0)
@@ -222,10 +220,6 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, contr
 		// read transfer header
 		readLen, err := conn.Recv(headerBuffer, transferHeader.SizeOf())
 		if err != nil {
-			if err == io.EOF {
-				break
-			}
-
 			return xerrors.Errorf("failed to read transfer header from resource server: %w", err)
 		}
 
@@ -236,6 +230,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, contr
 
 		if transferHeader.OperationType == int(common.OPER_TYPE_DONE) {
 			// break
+			cont = false
 			break
 		} else if transferHeader.OperationType != int(common.OPER_TYPE_GET_DATA_OBJ) {
 			return xerrors.Errorf("invalid operation type %d received for transfer", transferHeader.OperationType)
@@ -243,92 +238,103 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, contr
 
 		logger.Debugf("downloading file chunk for %s at offset %d, length %d", handle.Path, transferHeader.Offset, transferHeader.Length)
 
-		// read encryption header
-		if controlConnection.IsSSL() {
-			encryptionHeader := message.NewIRODSMessageResourceServerTransferEncryptionHeader(encBlocksize)
+		toGet := transferHeader.Length
+		curOffset := transferHeader.Offset
+		for toGet > 0 {
+			// read encryption header
+			if controlConnection.IsSSL() {
+				encryptionHeader := message.NewIRODSMessageResourceServerTransferEncryptionHeader(encKeysize)
 
-			encryptionHeaderBuffer := make([]byte, encryptionHeader.SizeOf())
-			readLen, err := conn.Recv(encryptionHeaderBuffer, encryptionHeader.SizeOf())
-			if err != nil {
-				return xerrors.Errorf("failed to read transfer encryption header from resource server: %w", err)
-			}
-
-			err = encryptionHeader.FromBytes(encryptionHeaderBuffer[:readLen])
-			if err != nil {
-				return xerrors.Errorf("failed to read transfer encryption header from bytes: %w", err)
-			}
-
-			if len(dataBuffer) < int(transferHeader.Length) {
-				// resize
-				dataBuffer = make([]byte, transferHeader.Length)
-			}
-
-			// done reading encryption header
-			logger.Debugf("encryption header's content len %d, block len %d", encryptionHeader.Length, encBlocksize)
-
-			// size is different as data is encrypted
-			encryptedDataLen := encryptionHeader.Length - encBlocksize
-			if len(encryptedDataBuffer) < encryptedDataLen {
-				encryptedDataBuffer = make([]byte, encryptedDataLen)
-			}
-
-			logger.Debugf("encrypted data len %d", encryptedDataLen)
-
-			// read data
-			readLen, err = conn.Recv(encryptedDataBuffer, encryptedDataLen)
-			if readLen > 0 {
-				// decrypt
-				logger.Debugf("decrypt data len %d", readLen)
-
-				_, decErr := conn.Decrypt(encryptionHeader.IV, encryptedDataBuffer[:readLen], dataBuffer)
-				if decErr != nil {
-					return xerrors.Errorf("failed to decrypt data: %w", decErr)
+				encryptionHeaderBuffer := make([]byte, encryptionHeader.SizeOf())
+				readLen, err := conn.Recv(encryptionHeaderBuffer, encryptionHeader.SizeOf())
+				if err != nil {
+					return xerrors.Errorf("failed to read transfer encryption header from resource server: %w", err)
 				}
 
-				atomic.AddInt64(&totalBytesDownloaded, transferHeader.Length)
-				if callback != nil {
-					callback(totalBytesDownloaded, -1)
+				err = encryptionHeader.FromBytes(encryptionHeaderBuffer[:readLen])
+				if err != nil {
+					return xerrors.Errorf("failed to read transfer encryption header from bytes: %w", err)
 				}
 
-				_, writeErr := f.WriteAt(dataBuffer[:transferHeader.Length], transferHeader.Offset)
-				if writeErr != nil {
-					return xerrors.Errorf("failed to write data to %s, offset %d: %w", localPath, transferHeader.Offset, writeErr)
-				}
-			}
+				// done reading encryption header
+				//logger.Debugf("encryption header's content len %d, block len %d, key len %d", encryptionHeader.Length, encBlocksize, encKeysize)
 
-			if err != nil {
-				if err == io.EOF {
-					break
+				// size is different as data is encrypted
+				encryptedDataLen := encryptionHeader.Length - encKeysize
+				if len(encryptedDataBuffer) < encryptedDataLen {
+					encryptedDataBuffer = make([]byte, encryptedDataLen)
 				}
 
-				return xerrors.Errorf("failed to read data %s, offset %d: %w", handle.Path, transferHeader.Offset, err)
-			}
-		} else {
-			// normal
-			// read data
-			newOffset, err := f.Seek(transferHeader.Offset, io.SeekStart)
-			if err != nil {
-				return xerrors.Errorf("failed to seek to offset %d for file %s: %w", transferHeader.Length, localPath, err)
-			}
-
-			if newOffset != transferHeader.Offset {
-				return xerrors.Errorf("failed to seek to offset %d for file %s, new offset %d: %w", transferHeader.Length, localPath, newOffset, err)
-			}
-
-			readLen, err := conn.RecvToWriter(f, transferHeader.Length)
-			if readLen > 0 {
-				atomic.AddInt64(&totalBytesDownloaded, readLen)
-				if callback != nil {
-					callback(totalBytesDownloaded, -1)
-				}
-			}
-
-			if err != nil {
-				if err == io.EOF {
-					break
+				if len(dataBuffer) < encryptedDataLen {
+					dataBuffer = make([]byte, encryptedDataLen)
 				}
 
-				return xerrors.Errorf("failed to read data %s, offset %d: %w", handle.Path, transferHeader.Offset, err)
+				//logger.Debugf("encrypted data len %d", encryptedDataLen)
+
+				// read data
+				readLen, err = conn.Recv(encryptedDataBuffer, encryptedDataLen)
+				if readLen > 0 {
+					// decrypt
+					decryptedDataLen, decErr := conn.Decrypt(encryptionHeader.IV, encryptedDataBuffer[:readLen], dataBuffer)
+					if decErr != nil {
+						return xerrors.Errorf("failed to decrypt data: %w", decErr)
+					}
+
+					//logger.Debugf("decrypted data len %d", decryptedDataLen)
+
+					atomic.AddInt64(&totalBytesDownloaded, int64(decryptedDataLen))
+					if callback != nil {
+						callback(totalBytesDownloaded, -1)
+					}
+
+					_, writeErr := f.WriteAt(dataBuffer[:decryptedDataLen], curOffset)
+					if writeErr != nil {
+						return xerrors.Errorf("failed to write data to %s, offset %d: %w", localPath, curOffset, writeErr)
+					}
+
+					toGet -= int64(decryptedDataLen)
+					curOffset += int64(decryptedDataLen)
+				}
+
+				if err != nil {
+					if err == io.EOF {
+						cont = false
+						break
+					}
+
+					return xerrors.Errorf("failed to read data %s, offset %d: %w", handle.Path, curOffset, err)
+				}
+			} else {
+				// normal
+				// read data
+				newOffset, err := f.Seek(curOffset, io.SeekStart)
+				if err != nil {
+					return xerrors.Errorf("failed to seek to offset %d for file %s: %w", curOffset, localPath, err)
+				}
+
+				if newOffset != curOffset {
+					return xerrors.Errorf("failed to seek to offset %d for file %s, new offset %d: %w", curOffset, localPath, newOffset, err)
+				}
+
+				readLen, err := conn.RecvToWriter(f, toGet)
+				if readLen > 0 {
+					atomic.AddInt64(&totalBytesDownloaded, readLen)
+					if callback != nil {
+						callback(totalBytesDownloaded, -1)
+					}
+
+					toGet -= int64(readLen)
+					curOffset += int64(readLen)
+				}
+
+				if err != nil {
+					if err == io.EOF {
+						cont = false
+						break
+					}
+
+					return xerrors.Errorf("failed to read data %s, offset %d: %w", handle.Path, curOffset, err)
+				}
 			}
 		}
 	}
@@ -366,19 +372,11 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, controlCo
 
 	// encConfig may be nil
 	encConfig := controlConnection.GetAccount().SSLConfiguration
-	encBlocksize := 0
-	var iv []byte
+	encKeysize := 0
 
 	if controlConnection.IsSSL() {
 		// set iv
-		encAlg := types.GetEncryptionAlgorithm(encConfig.EncryptionAlgorithm)
-		encBlocksize = util.GetEncryptionBlockSize(encAlg)
-
-		iv = make([]byte, encBlocksize)
-		_, err := rand.Read(iv)
-		if err != nil {
-			return xerrors.Errorf("failed to generate iv: %w", err)
-		}
+		encKeysize = encConfig.EncryptionKeySize
 	}
 
 	totalBytesUploaded := int64(0)
@@ -394,6 +392,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, controlCo
 
 	var dataBuffer []byte
 	var encryptedDataBuffer []byte
+	dataBufferSize := sess.GetConfig().TcpBufferSize
 
 	for cont {
 		// read transfer header
@@ -413,6 +412,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, controlCo
 
 		if transferHeader.OperationType == int(common.OPER_TYPE_DONE) {
 			// break
+			cont = false
 			break
 		} else if transferHeader.OperationType != int(common.OPER_TYPE_PUT_DATA_OBJ) {
 			return xerrors.Errorf("invalid operation type %d received for transfer", transferHeader.OperationType)
@@ -420,83 +420,113 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, controlCo
 
 		logger.Debugf("uploading file chunk for %s at offset %d, length %d", handle.Path, transferHeader.Offset, transferHeader.Length)
 
-		// read encryption header
-		if controlConnection.IsSSL() {
-			encryptionHeader := message.NewIRODSMessageResourceServerTransferEncryptionHeader(encBlocksize)
-			encryptionHeader.IV = iv
-
-			if len(dataBuffer) < int(transferHeader.Length) {
-				// resize
-				dataBuffer = make([]byte, transferHeader.Length)
-			}
-
-			// size is different as data is encrypted
-			if len(encryptedDataBuffer) < len(dataBuffer)*2 {
-				encryptedDataBuffer = make([]byte, len(dataBuffer)*2)
-			}
-
-			// read data
-			readLen, err := f.ReadAt(dataBuffer, transferHeader.Offset)
-			if readLen > 0 {
-				// encrypt
-				encLen, encErr := conn.Encrypt(iv, dataBuffer[:readLen], encryptedDataBuffer)
-				if encErr != nil {
-					return xerrors.Errorf("failed to encrypt data: %w", encErr)
+		toPut := transferHeader.Length
+		curOffset := transferHeader.Offset
+		for toPut > 0 {
+			// read encryption header
+			if controlConnection.IsSSL() {
+				// init iv
+				encAlg := types.GetEncryptionAlgorithm(encConfig.EncryptionAlgorithm)
+				encIV, err := util.GetEncryptionIV(encAlg)
+				if err != nil {
+					return xerrors.Errorf("failed to get encryption iv: %w", err)
 				}
 
-				encryptionHeader.Length = encLen + encBlocksize
-			}
+				iv := make([]byte, encKeysize)
+				copy(iv, encIV)
 
-			if err != nil {
-				if err != io.EOF {
-					return xerrors.Errorf("failed to read data %s, offset %d: %w", localPath, transferHeader.Offset, err)
-				}
-			}
+				encryptionHeader := message.NewIRODSMessageResourceServerTransferEncryptionHeader(encKeysize)
+				encryptionHeader.IV = iv
 
-			encryptionHeaderBuffer, err := encryptionHeader.GetBytes()
-			if err != nil {
-				return xerrors.Errorf("failed to get bytes from transfer encryption header: %w", err)
-			}
-
-			err = conn.Send(encryptionHeaderBuffer, len(encryptionHeaderBuffer))
-			if err != nil {
-				return xerrors.Errorf("failed to write transfer encryption header to resource server: %w", err)
-			}
-
-			encryptedDataLen := encryptionHeader.Length - encBlocksize
-			writeErr := conn.Send(encryptedDataBuffer, encryptedDataLen)
-			if writeErr != nil {
-				return xerrors.Errorf("failed to write data to %s, offset %d: %w", handle.Path, transferHeader.Offset, writeErr)
-			}
-
-			atomic.AddInt64(&totalBytesUploaded, transferHeader.Length)
-			if callback != nil {
-				callback(totalBytesUploaded, -1)
-			}
-		} else {
-			// normal
-			// read data
-			newOffset, err := f.Seek(transferHeader.Offset, io.SeekStart)
-			if err != nil {
-				return xerrors.Errorf("failed to seek to offset %d for file %s: %w", transferHeader.Length, localPath, err)
-			}
-
-			if newOffset != transferHeader.Offset {
-				return xerrors.Errorf("failed to seek to offset %d for file %s, new offset %d: %w", transferHeader.Length, localPath, newOffset, err)
-			}
-
-			err = conn.SendFromReader(f, transferHeader.Length)
-			atomic.AddInt64(&totalBytesUploaded, transferHeader.Length)
-			if callback != nil {
-				callback(totalBytesUploaded, -1)
-			}
-
-			if err != nil {
-				if err == io.EOF {
-					break
+				if len(dataBuffer) < dataBufferSize {
+					// resize
+					dataBuffer = make([]byte, dataBufferSize)
 				}
 
-				return xerrors.Errorf("failed to read data %s, offset %d: %w", localPath, transferHeader.Offset, err)
+				// size is different as data is encrypted
+				if len(encryptedDataBuffer) < dataBufferSize*2 {
+					encryptedDataBuffer = make([]byte, dataBufferSize*2)
+				}
+
+				// read data
+				readLen, err := f.ReadAt(dataBuffer, curOffset)
+
+				//logger.Debugf("read offset %d, len %d", curOffset, readLen)
+				if readLen > 0 {
+					// encrypt
+					encLen, encErr := conn.Encrypt(iv, dataBuffer[:readLen], encryptedDataBuffer)
+					if encErr != nil {
+						return xerrors.Errorf("failed to encrypt data: %w", encErr)
+					}
+
+					//logger.Debugf("read offset %d, original len %d, encrypted len %d", curOffset, readLen, encLen)
+					encryptionHeader.Length = encLen + encKeysize
+				}
+
+				if err != nil {
+					if err == io.EOF {
+						cont = false
+					} else {
+						return xerrors.Errorf("failed to read data %s, offset %d: %w", localPath, curOffset, err)
+					}
+				}
+
+				encryptionHeaderBuffer, err := encryptionHeader.GetBytes()
+				if err != nil {
+					return xerrors.Errorf("failed to get bytes from transfer encryption header: %w", err)
+				}
+
+				//logger.Debugf("sending encryption header, header len %d, content len %d", len(encryptionHeaderBuffer), encryptionHeader.Length)
+				err = conn.Send(encryptionHeaderBuffer, len(encryptionHeaderBuffer))
+				if err != nil {
+					return xerrors.Errorf("failed to write transfer encryption header to resource server: %w", err)
+				}
+
+				//logger.Debugf("sending encrypted data")
+				encryptedDataLen := encryptionHeader.Length - encKeysize
+				writeErr := conn.Send(encryptedDataBuffer, encryptedDataLen)
+				if writeErr != nil {
+					return xerrors.Errorf("failed to write data to %s, offset %d: %w", handle.Path, curOffset, writeErr)
+				}
+
+				//logger.Debugf("sent encrypted data")
+
+				atomic.AddInt64(&totalBytesUploaded, int64(readLen))
+				if callback != nil {
+					callback(totalBytesUploaded, -1)
+				}
+
+				toPut -= int64(readLen)
+				curOffset += int64(readLen)
+			} else {
+				// normal
+				// write data
+				newOffset, err := f.Seek(curOffset, io.SeekStart)
+				if err != nil {
+					return xerrors.Errorf("failed to seek to offset %d for file %s: %w", curOffset, localPath, err)
+				}
+
+				if newOffset != curOffset {
+					return xerrors.Errorf("failed to seek to offset %d for file %s, new offset %d: %w", curOffset, localPath, newOffset, err)
+				}
+
+				err = conn.SendFromReader(f, toPut)
+				atomic.AddInt64(&totalBytesUploaded, toPut)
+				if callback != nil {
+					callback(totalBytesUploaded, -1)
+				}
+
+				toPut -= toPut
+				curOffset += toPut
+
+				if err != nil {
+					if err == io.EOF {
+						cont = false
+						break
+					} else {
+						return xerrors.Errorf("failed to read data %s, offset %d: %w", localPath, transferHeader.Offset, err)
+					}
+				}
 			}
 		}
 	}

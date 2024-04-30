@@ -23,9 +23,9 @@ func NewIRODSMessageResourceServerTransferEncryptionHeader(ivSize int) *IRODSMes
 
 // GetBytes returns byte array
 func (msg *IRODSMessageResourceServerTransferEncryptionHeader) GetBytes() ([]byte, error) {
-	buf := make([]byte, 4+len(msg.IV))
+	buf := make([]byte, 4+msg.ivSize)
 	binary.LittleEndian.PutUint32(buf, uint32(msg.Length))
-	copy(buf[4:], msg.IV)
+	copy(buf[4:4+msg.ivSize], msg.IV)
 	return buf, nil
 }
 
