@@ -110,14 +110,12 @@ func Decrypt(algorithm types.EncryptionAlgorithm, key []byte, iv []byte, source 
 }
 
 func padPkcs7(data []byte, blocksize int) []byte {
-	if (len(data) % blocksize) == 0 {
-		return data
-	}
+	padLen := blocksize - (len(data) % blocksize)
+	ref := bytes.Repeat([]byte{byte(padLen)}, padLen)
+	pb := make([]byte, len(data)+padLen)
 
-	n := blocksize - (len(data) % blocksize)
-	pb := make([]byte, len(data)+n)
 	copy(pb, data)
-	copy(pb[len(data):], bytes.Repeat([]byte{byte(n)}, n))
+	copy(pb[len(data):], ref)
 	return pb
 }
 
