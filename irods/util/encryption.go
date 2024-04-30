@@ -6,7 +6,6 @@ import (
 	"crypto/cipher"
 	"crypto/des"
 	"crypto/rand"
-	"math/rand"
 
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"golang.org/x/xerrors"
