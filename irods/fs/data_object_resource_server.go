@@ -451,7 +451,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, controlCo
 				// read data
 				readLen, err := f.ReadAt(dataBuffer, curOffset)
 
-				logger.Debugf("read offset %d, len %d", curOffset, readLen)
+				//logger.Debugf("read offset %d, len %d", curOffset, readLen)
 				if readLen > 0 {
 					// encrypt
 					encLen, encErr := conn.Encrypt(iv, dataBuffer[:readLen], encryptedDataBuffer)
@@ -459,7 +459,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, controlCo
 						return xerrors.Errorf("failed to encrypt data: %w", encErr)
 					}
 
-					logger.Debugf("read offset %d, original len %d, encrypted len %d", curOffset, readLen, encLen)
+					//logger.Debugf("read offset %d, original len %d, encrypted len %d", curOffset, readLen, encLen)
 					encryptionHeader.Length = encLen + encKeysize
 				}
 
@@ -476,16 +476,20 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, controlCo
 					return xerrors.Errorf("failed to get bytes from transfer encryption header: %w", err)
 				}
 
+				//logger.Debugf("sending encryption header, header len %d, content len %d", len(encryptionHeaderBuffer), encryptionHeader.Length)
 				err = conn.Send(encryptionHeaderBuffer, len(encryptionHeaderBuffer))
 				if err != nil {
 					return xerrors.Errorf("failed to write transfer encryption header to resource server: %w", err)
 				}
 
+				//logger.Debugf("sending encrypted data")
 				encryptedDataLen := encryptionHeader.Length - encKeysize
 				writeErr := conn.Send(encryptedDataBuffer, encryptedDataLen)
 				if writeErr != nil {
 					return xerrors.Errorf("failed to write data to %s, offset %d: %w", handle.Path, curOffset, writeErr)
 				}
+
+				//logger.Debugf("sent encrypted data")
 
 				atomic.AddInt64(&totalBytesUploaded, int64(readLen))
 				if callback != nil {

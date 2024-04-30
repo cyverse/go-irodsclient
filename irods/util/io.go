@@ -54,8 +54,8 @@ func WriteBytes(socket net.Conn, buffer []byte, size int) error {
 
 // WriteBytesWithTrackerCallBack writes data to socket
 func WriteBytesWithTrackerCallBack(socket net.Conn, buffer []byte, size int, callback common.TrackerCallBack) error {
-	totalSizeToSend := len(buffer)
-	sizeLeft := totalSizeToSend
+	totalSizeToSend := size
+	sizeLeft := size
 	actualWrite := 0
 
 	for sizeLeft > 0 {
