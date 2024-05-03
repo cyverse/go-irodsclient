@@ -434,10 +434,16 @@ func (conn *IRODSConnection) sslStartup() error {
 		return xerrors.Errorf("Failed to load CA Certificates: %w", err)
 	}
 
+	serverName := conn.account.Host
+
+	if conn.account.ServerNameTLS != "" {
+		serverName = conn.account.ServerNameTLS
+	}
+
 	sslConf := &tls.Config{
 		RootCAs:            caCertPool,
-		ServerName:         conn.account.Host,
-		InsecureSkipVerify: true,
+		ServerName:         serverName,
+		InsecureSkipVerify: conn.account.SkipVerifyTLS,
 	}
 
 	// Create a side connection using the existing socket
