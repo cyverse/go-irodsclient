@@ -17,6 +17,8 @@ func main() {
 		"function": "main",
 	})
 
+	log.SetLevel(log.DebugLevel)
+
 	// Parse cli parameters
 	flag.Parse()
 	args := flag.Args()
@@ -52,6 +54,26 @@ func main() {
 	}
 
 	defer filesystem.Release()
+
+	stat, err := filesystem.Stat(inputPath)
+	if err != nil {
+		logger.Error(err)
+		panic(err)
+	}
+
+	if stat.Type == fs.DirectoryEntry {
+		inherit, err := filesystem.GetDirACLInheritance(inputPath)
+		if err != nil {
+			logger.Error(err)
+			panic(err)
+		}
+
+		if inherit.Inheritance {
+			fmt.Printf("Inheritance - Enabled\n")
+		} else {
+			fmt.Printf("Inheritance - Disabled\n")
+		}
+	}
 
 	accesses, err := filesystem.ListACLs(inputPath)
 	if err != nil {

@@ -119,3 +119,14 @@ type IRODSAccess struct {
 func (access *IRODSAccess) ToString() string {
 	return fmt.Sprintf("<IRODSAccess %s %s %s %s %s>", access.Path, access.UserName, access.UserZone, string(access.UserType), string(access.AccessLevel))
 }
+
+// IRODSAccessInheritance contains irods access inheritance information
+type IRODSAccessInheritance struct {
+	Path        string
+	Inheritance bool
+}
+
+// ToString stringifies the object
+func (inheritance *IRODSAccessInheritance) ToString() string {
+	return fmt.Sprintf("<IRODSAccessInheritance %s %t>", inheritance.Path, inheritance.Inheritance)
+}

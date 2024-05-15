@@ -55,6 +55,7 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 	defer conn.Unlock()
 
 	query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, 0, 0, 0)
+	query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
 	query.AddSelect(common.ICAT_COLUMN_COLL_ID, 1)
 	query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
 	query.AddSelect(common.ICAT_COLUMN_COLL_OWNER_NAME, 1)
@@ -166,6 +167,7 @@ func ListCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types
 	continueIndex := 0
 	for continueQuery {
 		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
 		query.AddSelect(common.ICAT_COLUMN_META_COLL_ATTR_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_META_COLL_ATTR_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_META_COLL_ATTR_VALUE, 1)
@@ -268,6 +270,103 @@ func ListCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types
 	return metas, nil
 }
 
+// GetCollectionAccessInheritance returns collection access inheritance info for the path
+func GetCollectionAccessInheritance(conn *connection.IRODSConnection, path string) (*types.IRODSAccessInheritance, error) {
+	if conn == nil || !conn.IsConnected() {
+		return nil, xerrors.Errorf("connection is nil or disconnected")
+	}
+
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForAccessList(1)
+	}
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	inheritances := []*types.IRODSAccessInheritance{}
+
+	continueQuery := true
+	continueIndex := 0
+	for continueQuery {
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
+		query.AddSelect(common.ICAT_COLUMN_COLL_INHERITANCE, 1)
+
+		condVal := fmt.Sprintf("= '%s'", path)
+		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, condVal)
+
+		queryResult := message.IRODSMessageQueryResponse{}
+		err := conn.Request(query, &queryResult, nil)
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			}
+			return nil, xerrors.Errorf("failed to receive a collection access inheritance query result message: %w", err)
+		}
+
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			}
+			return nil, xerrors.Errorf("received collection access inheritance query error: %w", err)
+		}
+
+		if queryResult.RowCount == 0 {
+			break
+		}
+
+		if queryResult.AttributeCount > len(queryResult.SQLResult) {
+			return nil, xerrors.Errorf("failed to receive collection access inheritance attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+		}
+
+		pagenatedAccessInheritances := make([]*types.IRODSAccessInheritance, queryResult.RowCount)
+
+		for attr := 0; attr < queryResult.AttributeCount; attr++ {
+			sqlResult := queryResult.SQLResult[attr]
+			if len(sqlResult.Values) != queryResult.RowCount {
+				return nil, xerrors.Errorf("failed to receive collection access inheritance rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+			}
+
+			for row := 0; row < queryResult.RowCount; row++ {
+				value := sqlResult.Values[row]
+
+				if pagenatedAccessInheritances[row] == nil {
+					// create a new
+					pagenatedAccessInheritances[row] = &types.IRODSAccessInheritance{
+						Path:        path,
+						Inheritance: false,
+					}
+				}
+
+				switch sqlResult.AttributeIndex {
+				case int(common.ICAT_COLUMN_COLL_INHERITANCE):
+					inherit, err := strconv.ParseBool(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse inheritance '%s': %w", value, err)
+					}
+					pagenatedAccessInheritances[row].Inheritance = inherit
+				default:
+					// ignore
+				}
+			}
+		}
+
+		inheritances = append(inheritances, pagenatedAccessInheritances...)
+
+		continueIndex = queryResult.ContinueIndex
+		if continueIndex == 0 {
+			continueQuery = false
+		}
+	}
+
+	return inheritances[0], nil
+}
+
 // ListCollectionAccesses returns collection accesses for the path
 func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*types.IRODSAccess, error) {
 	if conn == nil || !conn.IsConnected() {
@@ -288,14 +387,8 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
-		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
-		query.AddSelect(common.ICAT_COLUMN_COLL_ACCESS_NAME, 1)
-		query.AddSelect(common.ICAT_COLUMN_USER_NAME, 1)
-		query.AddSelect(common.ICAT_COLUMN_USER_ZONE, 1)
-		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
-
-		condVal := fmt.Sprintf("= '%s'", path)
-		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, condVal)
+		query := message.NewIRODSMessageQuerySpecificRequest("ShowCollAcls", []string{path}, common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -306,6 +399,121 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 			}
 			return nil, xerrors.Errorf("failed to receive a collection access query result message: %w", err)
 		}
+
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			}
+			return nil, xerrors.Errorf("received collection access query error: %w", err)
+		}
+
+		if queryResult.RowCount == 0 {
+			break
+		}
+
+		if queryResult.AttributeCount > len(queryResult.SQLResult) {
+			return nil, xerrors.Errorf("failed to receive collection access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+		}
+
+		pagenatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount)
+
+		for attr := 0; attr < queryResult.AttributeCount; attr++ {
+			sqlResult := queryResult.SQLResult[attr]
+			if len(sqlResult.Values) != queryResult.RowCount {
+				return nil, xerrors.Errorf("failed to receive collection access rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+			}
+
+			for row := 0; row < queryResult.RowCount; row++ {
+				value := sqlResult.Values[row]
+
+				if pagenatedAccesses[row] == nil {
+					// create a new
+					pagenatedAccesses[row] = &types.IRODSAccess{
+						Path:        path,
+						UserName:    "",
+						UserZone:    "",
+						AccessLevel: types.IRODSAccessLevelNull,
+						UserType:    types.IRODSUserRodsUser,
+					}
+				}
+
+				switch attr {
+				case 0:
+					pagenatedAccesses[row].UserName = value
+				case 1:
+					pagenatedAccesses[row].UserZone = value
+				case 2:
+					pagenatedAccesses[row].AccessLevel = types.GetIRODSAccessLevelType(value)
+				case 3:
+					pagenatedAccesses[row].UserType = types.IRODSUserType(value)
+				default:
+					// ignore
+				}
+			}
+		}
+
+		accesses = append(accesses, pagenatedAccesses...)
+
+		continueIndex = queryResult.ContinueIndex
+		if continueIndex == 0 {
+			continueQuery = false
+		}
+	}
+
+	return accesses, nil
+}
+
+/*
+// ListCollectionAccesses returns collection accesses for the path
+func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*types.IRODSAccess, error) {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "ListCollectionAccesses",
+	})
+
+	if conn == nil || !conn.IsConnected() {
+		return nil, xerrors.Errorf("connection is nil or disconnected")
+	}
+
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForAccessList(1)
+	}
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	accesses := []*types.IRODSAccess{}
+
+	continueQuery := true
+	continueIndex := 0
+	for continueQuery {
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
+		query.AddSelect(common.ICAT_COLUMN_COLL_ACCESS_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_USER_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_USER_ZONE, 1)
+		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
+
+		condVal := fmt.Sprintf("= '%s'", path)
+		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, condVal)
+
+		logger.Infof("sending a request for checking ACLs of path %s", path)
+
+		queryResult := message.IRODSMessageQueryResponse{}
+		err := conn.Request(query, &queryResult, nil)
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			}
+			return nil, xerrors.Errorf("failed to receive a collection access query result message: %w", err)
+		}
+
+		logger.Infof("request for checking ACLs of path %s sent and got response", path)
 
 		err = queryResult.CheckError()
 		if err != nil {
@@ -371,6 +579,7 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 
 	return accesses, nil
 }
+*/
 
 // ListAccessesForSubCollections returns collection accesses for subcollections in the given path
 func ListAccessesForSubCollections(conn *connection.IRODSConnection, path string) ([]*types.IRODSAccess, error) {
@@ -393,6 +602,7 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, path string
 	continueIndex := 0
 	for continueQuery {
 		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
 		query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_ACCESS_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_NAME, 1)
@@ -496,6 +706,7 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 	continueIndex := 0
 	for continueQuery {
 		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
 		query.AddSelect(common.ICAT_COLUMN_COLL_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_OWNER_NAME, 1)
@@ -775,6 +986,7 @@ func SearchCollectionsByMeta(conn *connection.IRODSConnection, metaName string, 
 	continueIndex := 0
 	for continueQuery {
 		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
 		query.AddSelect(common.ICAT_COLUMN_COLL_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_OWNER_NAME, 1)
@@ -895,6 +1107,7 @@ func SearchCollectionsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 	continueIndex := 0
 	for continueQuery {
 		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
 		query.AddSelect(common.ICAT_COLUMN_COLL_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_OWNER_NAME, 1)

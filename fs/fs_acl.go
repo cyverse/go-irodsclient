@@ -68,6 +68,25 @@ func (fs *FileSystem) ListACLsWithGroupUsers(path string) ([]*types.IRODSAccess,
 	return accesses, nil
 }
 
+// GetDirACLInheritance returns ACL inheritance of a directory
+func (fs *FileSystem) GetDirACLInheritance(path string) (*types.IRODSAccessInheritance, error) {
+	irodsPath := util.GetCorrectIRODSPath(path)
+
+	// retrieve it
+	conn, err := fs.metaSession.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.metaSession.ReturnConnection(conn)
+
+	inheritance, err := irods_fs.GetCollectionAccessInheritance(conn, irodsPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return inheritance, nil
+}
+
 // ListDirACLs returns ACLs of a directory
 func (fs *FileSystem) ListDirACLs(path string) ([]*types.IRODSAccess, error) {
 	irodsPath := util.GetCorrectIRODSPath(path)

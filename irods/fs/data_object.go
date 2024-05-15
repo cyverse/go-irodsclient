@@ -75,6 +75,7 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 	for continueQuery {
 		// data object
 		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
 		query.AddSelect(common.ICAT_COLUMN_D_DATA_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_DATA_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_DATA_SIZE, 1)
@@ -268,6 +269,7 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 	for continueQuery {
 		// data object
 		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
 		query.AddSelect(common.ICAT_COLUMN_D_DATA_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_DATA_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_DATA_SIZE, 1)
@@ -468,6 +470,7 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 	for continueQuery {
 		// data object
 		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
 		query.AddSelect(common.ICAT_COLUMN_D_DATA_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_DATA_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_DATA_SIZE, 1)
@@ -656,6 +659,7 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 	for continueQuery {
 		// data object
 		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
 		query.AddSelect(common.ICAT_COLUMN_D_DATA_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_DATA_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_DATA_SIZE, 1)
@@ -853,6 +857,7 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, collection *types.IROD
 	continueIndex := 0
 	for continueQuery {
 		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
 		query.AddSelect(common.ICAT_COLUMN_META_DATA_ATTR_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_META_DATA_ATTR_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, 1)
@@ -974,6 +979,7 @@ func ListDataObjectAccesses(conn *connection.IRODSConnection, collection *types.
 	continueIndex := 0
 	for continueQuery {
 		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
 		query.AddSelect(common.ICAT_COLUMN_DATA_ACCESS_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_ZONE, 1)
@@ -1076,6 +1082,7 @@ func ListAccessesForDataObjects(conn *connection.IRODSConnection, collection *ty
 	continueIndex := 0
 	for continueQuery {
 		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
 		query.AddSelect(common.ICAT_COLUMN_DATA_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_DATA_ACCESS_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_NAME, 1)
@@ -2176,6 +2183,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 	for continueQuery {
 		// data object
 		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
 		query.AddSelect(common.ICAT_COLUMN_COLL_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_DATA_ID, 1)
@@ -2384,6 +2392,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 	for continueQuery {
 		// data object
 		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
 		query.AddSelect(common.ICAT_COLUMN_COLL_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_DATA_ID, 1)
@@ -2602,6 +2611,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 	for continueQuery {
 		// data object
 		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
 		query.AddSelect(common.ICAT_COLUMN_COLL_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_DATA_ID, 1)
@@ -2811,6 +2821,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 	for continueQuery {
 		// data object
 		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
 		query.AddSelect(common.ICAT_COLUMN_COLL_ID, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_DATA_ID, 1)
