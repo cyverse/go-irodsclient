@@ -78,6 +78,17 @@ func PerformCSNegotiation(clientRequest CSNegotiationRequire, serverRequest CSNe
 		}
 	}
 
+	if clientRequest == CSNegotiationDontCare {
+		switch serverRequest {
+		case CSNegotiationRequireTCP:
+			return CSNegotiationUseTCP
+		case CSNegotiationRequireSSL:
+			return CSNegotiationUseSSL
+		default:
+			return CSNegotiationFailure
+		}
+	}
+
 	if clientRequest == serverRequest {
 		switch clientRequest {
 		case CSNegotiationRequireTCP:

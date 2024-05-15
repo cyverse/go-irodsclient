@@ -31,6 +31,8 @@ type IRODSAccount struct {
 	PamTTL                  int
 	PamToken                string
 	SSLConfiguration        *IRODSSSLConfig
+	ServerNameTLS           string // Optional TLS Server Name for SNI connection and TLS verification - defaults to Host
+	SkipVerifyTLS           bool   // Skip TLS verification
 }
 
 // CreateIRODSAccount creates IRODSAccount
