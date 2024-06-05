@@ -1,7 +1,12 @@
 package types
 
 import (
+	"encoding/base64"
+	"encoding/hex"
+	"fmt"
 	"strings"
+
+	"golang.org/x/xerrors"
 )
 
 // ChecksumAlgorithm determines checksum algorithm
@@ -55,6 +60,93 @@ func GetChecksumDigestSize(checksumAlgorithm ChecksumAlgorithm) int {
 		return 128 / 8
 	default:
 		return 0
+	}
+}
+
+// ParseIRODSChecksumString parses iRODS checksum string
+func ParseIRODSChecksumString(checksumString string) (ChecksumAlgorithm, []byte, error) {
+	sp := strings.Split(checksumString, ":")
+
+	if len(sp) == 0 || len(sp) > 2 {
+		return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unexpected checksum: %v", string(checksumString))
+	}
+
+	algorithm := ""
+	checksum := ""
+
+	if len(sp) == 1 {
+		algorithm = string(ChecksumAlgorithmMD5)
+		checksum = checksumString
+	} else if len(sp) >= 2 {
+		algorithm = sp[0]
+		checksum = sp[1]
+	}
+
+	var checksumBytes []byte
+	var err error
+	if strings.HasPrefix(strings.ToLower(algorithm), "sha") {
+		// sha-x algorithms are encoded with base64
+		checksumBytes, err = base64.StdEncoding.DecodeString(checksum)
+		if err != nil {
+			return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("failed to base64 decode checksum: %v", err)
+		}
+	} else {
+		// hex encoded
+		checksumBytes, err = hex.DecodeString(checksum)
+		if err != nil {
+			return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("failed to hex decode checksum: %v", err)
+		}
+	}
+
+	if strings.ToLower(algorithm) == "sha2" {
+		// sha256 or sha512
+		if len(checksumBytes) == GetChecksumDigestSize(ChecksumAlgorithmSHA256) {
+			return ChecksumAlgorithmSHA256, checksumBytes, nil
+		} else if len(checksumBytes) == GetChecksumDigestSize(ChecksumAlgorithmSHA512) {
+			return ChecksumAlgorithmSHA512, checksumBytes, nil
+		}
+	}
+
+	checksumAlgorithm := GetChecksumAlgorithm(algorithm)
+	if checksumAlgorithm == ChecksumAlgorithmUnknown {
+		return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unknown checksum algorithm: %s len %d", algorithm, len(checksumBytes))
+	}
+
+	if len(checksumBytes) != GetChecksumDigestSize(checksumAlgorithm) {
+		return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unknown checksum algorithm: %s len %d", algorithm, len(checksumBytes))
+	}
+
+	return checksumAlgorithm, checksumBytes, nil
+}
+
+// MakeIRODSChecksumString makes iRODS checksum string
+func MakeIRODSChecksumString(algorithm ChecksumAlgorithm, checksum []byte) (string, error) {
+	if strings.HasPrefix(strings.ToLower(string(algorithm)), "sha") {
+		// sha-x algorithms are encoded with base64
+		checksumString := base64.StdEncoding.EncodeToString(checksum)
+
+		switch algorithm {
+		case ChecksumAlgorithmSHA1:
+			return fmt.Sprintf("%s:%s", "sha1", checksumString), nil
+		case ChecksumAlgorithmSHA256:
+			return fmt.Sprintf("%s:%s", "sha256", checksumString), nil
+		case ChecksumAlgorithmSHA512:
+			return fmt.Sprintf("%s:%s", "sha512", checksumString), nil
+		default:
+			return "", xerrors.Errorf("unknown algorithm %s", algorithm)
+		}
+	}
+
+	// hex encoded
+	checksumString := hex.EncodeToString(checksum)
+
+	switch algorithm {
+	case ChecksumAlgorithmADLER32:
+		return fmt.Sprintf("%s:%s", "adler32", checksumString), nil
+	case ChecksumAlgorithmMD5:
+		return fmt.Sprintf("%s:%s", "md5", checksumString), nil
+	default:
+		return "", xerrors.Errorf("unknown algorithm %s", algorithm)
 	}
 }
 

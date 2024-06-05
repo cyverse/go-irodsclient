@@ -62,7 +62,7 @@ func testChecksum(t *testing.T) {
 		callbackCalled++
 	}
 
-	err = fs.UploadDataObject(sess, filepath, irodsPath, "", false, callBack)
+	err = fs.UploadDataObject(sess, filepath, irodsPath, "", false, nil, callBack)
 	failError(t, err)
 	assert.Greater(t, callbackCalled, 10) // at least called 10 times
 

@@ -63,7 +63,7 @@ func main() {
 		panic(err)
 	}
 
-	err = filesystem.DownloadFileResumable(srcPath, "", destPath, nil)
+	err = filesystem.DownloadFileResumable(srcPath, "", destPath, false, nil)
 	if err != nil {
 		logger.Error(err)
 		panic(err)
