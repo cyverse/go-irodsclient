@@ -165,7 +165,7 @@ func (fs *FileSystem) DownloadFileParallelResumable(irodsPath string, resource s
 }
 
 // DownloadFileRedirectToResource downloads a file from resource to local in parallel
-func (fs *FileSystem) DownloadFileRedirectToResource(irodsPath string, resource string, localPath string, callback common.TrackerCallBack) error {
+func (fs *FileSystem) DownloadFileRedirectToResource(irodsPath string, resource string, localPath string, taskNum int, callback common.TrackerCallBack) error {
 	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
 	localDestPath := util.GetCorrectLocalPath(localPath)
 
@@ -195,7 +195,7 @@ func (fs *FileSystem) DownloadFileRedirectToResource(irodsPath string, resource 
 		}
 	}
 
-	return irods_fs.DownloadDataObjectFromResourceServer(fs.ioSession, irodsSrcPath, resource, localFilePath, srcStat.Size, callback)
+	return irods_fs.DownloadDataObjectFromResourceServer(fs.ioSession, irodsSrcPath, resource, localFilePath, srcStat.Size, taskNum, callback)
 }
 
 // UploadFile uploads a local file to irods
@@ -325,7 +325,7 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 }
 
 // UploadFileParallelRedirectToResource uploads a file from local to resource server in parallel
-func (fs *FileSystem) UploadFileParallelRedirectToResource(localPath string, irodsPath string, resource string, replicate bool, callback common.TrackerCallBack) error {
+func (fs *FileSystem) UploadFileParallelRedirectToResource(localPath string, irodsPath string, resource string, taskNum int, replicate bool, callback common.TrackerCallBack) error {
 	localSrcPath := util.GetCorrectLocalPath(localPath)
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
@@ -361,7 +361,7 @@ func (fs *FileSystem) UploadFileParallelRedirectToResource(localPath string, iro
 		}
 	}
 
-	err = irods_fs.UploadDataObjectToResourceServer(fs.ioSession, localSrcPath, irodsFilePath, resource, replicate, callback)
+	err = irods_fs.UploadDataObjectToResourceServer(fs.ioSession, localSrcPath, irodsFilePath, resource, taskNum, replicate, callback)
 	if err != nil {
 		return err
 	}

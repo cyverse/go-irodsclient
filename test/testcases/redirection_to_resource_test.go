@@ -82,7 +82,7 @@ func testDownloadDataObjectFromResourceServer(t *testing.T) {
 	assert.Equal(t, int64(fileSize), obj.Size)
 
 	// get
-	err = fs.DownloadDataObjectFromResourceServer(sess, irodsPath, "", filename, int64(fileSize), callBack)
+	err = fs.DownloadDataObjectFromResourceServer(sess, irodsPath, "", filename, int64(fileSize), 0, callBack)
 	failError(t, err)
 
 	checksumNew, err := util.HashLocalFile(filename, string(types.ChecksumAlgorithmSHA1))
@@ -131,7 +131,7 @@ func testUploadDataObjectFromResourceServer(t *testing.T) {
 		callbackCalled++
 	}
 
-	err = fs.UploadDataObjectToResourceServer(sess, filepath, irodsPath, "", false, callBack)
+	err = fs.UploadDataObjectToResourceServer(sess, filepath, irodsPath, "", 0, false, callBack)
 	failError(t, err)
 	assert.Greater(t, callbackCalled, 10) // at least called 10 times
 
@@ -151,7 +151,7 @@ func testUploadDataObjectFromResourceServer(t *testing.T) {
 	assert.Equal(t, int64(fileSize), obj.Size)
 
 	// get
-	err = fs.DownloadDataObjectFromResourceServer(sess, irodsPath, "", filename, int64(fileSize), callBack)
+	err = fs.DownloadDataObjectFromResourceServer(sess, irodsPath, "", filename, int64(fileSize), 0, callBack)
 	failError(t, err)
 
 	checksumNew, err := util.HashLocalFile(filename, string(types.ChecksumAlgorithmSHA1))

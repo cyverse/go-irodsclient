@@ -11,14 +11,14 @@ import (
 type IRODSMessagePutDataObjectRequest IRODSMessageDataObjectRequest
 
 // NewIRODSMessagePutDataObjectRequest creates a IRODSMessagePutDataObjectRequest message
-func NewIRODSMessagePutDataObjectRequest(path string, resource string, fileLength int64) *IRODSMessagePutDataObjectRequest {
+func NewIRODSMessagePutDataObjectRequest(path string, resource string, fileLength int64, threads int) *IRODSMessagePutDataObjectRequest {
 	request := &IRODSMessagePutDataObjectRequest{
 		Path:          path,
 		CreateMode:    0,
 		OpenFlags:     0,
 		Offset:        0,
 		Size:          fileLength,
-		Threads:       0,
+		Threads:       threads,
 		OperationType: int(common.OPER_TYPE_PUT_DATA_OBJ),
 		KeyVals: IRODSMessageSSKeyVal{
 			Length: 0,
