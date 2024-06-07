@@ -32,6 +32,11 @@ func NewIRODSMessageGetDataObjectRequest(path string, resource string, fileLengt
 	return request
 }
 
+// AddKeyVal adds a key-value pair
+func (msg *IRODSMessageGetDataObjectRequest) AddKeyVal(key common.KeyWord, val string) {
+	msg.KeyVals.Add(string(key), val)
+}
+
 // GetBytes returns byte array
 func (msg *IRODSMessageGetDataObjectRequest) GetBytes() ([]byte, error) {
 	xmlBytes, err := xml.Marshal(msg)

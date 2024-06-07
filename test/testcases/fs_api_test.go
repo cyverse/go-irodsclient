@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/fs"
 	"github.com/cyverse/go-irodsclient/irods/session"
@@ -463,7 +464,9 @@ func testCreateDeleteIRODSDataObject(t *testing.T) {
 	// create
 	newDataObjectFilename := "testobj_" + xid.New().String()
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
-	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", "w", true)
+
+	keywords := map[common.KeyWord]string{}
+	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", "w", true, keywords)
 	failError(t, err)
 
 	err = fs.CloseDataObject(conn, handle)
@@ -510,7 +513,8 @@ func testReadWriteIRODSDataObject(t *testing.T) {
 	newDataObjectFilename := "testobj_" + xid.New().String()
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
 
-	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", "w", true)
+	keywords := map[common.KeyWord]string{}
+	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", "w", true, keywords)
 	failError(t, err)
 
 	data := "Hello World"
@@ -528,7 +532,7 @@ func testReadWriteIRODSDataObject(t *testing.T) {
 	assert.NotEmpty(t, obj.ID)
 
 	// read
-	handle, _, err = fs.OpenDataObject(conn, newDataObjectPath, "", "r")
+	handle, _, err = fs.OpenDataObject(conn, newDataObjectPath, "", "r", keywords)
 	failError(t, err)
 
 	buf := make([]byte, len(data))
@@ -562,7 +566,8 @@ func testReadWriteIRODSDataObjectWithSingleConnection(t *testing.T) {
 	newDataObjectFilename := "testobj_" + xid.New().String()
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
 
-	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", "w", true)
+	keywords := map[common.KeyWord]string{}
+	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", "w", true, keywords)
 	failError(t, err)
 
 	data := "Hello World"
@@ -580,11 +585,11 @@ func testReadWriteIRODSDataObjectWithSingleConnection(t *testing.T) {
 	assert.NotEmpty(t, obj.ID)
 
 	// read 1
-	handle1, _, err := fs.OpenDataObject(conn, newDataObjectPath, "", "r")
+	handle1, _, err := fs.OpenDataObject(conn, newDataObjectPath, "", "r", keywords)
 	failError(t, err)
 
 	// read 2
-	handle2, _, err := fs.OpenDataObject(conn, newDataObjectPath, "", "r")
+	handle2, _, err := fs.OpenDataObject(conn, newDataObjectPath, "", "r", keywords)
 	failError(t, err)
 
 	buf1 := make([]byte, len(data))
@@ -633,14 +638,15 @@ func testMixedReadWriteIRODSDataObjectWithSingleConnection(t *testing.T) {
 	newSideDataObjectFilename := "testobj_" + xid.New().String()
 	newSideDataObjectPath := homedir + "/" + newSideDataObjectFilename
 
-	handleSide, err := fs.CreateDataObject(conn, newSideDataObjectPath, "", "w", true)
+	keywords := map[common.KeyWord]string{}
+	handleSide, err := fs.CreateDataObject(conn, newSideDataObjectPath, "", "w", true, keywords)
 	failError(t, err)
 
 	// create
 	newDataObjectFilename := "testobj_" + xid.New().String()
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
 
-	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", "w", true)
+	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", "w", true, keywords)
 	failError(t, err)
 
 	data := "Hello World"
@@ -658,11 +664,11 @@ func testMixedReadWriteIRODSDataObjectWithSingleConnection(t *testing.T) {
 	assert.NotEmpty(t, obj.ID)
 
 	// read 1
-	handle1, _, err := fs.OpenDataObject(conn, newDataObjectPath, "", "r")
+	handle1, _, err := fs.OpenDataObject(conn, newDataObjectPath, "", "r", keywords)
 	failError(t, err)
 
 	// read 2
-	handle2, _, err := fs.OpenDataObject(conn, newDataObjectPath, "", "r")
+	handle2, _, err := fs.OpenDataObject(conn, newDataObjectPath, "", "r", keywords)
 	failError(t, err)
 
 	// write to side file
@@ -726,7 +732,8 @@ func testTruncateIRODSDataObject(t *testing.T) {
 	newDataObjectFilename := "testobj_" + xid.New().String()
 	newDataObjectPath := homedir + "/" + newDataObjectFilename
 
-	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", "w", true)
+	keywords := map[common.KeyWord]string{}
+	handle, err := fs.CreateDataObject(conn, newDataObjectPath, "", "w", true, keywords)
 	failError(t, err)
 
 	data := "Hello World Test!!!!"
@@ -747,7 +754,7 @@ func testTruncateIRODSDataObject(t *testing.T) {
 	assert.NotEmpty(t, obj.ID)
 
 	// read
-	handle, _, err = fs.OpenDataObject(conn, newDataObjectPath, "", "r")
+	handle, _, err = fs.OpenDataObject(conn, newDataObjectPath, "", "r", keywords)
 	failError(t, err)
 
 	buf := make([]byte, len(data))
@@ -878,7 +885,8 @@ func testParallelUploadAndDownloadDataObject(t *testing.T) {
 
 	// upload
 	irodsPath := homedir + "/" + filename
-	err = fs.UploadDataObjectParallel(sess, filepath, irodsPath, "", 4, false, nil)
+
+	err = fs.UploadDataObjectParallel(sess, filepath, irodsPath, "", 4, false, nil, nil)
 	failError(t, err)
 
 	err = os.Remove(filepath)

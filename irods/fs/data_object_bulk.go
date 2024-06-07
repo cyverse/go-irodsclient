@@ -46,7 +46,7 @@ func CloseDataObjectReplica(conn *connection.IRODSConnection, handle *types.IROD
 }
 
 // UploadDataObjectFromBuffer put a data object to the iRODS path from buffer
-func UploadDataObjectFromBuffer(session *session.IRODSSession, buffer bytes.Buffer, irodsPath string, resource string, replicate bool, callback common.TrackerCallBack) error {
+func UploadDataObjectFromBuffer(session *session.IRODSSession, buffer bytes.Buffer, irodsPath string, resource string, replicate bool, keywords map[common.KeyWord]string, callback common.TrackerCallBack) error {
 	// use default resource when resource param is empty
 	if len(resource) == 0 {
 		account := session.GetAccount()
@@ -66,7 +66,7 @@ func UploadDataObjectFromBuffer(session *session.IRODSSession, buffer bytes.Buff
 	}
 
 	// open a new file
-	handle, err := OpenDataObjectWithOperation(conn, irodsPath, resource, "w+", common.OPER_TYPE_NONE)
+	handle, err := OpenDataObjectWithOperation(conn, irodsPath, resource, "w+", common.OPER_TYPE_NONE, keywords)
 	if err != nil {
 		return xerrors.Errorf("failed to open data object %s: %w", irodsPath, err)
 	}
@@ -100,7 +100,7 @@ func UploadDataObjectFromBuffer(session *session.IRODSSession, buffer bytes.Buff
 }
 
 // UploadDataObject put a data object at the local path to the iRODS path
-func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath string, resource string, replicate bool, callback common.TrackerCallBack) error {
+func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath string, resource string, replicate bool, keywords map[common.KeyWord]string, callback common.TrackerCallBack) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "fs",
 		"function": "UploadDataObject",
@@ -138,7 +138,7 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 	defer f.Close()
 
 	// open a new file
-	handle, err := OpenDataObjectWithOperation(conn, irodsPath, resource, "w+", common.OPER_TYPE_NONE)
+	handle, err := OpenDataObjectWithOperation(conn, irodsPath, resource, "w+", common.OPER_TYPE_NONE, keywords)
 	if err != nil {
 		return xerrors.Errorf("failed to open data object %s: %w", irodsPath, err)
 	}
@@ -201,7 +201,7 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 
 // UploadDataObjectParallel put a data object at the local path to the iRODS path in parallel
 // Partitions a file into n (taskNum) tasks and uploads in parallel
-func UploadDataObjectParallel(session *session.IRODSSession, localPath string, irodsPath string, resource string, taskNum int, replicate bool, callback common.TrackerCallBack) error {
+func UploadDataObjectParallel(session *session.IRODSSession, localPath string, irodsPath string, resource string, taskNum int, replicate bool, keywords map[common.KeyWord]string, callback common.TrackerCallBack) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "fs",
 		"function": "UploadDataObjectParallel",
@@ -209,7 +209,7 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 
 	if !session.SupportParallelUpload() {
 		// serial upload
-		return UploadDataObject(session, localPath, irodsPath, resource, replicate, callback)
+		return UploadDataObject(session, localPath, irodsPath, resource, replicate, keywords, callback)
 	}
 
 	// use default resource when resource param is empty
@@ -232,7 +232,7 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 
 	if numTasks == 1 {
 		// serial upload
-		return UploadDataObject(session, localPath, irodsPath, resource, replicate, callback)
+		return UploadDataObject(session, localPath, irodsPath, resource, replicate, keywords, callback)
 	}
 
 	conn, err := session.AcquireUnmanagedConnection()
@@ -248,7 +248,7 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 	logger.Debugf("upload data object in parallel %s, size(%d), threads(%d)", irodsPath, fileLength, numTasks)
 
 	// open a new file
-	handle, err := OpenDataObjectForPutParallel(conn, irodsPath, resource, "w+", common.OPER_TYPE_NONE, numTasks, fileLength)
+	handle, err := OpenDataObjectForPutParallel(conn, irodsPath, resource, "w+", common.OPER_TYPE_NONE, numTasks, fileLength, keywords)
 	if err != nil {
 		return err
 	}
@@ -287,7 +287,7 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 
 		// open the file with read-write mode
 		// to not seek to end
-		taskHandle, _, taskErr := OpenDataObjectWithReplicaToken(taskConn, irodsPath, resource, "w", replicaToken, resourceHierarchy, numTasks, fileLength)
+		taskHandle, _, taskErr := OpenDataObjectWithReplicaToken(taskConn, irodsPath, resource, "w", replicaToken, resourceHierarchy, numTasks, fileLength, keywords)
 		if taskErr != nil {
 			errChan <- taskErr
 			return
@@ -396,7 +396,7 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 }
 
 // DownloadDataObjectToBuffer downloads a data object at the iRODS path to buffer
-func DownloadDataObjectToBuffer(session *session.IRODSSession, irodsPath string, resource string, buffer bytes.Buffer, dataObjectLength int64, callback common.TrackerCallBack) error {
+func DownloadDataObjectToBuffer(session *session.IRODSSession, irodsPath string, resource string, buffer bytes.Buffer, dataObjectLength int64, keywords map[common.KeyWord]string, callback common.TrackerCallBack) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "fs",
 		"function": "DownloadDataObject",
@@ -420,7 +420,7 @@ func DownloadDataObjectToBuffer(session *session.IRODSSession, irodsPath string,
 		return xerrors.Errorf("connection is nil or disconnected")
 	}
 
-	handle, _, err := OpenDataObject(conn, irodsPath, resource, "r")
+	handle, _, err := OpenDataObject(conn, irodsPath, resource, "r", keywords)
 	if err != nil {
 		return xerrors.Errorf("failed to open data object %s: %w", irodsPath, err)
 	}
@@ -445,7 +445,7 @@ func DownloadDataObjectToBuffer(session *session.IRODSSession, irodsPath string,
 	for {
 		bytesRead, readErr := ReadDataObjectWithTrackerCallBack(conn, handle, buffer2, blockReadCallback)
 		if bytesRead > 0 {
-			_, writeErr := buffer.Write(buffer2[:bytesRead])
+			_, writeErr = buffer.Write(buffer2[:bytesRead])
 			if writeErr != nil {
 				break
 			}
@@ -473,7 +473,7 @@ func DownloadDataObjectToBuffer(session *session.IRODSSession, irodsPath string,
 }
 
 // DownloadDataObject downloads a data object at the iRODS path to the local path
-func DownloadDataObject(session *session.IRODSSession, irodsPath string, resource string, localPath string, fileLength int64, callback common.TrackerCallBack) error {
+func DownloadDataObject(session *session.IRODSSession, irodsPath string, resource string, localPath string, fileLength int64, keywords map[common.KeyWord]string, callback common.TrackerCallBack) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "fs",
 		"function": "DownloadDataObject",
@@ -497,7 +497,7 @@ func DownloadDataObject(session *session.IRODSSession, irodsPath string, resourc
 		return xerrors.Errorf("connection is nil or disconnected")
 	}
 
-	handle, _, err := OpenDataObject(conn, irodsPath, resource, "r")
+	handle, _, err := OpenDataObject(conn, irodsPath, resource, "r", keywords)
 	if err != nil {
 		return xerrors.Errorf("failed to open data object %s: %w", irodsPath, err)
 	}
@@ -556,7 +556,7 @@ func DownloadDataObject(session *session.IRODSSession, irodsPath string, resourc
 }
 
 // DownloadDataObjectResumable downloads a data object at the iRODS path to the local path with support of transfer resume
-func DownloadDataObjectResumable(session *session.IRODSSession, irodsPath string, resource string, localPath string, fileLength int64, callback common.TrackerCallBack) error {
+func DownloadDataObjectResumable(session *session.IRODSSession, irodsPath string, resource string, localPath string, fileLength int64, keywords map[common.KeyWord]string, callback common.TrackerCallBack) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "fs",
 		"function": "DownloadDataObjectResumable",
@@ -599,7 +599,7 @@ func DownloadDataObjectResumable(session *session.IRODSSession, irodsPath string
 		return xerrors.Errorf("connection is nil or disconnected")
 	}
 
-	handle, _, err := OpenDataObject(conn, irodsPath, resource, "r")
+	handle, _, err := OpenDataObject(conn, irodsPath, resource, "r", keywords)
 	if err != nil {
 		transferStatusLocal.CloseStatusFile()
 		return xerrors.Errorf("failed to open data object %s: %w", irodsPath, err)
@@ -707,7 +707,7 @@ func DownloadDataObjectResumable(session *session.IRODSSession, irodsPath string
 
 // DownloadDataObjectParallel downloads a data object at the iRODS path to the local path in parallel
 // Partitions a file into n (taskNum) tasks and downloads in parallel
-func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string, resource string, localPath string, fileLength int64, taskNum int, callback common.TrackerCallBack) error {
+func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string, resource string, localPath string, fileLength int64, taskNum int, keywords map[common.KeyWord]string, callback common.TrackerCallBack) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "fs",
 		"function": "DownloadDataObjectParallel",
@@ -730,7 +730,7 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 
 	if numTasks == 1 {
 		// serial download
-		return DownloadDataObject(session, irodsPath, resource, localPath, fileLength, callback)
+		return DownloadDataObject(session, irodsPath, resource, localPath, fileLength, keywords, callback)
 	}
 
 	logger.Debugf("download data object in parallel %s, size(%d), threads(%d)", irodsPath, fileLength, numTasks)
@@ -772,7 +772,7 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 			return
 		}
 
-		taskHandle, _, taskErr := OpenDataObject(taskConn, irodsPath, resource, "r")
+		taskHandle, _, taskErr := OpenDataObject(taskConn, irodsPath, resource, "r", keywords)
 		if taskErr != nil {
 			errChan <- taskErr
 			return
@@ -877,7 +877,7 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 
 // DownloadDataObjectParallelResumable downloads a data object at the iRODS path to the local path in parallel with support of transfer resume
 // Partitions a file into n (taskNum) tasks and downloads in parallel
-func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPath string, resource string, localPath string, fileLength int64, taskNum int, callback common.TrackerCallBack) error {
+func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPath string, resource string, localPath string, fileLength int64, taskNum int, keywords map[common.KeyWord]string, callback common.TrackerCallBack) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "fs",
 		"function": "DownloadDataObjectParallelResumable",
@@ -900,7 +900,7 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 
 	if numTasks == 1 {
 		// serial download
-		return DownloadDataObjectResumable(session, irodsPath, resource, localPath, fileLength, callback)
+		return DownloadDataObjectResumable(session, irodsPath, resource, localPath, fileLength, keywords, callback)
 	}
 
 	logger.Debugf("downloading data object in parallel %s, size(%d)", irodsPath, fileLength)
@@ -918,7 +918,7 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 
 	if numTasks == 1 {
 		// serial download
-		return DownloadDataObjectResumable(session, irodsPath, resource, localPath, fileLength, callback)
+		return DownloadDataObjectResumable(session, irodsPath, resource, localPath, fileLength, keywords, callback)
 	}
 
 	err = transferStatusLocal.CreateStatusFile()
@@ -969,7 +969,7 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 			return
 		}
 
-		taskHandle, _, taskErr := OpenDataObject(taskConn, irodsPath, resource, "r")
+		taskHandle, _, taskErr := OpenDataObject(taskConn, irodsPath, resource, "r", keywords)
 		if taskErr != nil {
 			errChan <- taskErr
 			return
@@ -1051,7 +1051,7 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 
 			bytesRead, taskReadErr := ReadDataObjectWithTrackerCallBack(taskConn, taskHandle, buffer[:bufferLen], blockReadCallback)
 			if bytesRead > 0 {
-				_, taskWriteErr := f.WriteAt(buffer[:bytesRead], taskOffset+(taskLength-taskRemain))
+				_, taskWriteErr = f.WriteAt(buffer[:bytesRead], taskOffset+(taskLength-taskRemain))
 				if taskWriteErr != nil {
 					break
 				}

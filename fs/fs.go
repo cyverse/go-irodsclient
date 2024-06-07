@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	irods_fs "github.com/cyverse/go-irodsclient/irods/fs"
 	"github.com/cyverse/go-irodsclient/irods/metrics"
@@ -771,7 +772,8 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 		return nil, err
 	}
 
-	handle, offset, err := irods_fs.OpenDataObject(conn, irodsPath, resource, mode)
+	keywords := map[common.KeyWord]string{}
+	handle, offset, err := irods_fs.OpenDataObject(conn, irodsPath, resource, mode, keywords)
 	if err != nil {
 		fs.ioSession.ReturnConnection(conn)
 		return nil, err
@@ -828,7 +830,8 @@ func (fs *FileSystem) CreateFile(path string, resource string, mode string) (*Fi
 	}
 
 	// create
-	handle, err := irods_fs.CreateDataObject(conn, irodsPath, resource, mode, true)
+	keywords := map[common.KeyWord]string{}
+	handle, err := irods_fs.CreateDataObject(conn, irodsPath, resource, mode, true, keywords)
 	if err != nil {
 		fs.ioSession.ReturnConnection(conn)
 		return nil, err
@@ -848,7 +851,7 @@ func (fs *FileSystem) CreateFile(path string, resource string, mode string) (*Fi
 	}
 
 	// re-open
-	handle, offset, err := irods_fs.OpenDataObject(conn, irodsPath, resource, mode)
+	handle, offset, err := irods_fs.OpenDataObject(conn, irodsPath, resource, mode, keywords)
 	if err != nil {
 		fs.ioSession.ReturnConnection(conn)
 		return nil, err

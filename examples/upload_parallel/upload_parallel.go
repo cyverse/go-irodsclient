@@ -63,7 +63,7 @@ func main() {
 		panic(err)
 	}
 
-	err = filesystem.UploadFileParallel(srcPath, destPath, "", 0, false, nil)
+	err = filesystem.UploadFileParallel(srcPath, destPath, "", 0, false, false, false, nil)
 	if err != nil {
 		logger.Error(err)
 		panic(err)

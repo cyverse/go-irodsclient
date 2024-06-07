@@ -1354,7 +1354,7 @@ func TrimDataObject(conn *connection.IRODSConnection, path string, resource stri
 }
 
 // CreateDataObject creates a data object for the path, returns a file handle
-func CreateDataObject(conn *connection.IRODSConnection, path string, resource string, mode string, force bool) (*types.IRODSFileHandle, error) {
+func CreateDataObject(conn *connection.IRODSConnection, path string, resource string, mode string, force bool, keywords map[common.KeyWord]string) (*types.IRODSFileHandle, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
@@ -1378,6 +1378,11 @@ func CreateDataObject(conn *connection.IRODSConnection, path string, resource st
 
 	request := message.NewIRODSMessageCreateDataObjectRequest(path, resource, fileOpenMode, force)
 	response := message.IRODSMessageCreateDataObjectResponse{}
+
+	for k, v := range keywords {
+		request.AddKeyVal(k, v)
+	}
+
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to create data object: %w", err)
@@ -1393,7 +1398,7 @@ func CreateDataObject(conn *connection.IRODSConnection, path string, resource st
 }
 
 // OpenDataObject opens a data object for the path, returns a file handle
-func OpenDataObject(conn *connection.IRODSConnection, path string, resource string, mode string) (*types.IRODSFileHandle, int64, error) {
+func OpenDataObject(conn *connection.IRODSConnection, path string, resource string, mode string, keywords map[common.KeyWord]string) (*types.IRODSFileHandle, int64, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, -1, xerrors.Errorf("connection is nil or disconnected")
 	}
@@ -1417,6 +1422,11 @@ func OpenDataObject(conn *connection.IRODSConnection, path string, resource stri
 
 	request := message.NewIRODSMessageOpenDataObjectRequest(path, resource, fileOpenMode)
 	response := message.IRODSMessageOpenDataObjectResponse{}
+
+	for k, v := range keywords {
+		request.AddKeyVal(k, v)
+	}
+
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
@@ -1450,7 +1460,7 @@ func OpenDataObject(conn *connection.IRODSConnection, path string, resource stri
 }
 
 // OpenDataObjectWithReplicaToken opens a data object for the path, returns a file handle
-func OpenDataObjectWithReplicaToken(conn *connection.IRODSConnection, path string, resource string, mode string, replicaToken string, resourceHierarchy string, threadNum int, dataSize int64) (*types.IRODSFileHandle, int64, error) {
+func OpenDataObjectWithReplicaToken(conn *connection.IRODSConnection, path string, resource string, mode string, replicaToken string, resourceHierarchy string, threadNum int, dataSize int64, keywords map[common.KeyWord]string) (*types.IRODSFileHandle, int64, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, -1, xerrors.Errorf("connection is nil or disconnected")
 	}
@@ -1473,8 +1483,12 @@ func OpenDataObjectWithReplicaToken(conn *connection.IRODSConnection, path strin
 	fileOpenMode := types.FileOpenMode(mode)
 
 	request := message.NewIRODSMessageOpenobjRequestWithReplicaToken(path, fileOpenMode, resourceHierarchy, replicaToken, threadNum, dataSize)
-
 	response := message.IRODSMessageOpenDataObjectResponse{}
+
+	for k, v := range keywords {
+		request.AddKeyVal(k, v)
+	}
+
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
@@ -1508,7 +1522,7 @@ func OpenDataObjectWithReplicaToken(conn *connection.IRODSConnection, path strin
 }
 
 // OpenDataObjectWithOperation opens a data object for the path, returns a file handle
-func OpenDataObjectWithOperation(conn *connection.IRODSConnection, path string, resource string, mode string, oper common.OperationType) (*types.IRODSFileHandle, error) {
+func OpenDataObjectWithOperation(conn *connection.IRODSConnection, path string, resource string, mode string, oper common.OperationType, keywords map[common.KeyWord]string) (*types.IRODSFileHandle, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
@@ -1532,6 +1546,11 @@ func OpenDataObjectWithOperation(conn *connection.IRODSConnection, path string, 
 
 	request := message.NewIRODSMessageOpenobjRequestWithOperation(path, resource, fileOpenMode, oper)
 	response := message.IRODSMessageOpenDataObjectResponse{}
+
+	for k, v := range keywords {
+		request.AddKeyVal(k, v)
+	}
+
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
@@ -1564,7 +1583,7 @@ func OpenDataObjectWithOperation(conn *connection.IRODSConnection, path string, 
 }
 
 // OpenDataObjectForPutParallel opens a data object for the path, returns a file handle
-func OpenDataObjectForPutParallel(conn *connection.IRODSConnection, path string, resource string, mode string, oper common.OperationType, threadNum int, dataSize int64) (*types.IRODSFileHandle, error) {
+func OpenDataObjectForPutParallel(conn *connection.IRODSConnection, path string, resource string, mode string, oper common.OperationType, threadNum int, dataSize int64, keywords map[common.KeyWord]string) (*types.IRODSFileHandle, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
@@ -1588,6 +1607,11 @@ func OpenDataObjectForPutParallel(conn *connection.IRODSConnection, path string,
 
 	request := message.NewIRODSMessageOpenobjRequestForPutParallel(path, resource, fileOpenMode, oper, threadNum, dataSize)
 	response := message.IRODSMessageOpenDataObjectResponse{}
+
+	for k, v := range keywords {
+		request.AddKeyVal(k, v)
+	}
+
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
