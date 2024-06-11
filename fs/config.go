@@ -2,8 +2,6 @@ package fs
 
 import (
 	"time"
-
-	"github.com/cyverse/go-irodsclient/irods/types"
 )
 
 const (
@@ -23,8 +21,6 @@ const (
 	FileSystemTimeoutDefault = 5 * time.Minute
 	// FileSystemTCPBufferSizeDefault is a default value of tcp buffer size
 	FileSystemTCPBufferSizeDefault = 4 * 1024 * 1024
-	// FileSystemChecksumAlgorithmDefault is a default value of checksum algorithm
-	FileSystemChecksumAlgorithmDefault = string(types.ChecksumAlgorithmMD5)
 )
 
 // FileSystemConfig is a struct for file system configuration
@@ -47,11 +43,10 @@ type FileSystemConfig struct {
 	// at subdir/file creation/deletion
 	// turn to false to allow short cache inconsistency
 	InvalidateParentEntryCacheImmediately bool
-	ChecksumAlgorithm                     string
 }
 
 // NewFileSystemConfig create a FileSystemConfig
-func NewFileSystemConfig(applicationName string, connectionErrorTimeout time.Duration, connectionInitNumber int, connectionLifespan time.Duration, operationTimeout time.Duration, connectionIdleTimeout time.Duration, connectionMax int, tcpBufferSize int, cacheTimeout time.Duration, cacheCleanupTime time.Duration, cacheTimeoutSettings []MetadataCacheTimeoutSetting, startNewTransaction bool, invalidateParentEntryCacheImmediately bool, checksumAlgorithm string) *FileSystemConfig {
+func NewFileSystemConfig(applicationName string, connectionErrorTimeout time.Duration, connectionInitNumber int, connectionLifespan time.Duration, operationTimeout time.Duration, connectionIdleTimeout time.Duration, connectionMax int, tcpBufferSize int, cacheTimeout time.Duration, cacheCleanupTime time.Duration, cacheTimeoutSettings []MetadataCacheTimeoutSetting, startNewTransaction bool, invalidateParentEntryCacheImmediately bool) *FileSystemConfig {
 	connMax := connectionMax
 	if connMax < FileSystemConnectionMaxMin {
 		connMax = FileSystemConnectionMaxMin
@@ -71,7 +66,6 @@ func NewFileSystemConfig(applicationName string, connectionErrorTimeout time.Dur
 		CacheTimeoutSettings:                  cacheTimeoutSettings,
 		StartNewTransaction:                   startNewTransaction,
 		InvalidateParentEntryCacheImmediately: invalidateParentEntryCacheImmediately,
-		ChecksumAlgorithm:                     checksumAlgorithm,
 	}
 }
 
@@ -91,6 +85,5 @@ func NewFileSystemConfigWithDefault(applicationName string) *FileSystemConfig {
 		CacheCleanupTime:                      FileSystemTimeoutDefault,
 		StartNewTransaction:                   true,
 		InvalidateParentEntryCacheImmediately: true,
-		ChecksumAlgorithm:                     FileSystemChecksumAlgorithmDefault,
 	}
 }

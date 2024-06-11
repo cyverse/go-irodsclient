@@ -622,7 +622,7 @@ func (fs *FileSystem) UploadFileParallelRedirectToResource(localPath string, iro
 
 // calculateLocalFileHash calculates local file hash
 func (fs *FileSystem) calculateLocalFileHash(localPath string) (string, error) {
-	checksumAlg := types.GetChecksumAlgorithm(fs.config.ChecksumAlgorithm)
+	checksumAlg := types.GetChecksumAlgorithm(fs.account.DefaultHashScheme)
 	if checksumAlg == types.ChecksumAlgorithmUnknown {
 		checksumAlg = defaultChecksumAlgorithm
 	}
@@ -638,7 +638,7 @@ func (fs *FileSystem) calculateLocalFileHash(localPath string) (string, error) {
 
 // calculateBufferHash calculates buffer hash
 func (fs *FileSystem) calculateBufferHash(buffer bytes.Buffer) (string, error) {
-	checksumAlg := types.GetChecksumAlgorithm(fs.config.ChecksumAlgorithm)
+	checksumAlg := types.GetChecksumAlgorithm(fs.account.DefaultHashScheme)
 	if checksumAlg == types.ChecksumAlgorithmUnknown {
 		checksumAlg = defaultChecksumAlgorithm
 	}
