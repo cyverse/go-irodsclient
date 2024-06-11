@@ -12,6 +12,7 @@ const (
 	// PamTTLDefault is a default value for Pam TTL
 	PamTTLDefault       int    = 1
 	UsernameRegexString string = "^((\\w|[-.@])+)$"
+	HashSchemeDefault   string = "SHA256"
 )
 
 // IRODSAccount contains irods login information
@@ -28,6 +29,7 @@ type IRODSAccount struct {
 	Password                string
 	Ticket                  string
 	DefaultResource         string
+	DefaultHashScheme       string
 	PamTTL                  int
 	PamToken                string
 	SSLConfiguration        *IRODSSSLConfig
@@ -51,6 +53,7 @@ func CreateIRODSAccount(host string, port int, user string, zone string,
 		Password:                password,
 		Ticket:                  "",
 		DefaultResource:         defaultResource,
+		DefaultHashScheme:       HashSchemeDefault,
 		PamTTL:                  PamTTLDefault,
 		PamToken:                "",
 		SSLConfiguration:        nil,
@@ -77,6 +80,7 @@ func CreateIRODSAccountForTicket(host string, port int, user string, zone string
 		Password:                password,
 		Ticket:                  ticket,
 		DefaultResource:         defaultResource,
+		DefaultHashScheme:       HashSchemeDefault,
 		PamTTL:                  PamTTLDefault,
 		PamToken:                "",
 		SSLConfiguration:        nil,
@@ -104,6 +108,7 @@ func CreateIRODSProxyAccount(host string, port int, clientUser string, clientZon
 		Password:                password,
 		Ticket:                  "",
 		DefaultResource:         defaultResource,
+		DefaultHashScheme:       HashSchemeDefault,
 		PamTTL:                  PamTTLDefault,
 		PamToken:                "",
 		SSLConfiguration:        nil,
@@ -162,6 +167,11 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 	defaultResource := ""
 	if val, ok := y["default_resource"]; ok {
 		defaultResource = val.(string)
+	}
+
+	defaultHashScheme := ""
+	if val, ok := y["default_hash_scheme"]; ok {
+		defaultHashScheme = val.(string)
 	}
 
 	// proxy user
@@ -310,6 +320,7 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 		Password:                proxyPassword,
 		Ticket:                  ticket,
 		DefaultResource:         defaultResource,
+		DefaultHashScheme:       defaultHashScheme,
 		PamTTL:                  pamTTL,
 		PamToken:                pamToken,
 		SSLConfiguration:        irodsSSLConfig,

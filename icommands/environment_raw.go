@@ -61,6 +61,7 @@ func getDefaultICommandsEnvironment() *ICommandsEnvironment {
 		AuthenticationScheme:    "native",
 		ClientServerNegotiation: "", // don't perform negotiation
 		ClientServerPolicy:      string(types.CSNegotiationRequireTCP),
+		DefaultHashScheme:       "SHA256",
 		EncryptionKeySize:       32,
 		EncryptionAlgorithm:     "AES-256-CBC",
 		EncryptionSaltSize:      8,
@@ -102,6 +103,7 @@ func (env *ICommandsEnvironment) ToIRODSAccount() *types.IRODSAccount {
 		ProxyZone:               env.Zone,
 		Password:                "",
 		DefaultResource:         env.DefaultResource,
+		DefaultHashScheme:       env.DefaultHashScheme,
 		PamTTL:                  types.PamTTLDefault,
 		PamToken:                "",
 		SSLConfiguration: &types.IRODSSSLConfig{

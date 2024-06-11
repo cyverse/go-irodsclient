@@ -82,6 +82,7 @@ func CreateIcommandsEnvironmentManagerFromIRODSAccount(account *types.IRODSAccou
 		Username:                username,
 		Zone:                    zone,
 		DefaultResource:         account.DefaultResource,
+		DefaultHashScheme:       account.DefaultHashScheme,
 	}
 
 	if account.SSLConfiguration != nil {
