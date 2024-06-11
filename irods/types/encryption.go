@@ -144,7 +144,7 @@ func MakeIRODSChecksumString(algorithm ChecksumAlgorithm, checksum []byte) (stri
 	case ChecksumAlgorithmADLER32:
 		return fmt.Sprintf("%s:%s", "adler32", checksumString), nil
 	case ChecksumAlgorithmMD5:
-		return fmt.Sprintf("%s:%s", "md5", checksumString), nil
+		return checksumString, nil
 	default:
 		return "", xerrors.Errorf("unknown algorithm %s", algorithm)
 	}
