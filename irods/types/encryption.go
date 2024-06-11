@@ -99,10 +99,14 @@ func ParseIRODSChecksumString(checksumString string) (ChecksumAlgorithm, []byte,
 	}
 
 	if strings.ToLower(algorithm) == "sha2" {
-		// sha256 or sha512
+		// sha256
 		if len(checksumBytes) == GetChecksumDigestSize(ChecksumAlgorithmSHA256) {
 			return ChecksumAlgorithmSHA256, checksumBytes, nil
 		} else if len(checksumBytes) == GetChecksumDigestSize(ChecksumAlgorithmSHA512) {
+			return ChecksumAlgorithmSHA512, checksumBytes, nil
+		}
+	} else if strings.ToLower(algorithm) == "sha512" {
+		if len(checksumBytes) == GetChecksumDigestSize(ChecksumAlgorithmSHA512) {
 			return ChecksumAlgorithmSHA512, checksumBytes, nil
 		}
 	}
@@ -129,7 +133,7 @@ func MakeIRODSChecksumString(algorithm ChecksumAlgorithm, checksum []byte) (stri
 		case ChecksumAlgorithmSHA1:
 			return fmt.Sprintf("%s:%s", "sha1", checksumString), nil
 		case ChecksumAlgorithmSHA256:
-			return fmt.Sprintf("%s:%s", "sha256", checksumString), nil
+			return fmt.Sprintf("%s:%s", "sha2", checksumString), nil
 		case ChecksumAlgorithmSHA512:
 			return fmt.Sprintf("%s:%s", "sha512", checksumString), nil
 		default:
