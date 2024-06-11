@@ -684,7 +684,7 @@ func UploadDataObjectToResourceServer(session *session.IRODSSession, localPath s
 		resource = account.DefaultResource
 	}
 
-	stat, err := os.Stat(localPath)
+	stat, err := os.Lstat(localPath)
 	if err != nil {
 		return xerrors.Errorf("failed to stat file %s: %w", localPath, err)
 	}

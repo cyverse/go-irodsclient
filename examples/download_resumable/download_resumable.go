@@ -69,7 +69,7 @@ func main() {
 		panic(err)
 	}
 
-	fsinfo, err := os.Stat(destPath)
+	fsinfo, err := os.Lstat(destPath)
 	if err != nil {
 		logger.Error(err)
 		panic(err)
@@ -80,7 +80,7 @@ func main() {
 		srcFileName := util.GetIRODSPathFileName(srcPath)
 		destFilePath := util.MakeIRODSPath(destPath, srcFileName)
 
-		fsinfo2, err := os.Stat(destFilePath)
+		fsinfo2, err := os.Lstat(destFilePath)
 		if err != nil {
 			logger.Error(err)
 			panic(err)
