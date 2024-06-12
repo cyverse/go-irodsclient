@@ -32,7 +32,7 @@ func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath 
 		return xerrors.Errorf("cannot download a collection %s", irodsSrcPath)
 	}
 
-	destStat, err := os.Lstat(localDestPath)
+	destStat, err := os.Stat(localDestPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// file not exists, it's a file
@@ -95,7 +95,7 @@ func (fs *FileSystem) DownloadFileResumable(irodsPath string, resource string, l
 		return xerrors.Errorf("cannot download a collection %s", irodsSrcPath)
 	}
 
-	destStat, err := os.Lstat(localDestPath)
+	destStat, err := os.Stat(localDestPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// file not exists, it's a file
@@ -203,7 +203,7 @@ func (fs *FileSystem) DownloadFileParallel(irodsPath string, resource string, lo
 		return xerrors.Errorf("cannot download a collection %s", irodsSrcPath)
 	}
 
-	destStat, err := os.Lstat(localDestPath)
+	destStat, err := os.Stat(localDestPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// file not exists, it's a file
@@ -266,7 +266,7 @@ func (fs *FileSystem) DownloadFileParallelResumable(irodsPath string, resource s
 		return xerrors.Errorf("cannot download a collection %s", irodsSrcPath)
 	}
 
-	destStat, err := os.Lstat(localDestPath)
+	destStat, err := os.Stat(localDestPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// file not exists, it's a file
@@ -329,7 +329,7 @@ func (fs *FileSystem) DownloadFileRedirectToResource(irodsPath string, resource 
 		return xerrors.Errorf("cannot download a collection %s", irodsSrcPath)
 	}
 
-	destStat, err := os.Lstat(localDestPath)
+	destStat, err := os.Stat(localDestPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// file not exists, it's a file
@@ -390,7 +390,7 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 
 	irodsFilePath := irodsDestPath
 
-	stat, err := os.Lstat(localSrcPath)
+	stat, err := os.Stat(localSrcPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// file not exists
@@ -501,7 +501,7 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 
 	irodsFilePath := irodsDestPath
 
-	srcStat, err := os.Lstat(localSrcPath)
+	srcStat, err := os.Stat(localSrcPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// file not exists
@@ -564,7 +564,7 @@ func (fs *FileSystem) UploadFileParallelRedirectToResource(localPath string, iro
 
 	irodsFilePath := irodsDestPath
 
-	srcStat, err := os.Lstat(localSrcPath)
+	srcStat, err := os.Stat(localSrcPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// file not exists

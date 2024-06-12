@@ -89,7 +89,7 @@ func ExpandHomeDir(path string) (string, error) {
 }
 
 func ExistFile(path string) bool {
-	st, err := os.Lstat(path)
+	st, err := os.Stat(path)
 	if err != nil {
 		return false
 	}

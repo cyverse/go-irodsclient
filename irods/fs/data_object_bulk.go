@@ -112,7 +112,7 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 		resource = account.DefaultResource
 	}
 
-	stat, err := os.Lstat(localPath)
+	stat, err := os.Stat(localPath)
 	if err != nil {
 		return xerrors.Errorf("failed to stat file %s: %w", localPath, err)
 	}
@@ -218,7 +218,7 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 		resource = account.DefaultResource
 	}
 
-	stat, err := os.Lstat(localPath)
+	stat, err := os.Stat(localPath)
 	if err != nil {
 		return xerrors.Errorf("failed to stat file %s: %w", localPath, err)
 	}

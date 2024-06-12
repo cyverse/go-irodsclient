@@ -204,7 +204,7 @@ func (status *DataObjectTransferStatusLocal) WriteStatus(entry *DataObjectTransf
 func GetDataObjectTransferStatusLocal(localPath string) (*DataObjectTransferStatusLocal, error) {
 	statusFilePath := GetDataObjectTransferStatusFilePath(localPath)
 
-	_, err := os.Lstat(statusFilePath)
+	_, err := os.Stat(statusFilePath)
 	if err != nil {
 		return nil, err
 	}
