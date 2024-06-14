@@ -18,8 +18,7 @@ type IRODSSSLConfig struct {
 }
 
 // CreateIRODSSSLConfig creates IRODSSSLConfig
-func CreateIRODSSSLConfig(caCertFile string, caCertPath string, keySize int, algorithm string, saltSize int,
-	hashRounds int) (*IRODSSSLConfig, error) {
+func CreateIRODSSSLConfig(caCertFile string, caCertPath string, keySize int, algorithm string, saltSize int, hashRounds int) (*IRODSSSLConfig, error) {
 	return &IRODSSSLConfig{
 		CACertificateFile:   caCertFile,
 		CACertificatePath:   caCertPath,
@@ -32,7 +31,6 @@ func CreateIRODSSSLConfig(caCertFile string, caCertPath string, keySize int, alg
 
 // LoadCACert loads CA Cert
 func (config *IRODSSSLConfig) LoadCACert() (*x509.CertPool, error) {
-
 	certConfig := &rootcerts.Config{
 		CAFile: config.CACertificateFile,
 		CAPath: config.CACertificatePath,

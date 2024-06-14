@@ -73,6 +73,11 @@ func CreateIcommandsEnvironmentManagerFromIRODSAccount(account *types.IRODSAccou
 		zone = account.ProxyZone
 	}
 
+	sslVerifyServer := ""
+	if account.SkipVerifyTLS {
+		sslVerifyServer = "none"
+	}
+
 	manager.Environment = &ICommandsEnvironment{
 		AuthenticationScheme:    string(account.AuthenticationScheme),
 		ClientServerNegotiation: csNegotiation,
@@ -83,6 +88,7 @@ func CreateIcommandsEnvironmentManagerFromIRODSAccount(account *types.IRODSAccou
 		Zone:                    zone,
 		DefaultResource:         account.DefaultResource,
 		DefaultHashScheme:       account.DefaultHashScheme,
+		SSLVerifyServer:         sslVerifyServer,
 	}
 
 	if account.SSLConfiguration != nil {

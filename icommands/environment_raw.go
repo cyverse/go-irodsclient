@@ -66,6 +66,7 @@ func getDefaultICommandsEnvironment() *ICommandsEnvironment {
 		EncryptionAlgorithm:     "AES-256-CBC",
 		EncryptionSaltSize:      8,
 		EncryptionNumHashRounds: 16,
+		SSLVerifyServer:         "hostname",
 	}
 }
 
@@ -91,6 +92,11 @@ func (env *ICommandsEnvironment) ToIRODSAccount() *types.IRODSAccount {
 		negotiationRequired = true
 	}
 
+	skipVerifyTLS := false
+	if strings.ToLower(env.SSLVerifyServer) == "none" {
+		skipVerifyTLS = true
+	}
+
 	account := &types.IRODSAccount{
 		AuthenticationScheme:    authScheme,
 		ClientServerNegotiation: negotiationRequired,
@@ -114,6 +120,8 @@ func (env *ICommandsEnvironment) ToIRODSAccount() *types.IRODSAccount {
 			SaltSize:            env.EncryptionSaltSize,
 			HashRounds:          env.EncryptionNumHashRounds,
 		},
+		ServerNameTLS: "",
+		SkipVerifyTLS: skipVerifyTLS,
 	}
 
 	account.FixAuthConfiguration()

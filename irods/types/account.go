@@ -57,6 +57,8 @@ func CreateIRODSAccount(host string, port int, user string, zone string,
 		PamTTL:                  PamTTLDefault,
 		PamToken:                "",
 		SSLConfiguration:        nil,
+		ServerNameTLS:           "",
+		SkipVerifyTLS:           false,
 	}
 
 	account.FixAuthConfiguration()
@@ -84,6 +86,8 @@ func CreateIRODSAccountForTicket(host string, port int, user string, zone string
 		PamTTL:                  PamTTLDefault,
 		PamToken:                "",
 		SSLConfiguration:        nil,
+		ServerNameTLS:           "",
+		SkipVerifyTLS:           false,
 	}
 
 	account.FixAuthConfiguration()
@@ -112,6 +116,8 @@ func CreateIRODSProxyAccount(host string, port int, clientUser string, clientZon
 		PamTTL:                  PamTTLDefault,
 		PamToken:                "",
 		SSLConfiguration:        nil,
+		ServerNameTLS:           "",
+		SkipVerifyTLS:           false,
 	}
 
 	account.FixAuthConfiguration()
@@ -307,6 +313,16 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 		}
 	}
 
+	serverNameTLS := ""
+	if val, ok := sslConfig["server_name_tls"]; ok {
+		serverNameTLS = val.(string)
+	}
+
+	skipVerifyTLS := false
+	if val, ok := sslConfig["skip_verify_tls"]; ok {
+		skipVerifyTLS = val.(bool)
+	}
+
 	account := &IRODSAccount{
 		AuthenticationScheme:    authScheme,
 		ClientServerNegotiation: csNegotiation,
@@ -324,6 +340,8 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 		PamTTL:                  pamTTL,
 		PamToken:                pamToken,
 		SSLConfiguration:        irodsSSLConfig,
+		ServerNameTLS:           serverNameTLS,
+		SkipVerifyTLS:           skipVerifyTLS,
 	}
 
 	account.FixAuthConfiguration()
