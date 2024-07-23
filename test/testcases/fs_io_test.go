@@ -51,14 +51,14 @@ func testUpDownMBFiles(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		start := time.Now()
-		err = filesystem.UploadFile(localPath, iRODSPath, "", false, true, true, nil)
+		_, err = filesystem.UploadFile(localPath, iRODSPath, "", false, true, true, nil)
 		duration := time.Since(start)
 
 		t.Logf("upload a file in size %d took time - %v", fileSize, duration)
 		failError(t, err)
 
 		start = time.Now()
-		err = filesystem.DownloadFile(iRODSPath, "", localDownloadPath, true, nil)
+		_, err = filesystem.DownloadFile(iRODSPath, "", localDownloadPath, true, nil)
 		duration = time.Since(start)
 
 		t.Logf("download a file in size %d took time - %v", fileSize, duration)
@@ -99,14 +99,14 @@ func testUpDownMBFilesParallel(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		start := time.Now()
-		err = filesystem.UploadFileParallel(localPath, iRODSPath, "", 0, false, true, true, nil)
+		_, err = filesystem.UploadFileParallel(localPath, iRODSPath, "", 0, false, true, true, nil)
 		duration := time.Since(start)
 
 		t.Logf("upload a file in size %d took time - %v", fileSize, duration)
 		failError(t, err)
 
 		start = time.Now()
-		err = filesystem.DownloadFileParallel(iRODSPath, "", localDownloadPath, 0, true, nil)
+		_, err = filesystem.DownloadFileParallel(iRODSPath, "", localDownloadPath, 0, true, nil)
 		duration = time.Since(start)
 
 		t.Logf("download a file in size %d took time - %v", fileSize, duration)
@@ -147,14 +147,14 @@ func testUpDownMBFilesParallelRedirectToResource(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		start := time.Now()
-		err = filesystem.UploadFileParallelRedirectToResource(localPath, iRODSPath, "", 0, false, true, true, nil)
+		_, err = filesystem.UploadFileParallelRedirectToResource(localPath, iRODSPath, "", 0, false, true, true, nil)
 		duration := time.Since(start)
 
 		t.Logf("upload a file in size %d took time - %v", fileSize, duration)
 		failError(t, err)
 
 		start = time.Now()
-		err = filesystem.DownloadFileParallelResumable(iRODSPath, "", localDownloadPath, 0, true, nil)
+		_, err = filesystem.DownloadFileParallelResumable(iRODSPath, "", localDownloadPath, 0, true, nil)
 		duration = time.Since(start)
 
 		t.Logf("download a file in size %d took time - %v", fileSize, duration)

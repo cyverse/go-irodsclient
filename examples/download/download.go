@@ -63,7 +63,7 @@ func main() {
 		panic(err)
 	}
 
-	err = filesystem.DownloadFile(srcPath, "", destPath, false, nil)
+	_, err = filesystem.DownloadFile(srcPath, "", destPath, false, nil)
 	if err != nil {
 		logger.Error(err)
 		panic(err)
