@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"os"
@@ -63,11 +64,16 @@ func main() {
 		panic(err)
 	}
 
-	_, err = filesystem.DownloadFileParallel(srcPath, "", destPath, 0, false, nil)
+	result, err := filesystem.DownloadFileParallel(srcPath, "", destPath, 0, true, nil)
 	if err != nil {
 		logger.Error(err)
 		panic(err)
 	}
+
+	logger.Infof("iRODS path: %s", result.IRODSPath)
+	logger.Infof("Local path: %s", result.LocalPath)
+	logger.Infof("Checksum: %s, iRODS: %s, Local: %s", result.CheckSumAlgorithm, hex.EncodeToString(result.IRODSCheckSum), hex.EncodeToString(result.LocalCheckSum))
+	logger.Infof("Size: iRODS: %d, Local: %d", result.IRODSSize, result.LocalSize)
 
 	fsinfo, err := os.Stat(destPath)
 	if err != nil {
