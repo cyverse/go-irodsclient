@@ -11,17 +11,18 @@ import (
 
 // IRODSMessageModifyMetadataRequest stores alter metadata request
 type IRODSMessageModifyMetadataRequest struct {
-	XMLName      xml.Name `xml:"ModAVUMetadataInp_PI"`
-	Operation    string   `xml:"arg0"` // add, adda, rm, rmw, rmi, cp, mod, set
-	ItemType     string   `xml:"arg1"` // -d, -D, -c, -C, -r, -R, -u, -U
-	ItemName     string   `xml:"arg2"`
-	AttrName     string   `xml:"arg3"`
-	AttrValue    string   `xml:"arg4"`
-	AttrUnits    string   `xml:"arg5"`
-	NewAttrName  string   `xml:"arg6"` // new attr name (for mod)
-	NewAttrValue string   `xml:"arg7"` // new attr value (for mod)
-	NewAttrUnits string   `xml:"arg8"` // new attr unit (for mod)
-	Arg9         string   `xml:"arg9"` // unused
+	XMLName      xml.Name             `xml:"ModAVUMetadataInp_PI"`
+	Operation    string               `xml:"arg0"` // add, adda, rm, rmw, rmi, cp, mod, set
+	ItemType     string               `xml:"arg1"` // -d, -D, -c, -C, -r, -R, -u, -U
+	ItemName     string               `xml:"arg2"`
+	AttrName     string               `xml:"arg3"`
+	AttrValue    string               `xml:"arg4"`
+	AttrUnits    string               `xml:"arg5"`
+	NewAttrName  string               `xml:"arg6"` // new attr name (for mod)
+	NewAttrValue string               `xml:"arg7"` // new attr value (for mod)
+	NewAttrUnits string               `xml:"arg8"` // new attr unit (for mod)
+	Arg9         string               `xml:"arg9"` // unused
+	KeyVals      IRODSMessageSSKeyVal `xml:"KeyValPair_PI"`
 }
 
 // NewIRODSMessageAddMetadataRequest creates a IRODSMessageModMetaRequest message for adding a metadata AVU on some item.
@@ -34,6 +35,9 @@ func NewIRODSMessageAddMetadataRequest(itemType types.IRODSMetaItemType, itemNam
 		AttrName:  metadata.Name,
 		AttrValue: metadata.Value,
 		AttrUnits: metadata.Units,
+		KeyVals: IRODSMessageSSKeyVal{
+			Length: 0,
+		},
 	}
 
 	return request
@@ -52,6 +56,9 @@ func NewIRODSMessageReplaceMetadataRequest(itemType types.IRODSMetaItemType, ite
 		NewAttrName:  newMetadata.Name,
 		NewAttrValue: newMetadata.Value,
 		NewAttrUnits: newMetadata.Units,
+		KeyVals: IRODSMessageSSKeyVal{
+			Length: 0,
+		},
 	}
 
 	return request
@@ -67,6 +74,9 @@ func NewIRODSMessageRemoveMetadataRequest(itemType types.IRODSMetaItemType, item
 		AttrName:  metadata.Name,
 		AttrValue: metadata.Value,
 		AttrUnits: metadata.Units,
+		KeyVals: IRODSMessageSSKeyVal{
+			Length: 0,
+		},
 	}
 
 	return request
@@ -79,6 +89,9 @@ func NewIRODSMessageRemoveMetadataByIDRequest(itemType types.IRODSMetaItemType, 
 		ItemType:  string(itemType),
 		ItemName:  itemName,
 		AttrName:  fmt.Sprintf("%d", AVUID),
+		KeyVals: IRODSMessageSSKeyVal{
+			Length: 0,
+		},
 	}
 
 	return request
@@ -93,6 +106,9 @@ func NewIRODSMessageRemoveMetadataWildcardRequest(itemType types.IRODSMetaItemTy
 		AttrName:  attName,
 		AttrValue: "%",
 		AttrUnits: "%",
+		KeyVals: IRODSMessageSSKeyVal{
+			Length: 0,
+		},
 	}
 
 	return request
@@ -108,6 +124,9 @@ func NewIRODSMessageSetMetadataRequest(itemType types.IRODSMetaItemType, itemNam
 		AttrName:  metadata.Name,
 		AttrValue: metadata.Value,
 		AttrUnits: metadata.Units,
+		KeyVals: IRODSMessageSSKeyVal{
+			Length: 0,
+		},
 	}
 
 	return request
