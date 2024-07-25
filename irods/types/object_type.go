@@ -1,5 +1,6 @@
 package types
 
+// ObjectType determines if the object is data object or collection in irods
 type ObjectType string
 
 const (

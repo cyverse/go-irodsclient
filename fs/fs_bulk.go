@@ -546,10 +546,12 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 	} else {
 		switch entry.Type {
 		case FileEntry:
-			// delete first to prevent stale data
-			err = fs.RemoveFile(irodsDestPath, true)
-			if err != nil {
-				return fileTransferResult, xerrors.Errorf("failed to delete data object %s for overwrite: %w", irodsDestPath, err)
+			// truncate first to prevent stale data
+			if entry.Size > 0 {
+				err = fs.TruncateFile(irodsDestPath, 0)
+				if err != nil {
+					return fileTransferResult, xerrors.Errorf("failed to truncate data object %s for overwrite: %w", irodsDestPath, err)
+				}
 			}
 		case DirectoryEntry:
 			localFileName := filepath.Base(localSrcPath)
@@ -623,10 +625,12 @@ func (fs *FileSystem) UploadFileFromBuffer(buffer bytes.Buffer, irodsPath string
 	} else {
 		switch entry.Type {
 		case FileEntry:
-			// delete first to prevent stale data
-			err = fs.RemoveFile(irodsDestPath, true)
-			if err != nil {
-				return fileTransferResult, xerrors.Errorf("failed to delete data object %s for overwrite: %w", irodsDestPath, err)
+			// truncate first to prevent stale data
+			if entry.Size > 0 {
+				err = fs.TruncateFile(irodsDestPath, 0)
+				if err != nil {
+					return fileTransferResult, xerrors.Errorf("failed to truncate data object %s for overwrite: %w", irodsDestPath, err)
+				}
 			}
 		case DirectoryEntry:
 			return fileTransferResult, xerrors.Errorf("invalid entry type %s. Destination must be a file", entry.Type)
@@ -714,10 +718,12 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 	} else {
 		switch entry.Type {
 		case FileEntry:
-			// delete first to prevent stale data
-			err = fs.RemoveFile(irodsDestPath, true)
-			if err != nil {
-				return fileTransferResult, xerrors.Errorf("failed to delete data object %s for overwrite: %w", irodsDestPath, err)
+			// truncate first to prevent stale data
+			if entry.Size > 0 {
+				err = fs.TruncateFile(irodsDestPath, 0)
+				if err != nil {
+					return fileTransferResult, xerrors.Errorf("failed to truncate data object %s for overwrite: %w", irodsDestPath, err)
+				}
 			}
 		case DirectoryEntry:
 			localFileName := filepath.Base(localSrcPath)
@@ -806,10 +812,12 @@ func (fs *FileSystem) UploadFileParallelRedirectToResource(localPath string, iro
 	} else {
 		switch entry.Type {
 		case FileEntry:
-			// delete first to prevent stale data
-			err = fs.RemoveFile(irodsDestPath, true)
-			if err != nil {
-				return fileTransferResult, xerrors.Errorf("failed to delete data object %s for overwrite: %w", irodsDestPath, err)
+			// truncate first to prevent stale data
+			if entry.Size > 0 {
+				err = fs.TruncateFile(irodsDestPath, 0)
+				if err != nil {
+					return fileTransferResult, xerrors.Errorf("failed to truncate data object %s for overwrite: %w", irodsDestPath, err)
+				}
 			}
 		case DirectoryEntry:
 			localFileName := filepath.Base(localSrcPath)
