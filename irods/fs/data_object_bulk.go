@@ -46,7 +46,7 @@ func CloseDataObjectReplica(conn *connection.IRODSConnection, handle *types.IROD
 }
 
 // UploadDataObjectFromBuffer put a data object to the iRODS path from buffer
-func UploadDataObjectFromBuffer(session *session.IRODSSession, buffer bytes.Buffer, irodsPath string, resource string, replicate bool, keywords map[common.KeyWord]string, callback common.TrackerCallBack) error {
+func UploadDataObjectFromBuffer(session *session.IRODSSession, buffer *bytes.Buffer, irodsPath string, resource string, replicate bool, keywords map[common.KeyWord]string, callback common.TrackerCallBack) error {
 	// use default resource when resource param is empty
 	if len(resource) == 0 {
 		account := session.GetAccount()
@@ -396,7 +396,7 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 }
 
 // DownloadDataObjectToBuffer downloads a data object at the iRODS path to buffer
-func DownloadDataObjectToBuffer(session *session.IRODSSession, irodsPath string, resource string, buffer bytes.Buffer, dataObjectLength int64, keywords map[common.KeyWord]string, callback common.TrackerCallBack) error {
+func DownloadDataObjectToBuffer(session *session.IRODSSession, irodsPath string, resource string, buffer *bytes.Buffer, dataObjectLength int64, keywords map[common.KeyWord]string, callback common.TrackerCallBack) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "fs",
 		"function": "DownloadDataObject",

@@ -51,7 +51,7 @@ func HashLocalFile(sourcePath string, hashAlg string) ([]byte, error) {
 	}
 }
 
-func HashBuffer(buffer bytes.Buffer, hashAlg string) ([]byte, error) {
+func HashBuffer(buffer *bytes.Buffer, hashAlg string) ([]byte, error) {
 	switch strings.ToLower(hashAlg) {
 	case strings.ToLower(string(types.ChecksumAlgorithmMD5)):
 		return GetHashBuffer(buffer, md5.New())
@@ -97,7 +97,7 @@ func GetHashLocalFile(sourcePath string, hashAlg hash.Hash) ([]byte, error) {
 	return sumBytes, nil
 }
 
-func GetHashBuffer(buffer bytes.Buffer, hashAlg hash.Hash) ([]byte, error) {
+func GetHashBuffer(buffer *bytes.Buffer, hashAlg hash.Hash) ([]byte, error) {
 	_, err := hashAlg.Write(buffer.Bytes())
 	if err != nil {
 		return nil, xerrors.Errorf("failed to write: %w", err)

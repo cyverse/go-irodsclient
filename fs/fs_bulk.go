@@ -197,7 +197,7 @@ func (fs *FileSystem) DownloadFileResumable(irodsPath string, resource string, l
 }
 
 // DownloadFileToBuffer downloads a file to buffer
-func (fs *FileSystem) DownloadFileToBuffer(irodsPath string, resource string, buffer bytes.Buffer, verifyChecksum bool, callback common.TrackerCallBack) (*FileTransferResult, error) {
+func (fs *FileSystem) DownloadFileToBuffer(irodsPath string, resource string, buffer *bytes.Buffer, verifyChecksum bool, callback common.TrackerCallBack) (*FileTransferResult, error) {
 	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
 
 	fileTransferResult := &FileTransferResult{}
@@ -609,7 +609,7 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 }
 
 // UploadFileFromBuffer uploads buffer data to irods
-func (fs *FileSystem) UploadFileFromBuffer(buffer bytes.Buffer, irodsPath string, resource string, replicate bool, checksum bool, verifyChecksum bool, callback common.TrackerCallBack) (*FileTransferResult, error) {
+func (fs *FileSystem) UploadFileFromBuffer(buffer *bytes.Buffer, irodsPath string, resource string, replicate bool, checksum bool, verifyChecksum bool, callback common.TrackerCallBack) (*FileTransferResult, error) {
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
 	irodsFilePath := irodsDestPath
@@ -891,7 +891,7 @@ func (fs *FileSystem) calculateLocalFileHash(localPath string) (types.ChecksumAl
 }
 
 // calculateBufferHash calculates buffer hash
-func (fs *FileSystem) calculateBufferHash(buffer bytes.Buffer) (types.ChecksumAlgorithm, []byte, error) {
+func (fs *FileSystem) calculateBufferHash(buffer *bytes.Buffer) (types.ChecksumAlgorithm, []byte, error) {
 	checksumAlg := types.GetChecksumAlgorithm(fs.account.DefaultHashScheme)
 	if checksumAlg == types.ChecksumAlgorithmUnknown {
 		checksumAlg = defaultChecksumAlgorithm
