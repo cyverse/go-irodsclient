@@ -1095,20 +1095,13 @@ func (fs *FileSystem) getDataObjectWithConnection(conn *connection.IRODSConnecti
 // getDataObjectNoCache returns an entry for data object
 func (fs *FileSystem) getDataObjectNoCache(path string) (*Entry, error) {
 	// retrieve it and add it to cache
-	collectionEntry, err := fs.getCollection(util.GetIRODSPathDirname(path))
-	if err != nil {
-		return nil, err
-	}
-
-	collection := fs.getCollectionFromEntry(collectionEntry)
-
 	conn, err := fs.metaSession.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
 	defer fs.metaSession.ReturnConnection(conn)
 
-	dataobject, err := irods_fs.GetDataObjectMasterReplica(conn, collection, util.GetIRODSPathFileName(path))
+	dataobject, err := irods_fs.GetDataObjectMasterReplicaWithoutCollection(conn, path)
 	if err != nil {
 		return nil, err
 	}
