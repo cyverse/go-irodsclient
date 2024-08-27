@@ -68,7 +68,20 @@ func (fs *FileSystem) touchInternal(conn *connection.IRODSConnection, entry *Ent
 		// file
 		// open
 		keywords := map[common.KeyWord]string{}
-		handle, _, err := irods_fs.OpenDataObject(conn, irodsPath, resource, "w", keywords)
+		handle, offset, err := irods_fs.OpenDataObject(conn, irodsPath, resource, "a", keywords)
+		if err != nil {
+			return err
+		}
+
+		if entry.Size != offset {
+			_, err := irods_fs.SeekDataObject(conn, handle, entry.Size, types.SeekSet)
+			if err != nil {
+				return err
+			}
+		}
+
+		// write dummy
+		err = irods_fs.WriteDataObject(conn, handle, []byte{})
 		if err != nil {
 			return err
 		}
