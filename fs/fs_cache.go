@@ -66,6 +66,17 @@ func (fs *FileSystem) invalidateCacheForDirCreate(path string) {
 	fs.cacheEventHandlerMap.SendDirCreateEvent(path)
 }
 
+// invalidateCacheForDirUpdate invalidates cache for update of the given dir
+func (fs *FileSystem) invalidateCacheForDirUpdate(path string) {
+	fs.cache.RemoveNegativeEntryCache(path)
+	fs.cache.RemoveEntryCache(path)
+
+	// modification doesn't affect to parent dir's modified time
+
+	// send event
+	fs.cacheEventHandlerMap.SendDirCreateEvent(path)
+}
+
 // invalidateCacheForFileUpdate invalidates cache for update on the given file
 func (fs *FileSystem) invalidateCacheForFileUpdate(path string) {
 	fs.cache.RemoveNegativeEntryCache(path)
