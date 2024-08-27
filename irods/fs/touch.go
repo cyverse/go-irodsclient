@@ -25,7 +25,7 @@ func Touch(conn *connection.IRODSConnection, path string, resource string, noCre
 	}
 
 	request := message.NewIRODSMessageTouchRequest(path, noCreate, resource)
-	response := message.IRODSMessageChecksumResponse{}
+	response := message.IRODSMessageTouchResponse{}
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
