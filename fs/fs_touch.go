@@ -66,8 +66,18 @@ func (fs *FileSystem) touchInternal(conn *connection.IRODSConnection, entry *Ent
 		}
 
 		// file
-		// use truncate to update
-		return fs.TruncateFile(irodsPath, entry.Size)
+		// open
+		keywords := map[common.KeyWord]string{}
+		handle, _, err := irods_fs.OpenDataObject(conn, irodsPath, resource, "w", keywords)
+		if err != nil {
+			return err
+		}
+
+		// close
+		err = irods_fs.CloseDataObject(conn, handle)
+		if err != nil {
+			return err
+		}
 	}
 
 	// create
