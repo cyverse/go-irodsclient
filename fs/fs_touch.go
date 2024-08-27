@@ -81,13 +81,20 @@ func (fs *FileSystem) touchInternal(conn *connection.IRODSConnection, entry *Ent
 		}
 
 		// write dummy
-		err = irods_fs.WriteDataObject(conn, handle, []byte{})
+		dummy := "xxxdummyxxx"
+		err = irods_fs.WriteDataObject(conn, handle, []byte(dummy))
 		if err != nil {
 			return err
 		}
 
 		// close
 		err = irods_fs.CloseDataObject(conn, handle)
+		if err != nil {
+			return err
+		}
+
+		// truncate dummy part
+		err = irods_fs.TruncateDataObject(conn, irodsPath, entry.Size)
 		if err != nil {
 			return err
 		}
