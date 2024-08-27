@@ -82,7 +82,7 @@ func main() {
 	}
 
 	if len(accesses) == 0 {
-		fmt.Printf("Found no acls - %s\n", inputPath)
+		fmt.Printf("Found no acls for path %q\n", inputPath)
 	} else {
 		fmt.Printf("%s\n", inputPath)
 		for _, access := range accesses {

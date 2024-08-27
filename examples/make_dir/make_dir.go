@@ -62,8 +62,8 @@ func main() {
 	}
 
 	if filesystem.ExistsDir(inputPath) {
-		fmt.Printf("Successfully made dir %s\n", inputPath)
+		fmt.Printf("Successfully made dir %q\n", inputPath)
 	} else {
-		fmt.Printf("Could not make dir %s\n", inputPath)
+		fmt.Printf("Could not make dir %q\n", inputPath)
 	}
 }

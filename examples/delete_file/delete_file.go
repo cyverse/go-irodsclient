@@ -60,8 +60,8 @@ func main() {
 	}
 
 	if !filesystem.ExistsFile(inputPath) {
-		fmt.Printf("Successfully deleted file %s\n", inputPath)
+		fmt.Printf("Successfully deleted file %q\n", inputPath)
 	} else {
-		fmt.Printf("Could not delete file %s\n", inputPath)
+		fmt.Printf("Could not delete file %q\n", inputPath)
 	}
 }

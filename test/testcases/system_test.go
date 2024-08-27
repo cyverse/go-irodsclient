@@ -29,6 +29,6 @@ func testProcessStat(t *testing.T) {
 	failError(t, err)
 
 	for _, process := range processes {
-		t.Logf("process - %s\n", process.ToString())
+		t.Logf("process %q\n", process.ToString())
 	}
 }

@@ -60,7 +60,7 @@ func main() {
 	}
 
 	if len(entries) == 0 {
-		fmt.Printf("Found no entries in the directory - %s\n", inputPath)
+		fmt.Printf("Found no entries in the directory %q\n", inputPath)
 	} else {
 		fmt.Printf("DIR: %s\n", inputPath)
 		for _, entry := range entries {

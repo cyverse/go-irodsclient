@@ -128,7 +128,7 @@ func parallelUploadReplication(t *testing.T, sess *session.IRODSSession, filenam
 	assert.NotEmpty(t, obj.ID)
 	assert.Equal(t, int64(fileSize), obj.Size)
 	if obj.Size != int64(fileSize) {
-		t.Logf("error file - %s", irodsPath)
+		t.Logf("error file %q", irodsPath)
 		t.FailNow()
 	}
 

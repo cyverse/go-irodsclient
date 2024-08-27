@@ -113,11 +113,11 @@ func ParseIRODSChecksumString(checksumString string) (ChecksumAlgorithm, []byte,
 
 	checksumAlgorithm := GetChecksumAlgorithm(algorithm)
 	if checksumAlgorithm == ChecksumAlgorithmUnknown {
-		return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unknown checksum algorithm: %s len %d", algorithm, len(checksumBytes))
+		return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unknown checksum algorithm: %q len %d", algorithm, len(checksumBytes))
 	}
 
 	if len(checksumBytes) != GetChecksumDigestSize(checksumAlgorithm) {
-		return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unknown checksum algorithm: %s len %d", algorithm, len(checksumBytes))
+		return ChecksumAlgorithmUnknown, nil, xerrors.Errorf("unknown checksum algorithm: %q len %d", algorithm, len(checksumBytes))
 	}
 
 	return checksumAlgorithm, checksumBytes, nil
@@ -137,7 +137,7 @@ func MakeIRODSChecksumString(algorithm ChecksumAlgorithm, checksum []byte) (stri
 		case ChecksumAlgorithmSHA512:
 			return fmt.Sprintf("%s:%s", "sha512", checksumString), nil
 		default:
-			return "", xerrors.Errorf("unknown algorithm %s", algorithm)
+			return "", xerrors.Errorf("unknown algorithm %q", algorithm)
 		}
 	}
 
@@ -150,7 +150,7 @@ func MakeIRODSChecksumString(algorithm ChecksumAlgorithm, checksum []byte) (stri
 	case ChecksumAlgorithmMD5:
 		return checksumString, nil
 	default:
-		return "", xerrors.Errorf("unknown algorithm %s", algorithm)
+		return "", xerrors.Errorf("unknown algorithm %q", algorithm)
 	}
 }
 

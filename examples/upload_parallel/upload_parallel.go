@@ -70,9 +70,9 @@ func main() {
 		panic(err)
 	}
 
-	logger.Infof("iRODS path: %s", result.IRODSPath)
-	logger.Infof("Local path: %s", result.LocalPath)
-	logger.Infof("Checksum: %s, iRODS: %s, Local: %s", result.CheckSumAlgorithm, hex.EncodeToString(result.IRODSCheckSum), hex.EncodeToString(result.LocalCheckSum))
+	logger.Infof("iRODS path: %q", result.IRODSPath)
+	logger.Infof("Local path: %q", result.LocalPath)
+	logger.Infof("Checksum: %s, iRODS: %q, Local: %q", result.CheckSumAlgorithm, hex.EncodeToString(result.IRODSCheckSum), hex.EncodeToString(result.LocalCheckSum))
 	logger.Infof("Size: iRODS: %d, Local: %d", result.IRODSSize, result.LocalSize)
 
 	fsentry, err := filesystem.Stat(destPath)
@@ -82,7 +82,7 @@ func main() {
 	}
 
 	if fsentry.Type == fs.FileEntry {
-		fmt.Printf("Successfully uploaded a file %s to %s, size = %d\n", srcPath, destPath, fsentry.Size)
+		fmt.Printf("Successfully uploaded a file %q to %q, size = %d\n", srcPath, destPath, fsentry.Size)
 	} else {
 		// dir
 		srcFileName := util.GetIRODSPathFileName(srcPath)
@@ -95,9 +95,9 @@ func main() {
 		}
 
 		if fsentry2.Type == fs.FileEntry {
-			fmt.Printf("Successfully uploaded a file %s to %s, size = %d\n", srcPath, destFilePath, fsentry2.Size)
+			fmt.Printf("Successfully uploaded a file %q to %q, size = %d\n", srcPath, destFilePath, fsentry2.Size)
 		} else {
-			logger.Errorf("Unkonwn file type - %s", fsentry2.Type)
+			logger.Errorf("Unkonwn file type %q", fsentry2.Type)
 		}
 	}
 }

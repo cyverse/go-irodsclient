@@ -26,7 +26,7 @@ func NewIRODSMessageGetFileStatRequest(resource *types.IRODSResource, obj *types
 	}
 
 	if resource.Name != replica.ResourceName {
-		return nil, xerrors.Errorf("resource name %s does not match replica resource name %s", resource.Name, replica.ResourceName)
+		return nil, xerrors.Errorf("resource name %q does not match replica resource name %q", resource.Name, replica.ResourceName)
 	}
 
 	request := &IRODSMessageGetFileStatRequest{

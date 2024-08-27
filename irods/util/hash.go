@@ -30,7 +30,7 @@ func HashStrings(strs []string, hashAlg string) ([]byte, error) {
 	case strings.ToLower(string(types.ChecksumAlgorithmSHA512)):
 		return GetHashStrings(strs, sha512.New())
 	default:
-		return nil, xerrors.Errorf("unknown hash algorithm %s", hashAlg)
+		return nil, xerrors.Errorf("unknown hash algorithm %q", hashAlg)
 	}
 }
 
@@ -47,7 +47,7 @@ func HashLocalFile(sourcePath string, hashAlg string) ([]byte, error) {
 	case strings.ToLower(string(types.ChecksumAlgorithmSHA512)):
 		return GetHashLocalFile(sourcePath, sha512.New())
 	default:
-		return nil, xerrors.Errorf("unknown hash algorithm %s", hashAlg)
+		return nil, xerrors.Errorf("unknown hash algorithm %q", hashAlg)
 	}
 }
 
@@ -64,7 +64,7 @@ func HashBuffer(buffer *bytes.Buffer, hashAlg string) ([]byte, error) {
 	case strings.ToLower(string(types.ChecksumAlgorithmSHA512)):
 		return GetHashBuffer(buffer, sha512.New())
 	default:
-		return nil, xerrors.Errorf("unknown hash algorithm %s", hashAlg)
+		return nil, xerrors.Errorf("unknown hash algorithm %q", hashAlg)
 	}
 }
 
@@ -83,7 +83,7 @@ func GetHashStrings(strs []string, hashAlg hash.Hash) ([]byte, error) {
 func GetHashLocalFile(sourcePath string, hashAlg hash.Hash) ([]byte, error) {
 	f, err := os.Open(sourcePath)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to open file %s: %w", sourcePath, err)
+		return nil, xerrors.Errorf("failed to open file %q: %w", sourcePath, err)
 	}
 
 	defer f.Close()

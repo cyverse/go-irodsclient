@@ -70,9 +70,9 @@ func main() {
 		panic(err)
 	}
 
-	logger.Infof("iRODS path: %s", result.IRODSPath)
-	logger.Infof("Local path: %s", result.LocalPath)
-	logger.Infof("Checksum: %s, iRODS: %s, Local: %s", result.CheckSumAlgorithm, hex.EncodeToString(result.IRODSCheckSum), hex.EncodeToString(result.LocalCheckSum))
+	logger.Infof("iRODS path: %q", result.IRODSPath)
+	logger.Infof("Local path: %q", result.LocalPath)
+	logger.Infof("Checksum: %s, iRODS: %q, Local: %q", result.CheckSumAlgorithm, hex.EncodeToString(result.IRODSCheckSum), hex.EncodeToString(result.LocalCheckSum))
 	logger.Infof("Size: iRODS: %d, Local: %d", result.IRODSSize, result.LocalSize)
 
 	fsinfo, err := os.Stat(destPath)
@@ -93,11 +93,11 @@ func main() {
 		}
 
 		if !fsinfo2.IsDir() {
-			fmt.Printf("Successfully downloaded a file %s to %s, size = %d\n", srcPath, destPath, fsinfo2.Size())
+			fmt.Printf("Successfully downloaded a file %q to %q, size = %d\n", srcPath, destPath, fsinfo2.Size())
 		} else {
-			logger.Errorf("Unkonwn file type - %s", fsinfo2.Mode())
+			logger.Errorf("Unkonwn file type %q", fsinfo2.Mode())
 		}
 	} else {
-		fmt.Printf("Successfully downloaded a file %s to %s, size = %d\n", srcPath, destPath, fsinfo.Size())
+		fmt.Printf("Successfully downloaded a file %q to %q, size = %d\n", srcPath, destPath, fsinfo.Size())
 	}
 }

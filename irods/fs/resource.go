@@ -77,7 +77,7 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 		case int(common.ICAT_COLUMN_R_RESC_ID):
 			objID, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse resource id '%s': %w", value, err)
+				return nil, xerrors.Errorf("failed to parse resource id %q: %w", value, err)
 			}
 			resource.RescID = objID
 		case int(common.ICAT_COLUMN_R_RESC_NAME):
@@ -97,13 +97,13 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 		case int(common.ICAT_COLUMN_R_CREATE_TIME):
 			cT, err := util.GetIRODSDateTime(value)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse create time '%s': %w", value, err)
+				return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 			}
 			resource.CreateTime = cT
 		case int(common.ICAT_COLUMN_R_MODIFY_TIME):
 			mT, err := util.GetIRODSDateTime(value)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse modify time '%s': %w", value, err)
+				return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 			}
 			resource.ModifyTime = mT
 		default:
@@ -239,7 +239,7 @@ func ListResourceMeta(conn *connection.IRODSConnection, name string) ([]*types.I
 				case int(common.ICAT_COLUMN_META_RESC_ATTR_ID):
 					avuID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse resource metadata id '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse resource metadata id %q: %w", value, err)
 					}
 					pagenatedMetas[row].AVUID = avuID
 				case int(common.ICAT_COLUMN_META_RESC_ATTR_NAME):
@@ -251,13 +251,13 @@ func ListResourceMeta(conn *connection.IRODSConnection, name string) ([]*types.I
 				case int(common.ICAT_COLUMN_META_RESC_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse create time '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 					}
 					pagenatedMetas[row].CreateTime = cT
 				case int(common.ICAT_COLUMN_META_RESC_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse modify time '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
 					pagenatedMetas[row].ModifyTime = mT
 				default:

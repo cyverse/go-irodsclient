@@ -22,7 +22,7 @@ func (fs *FileSystem) ListACLs(path string) ([]*types.IRODSAccess, error) {
 		return fs.ListFileACLs(path)
 	}
 
-	return nil, xerrors.Errorf("unknown type - %s", stat.Type)
+	return nil, xerrors.Errorf("unknown type %q", stat.Type)
 }
 
 // ListACLsForEntries returns ACLs for entries in a collection
@@ -62,7 +62,7 @@ func (fs *FileSystem) ListACLsWithGroupUsers(path string) ([]*types.IRODSAccess,
 
 		accesses = append(accesses, accessList...)
 	} else {
-		return nil, xerrors.Errorf("unknown type '%s'", stat.Type)
+		return nil, xerrors.Errorf("unknown type %q", stat.Type)
 	}
 
 	return accesses, nil

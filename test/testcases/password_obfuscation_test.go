@@ -46,7 +46,7 @@ func testEncodeDecodeRandomPassword(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		//t.Logf("test password '%s'", mypassword)
+		//t.Logf("test password %q", mypassword)
 
 		encodedPassword := icommands.EncodePasswordString(mypassword, 1000)
 		decodedPassword := icommands.DecodePasswordString(encodedPassword, 1000)

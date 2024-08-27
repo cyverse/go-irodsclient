@@ -30,7 +30,7 @@ func GetCSNegotiationRequire(require string) (CSNegotiationRequire, error) {
 		csNegotiationPolicy = CSNegotiationDontCare
 	default:
 		csNegotiationPolicy = CSNegotiationRequireTCP
-		err = fmt.Errorf("cannot parse string %s", require)
+		err = fmt.Errorf("cannot parse string %q", require)
 	}
 
 	return csNegotiationPolicy, err
@@ -59,7 +59,7 @@ func GetCSNegotiationPolicy(policy string) (CSNegotiationPolicy, error) {
 		csNegotiationPolicy = CSNegotiationUseSSL
 	default:
 		csNegotiationPolicy = CSNegotiationFailure
-		err = fmt.Errorf("cannot parse string %s", policy)
+		err = fmt.Errorf("cannot parse string %q", policy)
 	}
 
 	return csNegotiationPolicy, err

@@ -72,13 +72,13 @@ func StatProcess(conn *connection.IRODSConnection, address string, zone string) 
 			case int(common.ICAT_COLUMN_PROCESS_ID):
 				processID, err := strconv.ParseInt(value, 10, 64)
 				if err != nil {
-					return nil, xerrors.Errorf("failed to parse process id '%s': %w", value, err)
+					return nil, xerrors.Errorf("failed to parse process id %q: %w", value, err)
 				}
 				pagenatedProcesses[row].ID = processID
 			case int(common.ICAT_COLUMN_STARTTIME):
 				sT, err := util.GetIRODSDateTime(value)
 				if err != nil {
-					return nil, xerrors.Errorf("failed to parse start time '%s': %w", value, err)
+					return nil, xerrors.Errorf("failed to parse start time %q: %w", value, err)
 				}
 				pagenatedProcesses[row].StartTime = sT
 			case int(common.ICAT_COLUMN_CLIENT_NAME):

@@ -45,7 +45,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticketName st
 	err = queryResult.CheckError()
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+			return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
 		}
 
 		return nil, xerrors.Errorf("received a ticket query error: %w", err)
@@ -53,7 +53,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticketName st
 
 	if queryResult.RowCount != 1 {
 		// file not found
-		return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+		return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
 	}
 
 	if queryResult.AttributeCount > len(queryResult.SQLResult) {
@@ -77,7 +77,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticketName st
 		case int(common.ICAT_COLUMN_TICKET_ID):
 			cID, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse ticket id '%s': %w", value, err)
+				return nil, xerrors.Errorf("failed to parse ticket id %q: %w", value, err)
 			}
 			ticketID = cID
 		case int(common.ICAT_COLUMN_TICKET_TYPE):
@@ -88,7 +88,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticketName st
 			if len(strings.TrimSpace(value)) > 0 {
 				mT, err := util.GetIRODSDateTime(value)
 				if err != nil {
-					return nil, xerrors.Errorf("failed to parse expiry time '%s': %w", value, err)
+					return nil, xerrors.Errorf("failed to parse expiry time %q: %w", value, err)
 				}
 				expirationTime = mT
 			}
@@ -98,7 +98,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticketName st
 	}
 
 	if ticketID == -1 {
-		return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+		return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
 	}
 
 	return &types.IRODSTicketForAnonymousAccess{
@@ -138,7 +138,7 @@ func GetTicket(conn *connection.IRODSConnection, ticketName string) (*types.IROD
 		}
 	}
 
-	return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+	return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
 }
 
 // GetTicketForDataObjects returns ticket information for the ticket name string
@@ -179,7 +179,7 @@ func GetTicketForDataObjects(conn *connection.IRODSConnection, ticketName string
 	err = queryResult.CheckError()
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+			return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
 		}
 
 		return nil, xerrors.Errorf("received a ticket query error: %w", err)
@@ -187,7 +187,7 @@ func GetTicketForDataObjects(conn *connection.IRODSConnection, ticketName string
 
 	if queryResult.RowCount != 1 {
 		// file not found
-		return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+		return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
 	}
 
 	if queryResult.AttributeCount > len(queryResult.SQLResult) {
@@ -222,7 +222,7 @@ func GetTicketForDataObjects(conn *connection.IRODSConnection, ticketName string
 		case int(common.ICAT_COLUMN_TICKET_ID):
 			cID, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse ticket id '%s': %w", value, err)
+				return nil, xerrors.Errorf("failed to parse ticket id %q: %w", value, err)
 			}
 			ticketID = cID
 		case int(common.ICAT_COLUMN_TICKET_TYPE):
@@ -232,45 +232,45 @@ func GetTicketForDataObjects(conn *connection.IRODSConnection, ticketName string
 		case int(common.ICAT_COLUMN_TICKET_USES_LIMIT):
 			limit, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse uses limit '%s': %w", value, err)
+				return nil, xerrors.Errorf("failed to parse uses limit %q: %w", value, err)
 			}
 			usesLimit = limit
 		case int(common.ICAT_COLUMN_TICKET_USES_COUNT):
 			count, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse uses count '%s': %w", value, err)
+				return nil, xerrors.Errorf("failed to parse uses count %q: %w", value, err)
 			}
 			usesCount = count
 		case int(common.ICAT_COLUMN_TICKET_EXPIRY_TS):
 			if len(strings.TrimSpace(value)) > 0 {
 				mT, err := util.GetIRODSDateTime(value)
 				if err != nil {
-					return nil, xerrors.Errorf("failed to parse expiry time '%s': %w", value, err)
+					return nil, xerrors.Errorf("failed to parse expiry time %q: %w", value, err)
 				}
 				expirationTime = mT
 			}
 		case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_LIMIT):
 			limit, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse write file limit '%s': %w", value, err)
+				return nil, xerrors.Errorf("failed to parse write file limit %q: %w", value, err)
 			}
 			writeFileLimit = limit
 		case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_COUNT):
 			count, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse write file count '%s': %w", value, err)
+				return nil, xerrors.Errorf("failed to parse write file count %q: %w", value, err)
 			}
 			writeFileCount = count
 		case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_LIMIT):
 			limit, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse write byte limit '%s': %w", value, err)
+				return nil, xerrors.Errorf("failed to parse write byte limit %q: %w", value, err)
 			}
 			writeByteLimit = limit
 		case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_COUNT):
 			count, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse write byte count '%s': %w", value, err)
+				return nil, xerrors.Errorf("failed to parse write byte count %q: %w", value, err)
 			}
 			writeByteCount = count
 		case int(common.ICAT_COLUMN_TICKET_DATA_NAME):
@@ -289,7 +289,7 @@ func GetTicketForDataObjects(conn *connection.IRODSConnection, ticketName string
 	}
 
 	if ticketID == -1 {
-		return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+		return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
 	}
 
 	return &types.IRODSTicket{
@@ -347,7 +347,7 @@ func GetTicketForCollections(conn *connection.IRODSConnection, ticketName string
 	err = queryResult.CheckError()
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+			return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
 		}
 
 		return nil, xerrors.Errorf("received a ticket query error: %w", err)
@@ -355,7 +355,7 @@ func GetTicketForCollections(conn *connection.IRODSConnection, ticketName string
 
 	if queryResult.RowCount != 1 {
 		// file not found
-		return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+		return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
 	}
 
 	if queryResult.AttributeCount > len(queryResult.SQLResult) {
@@ -388,7 +388,7 @@ func GetTicketForCollections(conn *connection.IRODSConnection, ticketName string
 		case int(common.ICAT_COLUMN_TICKET_ID):
 			cID, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse ticket id '%s': %w", value, err)
+				return nil, xerrors.Errorf("failed to parse ticket id %q: %w", value, err)
 			}
 			ticketID = cID
 		case int(common.ICAT_COLUMN_TICKET_TYPE):
@@ -398,45 +398,45 @@ func GetTicketForCollections(conn *connection.IRODSConnection, ticketName string
 		case int(common.ICAT_COLUMN_TICKET_USES_LIMIT):
 			limit, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse uses limit '%s': %w", value, err)
+				return nil, xerrors.Errorf("failed to parse uses limit %q: %w", value, err)
 			}
 			usesLimit = limit
 		case int(common.ICAT_COLUMN_TICKET_USES_COUNT):
 			count, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse uses count '%s': %w", value, err)
+				return nil, xerrors.Errorf("failed to parse uses count %q: %w", value, err)
 			}
 			usesCount = count
 		case int(common.ICAT_COLUMN_TICKET_EXPIRY_TS):
 			if len(strings.TrimSpace(value)) > 0 {
 				mT, err := util.GetIRODSDateTime(value)
 				if err != nil {
-					return nil, xerrors.Errorf("failed to parse expiry time '%s': %w", value, err)
+					return nil, xerrors.Errorf("failed to parse expiry time %q: %w", value, err)
 				}
 				expirationTime = mT
 			}
 		case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_LIMIT):
 			limit, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse write file limit '%s': %w", value, err)
+				return nil, xerrors.Errorf("failed to parse write file limit %q: %w", value, err)
 			}
 			writeFileLimit = limit
 		case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_COUNT):
 			count, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse write file count '%s': %w", value, err)
+				return nil, xerrors.Errorf("failed to parse write file count %q: %w", value, err)
 			}
 			writeFileCount = count
 		case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_LIMIT):
 			limit, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse write byte limit '%s': %w", value, err)
+				return nil, xerrors.Errorf("failed to parse write byte limit %q: %w", value, err)
 			}
 			writeByteLimit = limit
 		case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_COUNT):
 			count, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse write byte count '%s': %w", value, err)
+				return nil, xerrors.Errorf("failed to parse write byte count %q: %w", value, err)
 			}
 			writeByteCount = count
 		case int(common.ICAT_COLUMN_TICKET_COLL_NAME):
@@ -451,7 +451,7 @@ func GetTicketForCollections(conn *connection.IRODSConnection, ticketName string
 	}
 
 	if ticketID == -1 {
-		return nil, xerrors.Errorf("failed to find the ticket for name %s: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+		return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
 	}
 
 	return &types.IRODSTicket{
@@ -594,7 +594,7 @@ func ListTicketsForDataObjects(conn *connection.IRODSConnection) ([]*types.IRODS
 				case int(common.ICAT_COLUMN_TICKET_ID):
 					tID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse ticket id '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse ticket id %q: %w", value, err)
 					}
 					pagenatedTickets[row].ID = tID
 				case int(common.ICAT_COLUMN_TICKET_STRING):
@@ -606,45 +606,45 @@ func ListTicketsForDataObjects(conn *connection.IRODSConnection) ([]*types.IRODS
 				case int(common.ICAT_COLUMN_TICKET_USES_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse uses limit '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse uses limit %q: %w", value, err)
 					}
 					pagenatedTickets[row].UsesLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_USES_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse uses count '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse uses count %q: %w", value, err)
 					}
 					pagenatedTickets[row].UsesCount = count
 				case int(common.ICAT_COLUMN_TICKET_EXPIRY_TS):
 					if len(strings.TrimSpace(value)) > 0 {
 						mT, err := util.GetIRODSDateTime(value)
 						if err != nil {
-							return nil, xerrors.Errorf("failed to parse expiry time '%s': %w", value, err)
+							return nil, xerrors.Errorf("failed to parse expiry time %q: %w", value, err)
 						}
 						pagenatedTickets[row].ExpirationTime = mT
 					}
 				case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse write file limit '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse write file limit %q: %w", value, err)
 					}
 					pagenatedTickets[row].WriteFileLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse write file count '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse write file count %q: %w", value, err)
 					}
 					pagenatedTickets[row].WriteFileCount = count
 				case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse write byte limit '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse write byte limit %q: %w", value, err)
 					}
 					pagenatedTickets[row].WriteByteLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse write byte count '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse write byte count %q: %w", value, err)
 					}
 					pagenatedTickets[row].WriteByteCount = count
 				case int(common.ICAT_COLUMN_TICKET_DATA_NAME):
@@ -768,7 +768,7 @@ func ListTicketsForCollections(conn *connection.IRODSConnection) ([]*types.IRODS
 				case int(common.ICAT_COLUMN_TICKET_ID):
 					tID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse ticket id '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse ticket id %q: %w", value, err)
 					}
 					pagenatedTickets[row].ID = tID
 				case int(common.ICAT_COLUMN_TICKET_STRING):
@@ -780,45 +780,45 @@ func ListTicketsForCollections(conn *connection.IRODSConnection) ([]*types.IRODS
 				case int(common.ICAT_COLUMN_TICKET_USES_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse uses limit '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse uses limit %q: %w", value, err)
 					}
 					pagenatedTickets[row].UsesLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_USES_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse uses count '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse uses count %q: %w", value, err)
 					}
 					pagenatedTickets[row].UsesCount = count
 				case int(common.ICAT_COLUMN_TICKET_EXPIRY_TS):
 					if len(strings.TrimSpace(value)) > 0 {
 						mT, err := util.GetIRODSDateTime(value)
 						if err != nil {
-							return nil, xerrors.Errorf("failed to parse expiry time '%s': %w", value, err)
+							return nil, xerrors.Errorf("failed to parse expiry time %q: %w", value, err)
 						}
 						pagenatedTickets[row].ExpirationTime = mT
 					}
 				case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse write file limit '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse write file limit %q: %w", value, err)
 					}
 					pagenatedTickets[row].WriteFileLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse write file count '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse write file count %q: %w", value, err)
 					}
 					pagenatedTickets[row].WriteFileCount = count
 				case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse write byte limit '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse write byte limit %q: %w", value, err)
 					}
 					pagenatedTickets[row].WriteByteLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse write byte count '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse write byte count %q: %w", value, err)
 					}
 					pagenatedTickets[row].WriteByteCount = count
 				case int(common.ICAT_COLUMN_TICKET_COLL_NAME):
@@ -933,7 +933,7 @@ func ListTicketsBasic(conn *connection.IRODSConnection) ([]*types.IRODSTicket, e
 				case int(common.ICAT_COLUMN_TICKET_ID):
 					tID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse ticket id '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse ticket id %q: %w", value, err)
 					}
 					pagenatedTickets[row].ID = tID
 				case int(common.ICAT_COLUMN_TICKET_STRING):
@@ -945,45 +945,45 @@ func ListTicketsBasic(conn *connection.IRODSConnection) ([]*types.IRODSTicket, e
 				case int(common.ICAT_COLUMN_TICKET_USES_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse uses limit '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse uses limit %q: %w", value, err)
 					}
 					pagenatedTickets[row].UsesLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_USES_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse uses count '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse uses count %q: %w", value, err)
 					}
 					pagenatedTickets[row].UsesCount = count
 				case int(common.ICAT_COLUMN_TICKET_EXPIRY_TS):
 					if len(strings.TrimSpace(value)) > 0 {
 						mT, err := util.GetIRODSDateTime(value)
 						if err != nil {
-							return nil, xerrors.Errorf("failed to parse expiry time '%s': %w", value, err)
+							return nil, xerrors.Errorf("failed to parse expiry time %q: %w", value, err)
 						}
 						pagenatedTickets[row].ExpirationTime = mT
 					}
 				case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse write file limit '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse write file limit %q: %w", value, err)
 					}
 					pagenatedTickets[row].WriteFileLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse write file count '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse write file count %q: %w", value, err)
 					}
 					pagenatedTickets[row].WriteFileCount = count
 				case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse write byte limit '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse write byte limit %q: %w", value, err)
 					}
 					pagenatedTickets[row].WriteByteLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse write byte count '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse write byte count %q: %w", value, err)
 					}
 					pagenatedTickets[row].WriteByteCount = count
 				case int(common.ICAT_COLUMN_TICKET_OWNER_NAME):

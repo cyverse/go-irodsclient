@@ -69,7 +69,7 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 	err := conn.Request(query, &queryResult, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError(path))
+			return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
 		return nil, xerrors.Errorf("failed to receive collection query result message: %w", err)
 	}
@@ -77,14 +77,14 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 	err = queryResult.CheckError()
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError(path))
+			return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
 		return nil, xerrors.Errorf("received collection query error: %w", err)
 	}
 
 	if queryResult.RowCount != 1 {
 		// file not found
-		return nil, xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError(path))
+		return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 	}
 
 	if queryResult.AttributeCount > len(queryResult.SQLResult) {
@@ -108,7 +108,7 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 		case int(common.ICAT_COLUMN_COLL_ID):
 			cID, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse collection id '%s': %w", value, err)
+				return nil, xerrors.Errorf("failed to parse collection id %q: %w", value, err)
 			}
 			collectionID = cID
 		case int(common.ICAT_COLUMN_COLL_NAME):
@@ -118,13 +118,13 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 		case int(common.ICAT_COLUMN_COLL_CREATE_TIME):
 			cT, err := util.GetIRODSDateTime(value)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse create time '%s': %w", value, err)
+				return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 			}
 			createTime = cT
 		case int(common.ICAT_COLUMN_COLL_MODIFY_TIME):
 			mT, err := util.GetIRODSDateTime(value)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse modify time '%s': %w", value, err)
+				return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 			}
 			modifyTime = mT
 		default:
@@ -133,7 +133,7 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 	}
 
 	if collectionID == -1 {
-		return nil, xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError(path))
+		return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 	}
 
 	return &types.IRODSCollection{
@@ -232,7 +232,7 @@ func ListCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types
 				case int(common.ICAT_COLUMN_META_COLL_ATTR_ID):
 					avuID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse collection metadata id '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse collection metadata id %q: %w", value, err)
 					}
 					pagenatedMetas[row].AVUID = avuID
 				case int(common.ICAT_COLUMN_META_COLL_ATTR_NAME):
@@ -244,13 +244,13 @@ func ListCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types
 				case int(common.ICAT_COLUMN_META_COLL_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse create time '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 					}
 					pagenatedMetas[row].CreateTime = cT
 				case int(common.ICAT_COLUMN_META_COLL_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse modify time '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
 					pagenatedMetas[row].ModifyTime = mT
 				default:
@@ -347,7 +347,7 @@ func GetCollectionAccessInheritance(conn *connection.IRODSConnection, path strin
 				case int(common.ICAT_COLUMN_COLL_INHERITANCE):
 					inherit, err := strconv.ParseBool(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse inheritance '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse inheritance %q: %w", value, err)
 					}
 					pagenatedAccessInheritances[row].Inheritance = inherit
 				default:
@@ -766,7 +766,7 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 				case int(common.ICAT_COLUMN_COLL_ID):
 					cID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse collection id '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse collection id %q: %w", value, err)
 					}
 					pagenatedCollections[row].ID = cID
 				case int(common.ICAT_COLUMN_COLL_NAME):
@@ -777,13 +777,13 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 				case int(common.ICAT_COLUMN_COLL_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse create time '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 					}
 					pagenatedCollections[row].CreateTime = cT
 				case int(common.ICAT_COLUMN_COLL_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse modify time '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
 					pagenatedCollections[row].ModifyTime = mT
 				default:
@@ -847,9 +847,9 @@ func DeleteCollection(conn *connection.IRODSConnection, path string, recurse boo
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError(path))
+			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		} else if types.GetIRODSErrorCode(err) == common.CAT_COLLECTION_NOT_EMPTY {
-			return xerrors.Errorf("the collection for path %s is empty: %w", path, types.NewCollectionNotEmptyError(path))
+			return xerrors.Errorf("the collection for path %q is empty: %w", path, types.NewCollectionNotEmptyError(path))
 		}
 
 		return xerrors.Errorf("received delete collection error: %w", err)
@@ -896,7 +896,7 @@ func MoveCollection(conn *connection.IRODSConnection, srcPath string, destPath s
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return xerrors.Errorf("failed to find the collection for path %s: %w", srcPath, types.NewFileNotFoundError(srcPath))
+			return xerrors.Errorf("failed to find the collection for path %q: %w", srcPath, types.NewFileNotFoundError(srcPath))
 		}
 		return xerrors.Errorf("received move collection error: %w", err)
 	}
@@ -958,7 +958,7 @@ func DeleteCollectionMeta(conn *connection.IRODSConnection, path string, metadat
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError(path))
+			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
 		return xerrors.Errorf("received delete collection meta error: %w", err)
 	}
@@ -1048,7 +1048,7 @@ func SearchCollectionsByMeta(conn *connection.IRODSConnection, metaName string, 
 				case int(common.ICAT_COLUMN_COLL_ID):
 					cID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse collection id '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse collection id %q: %w", value, err)
 					}
 					pagenatedCollections[row].ID = cID
 				case int(common.ICAT_COLUMN_COLL_NAME):
@@ -1059,13 +1059,13 @@ func SearchCollectionsByMeta(conn *connection.IRODSConnection, metaName string, 
 				case int(common.ICAT_COLUMN_COLL_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse create time '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 					}
 					pagenatedCollections[row].CreateTime = cT
 				case int(common.ICAT_COLUMN_COLL_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse modify time '%s': %w", value, err)
+						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
 					pagenatedCollections[row].ModifyTime = mT
 				default:
@@ -1175,7 +1175,7 @@ func SearchCollectionsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 					case int(common.ICAT_COLUMN_COLL_ID):
 						cID, err := strconv.ParseInt(value, 10, 64)
 						if err != nil {
-							return nil, xerrors.Errorf("failed to parse collection id '%s': %w", value, err)
+							return nil, xerrors.Errorf("failed to parse collection id %q: %w", value, err)
 						}
 						pagenatedCollections[row].ID = cID
 					case int(common.ICAT_COLUMN_COLL_NAME):
@@ -1186,13 +1186,13 @@ func SearchCollectionsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 					case int(common.ICAT_COLUMN_COLL_CREATE_TIME):
 						cT, err := util.GetIRODSDateTime(value)
 						if err != nil {
-							return nil, xerrors.Errorf("failed to parse create time '%s': %w", value, err)
+							return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 						}
 						pagenatedCollections[row].CreateTime = cT
 					case int(common.ICAT_COLUMN_COLL_MODIFY_TIME):
 						mT, err := util.GetIRODSDateTime(value)
 						if err != nil {
-							return nil, xerrors.Errorf("failed to parse modify time '%s': %w", value, err)
+							return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 						}
 						pagenatedCollections[row].ModifyTime = mT
 					default:
@@ -1233,7 +1233,7 @@ func ChangeCollectionAccess(conn *connection.IRODSConnection, path string, acces
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError(path))
+			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
 		return xerrors.Errorf("received change collection access error: %w", err)
 	}
@@ -1266,7 +1266,7 @@ func SetAccessInherit(conn *connection.IRODSConnection, path string, inherit, re
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return xerrors.Errorf("failed to find the collection for path %s: %w", path, types.NewFileNotFoundError(path))
+			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
 		return xerrors.Errorf("received set access inherit error: %w", err)
 	}

@@ -446,7 +446,7 @@ func testRemoveClose(t *testing.T) {
 	wg.Add(2)
 
 	go func() {
-		//t.Logf("calling remove - %s\n", newDataObjectPath)
+		//t.Logf("calling remove %q\n", newDataObjectPath)
 		err = filesystem.RemoveFile(newDataObjectPath, true)
 		failError(t, err)
 		wg.Done()
@@ -455,7 +455,7 @@ func testRemoveClose(t *testing.T) {
 	go func() {
 		time.Sleep(3 * time.Second)
 		// close
-		//t.Logf("calling close - %s\n", newDataObjectPath)
+		//t.Logf("calling close %q\n", newDataObjectPath)
 		err = handle.Close()
 		failError(t, err)
 		wg.Done()

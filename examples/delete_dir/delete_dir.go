@@ -63,8 +63,8 @@ func main() {
 	}
 
 	if !filesystem.ExistsDir(inputPath) {
-		fmt.Printf("Successfully deleted dir %s\n", inputPath)
+		fmt.Printf("Successfully deleted dir %q\n", inputPath)
 	} else {
-		fmt.Printf("Could not delete dir %s\n", inputPath)
+		fmt.Printf("Could not delete dir %q\n", inputPath)
 	}
 }

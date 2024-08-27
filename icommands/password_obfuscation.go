@@ -41,7 +41,7 @@ var (
 func DecodePasswordFile(path string, uid int) (string, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return "", xerrors.Errorf("failed to read file %s: %w", path, err)
+		return "", xerrors.Errorf("failed to read file %q: %w", path, err)
 	}
 
 	return DecodePasswordString(string(content), uid), nil
@@ -53,7 +53,7 @@ func EncodePasswordFile(path string, s string, uid int) error {
 
 	err := os.WriteFile(path, []byte(content), 0600)
 	if err != nil {
-		return xerrors.Errorf("failed to write file %s: %w", path, err)
+		return xerrors.Errorf("failed to write file %q: %w", path, err)
 	}
 	return nil
 }

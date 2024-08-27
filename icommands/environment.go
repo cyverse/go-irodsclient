@@ -36,7 +36,7 @@ func CreateIcommandsEnvironmentManager() (*ICommandsEnvironmentManager, error) {
 
 	envDirPath, err := util.ExpandHomeDir(environmentDirDefault)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to expand home dir %s: %w", environmentDirDefault, err)
+		return nil, xerrors.Errorf("failed to expand home dir %q: %w", environmentDirDefault, err)
 	}
 
 	return &ICommandsEnvironmentManager{
@@ -110,7 +110,7 @@ func (manager *ICommandsEnvironmentManager) SetEnvironmentFilePath(envFilePath s
 	if len(envFilePath) > 0 {
 		envFilePath, err := util.ExpandHomeDir(envFilePath)
 		if err != nil {
-			return xerrors.Errorf("failed to expand home dir %s: %w", envFilePath, err)
+			return xerrors.Errorf("failed to expand home dir %q: %w", envFilePath, err)
 		}
 
 		manager.EnvironmentDirPath = filepath.Dir(envFilePath)
@@ -167,7 +167,7 @@ func (manager *ICommandsEnvironmentManager) Load(processID int) error {
 
 		env, err := CreateICommandsEnvironmentFromFile(environmentFilePath)
 		if err != nil {
-			return xerrors.Errorf("failed to create icommands environment from file %s: %w", environmentFilePath, err)
+			return xerrors.Errorf("failed to create icommands environment from file %q: %w", environmentFilePath, err)
 		}
 
 		manager.Environment = env
@@ -180,7 +180,7 @@ func (manager *ICommandsEnvironmentManager) Load(processID int) error {
 
 		session, err := CreateICommandsEnvironmentFromFile(sessionFilePath)
 		if err != nil {
-			return xerrors.Errorf("failed to create icommands environment session from file %s: %w", sessionFilePath, err)
+			return xerrors.Errorf("failed to create icommands environment session from file %q: %w", sessionFilePath, err)
 		}
 
 		manager.Session = session
@@ -193,8 +193,8 @@ func (manager *ICommandsEnvironmentManager) Load(processID int) error {
 
 		password, err := DecodePasswordFile(passwordFilePath, manager.UID)
 		if err != nil {
-			logger.Debugf("failed to decode password file %s - %s", passwordFilePath, err.Error())
-			//return xerrors.Errorf("failed to decode password file %s: %w", passwordFilePath, err)
+			logger.WithError(err).Debugf("failed to decode password file %q", passwordFilePath)
+			//return xerrors.Errorf("failed to decode password file %q: %w", passwordFilePath, err)
 			// continue
 		} else {
 			authScheme := types.GetAuthScheme(manager.Environment.AuthenticationScheme)
@@ -235,12 +235,12 @@ func (manager *ICommandsEnvironmentManager) SaveEnvironment() error {
 	dirpath := filepath.Dir(environmentFilePath)
 	err := os.MkdirAll(dirpath, 0700)
 	if err != nil {
-		return xerrors.Errorf("failed to make a dir %s: %w", dirpath, err)
+		return xerrors.Errorf("failed to make a dir %q: %w", dirpath, err)
 	}
 
 	err = manager.Environment.ToFile(environmentFilePath)
 	if err != nil {
-		return xerrors.Errorf("failed to write environment to file %s: %w", environmentFilePath, err)
+		return xerrors.Errorf("failed to write environment to file %q: %w", environmentFilePath, err)
 	}
 
 	passwordFilePath := manager.GetPasswordFilePath()
@@ -253,7 +253,7 @@ func (manager *ICommandsEnvironmentManager) SaveEnvironment() error {
 
 	err = EncodePasswordFile(passwordFilePath, password, manager.UID)
 	if err != nil {
-		return xerrors.Errorf("failed to encode password file %s: %w", passwordFilePath, err)
+		return xerrors.Errorf("failed to encode password file %q: %w", passwordFilePath, err)
 	}
 	return nil
 }
@@ -270,12 +270,12 @@ func (manager *ICommandsEnvironmentManager) SaveSession(processID int) error {
 	dirpath := filepath.Dir(sessionFilePath)
 	err := os.MkdirAll(dirpath, 0700)
 	if err != nil {
-		return xerrors.Errorf("failed to make a dir %s: %w", dirpath, err)
+		return xerrors.Errorf("failed to make a dir %q: %w", dirpath, err)
 	}
 
 	err = manager.Session.ToFile(sessionFilePath)
 	if err != nil {
-		return xerrors.Errorf("failed to save to file %s: %w", sessionFilePath, err)
+		return xerrors.Errorf("failed to save to file %q: %w", sessionFilePath, err)
 	}
 	return nil
 }

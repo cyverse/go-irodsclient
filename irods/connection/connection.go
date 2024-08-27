@@ -215,7 +215,7 @@ func (conn *IRODSConnection) Connect() error {
 
 	err := conn.account.Validate()
 	if err != nil {
-		return xerrors.Errorf("invalid account (%s): %w", err.Error(), types.NewConnectionConfigError(conn.account))
+		return xerrors.Errorf("invalid account (%q): %w", err.Error(), types.NewConnectionConfigError(conn.account))
 	}
 
 	// lock the connection
@@ -232,7 +232,7 @@ func (conn *IRODSConnection) Connect() error {
 
 	socket, err := dialer.DialContext(ctx, "tcp", server)
 	if err != nil {
-		connErr := xerrors.Errorf("failed to connect to specified host %s and port %d (%s): %w", conn.account.Host, conn.account.Port, err.Error(), types.NewConnectionError())
+		connErr := xerrors.Errorf("failed to connect to specified host %q and port %d (%s): %w", conn.account.Host, conn.account.Port, err.Error(), types.NewConnectionError())
 		logger.Errorf("%+v", connErr)
 
 		if conn.metrics != nil {
@@ -259,7 +259,7 @@ func (conn *IRODSConnection) Connect() error {
 	}
 
 	if err != nil {
-		connErr := xerrors.Errorf("failed to startup an iRODS connection to server %s and port %d (%s): %w", conn.account.Host, conn.account.Port, err.Error(), types.NewConnectionError())
+		connErr := xerrors.Errorf("failed to startup an iRODS connection to server %q and port %d (%s): %w", conn.account.Host, conn.account.Port, err.Error(), types.NewConnectionError())
 		logger.Errorf("%+v", connErr)
 		_ = conn.disconnectNow()
 		if conn.metrics != nil {
@@ -282,7 +282,7 @@ func (conn *IRODSConnection) Connect() error {
 			err = conn.loginPAMWithPassword()
 		}
 	default:
-		err = xerrors.Errorf("unknown Authentication Scheme - %s: %w", conn.account.AuthenticationScheme, types.NewConnectionConfigError(conn.account))
+		err = xerrors.Errorf("unknown Authentication Scheme %q: %w", conn.account.AuthenticationScheme, types.NewConnectionConfigError(conn.account))
 	}
 
 	if err != nil {
@@ -363,14 +363,14 @@ func (conn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, er
 			return nil, xerrors.Errorf("failed to parse server policy (%s): %w", err.Error(), types.NewConnectionError())
 		}
 
-		logger.Debugf("Client policy - %s, server policy - %s", clientPolicy, serverPolicy)
+		logger.Debugf("Client policy %q, server policy %q", clientPolicy, serverPolicy)
 
 		// Perform the negotiation
 		policyResult := types.PerformCSNegotiation(clientPolicy, serverPolicy)
 
 		// If negotiation failed we're done
 		if policyResult == types.CSNegotiationFailure {
-			return nil, xerrors.Errorf("client-server negotiation failed - %s, %s: %w", string(clientPolicy), string(serverPolicy), types.NewConnectionError())
+			return nil, xerrors.Errorf("client-server negotiation failed (client %q, server %q): %w", string(clientPolicy), string(serverPolicy), types.NewConnectionError())
 		}
 
 		// Send negotiation result to server
@@ -391,7 +391,7 @@ func (conn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, er
 		return version.GetVersion(), nil
 	}
 
-	return nil, xerrors.Errorf("unknown response message '%s': %w", negotiationMessage.Body.Type, types.NewConnectionError())
+	return nil, xerrors.Errorf("unknown response message %q: %w", negotiationMessage.Body.Type, types.NewConnectionError())
 }
 
 func (conn *IRODSConnection) connectWithoutCSNegotiation() (*types.IRODSVersion, error) {

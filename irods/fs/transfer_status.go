@@ -148,7 +148,7 @@ func (status *DataObjectTransferStatusLocal) GetStatus() *DataObjectTransferStat
 func (status *DataObjectTransferStatusLocal) CreateStatusFile() error {
 	handle, err := os.Create(status.status.StatusFilePath)
 	if err != nil {
-		return xerrors.Errorf("failed to create file %s: %w", status.status.StatusFilePath, err)
+		return xerrors.Errorf("failed to create file %q: %w", status.status.StatusFilePath, err)
 	}
 
 	status.fileHandle = handle
@@ -168,7 +168,7 @@ func (status *DataObjectTransferStatusLocal) CloseStatusFile() error {
 func (status *DataObjectTransferStatusLocal) DeleteStatusFile() error {
 	err := os.RemoveAll(status.status.StatusFilePath)
 	if err != nil {
-		return xerrors.Errorf("failed to delete status file %s: %w", status.status.StatusFilePath, err)
+		return xerrors.Errorf("failed to delete status file %q: %w", status.status.StatusFilePath, err)
 	}
 
 	return nil
@@ -211,12 +211,12 @@ func GetDataObjectTransferStatusLocal(localPath string) (*DataObjectTransferStat
 
 	data, err := os.ReadFile(statusFilePath)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to read file %s: %w", statusFilePath, err)
+		return nil, xerrors.Errorf("failed to read file %q: %w", statusFilePath, err)
 	}
 
 	status, err := newDataObjectTransferFromBytes(data)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to create transfer status for %s: %w", localPath, err)
+		return nil, xerrors.Errorf("failed to create transfer status for %q: %w", localPath, err)
 	}
 
 	return &DataObjectTransferStatusLocal{
@@ -235,7 +235,7 @@ func GetOrNewDataObjectTransferStatusLocal(localPath string, size int64, threads
 			return status, nil
 		}
 
-		return nil, xerrors.Errorf("failed to read transfer status for %s: %w", localPath, err)
+		return nil, xerrors.Errorf("failed to read transfer status for %q: %w", localPath, err)
 	}
 
 	if !status.status.Validate(localPath, size) {

@@ -168,7 +168,7 @@ func (conn *IRODSResourceServerConnection) Connect() error {
 
 	socket, err := dialer.DialContext(ctx, "tcp", server)
 	if err != nil {
-		connErr := xerrors.Errorf("failed to connect to specified host %s and port %d (%s): %w", conn.serverInfo.Host, conn.serverInfo.Port, err.Error(), types.NewConnectionError())
+		connErr := xerrors.Errorf("failed to connect to specified host %q and port %d (%s): %w", conn.serverInfo.Host, conn.serverInfo.Port, err.Error(), types.NewConnectionError())
 		logger.Errorf("%+v", connErr)
 
 		if conn.metrics != nil {
@@ -199,7 +199,7 @@ func (conn *IRODSResourceServerConnection) Connect() error {
 
 	err = conn.Send(authBytes, len(authBytes))
 	if err != nil {
-		authErr := xerrors.Errorf("failed to send authentication request to server %s and port %d: %w", conn.serverInfo.Host, conn.serverInfo.Port, err)
+		authErr := xerrors.Errorf("failed to send authentication request to server %q and port %d: %w", conn.serverInfo.Host, conn.serverInfo.Port, err)
 		logger.Errorf("%+v", authErr)
 		_ = conn.disconnectNow()
 		if conn.metrics != nil {

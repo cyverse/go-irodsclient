@@ -32,7 +32,7 @@ func NewIRODSMessageHost(resource *types.IRODSResource) (*IRODSMessageHost, erro
 
 		port, err = strconv.Atoi(portStr)
 		if err != nil {
-			return nil, xerrors.Errorf("failed to convert ascii '%s' to int: %w", portStr, err)
+			return nil, xerrors.Errorf("failed to convert ascii %q to int: %w", portStr, err)
 		}
 
 		addr = newAddr

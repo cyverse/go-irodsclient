@@ -87,7 +87,7 @@ func (mode FileOpenMode) GetFlagSeekToEnd() (int, bool) {
 	case FileOpenModeReadAppend:
 		return int(O_RDWR) | int(O_CREAT), true
 	default:
-		logger.Errorf("Unhandled file open mode %s", mode)
+		logger.Errorf("Unhandled file open mode %q", mode)
 		return -1, false
 	}
 }

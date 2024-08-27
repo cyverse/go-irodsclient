@@ -117,7 +117,7 @@ func NewAuthError(config *IRODSAccount) error {
 
 // Error returns error message
 func (err *AuthError) Error() string {
-	return fmt.Sprintf("authentication error (auth scheme: '%s', username: '%s', zone: '%s')", err.Config.AuthenticationScheme, err.Config.ClientUser, err.Config.ClientZone)
+	return fmt.Sprintf("authentication error (auth scheme: %q, username: %q, zone: %q)", err.Config.AuthenticationScheme, err.Config.ClientUser, err.Config.ClientZone)
 }
 
 // Is tests type of error

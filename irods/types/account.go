@@ -388,13 +388,13 @@ func (account *IRODSAccount) Validate() error {
 
 	err := account.validateUsername(account.ProxyUser)
 	if err != nil {
-		return xerrors.Errorf("failed to validate username %s: %w", account.ProxyUser, err)
+		return xerrors.Errorf("failed to validate username %q: %w", account.ProxyUser, err)
 	}
 
 	if len(account.ClientUser) > 0 {
 		err = account.validateUsername(account.ClientUser)
 		if err != nil {
-			return xerrors.Errorf("failed to validate username %s: %w", account.ProxyUser, err)
+			return xerrors.Errorf("failed to validate username %q: %w", account.ProxyUser, err)
 		}
 	}
 

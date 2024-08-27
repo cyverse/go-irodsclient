@@ -48,7 +48,7 @@ type ICommandsEnvironment struct {
 func CreateICommandsEnvironmentFromFile(envPath string) (*ICommandsEnvironment, error) {
 	data, err := os.ReadFile(envPath)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to read from file %s: %w", envPath, err)
+		return nil, xerrors.Errorf("failed to read from file %q: %w", envPath, err)
 	}
 
 	return CreateICommandsEnvironmentFromJSON(data)
@@ -148,7 +148,7 @@ func (env *ICommandsEnvironment) ToFile(envPath string) error {
 
 	err = os.WriteFile(envPath, jsonByte, 0664)
 	if err != nil {
-		return xerrors.Errorf("failed to write to file %s: %w", envPath, err)
+		return xerrors.Errorf("failed to write to file %q: %w", envPath, err)
 	}
 	return nil
 }
