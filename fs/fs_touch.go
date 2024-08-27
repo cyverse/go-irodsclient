@@ -1,6 +1,8 @@
 package fs
 
 import (
+	"github.com/cyverse/go-irodsclient/irods/common"
+	"github.com/cyverse/go-irodsclient/irods/connection"
 	irods_fs "github.com/cyverse/go-irodsclient/irods/fs"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
@@ -20,7 +22,7 @@ func (fs *FileSystem) Touch(irodsPath string, resource string, noCreate bool) er
 	if err != nil {
 		if types.IsFileNotFoundError(err) {
 			// create
-			err = irods_fs.Touch(conn, irodsCorrectPath, resource, noCreate)
+			err = fs.touchInternal(conn, entry, irodsCorrectPath, resource, noCreate)
 			if err != nil {
 				return err
 			}
@@ -31,23 +33,55 @@ func (fs *FileSystem) Touch(irodsPath string, resource string, noCreate bool) er
 		return err
 	}
 
-	if entry.IsDir() {
-		// dir
-		err = irods_fs.Touch(conn, irodsCorrectPath, resource, noCreate)
-		if err != nil {
-			return err
-		}
-
-		fs.invalidateCacheForDirUpdate(irodsCorrectPath)
-		return nil
-	}
-
-	// file
-	err = irods_fs.Touch(conn, irodsCorrectPath, resource, noCreate)
+	err = fs.touchInternal(conn, entry, irodsCorrectPath, resource, noCreate)
 	if err != nil {
 		return err
 	}
 
-	fs.invalidateCacheForFileUpdate(irodsCorrectPath)
+	if entry.IsDir() {
+		fs.invalidateCacheForDirUpdate(irodsCorrectPath)
+	} else {
+		fs.invalidateCacheForFileUpdate(irodsCorrectPath)
+	}
+
+	return nil
+}
+
+func (fs *FileSystem) touchInternal(conn *connection.IRODSConnection, entry *Entry, irodsPath string, resource string, noCreate bool) error {
+	err := irods_fs.Touch(conn, irodsPath, resource, noCreate)
+	if err != nil {
+		if !types.IsAPINotSupportedError(err) {
+			return err
+		}
+	} else {
+		return nil
+	}
+
+	// not supported
+	if entry != nil {
+		if entry.IsDir() {
+			// do nothing
+			// there's no way to update collection's timestamp
+			return nil
+		}
+
+		// file
+		// use truncate to update
+		return fs.TruncateFile(irodsPath, entry.Size)
+	}
+
+	// create
+	keywords := map[common.KeyWord]string{}
+	handle, err := irods_fs.CreateDataObject(conn, irodsPath, resource, "w", true, keywords)
+	if err != nil {
+		return err
+	}
+
+	// close
+	err = irods_fs.CloseDataObject(conn, handle)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

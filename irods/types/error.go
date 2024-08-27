@@ -336,6 +336,39 @@ func IsUserNotFoundError(err error) bool {
 	return errors.Is(err, &UserNotFoundError{})
 }
 
+// APINotSupportedError contains api not supported error information
+type APINotSupportedError struct {
+	ApiNumber common.APINumber
+}
+
+// NewAPINotSupportedError creates an error for api not supported
+func NewAPINotSupportedError(apiNumber common.APINumber) error {
+	return &APINotSupportedError{
+		ApiNumber: apiNumber,
+	}
+}
+
+// Error returns error message
+func (err *APINotSupportedError) Error() string {
+	return fmt.Sprintf("API number %d not supported", err.ApiNumber)
+}
+
+// Is tests type of error
+func (err *APINotSupportedError) Is(other error) bool {
+	_, ok := other.(*APINotSupportedError)
+	return ok
+}
+
+// ToString stringifies the object
+func (err *APINotSupportedError) ToString() string {
+	return fmt.Sprintf("<APINotSupportedError %d>", err.ApiNumber)
+}
+
+// IsAPINotSupportedError checks if the given error is APINotSupportedError
+func IsAPINotSupportedError(err error) bool {
+	return errors.Is(err, &APINotSupportedError{})
+}
+
 // IRODSError contains irods error information
 type IRODSError struct {
 	Code              common.ErrorCode
