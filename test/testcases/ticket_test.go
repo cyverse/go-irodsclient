@@ -34,7 +34,7 @@ func testCreateAndRemoveTickets(t *testing.T) {
 
 	account.ClientServerNegotiation = false
 
-	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
+	fsConfig := GetTestFileSystemConfig()
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
@@ -114,7 +114,7 @@ func testUpdateTicket(t *testing.T) {
 
 	account.ClientServerNegotiation = false
 
-	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
+	fsConfig := GetTestFileSystemConfig()
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)

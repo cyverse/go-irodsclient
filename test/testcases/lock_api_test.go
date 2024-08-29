@@ -40,12 +40,12 @@ func testSimpleLockIRODSDataObject(t *testing.T) {
 
 	account.ClientServerNegotiation = false
 
-	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
+	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
 	failError(t, err)
 	defer conn.Disconnect()
 
-	conn2 := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
+	conn2 := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err = conn2.Connect()
 	failError(t, err)
 	defer conn2.Disconnect()

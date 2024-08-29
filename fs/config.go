@@ -2,6 +2,8 @@ package fs
 
 import (
 	"time"
+
+	"github.com/cyverse/go-irodsclient/irods/session"
 )
 
 const (
@@ -43,36 +45,16 @@ type FileSystemConfig struct {
 	// at subdir/file creation/deletion
 	// turn to false to allow short cache inconsistency
 	InvalidateParentEntryCacheImmediately bool
+
+	AddressResolver session.AddressResolver
 }
 
-// NewFileSystemConfig create a FileSystemConfig
-func NewFileSystemConfig(applicationName string, connectionErrorTimeout time.Duration, connectionInitNumber int, connectionLifespan time.Duration, operationTimeout time.Duration, connectionIdleTimeout time.Duration, connectionMax int, tcpBufferSize int, cacheTimeout time.Duration, cacheCleanupTime time.Duration, cacheTimeoutSettings []MetadataCacheTimeoutSetting, startNewTransaction bool, invalidateParentEntryCacheImmediately bool) *FileSystemConfig {
-	connMax := connectionMax
-	if connMax < FileSystemConnectionMaxMin {
-		connMax = FileSystemConnectionMaxMin
-	}
-
+// NewFileSystemConfig create a FileSystemConfig with a default settings
+func NewFileSystemConfig(applicationName string) *FileSystemConfig {
 	return &FileSystemConfig{
-		ApplicationName:                       applicationName,
-		ConnectionErrorTimeout:                connectionErrorTimeout,
-		ConnectionInitNumber:                  connectionInitNumber,
-		ConnectionLifespan:                    connectionLifespan,
-		OperationTimeout:                      operationTimeout,
-		ConnectionIdleTimeout:                 connectionIdleTimeout,
-		ConnectionMax:                         connMax,
-		TCPBufferSize:                         tcpBufferSize,
-		CacheTimeout:                          cacheTimeout,
-		CacheCleanupTime:                      cacheCleanupTime,
-		CacheTimeoutSettings:                  cacheTimeoutSettings,
-		StartNewTransaction:                   startNewTransaction,
-		InvalidateParentEntryCacheImmediately: invalidateParentEntryCacheImmediately,
-	}
-}
+		ApplicationName: applicationName,
 
-// NewFileSystemConfigWithDefault create a FileSystemConfig with a default settings
-func NewFileSystemConfigWithDefault(applicationName string) *FileSystemConfig {
-	return &FileSystemConfig{
-		ApplicationName:                       applicationName,
+		// defaults
 		ConnectionErrorTimeout:                FileSystemConnectionErrorTimeoutDefault,
 		ConnectionInitNumber:                  FileSystemConnectionInitNumberDefault,
 		ConnectionLifespan:                    FileSystemConnectionLifespanDefault,
@@ -85,5 +67,24 @@ func NewFileSystemConfigWithDefault(applicationName string) *FileSystemConfig {
 		CacheCleanupTime:                      FileSystemTimeoutDefault,
 		StartNewTransaction:                   true,
 		InvalidateParentEntryCacheImmediately: true,
+		AddressResolver:                       nil,
 	}
+}
+
+// ToSessionConfig creates a IRODSSessionConfig from FileSystemConfig
+func (config *FileSystemConfig) ToSessionConfig() *session.IRODSSessionConfig {
+	sessionConfig := session.NewIRODSSessionConfig(config.ApplicationName)
+
+	sessionConfig.ConnectionErrorTimeout = config.ConnectionErrorTimeout
+	sessionConfig.ConnectionInitNumber = config.ConnectionInitNumber
+	sessionConfig.ConnectionLifespan = config.ConnectionLifespan
+	sessionConfig.OperationTimeout = config.OperationTimeout
+	sessionConfig.ConnectionIdleTimeout = config.ConnectionIdleTimeout
+	sessionConfig.ConnectionMax = config.ConnectionMax
+	sessionConfig.TCPBufferSize = config.TCPBufferSize
+	sessionConfig.ConnectionMaxIdle = config.ConnectionMax
+	sessionConfig.StartNewTransaction = config.StartNewTransaction
+	sessionConfig.AddressResolver = config.AddressResolver
+
+	return sessionConfig
 }

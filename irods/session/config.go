@@ -31,32 +31,13 @@ type IRODSSessionConfig struct {
 	ConnectionMax          int
 	ConnectionInitNumber   int
 	ConnectionMaxIdle      int
-	TcpBufferSize          int
+	TCPBufferSize          int
 	StartNewTransaction    bool
+	AddressResolver        AddressResolver
 }
 
-// NewIRODSSessionConfig create a IRODSSessionConfig
-func NewIRODSSessionConfig(applicationName string, connectionErrorTimeout time.Duration, connectionInitNumber int, connectionLifespan time.Duration, operationTimeout time.Duration, idleTimeout time.Duration, connectionMax int, tcpBufferSize int, startNewTransaction bool) *IRODSSessionConfig {
-	if connectionMax < IRODSSessionConnectionMaxMin {
-		connectionMax = IRODSSessionConnectionMaxMin
-	}
-
-	return &IRODSSessionConfig{
-		ApplicationName:        applicationName,
-		ConnectionErrorTimeout: connectionErrorTimeout,
-		ConnectionLifespan:     connectionLifespan,
-		OperationTimeout:       operationTimeout,
-		ConnectionIdleTimeout:  idleTimeout,
-		ConnectionMax:          connectionMax,
-		ConnectionInitNumber:   connectionInitNumber,
-		ConnectionMaxIdle:      IRODSSessionConnectionMaxMin,
-		TcpBufferSize:          tcpBufferSize,
-		StartNewTransaction:    startNewTransaction,
-	}
-}
-
-// NewIRODSSessionConfigWithDefault create a IRODSSessionConfig with a default settings
-func NewIRODSSessionConfigWithDefault(applicationName string) *IRODSSessionConfig {
+// NewIRODSSessionConfig create a IRODSSessionConfig with a default settings
+func NewIRODSSessionConfig(applicationName string) *IRODSSessionConfig {
 	return &IRODSSessionConfig{
 		ApplicationName:        applicationName,
 		ConnectionErrorTimeout: IRODSSessionConnectionErrorTimeoutDefault,
@@ -66,7 +47,8 @@ func NewIRODSSessionConfigWithDefault(applicationName string) *IRODSSessionConfi
 		ConnectionMax:          IRODSSessionConnectionMaxDefault,
 		ConnectionInitNumber:   IRODSSessionConnectionInitNumberDefault,
 		ConnectionMaxIdle:      IRODSSessionConnectionMaxMin,
-		TcpBufferSize:          IRODSSessionTCPBufferSizeDefault,
+		TCPBufferSize:          IRODSSessionTCPBufferSizeDefault,
 		StartNewTransaction:    true,
+		AddressResolver:        nil,
 	}
 }

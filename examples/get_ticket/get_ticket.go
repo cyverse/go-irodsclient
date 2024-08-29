@@ -46,8 +46,8 @@ func main() {
 
 	// Create a file system
 	appName := "get_ticket"
-	config := fs.NewFileSystemConfigWithDefault(appName)
-	sessConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionErrorTimeout, config.ConnectionInitNumber, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax, config.TCPBufferSize, config.StartNewTransaction)
+	config := fs.NewFileSystemConfig(appName)
+	sessConfig := config.ToSessionConfig()
 	sess, err := session.NewIRODSSession(account, sessConfig)
 	if err != nil {
 		logger.Error(err)

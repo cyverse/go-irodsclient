@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/cyverse/go-irodsclient/fs"
-	"github.com/cyverse/go-irodsclient/test/server"
 	"github.com/rs/xid"
 )
 
@@ -33,7 +32,7 @@ func testUpDownMBFiles(t *testing.T) {
 
 	account.ClientServerNegotiation = false
 
-	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
+	fsConfig := GetTestFileSystemConfig()
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
@@ -81,7 +80,7 @@ func testUpDownMBFilesParallel(t *testing.T) {
 
 	account.ClientServerNegotiation = false
 
-	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
+	fsConfig := GetTestFileSystemConfig()
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
@@ -129,9 +128,9 @@ func testUpDownMBFilesParallelRedirectToResource(t *testing.T) {
 
 	account.ClientServerNegotiation = false
 
-	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
+	fsConfig := GetTestFileSystemConfig()
 
-	filesystem, err := fs.NewFileSystemWithAddressResolver(account, fsConfig, server.AddressResolver)
+	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
 	defer filesystem.Release()
 

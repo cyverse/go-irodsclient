@@ -32,7 +32,7 @@ func testSession(t *testing.T) {
 	account.ClientServerNegotiation = false
 	account.CSNegotiationPolicy = types.CSNegotiationDontCare
 
-	sessionConfig := session.NewIRODSSessionConfigWithDefault("go-irodsclient-test")
+	sessionConfig := GetTestSessionConfig()
 
 	sess, err := session.NewIRODSSession(account, sessionConfig)
 	failError(t, err)
@@ -60,7 +60,7 @@ func testManyConnections(t *testing.T) {
 	account.ClientServerNegotiation = false
 	account.CSNegotiationPolicy = types.CSNegotiationDontCare
 
-	sessionConfig := session.NewIRODSSessionConfigWithDefault("go-irodsclient-test")
+	sessionConfig := GetTestSessionConfig()
 
 	sess, err := session.NewIRODSSession(account, sessionConfig)
 	failError(t, err)
@@ -97,7 +97,7 @@ func testConnectionMetrics(t *testing.T) {
 	account.ClientServerNegotiation = false
 	account.CSNegotiationPolicy = types.CSNegotiationDontCare
 
-	sessionConfig := session.NewIRODSSessionConfigWithDefault("go-irodsclient-test")
+	sessionConfig := GetTestSessionConfig()
 
 	sess, err := session.NewIRODSSession(account, sessionConfig)
 	failError(t, err)

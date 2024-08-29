@@ -31,60 +31,18 @@ type FileSystem struct {
 
 // NewFileSystem creates a new FileSystem
 func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*FileSystem, error) {
-	ioSessionConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionErrorTimeout, config.ConnectionInitNumber, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax, config.TCPBufferSize, config.StartNewTransaction)
+	ioSessionConfig := config.ToSessionConfig()
 	ioSession, err := session.NewIRODSSession(account, ioSessionConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	metaSessionConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionErrorTimeout, config.ConnectionInitNumber, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, FileSystemConnectionMetaDefault, config.TCPBufferSize, config.StartNewTransaction)
+	metaSessionConfig := config.ToSessionConfig()
+	metaSessionConfig.ConnectionInitNumber = 1
+	metaSessionConfig.ConnectionMax = FileSystemConnectionMetaDefault
+	metaSessionConfig.ConnectionMaxIdle = FileSystemConnectionMetaDefault
+
 	metaSession, err := session.NewIRODSSession(account, metaSessionConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	ioTransactionFailureHandler := func(commitFail bool, poormansRollbackFail bool) {
-		metaSession.SetCommitFail(commitFail)
-		metaSession.SetPoormansRollbackFail(poormansRollbackFail)
-	}
-
-	metaTransactionFailureHandler := func(commitFail bool, poormansRollbackFail bool) {
-		ioSession.SetCommitFail(commitFail)
-		ioSession.SetPoormansRollbackFail(poormansRollbackFail)
-	}
-
-	ioSession.SetTransactionFailureHandler(ioTransactionFailureHandler)
-	metaSession.SetTransactionFailureHandler(metaTransactionFailureHandler)
-
-	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime, config.CacheTimeoutSettings, config.InvalidateParentEntryCacheImmediately)
-
-	fs := &FileSystem{
-		id:                   xid.New().String(), // generate a new ID
-		account:              account,
-		config:               config,
-		ioSession:            ioSession,
-		metaSession:          metaSession,
-		cache:                cache,
-		cacheEventHandlerMap: NewFilesystemCacheEventHandlerMap(),
-		fileHandleMap:        NewFileHandleMap(),
-	}
-
-	cachePropagation := NewFileSystemCachePropagation(fs)
-	fs.cachePropagation = cachePropagation
-
-	return fs, nil
-}
-
-// NewFileSystemWithAddressResolver creates a new FileSystem
-func NewFileSystemWithAddressResolver(account *types.IRODSAccount, config *FileSystemConfig, addressResolver session.AddressResolver) (*FileSystem, error) {
-	ioSessionConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionErrorTimeout, config.ConnectionInitNumber, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax, config.TCPBufferSize, config.StartNewTransaction)
-	ioSession, err := session.NewIRODSSessionWithAddressResolver(account, ioSessionConfig, addressResolver)
-	if err != nil {
-		return nil, err
-	}
-
-	metaSessionConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionErrorTimeout, config.ConnectionInitNumber, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, FileSystemConnectionMetaDefault, config.TCPBufferSize, config.StartNewTransaction)
-	metaSession, err := session.NewIRODSSessionWithAddressResolver(account, metaSessionConfig, addressResolver)
 	if err != nil {
 		return nil, err
 	}
@@ -123,69 +81,15 @@ func NewFileSystemWithAddressResolver(account *types.IRODSAccount, config *FileS
 
 // NewFileSystemWithDefault creates a new FileSystem with default configurations
 func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName string) (*FileSystem, error) {
-	config := NewFileSystemConfigWithDefault(applicationName)
-	ioSessionConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionErrorTimeout, config.ConnectionInitNumber, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, config.ConnectionMax, config.TCPBufferSize, config.StartNewTransaction)
-	ioSession, err := session.NewIRODSSession(account, ioSessionConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	metaSessionConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionErrorTimeout, config.ConnectionInitNumber, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, FileSystemConnectionMetaDefault, config.TCPBufferSize, config.StartNewTransaction)
-	metaSession, err := session.NewIRODSSession(account, metaSessionConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime, config.CacheTimeoutSettings, config.InvalidateParentEntryCacheImmediately)
-
-	fs := &FileSystem{
-		id:                   xid.New().String(), // generate a new ID
-		account:              account,
-		config:               config,
-		ioSession:            ioSession,
-		metaSession:          metaSession,
-		cache:                cache,
-		cacheEventHandlerMap: NewFilesystemCacheEventHandlerMap(),
-		fileHandleMap:        NewFileHandleMap(),
-	}
-
-	cachePropagation := NewFileSystemCachePropagation(fs)
-	fs.cachePropagation = cachePropagation
-
-	return fs, nil
+	config := NewFileSystemConfig(applicationName)
+	return NewFileSystem(account, config)
 }
 
 // NewFileSystemWithSessionConfig creates a new FileSystem with custom session configurations
 func NewFileSystemWithSessionConfig(account *types.IRODSAccount, sessConfig *session.IRODSSessionConfig, addressResolver session.AddressResolver) (*FileSystem, error) {
-	config := NewFileSystemConfigWithDefault(sessConfig.ApplicationName)
-	ioSession, err := session.NewIRODSSessionWithAddressResolver(account, sessConfig, addressResolver)
-	if err != nil {
-		return nil, err
-	}
+	config := NewFileSystemConfig(sessConfig.ApplicationName)
 
-	metaSessionConfig := session.NewIRODSSessionConfig(config.ApplicationName, config.ConnectionErrorTimeout, config.ConnectionInitNumber, config.ConnectionLifespan, config.OperationTimeout, config.ConnectionIdleTimeout, FileSystemConnectionMetaDefault, config.TCPBufferSize, config.StartNewTransaction)
-	metaSession, err := session.NewIRODSSessionWithAddressResolver(account, metaSessionConfig, addressResolver)
-	if err != nil {
-		return nil, err
-	}
-
-	cache := NewFileSystemCache(config.CacheTimeout, config.CacheCleanupTime, config.CacheTimeoutSettings, config.InvalidateParentEntryCacheImmediately)
-
-	fs := &FileSystem{
-		id:                   xid.New().String(), // generate a new ID
-		account:              account,
-		config:               config,
-		ioSession:            ioSession,
-		metaSession:          metaSession,
-		cache:                cache,
-		cacheEventHandlerMap: NewFilesystemCacheEventHandlerMap(),
-		fileHandleMap:        NewFileHandleMap(),
-	}
-
-	cachePropagation := NewFileSystemCachePropagation(fs)
-	fs.cachePropagation = cachePropagation
-
-	return fs, nil
+	return NewFileSystem(account, config)
 }
 
 // Release releases all resources
