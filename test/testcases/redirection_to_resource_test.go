@@ -9,7 +9,6 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/session"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
-	"github.com/cyverse/go-irodsclient/test/server"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
 
@@ -37,9 +36,9 @@ func testDownloadDataObjectFromResourceServer(t *testing.T) {
 
 	account.ClientServerNegotiation = false
 
-	sessionConfig := session.NewIRODSSessionConfigWithDefault("go-irodsclient-test")
+	sessionConfig := GetTestSessionConfig()
 
-	sess, err := session.NewIRODSSessionWithAddressResolver(account, sessionConfig, server.AddressResolver)
+	sess, err := session.NewIRODSSession(account, sessionConfig)
 	failError(t, err)
 	defer sess.Release()
 
@@ -117,9 +116,9 @@ func testUploadDataObjectFromResourceServer(t *testing.T) {
 
 	account.ClientServerNegotiation = false
 
-	sessionConfig := session.NewIRODSSessionConfigWithDefault("go-irodsclient-test")
+	sessionConfig := GetTestSessionConfig()
 
-	sess, err := session.NewIRODSSessionWithAddressResolver(account, sessionConfig, server.AddressResolver)
+	sess, err := session.NewIRODSSession(account, sessionConfig)
 	failError(t, err)
 	defer sess.Release()
 

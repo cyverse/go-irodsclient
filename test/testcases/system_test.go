@@ -20,7 +20,7 @@ func testProcessStat(t *testing.T) {
 
 	account.ClientServerNegotiation = false
 
-	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
+	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
 	failError(t, err)
 	defer conn.Disconnect()

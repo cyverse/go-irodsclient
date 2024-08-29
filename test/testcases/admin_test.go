@@ -42,7 +42,7 @@ func testClientSignature(t *testing.T) {
 
 	account.ClientServerNegotiation = false
 
-	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
+	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
 	failError(t, err)
 	defer conn.Disconnect()
@@ -56,7 +56,7 @@ func testCreateAndRemoveUser(t *testing.T) {
 
 	account.ClientServerNegotiation = false
 
-	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
+	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
 	failError(t, err)
 	defer conn.Disconnect()
@@ -88,7 +88,7 @@ func testCreateAndRemoveUser(t *testing.T) {
 		PamTTL:                  account.PamTTL,
 	}
 
-	userConn := connection.NewIRODSConnection(userAccount, 300*time.Second, "go-irodsclient-test")
+	userConn := connection.NewIRODSConnection(userAccount, 300*time.Second, GetTestApplicationName())
 	err = userConn.Connect()
 	failError(t, err)
 	userConn.Disconnect()
@@ -97,7 +97,7 @@ func testCreateAndRemoveUser(t *testing.T) {
 	err = fs.RemoveUser(conn, testUsername, account.ClientZone)
 	failError(t, err)
 
-	userConn = connection.NewIRODSConnection(userAccount, 300*time.Second, "go-irodsclient-test")
+	userConn = connection.NewIRODSConnection(userAccount, 300*time.Second, GetTestApplicationName())
 	err = userConn.Connect()
 	assert.Error(t, err)
 	userConn.Disconnect()

@@ -28,7 +28,7 @@ func testMakeDir(t *testing.T) {
 
 	account.ClientServerNegotiation = false
 
-	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
+	fsConfig := GetTestFileSystemConfig()
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
@@ -87,7 +87,7 @@ func testMakeDirCacheEvent(t *testing.T) {
 
 	account.ClientServerNegotiation = false
 
-	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
+	fsConfig := GetTestFileSystemConfig()
 
 	eventTypesReceived := []fs.FilesystemCacheEventType{}
 	eventPathsReceived := []string{}

@@ -24,7 +24,6 @@ type IRODSSession struct {
 	commitFail                bool
 	poormansRollbackFail      bool
 	transactionFailureHandler TransactionFailureHandler
-	addressResolver           AddressResolver
 
 	lastConnectionError     error
 	lastConnectionErrorTime time.Time
@@ -38,11 +37,6 @@ type IRODSSession struct {
 
 // NewIRODSSession create a IRODSSession
 func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*IRODSSession, error) {
-	return NewIRODSSessionWithAddressResolver(account, config, nil)
-}
-
-// NewIRODSSessionWithAddressResolver create a IRODSSession
-func NewIRODSSessionWithAddressResolver(account *types.IRODSAccount, config *IRODSSessionConfig, addressResolver AddressResolver) (*IRODSSession, error) {
 	sess := IRODSSession{
 		account:           account,
 		config:            config,
@@ -53,7 +47,6 @@ func NewIRODSSessionWithAddressResolver(account *types.IRODSAccount, config *IRO
 		commitFail:                false,
 		poormansRollbackFail:      false,
 		transactionFailureHandler: nil,
-		addressResolver:           addressResolver,
 
 		lastConnectionError:     nil,
 		lastConnectionErrorTime: time.Time{},
@@ -68,20 +61,20 @@ func NewIRODSSessionWithAddressResolver(account *types.IRODSAccount, config *IRO
 
 	// resolve host address
 	poolAccount := *account
-	if addressResolver != nil {
-		poolAccount.Host = addressResolver(poolAccount.Host)
+	if config.AddressResolver != nil {
+		poolAccount.Host = config.AddressResolver(poolAccount.Host)
 	}
 
 	poolConfig := ConnectionPoolConfig{
 		Account:          &poolAccount,
 		ApplicationName:  config.ApplicationName,
 		InitialCap:       config.ConnectionInitNumber,
-		MaxIdle:          config.ConnectionMaxIdle,
-		MaxCap:           config.ConnectionMax,
+		MaxIdle:          config.ConnectionMaxIdleNumber,
+		MaxCap:           config.ConnectionMaxNumber,
 		Lifespan:         config.ConnectionLifespan,
 		IdleTimeout:      config.ConnectionIdleTimeout,
 		OperationTimeout: config.OperationTimeout,
-		TcpBufferSize:    config.TcpBufferSize,
+		TcpBufferSize:    config.TCPBufferSize,
 	}
 
 	pool, err := NewConnectionPool(&poolConfig, &sess.metrics)
@@ -122,7 +115,7 @@ func (sess *IRODSSession) getPendingError() error {
 
 	// transitive error
 	// check timeout
-	if sess.lastConnectionErrorTime.Add(sess.config.ConnectionErrorTimeout).Before(time.Now()) {
+	if sess.lastConnectionErrorTime.Add(sess.config.ConnectionCreationTimeout).Before(time.Now()) {
 		// passed timeout
 		return nil
 	}
@@ -574,8 +567,8 @@ func (sess *IRODSSession) GetMetrics() *metrics.IRODSMetrics {
 // GetRedirectionConnection returns redirection connection to resource server
 func (sess *IRODSSession) GetRedirectionConnection(controlConnection *connection.IRODSConnection, redirectionInfo *types.IRODSRedirectionInfo) *connection.IRODSResourceServerConnection {
 	resourceServerInfo := *redirectionInfo
-	if sess.addressResolver != nil {
-		resourceServerInfo.Host = sess.addressResolver(resourceServerInfo.Host)
+	if sess.config.AddressResolver != nil {
+		resourceServerInfo.Host = sess.config.AddressResolver(resourceServerInfo.Host)
 	}
 
 	return connection.NewIRODSResourceServerConnectionWithMetrics(controlConnection, &resourceServerInfo, &sess.metrics)

@@ -45,7 +45,7 @@ func testListEntries(t *testing.T) {
 
 	account.ClientServerNegotiation = false
 
-	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
+	fsConfig := GetTestFileSystemConfig()
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
@@ -76,7 +76,7 @@ func testListEntriesByMeta(t *testing.T) {
 
 	account.ClientServerNegotiation = false
 
-	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
+	fsConfig := GetTestFileSystemConfig()
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
@@ -103,7 +103,7 @@ func testListACLs(t *testing.T) {
 
 	account.ClientServerNegotiation = false
 
-	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
+	fsConfig := GetTestFileSystemConfig()
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
@@ -125,7 +125,7 @@ func testReadWrite(t *testing.T) {
 
 	account.ClientServerNegotiation = false
 
-	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
+	fsConfig := GetTestFileSystemConfig()
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
@@ -175,7 +175,7 @@ func testCreateStat(t *testing.T) {
 
 	account.ClientServerNegotiation = false
 
-	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
+	fsConfig := GetTestFileSystemConfig()
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
@@ -233,7 +233,7 @@ func testSpecialCharInName(t *testing.T) {
 
 	account.ClientServerNegotiation = false
 
-	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
+	fsConfig := GetTestFileSystemConfig()
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
@@ -285,7 +285,7 @@ func testWriteRename(t *testing.T) {
 
 	account.ClientServerNegotiation = false
 
-	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
+	fsConfig := GetTestFileSystemConfig()
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
@@ -349,7 +349,7 @@ func testWriteRenameDir(t *testing.T) {
 
 	account.ClientServerNegotiation = false
 
-	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
+	fsConfig := GetTestFileSystemConfig()
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)
@@ -420,7 +420,7 @@ func testRemoveClose(t *testing.T) {
 
 	account.ClientServerNegotiation = false
 
-	fsConfig := fs.NewFileSystemConfigWithDefault("go-irodsclient-test")
+	fsConfig := GetTestFileSystemConfig()
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
 	failError(t, err)

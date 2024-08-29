@@ -412,7 +412,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, controlCo
 
 	var dataBuffer []byte
 	var encryptedDataBuffer []byte
-	dataBufferSize := sess.GetConfig().TcpBufferSize
+	dataBufferSize := sess.GetConfig().TCPBufferSize
 
 	for cont {
 		// read transfer header

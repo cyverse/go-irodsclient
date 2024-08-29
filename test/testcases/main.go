@@ -8,6 +8,7 @@ import (
 	"os"
 	"testing"
 
+	irods_fs "github.com/cyverse/go-irodsclient/fs"
 	"github.com/cyverse/go-irodsclient/irods/fs"
 	"github.com/cyverse/go-irodsclient/irods/session"
 	"github.com/cyverse/go-irodsclient/irods/types"
@@ -94,6 +95,21 @@ func failError(t *testing.T, err error) {
 	}
 }
 
+func GetTestApplicationName() string {
+	return "go-irodsclient-test"
+}
+
+func GetTestFileSystemConfig() *irods_fs.FileSystemConfig {
+	fsConfig := irods_fs.NewFileSystemConfig(GetTestApplicationName())
+	fsConfig.AddressResolver = server.AddressResolver
+	return fsConfig
+}
+
+func GetTestSessionConfig() *session.IRODSSessionConfig {
+	fsConfig := GetTestFileSystemConfig()
+	return fsConfig.ToIOSessionConfig()
+}
+
 func makeFixedContentTestDataBuf(size int64) []byte {
 	testval := "abcdefghijklmnopqrstuvwxyz"
 
@@ -154,7 +170,7 @@ func makeHomeDir(t *testing.T, testID string) {
 	account := GetTestAccount()
 	account.ClientServerNegotiation = false
 
-	sessionConfig := session.NewIRODSSessionConfigWithDefault("go-irodsclient-test")
+	sessionConfig := GetTestSessionConfig()
 
 	sess, err := session.NewIRODSSession(account, sessionConfig)
 	failError(t, err)
@@ -173,7 +189,7 @@ func prepareSamples(t *testing.T, testID string) {
 	account := GetTestAccount()
 	account.ClientServerNegotiation = false
 
-	sessionConfig := session.NewIRODSSessionConfigWithDefault("go-irodsclient-test")
+	sessionConfig := GetTestSessionConfig()
 
 	sess, err := session.NewIRODSSession(account, sessionConfig)
 	failError(t, err)

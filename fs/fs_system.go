@@ -7,11 +7,11 @@ import (
 
 // ListProcesses lists all processes
 func (fs *FileSystem) ListProcesses(address string, zone string) ([]*types.IRODSProcess, error) {
-	conn, err := fs.metaSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.metaSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn)
 
 	processes, err := irods_fs.StatProcess(conn, address, zone)
 	if err != nil {

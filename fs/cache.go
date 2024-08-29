@@ -17,61 +17,78 @@ type MetadataCacheTimeoutSetting struct {
 	Inherit bool
 }
 
+type CacheConfig struct {
+	Timeout                 time.Duration // cache timeout
+	CleanupTime             time.Duration //
+	MetadataTimeoutSettings []MetadataCacheTimeoutSetting
+	// determine if we will invalidate parent dir's entry cache
+	// at subdir/file creation/deletion
+	// turn to false to allow short cache inconsistency
+	InvalidateParentEntryCacheImmediately bool
+	// for mysql iCAT backend, this should be true.
+	// for postgresql iCAT backend, this can be false.
+	StartNewTransaction bool
+}
+
+func NewDefaultCacheConfig() CacheConfig {
+	return CacheConfig{
+		Timeout:                               FileSystemTimeoutDefault,
+		CleanupTime:                           FileSystemTimeoutDefault,
+		MetadataTimeoutSettings:               []MetadataCacheTimeoutSetting{},
+		InvalidateParentEntryCacheImmediately: true,
+		StartNewTransaction:                   true,
+	}
+}
+
 // FileSystemCache manages filesystem caches
 type FileSystemCache struct {
-	cacheTimeout                          time.Duration
-	cleanupTimeout                        time.Duration
-	cacheTimeoutPaths                     []MetadataCacheTimeoutSetting
-	cacheTimeoutPathMap                   map[string]MetadataCacheTimeoutSetting
-	invalidateParentEntryCacheImmediately bool
-	entryCache                            *gocache.Cache
-	negativeEntryCache                    *gocache.Cache
-	dirCache                              *gocache.Cache
-	metadataCache                         *gocache.Cache
-	groupUsersCache                       *gocache.Cache
-	userGroupsCache                       *gocache.Cache
-	groupsCache                           *gocache.Cache
-	usersCache                            *gocache.Cache
-	aclCache                              *gocache.Cache
+	config *CacheConfig
+
+	cacheTimeoutPathMap map[string]MetadataCacheTimeoutSetting
+
+	entryCache         *gocache.Cache
+	negativeEntryCache *gocache.Cache
+	dirCache           *gocache.Cache
+	metadataCache      *gocache.Cache
+	groupUsersCache    *gocache.Cache
+	userGroupsCache    *gocache.Cache
+	groupsCache        *gocache.Cache
+	usersCache         *gocache.Cache
+	aclCache           *gocache.Cache
 }
 
 // NewFileSystemCache creates a new FileSystemCache
-func NewFileSystemCache(cacheTimeout time.Duration, cleanup time.Duration, cacheTimeoutSettings []MetadataCacheTimeoutSetting, invalidateParentEntryCacheImmediately bool) *FileSystemCache {
-	entryCache := gocache.New(cacheTimeout, cleanup)
-	negativeEntryCache := gocache.New(cacheTimeout, cleanup)
-	dirCache := gocache.New(cacheTimeout, cleanup)
-	metadataCache := gocache.New(cacheTimeout, cleanup)
-	groupUsersCache := gocache.New(cacheTimeout, cleanup)
-	userGroupsCache := gocache.New(cacheTimeout, cleanup)
-	groupsCache := gocache.New(cacheTimeout, cleanup)
-	usersCache := gocache.New(cacheTimeout, cleanup)
-	aclCache := gocache.New(cacheTimeout, cleanup)
-
-	if cacheTimeoutSettings == nil {
-		cacheTimeoutSettings = []MetadataCacheTimeoutSetting{}
-	}
+func NewFileSystemCache(config *CacheConfig) *FileSystemCache {
+	entryCache := gocache.New(config.Timeout, config.CleanupTime)
+	negativeEntryCache := gocache.New(config.Timeout, config.CleanupTime)
+	dirCache := gocache.New(config.Timeout, config.CleanupTime)
+	metadataCache := gocache.New(config.Timeout, config.CleanupTime)
+	groupUsersCache := gocache.New(config.Timeout, config.CleanupTime)
+	userGroupsCache := gocache.New(config.Timeout, config.CleanupTime)
+	groupsCache := gocache.New(config.Timeout, config.CleanupTime)
+	usersCache := gocache.New(config.Timeout, config.CleanupTime)
+	aclCache := gocache.New(config.Timeout, config.CleanupTime)
 
 	// build a map for quick search
 	cacheTimeoutSettingMap := map[string]MetadataCacheTimeoutSetting{}
-	for _, timeoutSetting := range cacheTimeoutSettings {
+	for _, timeoutSetting := range config.MetadataTimeoutSettings {
 		cacheTimeoutSettingMap[timeoutSetting.Path] = timeoutSetting
 	}
 
 	return &FileSystemCache{
-		cacheTimeout:                          cacheTimeout,
-		cleanupTimeout:                        cleanup,
-		cacheTimeoutPaths:                     cacheTimeoutSettings,
-		cacheTimeoutPathMap:                   cacheTimeoutSettingMap,
-		invalidateParentEntryCacheImmediately: invalidateParentEntryCacheImmediately,
-		entryCache:                            entryCache,
-		negativeEntryCache:                    negativeEntryCache,
-		dirCache:                              dirCache,
-		metadataCache:                         metadataCache,
-		groupUsersCache:                       groupUsersCache,
-		userGroupsCache:                       userGroupsCache,
-		groupsCache:                           groupsCache,
-		usersCache:                            usersCache,
-		aclCache:                              aclCache,
+		config: config,
+
+		cacheTimeoutPathMap: cacheTimeoutSettingMap,
+
+		entryCache:         entryCache,
+		negativeEntryCache: negativeEntryCache,
+		dirCache:           dirCache,
+		metadataCache:      metadataCache,
+		groupUsersCache:    groupUsersCache,
+		userGroupsCache:    userGroupsCache,
+		groupsCache:        groupsCache,
+		usersCache:         usersCache,
+		aclCache:           aclCache,
 	}
 }
 
@@ -118,7 +135,7 @@ func (cache *FileSystemCache) RemoveEntryCache(path string) {
 
 // RemoveParentDirCache removes an entry cache for the parent path of the given path
 func (cache *FileSystemCache) RemoveParentDirCache(path string) {
-	if cache.invalidateParentEntryCacheImmediately {
+	if cache.config.InvalidateParentEntryCacheImmediately {
 		parentPath := util.GetIRODSPathDirname(path)
 		cache.entryCache.Delete(parentPath)
 	}

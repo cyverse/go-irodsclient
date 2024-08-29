@@ -25,7 +25,7 @@ func testIRODSConnection(t *testing.T) {
 	account.ClientServerNegotiation = false
 	account.CSNegotiationPolicy = types.CSNegotiationDontCare
 
-	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
+	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
 	failError(t, err)
 	defer conn.Disconnect()
@@ -43,7 +43,7 @@ func testIRODSInvalidUsername(t *testing.T) {
 	account.ProxyUser = "test$def"
 	account.ClientUser = ""
 
-	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
+	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
 	assert.Error(t, err)
 	fmt.Println(err.Error())
@@ -56,7 +56,7 @@ func testIRODSConnectionWithNegotiation(t *testing.T) {
 	account.ClientServerNegotiation = true
 	account.CSNegotiationPolicy = types.CSNegotiationRequireTCP
 
-	conn := connection.NewIRODSConnection(account, 300*time.Second, "go-irodsclient-test")
+	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
 	failError(t, err)
 	defer conn.Disconnect()
