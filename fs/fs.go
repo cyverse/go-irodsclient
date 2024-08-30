@@ -85,13 +85,6 @@ func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName strin
 	return NewFileSystem(account, config)
 }
 
-// NewFileSystemWithSessionConfig creates a new FileSystem with custom session configurations
-func NewFileSystemWithSessionConfig(account *types.IRODSAccount, sessConfig *session.IRODSSessionConfig, addressResolver session.AddressResolver) (*FileSystem, error) {
-	config := NewFileSystemConfig(sessConfig.ApplicationName)
-
-	return NewFileSystem(account, config)
-}
-
 // Release releases all resources
 func (fs *FileSystem) Release() {
 	handles := fs.fileHandleMap.PopAll()
