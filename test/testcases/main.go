@@ -107,7 +107,7 @@ func GetTestFileSystemConfig() *irods_fs.FileSystemConfig {
 
 func GetTestSessionConfig() *session.IRODSSessionConfig {
 	fsConfig := GetTestFileSystemConfig()
-	return fsConfig.ToSessionConfig()
+	return fsConfig.ToIOSessionConfig()
 }
 
 func makeFixedContentTestDataBuf(size int64) []byte {

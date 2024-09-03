@@ -69,8 +69,8 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 		Account:          &poolAccount,
 		ApplicationName:  config.ApplicationName,
 		InitialCap:       config.ConnectionInitNumber,
-		MaxIdle:          config.ConnectionMaxIdle,
-		MaxCap:           config.ConnectionMax,
+		MaxIdle:          config.ConnectionMaxIdleNumber,
+		MaxCap:           config.ConnectionMaxNumber,
 		Lifespan:         config.ConnectionLifespan,
 		IdleTimeout:      config.ConnectionIdleTimeout,
 		OperationTimeout: config.OperationTimeout,
@@ -115,7 +115,7 @@ func (sess *IRODSSession) getPendingError() error {
 
 	// transitive error
 	// check timeout
-	if sess.lastConnectionErrorTime.Add(sess.config.ConnectionErrorTimeout).Before(time.Now()) {
+	if sess.lastConnectionErrorTime.Add(sess.config.ConnectionCreationTimeout).Before(time.Now()) {
 		// passed timeout
 		return nil
 	}
