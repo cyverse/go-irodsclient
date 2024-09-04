@@ -93,7 +93,7 @@ func (env *ICommandsEnvironment) ToIRODSAccount() *types.IRODSAccount {
 	}
 
 	skipVerifyTLS := false
-	if strings.ToLower(env.SSLVerifyServer) == "none" {
+	if strings.ToLower(env.SSLVerifyServer) != "hostname" {
 		skipVerifyTLS = true
 	}
 
