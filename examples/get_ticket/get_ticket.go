@@ -47,7 +47,7 @@ func main() {
 	// Create a file system
 	appName := "get_ticket"
 	config := fs.NewFileSystemConfig(appName)
-	sessConfig := config.ToSessionConfig()
+	sessConfig := config.ToMetadataSessionConfig()
 	sess, err := session.NewIRODSSession(account, sessConfig)
 	if err != nil {
 		logger.Error(err)

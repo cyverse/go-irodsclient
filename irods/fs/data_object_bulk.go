@@ -724,8 +724,8 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 		numTasks = util.GetNumTasksForParallelTransfer(fileLength)
 	}
 
-	if numTasks > session.GetConfig().ConnectionMax {
-		numTasks = session.GetConfig().ConnectionMax
+	if numTasks > session.GetConfig().ConnectionMaxNumber {
+		numTasks = session.GetConfig().ConnectionMaxNumber
 	}
 
 	if numTasks == 1 {
@@ -894,8 +894,8 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 		numTasks = util.GetNumTasksForParallelTransfer(fileLength)
 	}
 
-	if numTasks > session.GetConfig().ConnectionMax {
-		numTasks = session.GetConfig().ConnectionMax
+	if numTasks > session.GetConfig().ConnectionMaxNumber {
+		numTasks = session.GetConfig().ConnectionMaxNumber
 	}
 
 	if numTasks == 1 {

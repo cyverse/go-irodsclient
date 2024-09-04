@@ -57,7 +57,7 @@ func NewIRODSResourceServerConnection(rootConnection *IRODSConnection, redirecti
 func NewIRODSResourceServerConnectionWithMetrics(controlConnection *IRODSConnection, redirectionInfo *types.IRODSRedirectionInfo, metrics *metrics.IRODSMetrics) *IRODSResourceServerConnection {
 	tcpBufferSize := redirectionInfo.WindowSize
 	if redirectionInfo.WindowSize <= 0 {
-		tcpBufferSize = TCPBufferSizeDefault
+		tcpBufferSize = controlConnection.tcpBufferSize
 	}
 
 	return &IRODSResourceServerConnection{

@@ -22,11 +22,11 @@ func (fs *FileSystem) ListMetadata(path string) ([]*types.IRODSMeta, error) {
 	irodsCorrectPath := util.GetCorrectIRODSPath(path)
 
 	// otherwise, retrieve it and add it to cache
-	conn, err := fs.metaSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.metaSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn)
 
 	var metadataobjects []*types.IRODSMeta
 
@@ -65,11 +65,11 @@ func (fs *FileSystem) AddMetadata(irodsPath string, attName string, attValue str
 		Units: attUnits,
 	}
 
-	conn, err := fs.metaSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.metaSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn)
 
 	if fs.ExistsDir(irodsCorrectPath) {
 		err = irods_fs.AddCollectionMeta(conn, irodsCorrectPath, metadata)
@@ -95,11 +95,11 @@ func (fs *FileSystem) DeleteMetadata(irodsPath string, avuid int64) error {
 		AVUID: avuid,
 	}
 
-	conn, err := fs.metaSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.metaSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn)
 
 	if fs.ExistsDir(irodsCorrectPath) {
 		err = irods_fs.DeleteCollectionMeta(conn, irodsCorrectPath, metadata)
@@ -126,11 +126,11 @@ func (fs *FileSystem) DeleteMetadataByName(irodsPath string, attName string) err
 		Name:  attName,
 	}
 
-	conn, err := fs.metaSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.metaSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn)
 
 	if fs.ExistsDir(irodsCorrectPath) {
 		err = irods_fs.DeleteCollectionMeta(conn, irodsCorrectPath, metadata)
@@ -156,11 +156,11 @@ func (fs *FileSystem) AddUserMetadata(user string, attName, attValue, attUnits s
 		Units: attUnits,
 	}
 
-	conn, err := fs.metaSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.metaSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn)
 
 	err = irods_fs.AddUserMeta(conn, user, metadata)
 	if err != nil {
@@ -176,11 +176,11 @@ func (fs *FileSystem) DeleteUserMetadata(user string, avuid int64) error {
 		AVUID: avuid,
 	}
 
-	conn, err := fs.metaSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.metaSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn)
 
 	err = irods_fs.DeleteUserMeta(conn, user, metadata)
 	if err != nil {
@@ -197,11 +197,11 @@ func (fs *FileSystem) DeleteUserMetadataByName(user string, attName string) erro
 		Name:  attName,
 	}
 
-	conn, err := fs.metaSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.metaSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn)
 
 	err = irods_fs.DeleteUserMeta(conn, user, metadata)
 	if err != nil {
@@ -213,11 +213,11 @@ func (fs *FileSystem) DeleteUserMetadataByName(user string, attName string) erro
 
 // ListUserMetadata lists all user metadata
 func (fs *FileSystem) ListUserMetadata(user string) ([]*types.IRODSMeta, error) {
-	conn, err := fs.metaSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.metaSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn)
 
 	metadataobjects, err := irods_fs.ListUserMeta(conn, user)
 	if err != nil {
@@ -235,11 +235,11 @@ func (fs *FileSystem) AddResourceMetadata(resource string, attName, attValue, at
 		Units: attUnits,
 	}
 
-	conn, err := fs.metaSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.metaSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn)
 
 	err = irods_fs.AddResourceMeta(conn, resource, metadata)
 	if err != nil {
@@ -255,11 +255,11 @@ func (fs *FileSystem) DeleteResourceMetadata(resource string, avuid int64) error
 		AVUID: avuid,
 	}
 
-	conn, err := fs.metaSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.metaSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn)
 
 	err = irods_fs.DeleteResourceMeta(conn, resource, metadata)
 	if err != nil {
@@ -276,11 +276,11 @@ func (fs *FileSystem) DeleteResourceMetadataByName(resource string, attName stri
 		Name:  attName,
 	}
 
-	conn, err := fs.metaSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection()
 	if err != nil {
 		return err
 	}
-	defer fs.metaSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn)
 
 	err = irods_fs.DeleteResourceMeta(conn, resource, metadata)
 	if err != nil {
@@ -292,11 +292,11 @@ func (fs *FileSystem) DeleteResourceMetadataByName(resource string, attName stri
 
 // ListResourceMetadata lists all resource metadata
 func (fs *FileSystem) ListResourceMetadata(resource string) ([]*types.IRODSMeta, error) {
-	conn, err := fs.metaSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.metaSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn)
 
 	metadataobjects, err := irods_fs.ListResourceMeta(conn, resource)
 	if err != nil {
@@ -308,11 +308,11 @@ func (fs *FileSystem) ListResourceMetadata(resource string) ([]*types.IRODSMeta,
 
 // searchEntriesByMeta searches entries by meta
 func (fs *FileSystem) searchEntriesByMeta(metaName string, metaValue string) ([]*Entry, error) {
-	conn, err := fs.metaSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
-	defer fs.metaSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn)
 
 	collections, err := irods_fs.SearchCollectionsByMeta(conn, metaName, metaValue)
 	if err != nil {
