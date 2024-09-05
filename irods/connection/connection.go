@@ -586,7 +586,7 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 	} else {
 		pamAuthRequest := message.NewIRODSMessageAuthPluginRequest(string(types.AuthSchemePAM), authContext)
 		pamAuthResponse := message.IRODSMessageAuthPluginResponse{}
-		err := conn.Request(pamAuthRequest, &pamAuthResponse, nil)
+		err := conn.RequestForPassword(pamAuthRequest, &pamAuthResponse, nil, false)
 		if err != nil {
 			return xerrors.Errorf("failed to receive an authentication challenge message (%s): %w", err.Error(), types.NewAuthError(conn.account))
 		}
