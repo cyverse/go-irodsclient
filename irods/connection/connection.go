@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -527,6 +529,12 @@ func (conn *IRODSConnection) loginGSI() error {
 	return xerrors.Errorf("GSI login is not yet implemented: %w", types.NewAuthError(conn.account))
 }
 
+func (conn *IRODSConnection) getSafePAMPassword(password string) string {
+	// For certain characters in the pam password, if they need escaping with '\' then do so.
+	replacer := strings.NewReplacer("@", "\\@", "=", "\\=", "&", "\\&", ";", "\\;")
+	return replacer.Replace(password)
+}
+
 func (conn *IRODSConnection) loginPAMWithPassword() error {
 	logger := log.WithFields(log.Fields{
 		"package":  "connection",
@@ -542,20 +550,52 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 	}
 
 	ttl := conn.account.PamTTL
-	if ttl <= 0 {
-		ttl = 1
+	if ttl < 0 {
+		ttl = 0 // decided by server
+	}
+
+	pamPassword := conn.getSafePAMPassword(conn.account.Password)
+
+	userKV := fmt.Sprintf("a_user=%s", conn.account.ClientUser)
+	passwordKV := fmt.Sprintf("a_pw=%s", pamPassword)
+	ttlKV := fmt.Sprintf("a_ttl=%s", strconv.Itoa(ttl))
+
+	authContext := strings.Join([]string{userKV, passwordKV, ttlKV}, ";")
+
+	useDedicatedPAMApi := false
+	if strings.ContainsAny(pamPassword, ";=") {
+		useDedicatedPAMApi = true
+	} else {
+		// from python-irodsclient code
+		if len(authContext) >= 1024+64 {
+			useDedicatedPAMApi = true
+		}
 	}
 
 	// authenticate
-	pamAuthRequest := message.NewIRODSMessagePamAuthRequest(conn.account.ClientUser, conn.account.Password, ttl)
-	pamAuthResponse := message.IRODSMessagePamAuthResponse{}
-	err := conn.Request(pamAuthRequest, &pamAuthResponse, nil)
-	if err != nil {
-		return xerrors.Errorf("failed to receive an authentication challenge message (%s): %w", err.Error(), types.NewAuthError(conn.account))
+	pamToken := ""
+	if useDedicatedPAMApi {
+		pamAuthRequest := message.NewIRODSMessagePamAuthRequest(conn.account.ClientUser, pamPassword, ttl)
+		pamAuthResponse := message.IRODSMessagePamAuthResponse{}
+		err := conn.Request(pamAuthRequest, &pamAuthResponse, nil)
+		if err != nil {
+			return xerrors.Errorf("failed to receive an authentication challenge message (%s): %w", err.Error(), types.NewAuthError(conn.account))
+		}
+
+		pamToken = pamAuthResponse.GeneratedPassword
+	} else {
+		pamAuthRequest := message.NewIRODSMessageAuthPluginRequest(string(types.AuthSchemePAM), authContext)
+		pamAuthResponse := message.IRODSMessageAuthPluginResponse{}
+		err := conn.Request(pamAuthRequest, &pamAuthResponse, nil)
+		if err != nil {
+			return xerrors.Errorf("failed to receive an authentication challenge message (%s): %w", err.Error(), types.NewAuthError(conn.account))
+		}
+
+		pamToken = pamAuthResponse.Result
 	}
 
 	// save irods generated password for possible future use
-	conn.account.PamToken = pamAuthResponse.GeneratedPassword
+	conn.account.PamToken = pamToken
 
 	// retry native auth with generated password
 	return conn.login(conn.account.PamToken)

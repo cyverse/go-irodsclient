@@ -12,13 +12,6 @@ type IRODSMessageAuthPluginResponse struct {
 	Result  string   `xml:"result_"`
 }
 
-// NewIRODSMessageAuthPluginResponse creates a IRODSMessageAuthPluginResponse
-func NewIRODSMessageAuthPluginResponse(result string) *IRODSMessageAuthPluginResponse {
-	return &IRODSMessageAuthPluginResponse{
-		Result: result,
-	}
-}
-
 // GetBytes returns byte array
 func (msg *IRODSMessageAuthPluginResponse) GetBytes() ([]byte, error) {
 	xmlBytes, err := xml.Marshal(msg)

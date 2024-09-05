@@ -313,7 +313,7 @@ func (conn *IRODSConnection) getResponse(responseMessage *message.IRODSMessage, 
 		// translate irods-dialect XML into valid XML
 		err := conn.PostprocessMessage(responseMessage)
 		if err != nil {
-			return xerrors.Errorf("failed to send postprocess message: %w", err)
+			return xerrors.Errorf("failed to postprocess message: %w", err)
 		}
 	}
 
