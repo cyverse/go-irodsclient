@@ -516,7 +516,7 @@ func ChangeUserPassword(conn *connection.IRODSConnection, username string, zone 
 
 	req := message.NewIRODSMessageAdminRequest("modify", "user", userZoneName, "password", scrambledPassword, zone)
 
-	err := conn.RequestAndCheckForPassword(req, &message.IRODSMessageAdminResponse{}, nil, true)
+	err := conn.RequestAndCheckForPassword(req, &message.IRODSMessageAdminResponse{}, nil)
 	if err != nil {
 		return xerrors.Errorf("received change user password error: %w", err)
 	}

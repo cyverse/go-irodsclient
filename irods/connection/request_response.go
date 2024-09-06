@@ -187,7 +187,7 @@ func (conn *IRODSConnection) RequestAsyncWithTrackerCallBack(rrChan chan Request
 
 // RequestForPassword sends a request and expects a response. XML escape only for '&'
 // bsBuffer is optional
-func (conn *IRODSConnection) RequestForPassword(request Request, response Response, bsBuffer []byte, xml bool) error {
+func (conn *IRODSConnection) RequestForPassword(request Request, response Response, bsBuffer []byte) error {
 	requestMessage, err := conn.getRequestMessage(request, true, true)
 	if err != nil {
 		if conn.metrics != nil {
@@ -214,7 +214,7 @@ func (conn *IRODSConnection) RequestForPassword(request Request, response Respon
 		return xerrors.Errorf("failed to receive a response message: %w", err)
 	}
 
-	err = conn.getResponse(responseMessage, response, xml)
+	err = conn.getResponse(responseMessage, response, true)
 	if err != nil {
 		if conn.metrics != nil {
 			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
@@ -283,8 +283,8 @@ func (conn *IRODSConnection) RequestAndCheckWithTrackerCallBack(request Request,
 
 // RequestAndCheckForPassword sends a request and expects a CheckErrorResponse, on which the error is already checked.
 // Only escape '&'
-func (conn *IRODSConnection) RequestAndCheckForPassword(request Request, response CheckErrorResponse, bsBuffer []byte, xml bool) error {
-	if err := conn.RequestForPassword(request, response, bsBuffer, xml); err != nil {
+func (conn *IRODSConnection) RequestAndCheckForPassword(request Request, response CheckErrorResponse, bsBuffer []byte) error {
+	if err := conn.RequestForPassword(request, response, bsBuffer); err != nil {
 		return err
 	}
 
