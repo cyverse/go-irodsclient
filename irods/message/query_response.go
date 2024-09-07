@@ -64,3 +64,8 @@ func (msg *IRODSMessageQueryResponse) FromMessage(msgIn *IRODSMessage) error {
 
 	return nil
 }
+
+// GetXMLCorrector returns XML corrector for this message
+func (msg *IRODSMessageQueryResponse) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForResponse()
+}

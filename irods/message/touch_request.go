@@ -101,3 +101,8 @@ func (msg *IRODSMessageTouchRequest) GetMessage() (*IRODSMessage, error) {
 		Body:   &msgBody,
 	}, nil
 }
+
+// GetXMLCorrector returns XML corrector for this message
+func (msg *IRODSMessageTouchRequest) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForRequest()
+}

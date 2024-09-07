@@ -34,3 +34,7 @@ func (msg *IRODSMessageAuthRequest) GetMessage() (*IRODSMessage, error) {
 func (msg *IRODSMessageAuthRequest) FromMessage(msgIn *IRODSMessage) error {
 	return nil
 }
+
+func (msg *IRODSMessageAuthRequest) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForRequest()
+}

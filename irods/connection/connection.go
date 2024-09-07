@@ -296,7 +296,7 @@ func (conn *IRODSConnection) Connect() error {
 
 	if conn.account.UseTicket() {
 		req := message.NewIRODSMessageTicketAdminRequest("session", conn.account.Ticket)
-		err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+		err := conn.RequestAndCheck(req, &message.IRODSMessageTicketAdminResponse{}, nil)
 		if err != nil {
 			return xerrors.Errorf("received supply ticket error (%s): %w", err.Error(), types.NewAuthError(conn.account))
 		}
@@ -476,7 +476,7 @@ func (conn *IRODSConnection) sslStartup() error {
 
 	// Send a shared secret
 	sslSharedSecret := message.NewIRODSMessageSSLSharedSecret(encryptionKey)
-	err = conn.RequestWithoutResponseNoXML(sslSharedSecret)
+	err = conn.RequestWithoutResponse(sslSharedSecret)
 	if err != nil {
 		return xerrors.Errorf("failed to send ssl shared secret message (%s): %w", err.Error(), types.NewConnectionError())
 	}
@@ -1053,6 +1053,7 @@ func (conn *IRODSConnection) poorMansEndTransaction(dummyCol string, commit bool
 	if commit {
 		request.AddKeyVal(common.COLLECTION_TYPE_KW, "NULL_SPECIAL_VALUE")
 	}
+
 	response := message.IRODSMessageModifyCollectionResponse{}
 	err := conn.Request(request, &response, nil)
 	if err != nil {

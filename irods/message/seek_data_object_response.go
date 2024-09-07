@@ -46,3 +46,8 @@ func (msg *IRODSMessageSeekDataObjectResponse) FromMessage(msgIn *IRODSMessage) 
 
 	return nil
 }
+
+// GetXMLCorrector returns XML corrector for this message
+func (msg *IRODSMessageSeekDataObjectResponse) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForResponse()
+}

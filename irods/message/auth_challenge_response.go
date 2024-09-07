@@ -71,6 +71,11 @@ func (msg *IRODSMessageAuthChallengeResponse) FromMessage(msgIn *IRODSMessage) e
 	return nil
 }
 
+// GetXMLCorrector returns XML corrector for this message
+func (msg *IRODSMessageAuthChallengeResponse) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForResponse()
+}
+
 // GetChallenge returns challenge bytes
 func (msg *IRODSMessageAuthChallengeResponse) GetChallenge() ([]byte, error) {
 	challengeBytes, err := base64.StdEncoding.DecodeString(msg.Challenge)

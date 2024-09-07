@@ -514,9 +514,9 @@ func ChangeUserPassword(conn *connection.IRODSConnection, username string, zone 
 
 	scrambledPassword := util.ObfuscateNewPassword(newPassword, oldPassword, conn.GetClientSignature())
 
-	req := message.NewIRODSMessageAdminRequest("modify", "user", userZoneName, "password", scrambledPassword, zone)
+	req := message.NewIRODSMessageAdminChangePasswordRequest(userZoneName, scrambledPassword, zone)
 
-	err := conn.RequestAndCheckForPassword(req, &message.IRODSMessageAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
 	if err != nil {
 		return xerrors.Errorf("received change user password error: %w", err)
 	}
@@ -563,7 +563,7 @@ func CreateGroup(conn *connection.IRODSConnection, groupname string, groupType s
 
 	req := message.NewIRODSMessageAdminRequest("add", "user", groupname, groupType)
 
-	err := conn.RequestAndCheck(req, &message.IRODSMessageUserAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
 	if err != nil {
 		return xerrors.Errorf("received create group error: %w", err)
 	}
@@ -578,7 +578,7 @@ func AddGroupMember(conn *connection.IRODSConnection, groupname string, username
 
 	req := message.NewIRODSMessageAdminRequest("modify", "group", groupname, "add", username, zone)
 
-	err := conn.RequestAndCheck(req, &message.IRODSMessageUserAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
 	if err != nil {
 		return xerrors.Errorf("received add group member error: %w", err)
 	}
@@ -593,7 +593,7 @@ func RemoveGroupMember(conn *connection.IRODSConnection, groupname string, usern
 
 	req := message.NewIRODSMessageAdminRequest("modify", "group", groupname, "remove", username, zone)
 
-	err := conn.RequestAndCheck(req, &message.IRODSMessageUserAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
 	if err != nil {
 		return xerrors.Errorf("received remove group member error: %w", err)
 	}

@@ -45,3 +45,8 @@ func (msg *IRODSMessageAuthResult) FromMessage(msgIn *IRODSMessage) error {
 	msg.Result = int(msgIn.Body.IntInfo)
 	return nil
 }
+
+// GetXMLCorrector returns XML corrector for this message
+func (msg *IRODSMessageAuthResult) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForResponse()
+}

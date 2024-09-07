@@ -66,3 +66,8 @@ func (msg *IRODSMessageChecksumResponse) FromMessage(msgIn *IRODSMessage) error 
 
 	return nil
 }
+
+// GetXMLCorrector returns XML corrector for this message
+func (msg *IRODSMessageChecksumResponse) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForResponse()
+}

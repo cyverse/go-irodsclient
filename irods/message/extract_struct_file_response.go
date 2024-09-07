@@ -29,3 +29,8 @@ func (msg *IRODSMessageExtractStructFileResponse) FromMessage(msgIn *IRODSMessag
 	msg.Result = int(msgIn.Body.IntInfo)
 	return nil
 }
+
+// GetXMLCorrector returns XML corrector for this message
+func (msg *IRODSMessageExtractStructFileResponse) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForResponse()
+}

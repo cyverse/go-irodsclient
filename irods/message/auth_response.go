@@ -78,3 +78,7 @@ func (msg *IRODSMessageAuthResponse) FromMessage(msgIn *IRODSMessage) error {
 	}
 	return nil
 }
+
+func (msg *IRODSMessageAuthResponse) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForRequest()
+}

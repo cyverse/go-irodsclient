@@ -97,3 +97,8 @@ func (msg *IRODSMessageExtractStructFileRequest) GetMessage() (*IRODSMessage, er
 		Body:   &msgBody,
 	}, nil
 }
+
+// GetXMLCorrector returns XML corrector for this message
+func (msg *IRODSMessageExtractStructFileRequest) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForRequest()
+}

@@ -17,6 +17,7 @@ type MetadataCacheTimeoutSetting struct {
 	Inherit bool
 }
 
+// CacheConfig defines cache config
 type CacheConfig struct {
 	Timeout                 time.Duration // cache timeout
 	CleanupTime             time.Duration //
@@ -30,6 +31,7 @@ type CacheConfig struct {
 	StartNewTransaction bool
 }
 
+// NewDefaultCacheConfig creates a new default CacheConfig
 func NewDefaultCacheConfig() CacheConfig {
 	return CacheConfig{
 		Timeout:                               FileSystemTimeoutDefault,

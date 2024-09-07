@@ -97,3 +97,8 @@ func (msg *IRODSMessageGetDescriptorInfoResponse) FromMessage(msgIn *IRODSMessag
 
 	return nil
 }
+
+// GetXMLCorrector returns XML corrector for this message
+func (msg *IRODSMessageGetDescriptorInfoResponse) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForResponse()
+}

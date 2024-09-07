@@ -1,12 +1,9 @@
-package connection
+package message
 
 import (
 	"bytes"
-	"strconv"
-	"strings"
 	"unicode/utf8"
 
-	"github.com/cyverse/go-irodsclient/irods/message"
 	"golang.org/x/xerrors"
 )
 
@@ -27,102 +24,68 @@ var (
 // ErrInvalidUTF8 is returned if an invalid utf-8 character is found.
 var ErrInvalidUTF8 = xerrors.Errorf("invalid utf-8 character")
 
-func (conn *IRODSConnection) talksCorrectXML() bool {
-	if conn.serverVersion == nil {
-		// We don't know the server version yet, assume the best
-		return true
-	}
+// XMLCorrector is a function that corrects XML
+type XMLCorrector func(msg *IRODSMessage, newXML bool) error
 
-	if !strings.HasPrefix(conn.serverVersion.ReleaseVersion, "rods") {
-		// Strange, but hopefully it talks correct xml
-		return true
-	}
-
-	version := strings.Split(conn.serverVersion.ReleaseVersion[4:], ".")
-
-	if len(version) != 3 {
-		// Strange, but hopefully it talks correct xml
-		return true
-	}
-
-	major, _ := strconv.Atoi(version[0])
-	minor, _ := strconv.Atoi(version[1])
-	release, _ := strconv.Atoi(version[2])
-
-	return major > 4 || (major == 4 && minor > 2) || (major == 4 && minor == 2 && release > 8)
+// GetXMLCorrectorForRequest returns a corrector for general xml request
+func GetXMLCorrectorForRequest() XMLCorrector {
+	return CorrectXMLRequestMessage
 }
 
-// PostprocessMessage prepares a message that is received from irods for XML parsing.
-func (conn *IRODSConnection) PostprocessMessage(msg *message.IRODSMessage) error {
+// GetXMLCorrectorForPasswordRequest returns a corrector for password xml request
+func GetXMLCorrectorForPasswordRequest() XMLCorrector {
+	return CorrectXMLRequestMessageForPassword
+}
+
+// GetXMLCorrectorForResponse returns a corrector for general xml response
+func GetXMLCorrectorForResponse() XMLCorrector {
+	return CorrectXMLResponseMessage
+}
+
+// CorrectXMLRequestMessage modifies a request message to use irods dialect for XML.
+func CorrectXMLRequestMessage(msg *IRODSMessage, newXML bool) error {
 	if msg.Body == nil || msg.Body.Message == nil {
 		return nil
 	}
 
 	var err error
-
-	msg.Body.Message, err = conn.PostprocessXML(msg.Body.Message)
-	msg.Header.MessageLen = uint32(len(msg.Body.Message))
-
-	return err
-}
-
-// PostprocessXML translates IRODS XML into valid XML.
-// We fix the invalid encoding of ` as &quot.
-func (conn *IRODSConnection) PostprocessXML(in []byte) ([]byte, error) {
-	buf := in
-	out := &bytes.Buffer{}
-
-	for len(buf) > 0 {
-		switch {
-		// turn &quot; into `
-		case bytes.HasPrefix(buf, irodsEscQuot) && !conn.talksCorrectXML():
-			out.WriteByte('`')
-			buf = buf[len(irodsEscQuot):]
-		// turn ' into &apos;
-		case buf[0] == '\'' && !conn.talksCorrectXML():
-			out.Write(escApos)
-			buf = buf[1:]
-		// check utf8 characters for validity
-		default:
-			r, size := utf8.DecodeRune(buf)
-			if r == utf8.RuneError && size == 1 {
-				return in, ErrInvalidUTF8
-			}
-
-			if isValidChar(r) {
-				out.Write(buf[:size])
-			} else {
-				out.Write(escFFFD)
-			}
-
-			buf = buf[size:]
-		}
-	}
-
-	return out.Bytes(), nil
-}
-
-// PreprocessMessage modifies a request message to use irods dialect for XML.
-func (conn *IRODSConnection) PreprocessMessage(msg *message.IRODSMessage, forPassword bool) error {
-	if msg.Body == nil || msg.Body.Message == nil {
-		return nil
-	}
-
-	var err error
-
-	if forPassword {
-		msg.Body.Message, err = conn.PreprocessXMLForPassword(msg.Body.Message)
-	} else {
-		msg.Body.Message, err = conn.PreprocessXML(msg.Body.Message)
-	}
+	msg.Body.Message, err = correctXMLRequest(msg.Body.Message, newXML)
 
 	msg.Header.MessageLen = uint32(len(msg.Body.Message))
 
 	return err
 }
 
-// PreprocessXML translates output of xml.Marshal into XML that IRODS understands.
-func (conn *IRODSConnection) PreprocessXML(in []byte) ([]byte, error) {
+// CorrectXMLRequestMessageForPassword modifies a request message to use irods dialect for XML.
+func CorrectXMLRequestMessageForPassword(msg *IRODSMessage, newXML bool) error {
+	if msg.Body == nil || msg.Body.Message == nil {
+		return nil
+	}
+
+	var err error
+	msg.Body.Message, err = correctXMLRequestForPassword(msg.Body.Message)
+
+	msg.Header.MessageLen = uint32(len(msg.Body.Message))
+
+	return err
+}
+
+// CorrectXMLResponseMessage prepares a message that is received from irods for XML parsing.
+func CorrectXMLResponseMessage(msg *IRODSMessage, newXML bool) error {
+	if msg.Body == nil || msg.Body.Message == nil {
+		return nil
+	}
+
+	var err error
+
+	msg.Body.Message, err = correctXMLResponse(msg.Body.Message, newXML)
+	msg.Header.MessageLen = uint32(len(msg.Body.Message))
+
+	return err
+}
+
+// correctXMLRequest translates output of xml.Marshal into XML that IRODS understands.
+func correctXMLRequest(in []byte, newXML bool) ([]byte, error) {
 	buf := in
 	out := &bytes.Buffer{}
 
@@ -134,7 +97,7 @@ func (conn *IRODSConnection) PreprocessXML(in []byte) ([]byte, error) {
 			buf = buf[len(escQuot):]
 		// turn &#39 into &apos; or '
 		case bytes.HasPrefix(buf, escApos):
-			if conn.talksCorrectXML() {
+			if newXML {
 				out.Write(irodsEscApos)
 			} else {
 				out.WriteByte('\'')
@@ -153,7 +116,7 @@ func (conn *IRODSConnection) PreprocessXML(in []byte) ([]byte, error) {
 			out.WriteByte('\n')
 			buf = buf[len(escNL):]
 		// turn ` into &apos;
-		case buf[0] == '`' && !conn.talksCorrectXML():
+		case buf[0] == '`' && !newXML:
 			out.Write(irodsEscApos)
 			buf = buf[1:]
 		// pass utf8 characters
@@ -171,8 +134,8 @@ func (conn *IRODSConnection) PreprocessXML(in []byte) ([]byte, error) {
 	return out.Bytes(), nil
 }
 
-// PreprocessXMLForPassword translates output of xml.Marshal into XML that IRODS understands.
-func (conn *IRODSConnection) PreprocessXMLForPassword(in []byte) ([]byte, error) {
+// correctXMLRequestForPassword translates output of xml.Marshal into XML that IRODS understands.
+func correctXMLRequestForPassword(in []byte) ([]byte, error) {
 	buf := in
 	out := &bytes.Buffer{}
 
@@ -206,6 +169,42 @@ func (conn *IRODSConnection) PreprocessXMLForPassword(in []byte) ([]byte, error)
 			}
 
 			out.Write(buf[:size])
+			buf = buf[size:]
+		}
+	}
+
+	return out.Bytes(), nil
+}
+
+// correctXMLResponse translates IRODS XML into valid XML.
+// We fix the invalid encoding of ` as &quot.
+func correctXMLResponse(in []byte, newXML bool) ([]byte, error) {
+	buf := in
+	out := &bytes.Buffer{}
+
+	for len(buf) > 0 {
+		switch {
+		// turn &quot; into `
+		case bytes.HasPrefix(buf, irodsEscQuot) && !newXML:
+			out.WriteByte('`')
+			buf = buf[len(irodsEscQuot):]
+		// turn ' into &apos;
+		case buf[0] == '\'' && !newXML:
+			out.Write(escApos)
+			buf = buf[1:]
+		// check utf8 characters for validity
+		default:
+			r, size := utf8.DecodeRune(buf)
+			if r == utf8.RuneError && size == 1 {
+				return in, ErrInvalidUTF8
+			}
+
+			if isValidChar(r) {
+				out.Write(buf[:size])
+			} else {
+				out.Write(escFFFD)
+			}
+
 			buf = buf[size:]
 		}
 	}

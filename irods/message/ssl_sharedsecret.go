@@ -52,3 +52,7 @@ func (msg *IRODSMessageSSLSharedSecret) FromMessage(msgIn *IRODSMessage) error {
 
 	return nil
 }
+
+func (msg *IRODSMessageSSLSharedSecret) GetXMLCorrector() XMLCorrector {
+	return nil
+}

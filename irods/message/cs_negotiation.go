@@ -104,3 +104,7 @@ func (msg *IRODSMessageCSNegotiation) FromMessage(msgIn *IRODSMessage) error {
 	}
 	return nil
 }
+
+func (msg *IRODSMessageCSNegotiation) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForRequest()
+}

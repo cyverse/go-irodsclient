@@ -109,3 +109,7 @@ func (msg *IRODSMessageStartupPack) FromMessage(msgIn *IRODSMessage) error {
 	}
 	return nil
 }
+
+func (msg *IRODSMessageStartupPack) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForRequest()
+}

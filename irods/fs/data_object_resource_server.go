@@ -186,13 +186,13 @@ func CompleteDataObjectRedirection(conn *connection.IRODSConnection, handle *typ
 	return nil
 }
 
-func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, controlConnection *connection.IRODSConnection, handle *types.IRODSFileOpenRedirectionHandle, localPath string, callback common.TrackerCallBack) error {
+func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskID int, controlConnection *connection.IRODSConnection, handle *types.IRODSFileOpenRedirectionHandle, localPath string, callback common.TrackerCallBack) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "fs",
 		"function": "downloadDataObjectChunkFromResourceServer",
 	})
 
-	logger.Debugf("download data object %s", handle.Path)
+	logger.Debugf("download data object %s, task %d", handle.Path, taskID)
 
 	conn := sess.GetRedirectionConnection(controlConnection, handle.RedirectionInfo)
 	err := conn.Connect()
@@ -359,16 +359,18 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, contr
 		}
 	}
 
+	logger.Debugf("downloaded data object %s, task %d", handle.Path, taskID)
+
 	return nil
 }
 
-func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, controlConnection *connection.IRODSConnection, handle *types.IRODSFileOpenRedirectionHandle, localPath string, callback common.TrackerCallBack) error {
+func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID int, controlConnection *connection.IRODSConnection, handle *types.IRODSFileOpenRedirectionHandle, localPath string, callback common.TrackerCallBack) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "fs",
 		"function": "uploadDataObjectChunkToResourceServer",
 	})
 
-	logger.Debugf("upload data object %s", handle.Path)
+	logger.Debugf("upload data object %s, task %d", handle.Path, taskID)
 
 	conn := sess.GetRedirectionConnection(controlConnection, handle.RedirectionInfo)
 	err := conn.Connect()
@@ -551,6 +553,8 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, controlCo
 		}
 	}
 
+	logger.Debugf("uploaded data object %s, task %d", handle.Path, taskID)
+
 	return nil
 }
 
@@ -644,7 +648,7 @@ func DownloadDataObjectFromResourceServer(session *session.IRODSSession, irodsPa
 				}
 			}
 
-			err = downloadDataObjectChunkFromResourceServer(session, conn, handle, localPath, blockReadCallback)
+			err = downloadDataObjectChunkFromResourceServer(session, taskID, conn, handle, localPath, blockReadCallback)
 			if err != nil {
 				dnErr := xerrors.Errorf("failed to download data object chunk %q from resource server: %w", irodsPath, err)
 				errChan <- dnErr
@@ -758,7 +762,7 @@ func UploadDataObjectToResourceServer(session *session.IRODSSession, localPath s
 				}
 			}
 
-			err = uploadDataObjectChunkToResourceServer(session, conn, handle, localPath, blockWriteCallback)
+			err = uploadDataObjectChunkToResourceServer(session, taskID, conn, handle, localPath, blockWriteCallback)
 			if err != nil {
 				dnErr := xerrors.Errorf("failed to upload data object chunk %q to resource server: %w", localPath, err)
 				errChan <- dnErr

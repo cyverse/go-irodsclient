@@ -65,3 +65,8 @@ func (msg *IRODSMessageQuerySpecialCollection) FromMessage(msgIn *IRODSMessage) 
 	}
 	return nil
 }
+
+// GetXMLCorrector returns XML corrector for this message
+func (msg *IRODSMessageQuerySpecialCollection) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForRequest()
+}

@@ -42,3 +42,8 @@ func (msg *IRODSMessagePamAuthResponse) FromMessage(msgIn *IRODSMessage) error {
 	}
 	return nil
 }
+
+// GetXMLCorrector returns XML corrector for this message
+func (msg *IRODSMessagePamAuthResponse) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForResponse()
+}

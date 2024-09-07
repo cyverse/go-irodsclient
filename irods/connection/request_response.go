@@ -9,11 +9,13 @@ import (
 // Request is an interface for calling iRODS RPC.
 type Request interface {
 	GetMessage() (*message.IRODSMessage, error)
+	GetXMLCorrector() message.XMLCorrector
 }
 
 // Response is an interface for response of iRODS RPC Call.
 type Response interface {
-	FromMessage(*message.IRODSMessage) error
+	FromMessage(message *message.IRODSMessage) error
+	GetXMLCorrector() message.XMLCorrector
 }
 
 // CheckErrorResponse is a Response on which CheckError can be called.
@@ -32,6 +34,14 @@ type RequestResponsePair struct {
 	Error            error
 }
 
+func (conn *IRODSConnection) useNewXML() bool {
+	if conn.serverVersion == nil {
+		return true
+	}
+
+	return conn.serverVersion.HasHigherVersionThan(4, 2, 8)
+}
+
 // Request sends a request and expects a response.
 // bsBuffer is optional
 func (conn *IRODSConnection) Request(request Request, response Response, bsBuffer []byte) error {
@@ -44,7 +54,7 @@ func (conn *IRODSConnection) RequestWithTrackerCallBack(request Request, respons
 	// set transaction dirty
 	conn.SetTransactionDirty(true)
 
-	requestMessage, err := conn.getRequestMessage(request, true, false)
+	requestMessage, err := conn.getRequestMessage(request)
 	if err != nil {
 		if conn.metrics != nil {
 			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
@@ -70,7 +80,7 @@ func (conn *IRODSConnection) RequestWithTrackerCallBack(request Request, respons
 		return xerrors.Errorf("failed to receive a response message: %w", err)
 	}
 
-	err = conn.getResponse(responseMessage, response, true)
+	err = conn.getResponse(responseMessage, response)
 	if err != nil {
 		if conn.metrics != nil {
 			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
@@ -105,7 +115,7 @@ func (conn *IRODSConnection) RequestAsyncWithTrackerCallBack(rrChan chan Request
 				continue
 			}
 
-			requestMessage, err := conn.getRequestMessage(pair.Request, true, false)
+			requestMessage, err := conn.getRequestMessage(pair.Request)
 			if err != nil {
 				if conn.metrics != nil {
 					conn.metrics.IncreaseCounterForRequestResponseFailures(1)
@@ -166,7 +176,7 @@ func (conn *IRODSConnection) RequestAsyncWithTrackerCallBack(rrChan chan Request
 				continue
 			}
 
-			err = conn.getResponse(responseMessage, pair.Response, true)
+			err = conn.getResponse(responseMessage, pair.Response)
 			if err != nil {
 				if conn.metrics != nil {
 					conn.metrics.IncreaseCounterForRequestResponseFailures(1)
@@ -185,75 +195,14 @@ func (conn *IRODSConnection) RequestAsyncWithTrackerCallBack(rrChan chan Request
 	return outputPair
 }
 
-// RequestForPassword sends a request and expects a response. XML escape only for '&'
-// bsBuffer is optional
-func (conn *IRODSConnection) RequestForPassword(request Request, response Response, bsBuffer []byte) error {
-	requestMessage, err := conn.getRequestMessage(request, true, true)
-	if err != nil {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
-		}
-		return err
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
-		}
-		return xerrors.Errorf("failed to send a request message: %w", err)
-	}
-
-	// Server responds with results
-	// external bs buffer
-	responseMessage, err := conn.ReadMessage(bsBuffer)
-	if err != nil {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
-		}
-		return xerrors.Errorf("failed to receive a response message: %w", err)
-	}
-
-	err = conn.getResponse(responseMessage, response, true)
-	if err != nil {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
-		}
-		return xerrors.Errorf("failed to parse response message: %w", err)
-	}
-
-	return nil
-}
-
 // RequestWithoutResponse sends a request but does not wait for a response.
 func (conn *IRODSConnection) RequestWithoutResponse(request Request) error {
-	requestMessage, err := conn.getRequestMessage(request, true, false)
+	requestMessage, err := conn.getRequestMessage(request)
 	if err != nil {
 		if conn.metrics != nil {
 			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
 		}
 		return err
-	}
-
-	err = conn.SendMessage(requestMessage)
-	if err != nil {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
-		}
-		return xerrors.Errorf("failed to send a request message: %w", err)
-	}
-
-	return nil
-}
-
-// RequestWithoutResponseNoXML sends a request but does not wait for a response.
-func (conn *IRODSConnection) RequestWithoutResponseNoXML(request Request) error {
-	requestMessage, err := conn.getRequestMessage(request, false, false)
-	if err != nil {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
-		}
-		return xerrors.Errorf("failed to make a request message: %w", err)
 	}
 
 	err = conn.SendMessage(requestMessage)
@@ -281,39 +230,29 @@ func (conn *IRODSConnection) RequestAndCheckWithTrackerCallBack(request Request,
 	return response.CheckError()
 }
 
-// RequestAndCheckForPassword sends a request and expects a CheckErrorResponse, on which the error is already checked.
-// Only escape '&'
-func (conn *IRODSConnection) RequestAndCheckForPassword(request Request, response CheckErrorResponse, bsBuffer []byte) error {
-	if err := conn.RequestForPassword(request, response, bsBuffer); err != nil {
-		return err
-	}
-
-	return response.CheckError()
-}
-
-func (conn *IRODSConnection) getRequestMessage(request Request, xml bool, forPassword bool) (*message.IRODSMessage, error) {
+func (conn *IRODSConnection) getRequestMessage(request Request) (*message.IRODSMessage, error) {
 	requestMessage, err := request.GetMessage()
 	if err != nil {
 		return nil, xerrors.Errorf("failed to make a request message: %w", err)
 	}
 
-	if xml {
-		// translate xml.Marshal XML into irods-understandable XML (among others, replace &#34; by &quot;)
-		err = conn.PreprocessMessage(requestMessage, forPassword)
+	xmlCorrector := request.GetXMLCorrector()
+	if xmlCorrector != nil {
+		err := xmlCorrector(requestMessage, conn.useNewXML())
 		if err != nil {
-			return nil, xerrors.Errorf("failed to send preprocess message: %w", err)
+			return nil, xerrors.Errorf("failed to corrext XML message: %w", err)
 		}
 	}
 
 	return requestMessage, nil
 }
 
-func (conn *IRODSConnection) getResponse(responseMessage *message.IRODSMessage, response Response, xml bool) error {
-	if xml {
-		// translate irods-dialect XML into valid XML
-		err := conn.PostprocessMessage(responseMessage)
+func (conn *IRODSConnection) getResponse(responseMessage *message.IRODSMessage, response Response) error {
+	xmlCorrector := response.GetXMLCorrector()
+	if xmlCorrector != nil {
+		err := xmlCorrector(responseMessage, conn.useNewXML())
 		if err != nil {
-			return xerrors.Errorf("failed to postprocess message: %w", err)
+			return xerrors.Errorf("failed to corrext XML message: %w", err)
 		}
 	}
 

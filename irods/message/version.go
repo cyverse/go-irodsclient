@@ -99,3 +99,7 @@ func (msg *IRODSMessageVersion) FromMessage(msgIn *IRODSMessage) error {
 	}
 	return nil
 }
+
+func (msg *IRODSMessageVersion) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForResponse()
+}

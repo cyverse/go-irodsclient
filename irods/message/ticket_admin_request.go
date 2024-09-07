@@ -96,3 +96,7 @@ func (msg *IRODSMessageTicketAdminRequest) GetMessage() (*IRODSMessage, error) {
 		Body:   &msgBody,
 	}, nil
 }
+
+func (msg *IRODSMessageTicketAdminRequest) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForRequest()
+}

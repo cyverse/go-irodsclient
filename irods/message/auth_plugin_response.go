@@ -42,3 +42,8 @@ func (msg *IRODSMessageAuthPluginResponse) FromMessage(msgIn *IRODSMessage) erro
 	}
 	return nil
 }
+
+// GetXMLCorrector returns XML corrector for this message
+func (msg *IRODSMessageAuthPluginResponse) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForResponse()
+}
