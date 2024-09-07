@@ -250,9 +250,11 @@ func (conn *IRODSResourceServerConnection) Disconnect() error {
 
 	err := conn.disconnectNow()
 	if err != nil {
+		logger.WithError(err).Debug("failed to disconnect the connection")
 		return err
 	}
 
+	logger.Debug("Disconnected the connection")
 	return nil
 }
 

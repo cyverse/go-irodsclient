@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
+	"github.com/cyverse/go-irodsclient/irods/types"
 	"golang.org/x/xerrors"
 )
 
@@ -12,6 +13,16 @@ import (
 type IRODSMessageAuthChallengeResponse struct {
 	XMLName   xml.Name `xml:"authRequestOut_PI"`
 	Challenge string   `xml:"challenge"`
+	// stores error return
+	Result int `xml:"-"`
+}
+
+// CheckError returns error if server returned an error
+func (msg *IRODSMessageAuthChallengeResponse) CheckError() error {
+	if msg.Result < 0 {
+		return types.NewIRODSError(common.ErrorCode(msg.Result))
+	}
+	return nil
 }
 
 // GetBytes returns byte array
@@ -64,11 +75,21 @@ func (msg *IRODSMessageAuthChallengeResponse) FromMessage(msgIn *IRODSMessage) e
 		return xerrors.Errorf("empty message body")
 	}
 
-	err := msg.FromBytes(msgIn.Body.Message)
-	if err != nil {
-		return xerrors.Errorf("failed to get irods message from message body")
+	msg.Result = int(msgIn.Body.IntInfo)
+
+	if msgIn.Body.Message != nil {
+		err := msg.FromBytes(msgIn.Body.Message)
+		if err != nil {
+			return xerrors.Errorf("failed to get irods message from message body: %w", err)
+		}
 	}
+
 	return nil
+}
+
+// GetXMLCorrector returns XML corrector for this message
+func (msg *IRODSMessageAuthChallengeResponse) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForResponse()
 }
 
 // GetChallenge returns challenge bytes

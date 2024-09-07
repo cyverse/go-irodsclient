@@ -95,7 +95,11 @@ func (msg *IRODSMessageVersion) FromMessage(msgIn *IRODSMessage) error {
 
 	err := msg.FromBytes(msgIn.Body.Message)
 	if err != nil {
-		return xerrors.Errorf("failed to get irods message from message body")
+		return xerrors.Errorf("failed to get irods message from message body: %w", err)
 	}
 	return nil
+}
+
+func (msg *IRODSMessageVersion) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForResponse()
 }

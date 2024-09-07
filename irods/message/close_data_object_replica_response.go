@@ -29,3 +29,8 @@ func (msg *IRODSMessageCloseDataObjectReplicaResponse) FromMessage(msgIn *IRODSM
 	msg.Result = int(msgIn.Body.IntInfo)
 	return nil
 }
+
+// GetXMLCorrector returns XML corrector for this message
+func (msg *IRODSMessageCloseDataObjectReplicaResponse) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForResponse()
+}

@@ -198,7 +198,7 @@ func (manager *ICommandsEnvironmentManager) Load(processID int) error {
 			// continue
 		} else {
 			authScheme := types.GetAuthScheme(manager.Environment.AuthenticationScheme)
-			if authScheme == types.AuthSchemePAM {
+			if authScheme.IsPAM() {
 				manager.Password = ""
 				manager.PamToken = password
 			} else {
@@ -247,7 +247,7 @@ func (manager *ICommandsEnvironmentManager) SaveEnvironment() error {
 	authScheme := types.GetAuthScheme(manager.Environment.AuthenticationScheme)
 
 	password := manager.Password
-	if authScheme == types.AuthSchemePAM {
+	if authScheme.IsPAM() {
 		password = manager.PamToken
 	}
 

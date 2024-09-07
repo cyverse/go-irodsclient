@@ -80,3 +80,8 @@ func (msg *IRODSMessageGetDataObjectRequest) GetMessage() (*IRODSMessage, error)
 		Body:   &msgBody,
 	}, nil
 }
+
+// GetXMLCorrector returns XML corrector for this message
+func (msg *IRODSMessageGetDataObjectRequest) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForRequest()
+}

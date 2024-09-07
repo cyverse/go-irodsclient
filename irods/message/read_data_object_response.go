@@ -31,3 +31,8 @@ func (msg *IRODSMessageReadDataObjectResponse) FromMessage(msgIn *IRODSMessage) 
 	msg.Data = msgIn.Body.Bs
 	return nil
 }
+
+// GetXMLCorrector returns XML corrector for this message
+func (msg *IRODSMessageReadDataObjectResponse) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForResponse()
+}

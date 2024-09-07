@@ -72,3 +72,8 @@ func (msg *IRODSMessageModifyCollectionRequest) GetMessage() (*IRODSMessage, err
 		Body:   &msgBody,
 	}, nil
 }
+
+// GetXMLCorrector returns XML corrector for this message
+func (msg *IRODSMessageModifyCollectionRequest) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForRequest()
+}

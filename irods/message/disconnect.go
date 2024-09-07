@@ -35,3 +35,8 @@ func (msg *IRODSMessageDisconnect) GetMessage() (*IRODSMessage, error) {
 func (msg *IRODSMessageDisconnect) FromMessage(msgIn *IRODSMessage) error {
 	return nil
 }
+
+// GetXMLCorrector returns XML corrector for this message
+func (msg *IRODSMessageDisconnect) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForRequest()
+}

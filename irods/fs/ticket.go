@@ -1248,7 +1248,7 @@ func CreateTicket(conn *connection.IRODSConnection, ticketName string, ticketTyp
 
 	req := message.NewIRODSMessageTicketAdminRequest("create", ticketName, string(ticketType), path, ticketName)
 
-	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageTicketAdminResponse{}, nil)
 	if err != nil {
 		return xerrors.Errorf("received create ticket error: %w", err)
 	}
@@ -1263,7 +1263,7 @@ func DeleteTicket(conn *connection.IRODSConnection, ticketName string) error {
 
 	req := message.NewIRODSMessageTicketAdminRequest("delete", ticketName)
 
-	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageTicketAdminResponse{}, nil)
 	if err != nil {
 		return xerrors.Errorf("received delete ticket error: %w", err)
 	}
@@ -1278,7 +1278,7 @@ func ModifyTicket(conn *connection.IRODSConnection, ticketName string, args ...s
 
 	req := message.NewIRODSMessageTicketAdminRequest("mod", ticketName, args...)
 
-	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageTicketAdminResponse{}, nil)
 	if err != nil {
 		return xerrors.Errorf("received mod ticket error: %w", err)
 	}
@@ -1364,7 +1364,7 @@ func SupplyTicket(conn *connection.IRODSConnection, ticketName string) error {
 	defer conn.Unlock()
 
 	req := message.NewIRODSMessageTicketAdminRequest("session", ticketName)
-	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageTicketAdminResponse{}, nil)
 	if err != nil {
 		return xerrors.Errorf("received supply ticket error: %w", err)
 	}

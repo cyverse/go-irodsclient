@@ -29,3 +29,8 @@ func (msg *IRODSMessageModifyMetadataResponse) FromMessage(msgIn *IRODSMessage) 
 	msg.Result = int(msgIn.Body.IntInfo)
 	return nil
 }
+
+// GetXMLCorrector returns XML corrector for this message
+func (msg *IRODSMessageModifyMetadataResponse) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForResponse()
+}

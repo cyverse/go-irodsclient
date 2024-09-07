@@ -101,3 +101,8 @@ func (msg *IRODSMessageCloseDataObjectReplicaRequest) GetMessage() (*IRODSMessag
 		Body:   &msgBody,
 	}, nil
 }
+
+// GetXMLCorrector returns XML corrector for this message
+func (msg *IRODSMessageCloseDataObjectReplicaRequest) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForRequest()
+}

@@ -84,3 +84,8 @@ func (msg *IRODSMessageChecksumRequest) GetMessage() (*IRODSMessage, error) {
 		Body:   &msgBody,
 	}, nil
 }
+
+// GetXMLCorrector returns XML corrector for this message
+func (msg *IRODSMessageChecksumRequest) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForRequest()
+}

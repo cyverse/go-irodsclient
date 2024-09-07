@@ -34,3 +34,8 @@ func (msg *IRODSMessageLockDataObjectResponse) FromMessage(msgIn *IRODSMessage) 
 	msg.FileDescriptor = int(msgIn.Body.IntInfo)
 	return nil
 }
+
+// GetXMLCorrector returns XML corrector for this message
+func (msg *IRODSMessageLockDataObjectResponse) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForResponse()
+}

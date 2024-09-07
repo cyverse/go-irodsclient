@@ -71,3 +71,7 @@ func (msg *IRODSMessageSSLSettings) FromMessage(msgIn *IRODSMessage) error {
 
 	return nil
 }
+
+func (msg *IRODSMessageSSLSettings) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForRequest()
+}
