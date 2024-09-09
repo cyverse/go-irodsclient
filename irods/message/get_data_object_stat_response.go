@@ -62,7 +62,7 @@ func (msg *IRODSMessageGetDataObjectStatResponse) FromMessage(msgIn *IRODSMessag
 	if msgIn.Body.Message != nil {
 		err := msg.FromBytes(msgIn.Body.Message)
 		if err != nil {
-			return xerrors.Errorf("failed to get irods message from message body")
+			return xerrors.Errorf("failed to get irods message from message body: %w", err)
 		}
 	}
 
