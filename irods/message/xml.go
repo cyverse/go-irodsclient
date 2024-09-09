@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"unicode/utf8"
 
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/xerrors"
 )
 
@@ -179,6 +180,13 @@ func correctXMLRequestForPassword(in []byte) ([]byte, error) {
 // correctXMLResponse translates IRODS XML into valid XML.
 // We fix the invalid encoding of ` as &quot.
 func correctXMLResponse(in []byte, newXML bool) ([]byte, error) {
+	logger := log.WithFields(log.Fields{
+		"package":  "connection",
+		"function": "correctXMLResponse",
+	})
+
+	logger.Debugf("xml in: %s", in)
+
 	buf := in
 	out := &bytes.Buffer{}
 
@@ -208,6 +216,8 @@ func correctXMLResponse(in []byte, newXML bool) ([]byte, error) {
 			buf = buf[size:]
 		}
 	}
+
+	logger.Debugf("xml out: %s", out.Bytes())
 
 	return out.Bytes(), nil
 }
