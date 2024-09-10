@@ -219,7 +219,7 @@ func correctXMLResponse(in []byte, newXML bool) ([]byte, error) {
 				return in, ErrInvalidUTF8
 			}
 
-			if isValidChar(r) {
+			if isValidUTF8(buf[:size]) {
 				out.Write(buf[:size])
 			} else {
 				out.Write(escFFFD)
@@ -243,7 +243,8 @@ func correctXMLResponseForPassword(in []byte, newXML bool) ([]byte, error) {
 	buf := in
 	out := &bytes.Buffer{}
 
-	logger.Debugf("in: %q, len: %d", in, len(in))
+	logger.Debugf("in (quoted): %q, len: %d", in, len(in))
+	logger.Debugf("in (string): %s, len: %d", in, len(in))
 
 	for len(buf) > 0 {
 		switch {
@@ -257,7 +258,7 @@ func correctXMLResponseForPassword(in []byte, newXML bool) ([]byte, error) {
 			buf = buf[1:]
 		// check utf8 characters for validity
 		default:
-			if !isValidChar(rune(buf[0])) {
+			if !isValidUTF8(buf[:1]) {
 				out.WriteString(fmt.Sprintf("0x%x", buf[:1]))
 			} else {
 				out.Write(buf[:1])
@@ -267,16 +268,12 @@ func correctXMLResponseForPassword(in []byte, newXML bool) ([]byte, error) {
 		}
 	}
 
-	logger.Debugf("out: %q, len: %d", out.Bytes(), len(out.Bytes()))
+	logger.Debugf("out (quoted): %q, len: %d", out.Bytes(), len(out.Bytes()))
+	logger.Debugf("out (string): %s, len: %d", out.Bytes(), len(out.Bytes()))
 
 	return out.Bytes(), nil
 }
 
-func isValidChar(r rune) bool {
-	return r == 0x09 ||
-		r == 0x0A ||
-		r == 0x0D ||
-		r >= 0x20 && r <= 0xD7FF ||
-		r >= 0xE000 && r <= 0xFFFD ||
-		r >= 0x10000 && r <= 0x10FFFF
+func isValidUTF8(data []byte) bool {
+	return utf8.Valid(data)
 }

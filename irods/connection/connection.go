@@ -574,7 +574,7 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 
 	// authenticate
 	pamToken := ""
-	if true || useDedicatedPAMApi {
+	if useDedicatedPAMApi {
 		pamAuthRequest := message.NewIRODSMessagePamAuthRequest(conn.account.ClientUser, pamPassword, ttl)
 		pamAuthResponse := message.IRODSMessagePamAuthResponse{}
 		err := conn.Request(pamAuthRequest, &pamAuthResponse, nil)
