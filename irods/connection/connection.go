@@ -591,7 +591,7 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 			return xerrors.Errorf("failed to receive an authentication challenge message (%s): %w", err.Error(), types.NewAuthError(conn.account))
 		}
 
-		pamToken = pamAuthResponse.Result
+		pamToken = string(pamAuthResponse.Result)
 	}
 
 	// save irods generated password for possible future use

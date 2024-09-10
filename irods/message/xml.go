@@ -2,9 +2,9 @@ package message
 
 import (
 	"bytes"
+	"fmt"
 	"unicode/utf8"
 
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/xerrors"
 )
 
@@ -20,7 +20,6 @@ var (
 	// escapes for irods
 	irodsEscQuot = []byte("&quot;")
 	irodsEscApos = []byte("&apos;")
-	irodsEscHex  = []byte("\\x")
 )
 
 // ErrInvalidUTF8 is returned if an invalid utf-8 character is found.
@@ -44,8 +43,8 @@ func GetXMLCorrectorForResponse() XMLCorrector {
 	return CorrectXMLResponseMessage
 }
 
-func GetXMLCorrectorForPythonBytesResponse() XMLCorrector {
-	return CorrectXMLResponseMessageForPythonBytes
+func GetXMLCorrectorForPasswordResponse() XMLCorrector {
+	return CorrectXMLResponseMessageForPassword
 }
 
 // CorrectXMLRequestMessage modifies a request message to use irods dialect for XML.
@@ -90,15 +89,15 @@ func CorrectXMLResponseMessage(msg *IRODSMessage, newXML bool) error {
 	return err
 }
 
-// CorrectXMLResponseMessageForPythonBytes prepares a message that is received from irods for XML parsing.
-func CorrectXMLResponseMessageForPythonBytes(msg *IRODSMessage, newXML bool) error {
+// CorrectXMLResponseMessageForPassword prepares a message that is received from irods for XML parsing.
+func CorrectXMLResponseMessageForPassword(msg *IRODSMessage, newXML bool) error {
 	if msg.Body == nil || msg.Body.Message == nil {
 		return nil
 	}
 
 	var err error
 
-	msg.Body.Message, err = correctXMLResponseForPythonBytes(msg.Body.Message, newXML)
+	msg.Body.Message, err = correctXMLResponseForPassword(msg.Body.Message, newXML)
 	msg.Header.MessageLen = uint32(len(msg.Body.Message))
 
 	return err
@@ -232,16 +231,9 @@ func correctXMLResponse(in []byte, newXML bool) ([]byte, error) {
 	return out.Bytes(), nil
 }
 
-// correctXMLResponseForPythonBytes translates IRODS XML into valid XML.
+// correctXMLResponseForPassword translates IRODS XML into valid XML.
 // We fix the invalid encoding of ` as &quot.
-func correctXMLResponseForPythonBytes(in []byte, newXML bool) ([]byte, error) {
-	logger := log.WithFields(log.Fields{
-		"package":  "connection",
-		"function": "correctXMLResponseForPythonBytes",
-	})
-
-	logger.Debugf("xml in: %s, len(%d)", in, len(in))
-
+func correctXMLResponseForPassword(in []byte, newXML bool) ([]byte, error) {
 	buf := in
 	out := &bytes.Buffer{}
 
@@ -255,17 +247,17 @@ func correctXMLResponseForPythonBytes(in []byte, newXML bool) ([]byte, error) {
 		case buf[0] == '\'' && !newXML:
 			out.Write(escApos)
 			buf = buf[1:]
-		case bytes.HasPrefix(buf, irodsEscHex):
-			out.Write([]byte("0x"))
-			buf = buf[len(irodsEscHex):]
 		// check utf8 characters for validity
 		default:
-			out.Write(buf[:1])
+			if buf[0] > 0x7f {
+				out.WriteString(fmt.Sprintf("0x%x", buf[:1]))
+			} else {
+				out.Write(buf[:1])
+			}
+
 			buf = buf[1:]
 		}
 	}
-
-	logger.Debugf("xml out: %s, len(%d)", out.Bytes(), len(out.Bytes()))
 
 	return out.Bytes(), nil
 }
