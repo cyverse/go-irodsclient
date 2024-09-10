@@ -508,7 +508,7 @@ func ChangeUserPassword(conn *connection.IRODSConnection, username string, zone 
 	account := conn.GetAccount()
 
 	oldPassword := account.Password
-	if account.AuthenticationScheme == types.AuthSchemePAM {
+	if account.AuthenticationScheme.IsPAM() {
 		oldPassword = conn.GetPAMToken()
 	}
 

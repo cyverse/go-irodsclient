@@ -119,6 +119,10 @@ func (conn *IRODSConnection) SupportParallelUpload() bool {
 	return conn.serverVersion.HasHigherVersionThan(4, 2, 9)
 }
 
+func (conn *IRODSConnection) requirePAMPassword() bool {
+	return conn.serverVersion.HasHigherVersionThan(4, 3, 0)
+}
+
 func (conn *IRODSConnection) requiresCSNegotiation() bool {
 	return conn.account.ClientServerNegotiation
 }
@@ -277,7 +281,7 @@ func (conn *IRODSConnection) Connect() error {
 		err = conn.loginNative()
 	case types.AuthSchemeGSI:
 		err = conn.loginGSI()
-	case types.AuthSchemePAM:
+	case types.AuthSchemePAM, types.AuthSchemePAMPassword:
 		if len(conn.account.PamToken) > 0 {
 			err = conn.loginPAMWithToken()
 		} else {
@@ -487,6 +491,14 @@ func (conn *IRODSConnection) sslStartup() error {
 }
 
 func (conn *IRODSConnection) login(password string) error {
+	logger := log.WithFields(log.Fields{
+		"package":  "connection",
+		"struct":   "IRODSConnection",
+		"function": "login",
+	})
+
+	logger.Debugf("password: %q", password)
+
 	// authenticate
 	authRequest := message.NewIRODSMessageAuthRequest()
 	authChallenge := message.IRODSMessageAuthChallengeResponse{}
@@ -562,13 +574,16 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 
 	authContext := strings.Join([]string{userKV, passwordKV, ttlKV}, ";")
 
-	useDedicatedPAMApi := false
-	if strings.ContainsAny(pamPassword, ";=") {
-		useDedicatedPAMApi = true
-	} else {
-		// from python-irodsclient code
-		if len(authContext) >= 1024+64 {
+	useDedicatedPAMApi := true
+	if conn.requirePAMPassword() {
+		useDedicatedPAMApi = false
+		if strings.ContainsAny(pamPassword, ";=") {
 			useDedicatedPAMApi = true
+		} else {
+			// from python-irodsclient code
+			if len(authContext) >= 1024+64 {
+				useDedicatedPAMApi = true
+			}
 		}
 	}
 

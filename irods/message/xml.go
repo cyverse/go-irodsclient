@@ -240,11 +240,11 @@ func correctXMLResponseForPassword(in []byte, newXML bool) ([]byte, error) {
 		"function": "correctXMLResponseForPassword",
 	})
 
-	buf := in
-	out := &bytes.Buffer{}
-
 	logger.Debugf("in (quoted): %q, len: %d", in, len(in))
 	logger.Debugf("in (string): %s, len: %d", in, len(in))
+
+	buf := in
+	out := &bytes.Buffer{}
 
 	for len(buf) > 0 {
 		switch {
@@ -258,7 +258,7 @@ func correctXMLResponseForPassword(in []byte, newXML bool) ([]byte, error) {
 			buf = buf[1:]
 		// check utf8 characters for validity
 		default:
-			if !isValidUTF8(buf[:1]) {
+			if !isValidUTF8Char(buf[0]) {
 				out.WriteString(fmt.Sprintf("0x%x", buf[:1]))
 			} else {
 				out.Write(buf[:1])
@@ -276,4 +276,11 @@ func correctXMLResponseForPassword(in []byte, newXML bool) ([]byte, error) {
 
 func isValidUTF8(data []byte) bool {
 	return utf8.Valid(data)
+}
+
+func isValidUTF8Char(ch byte) bool {
+	return ch == 0x09 || // \t
+		ch == 0x0A || // \n
+		ch == 0x0D || // \r
+		(ch >= 0x20 && ch <= 0x7E)
 }

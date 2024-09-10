@@ -14,6 +14,8 @@ const (
 	AuthSchemeGSI AuthScheme = "gsi"
 	// AuthSchemePAM uses PAM authentication scheme
 	AuthSchemePAM AuthScheme = "pam"
+	// AuthSchemePAMPasswordAuthScheme uses PAM authentication scheme
+	AuthSchemePAMPassword AuthScheme = "pam_password"
 	// AuthSchemeUnknown is unknown scheme
 	AuthSchemeUnknown AuthScheme = ""
 )
@@ -25,11 +27,18 @@ func GetAuthScheme(authScheme string) AuthScheme {
 		return AuthSchemeNative
 	case string(AuthSchemeGSI):
 		return AuthSchemeGSI
-	case string(AuthSchemePAM), "pam_password":
+	case string(AuthSchemePAM):
 		return AuthSchemePAM
+	case string(AuthSchemePAMPassword):
+		return AuthSchemePAMPassword
 	case string(AuthSchemeUnknown):
 		fallthrough
 	default:
 		return AuthSchemeUnknown
 	}
+}
+
+// IsPAM checks if the auth scheme is pam or pam_password
+func (authScheme AuthScheme) IsPAM() bool {
+	return authScheme == AuthSchemePAM || authScheme == AuthSchemePAMPassword
 }

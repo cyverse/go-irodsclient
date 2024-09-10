@@ -32,7 +32,7 @@ func (msg *IRODSMessageAuthPluginResponse) FromBytes(b []byte) error {
 
 	// handle escape
 	// GetXMLCorrectorForPasswordResponse() converts non-ascii bytes to hex string
-	buf := b
+	buf := msg.Result
 	unescaped := &bytes.Buffer{}
 
 	for len(buf) > 0 {
