@@ -243,7 +243,7 @@ func correctXMLResponseForPassword(in []byte, newXML bool) ([]byte, error) {
 	buf := in
 	out := &bytes.Buffer{}
 
-	log.Debugf("in: %q, len: %d", in, len(in))
+	logger.Debugf("in: %q, len: %d", in, len(in))
 
 	for len(buf) > 0 {
 		switch {
@@ -267,7 +267,7 @@ func correctXMLResponseForPassword(in []byte, newXML bool) ([]byte, error) {
 		}
 	}
 
-	log.Debugf("out: %q, len: %d", out.Bytes(), len(out.Bytes()))
+	logger.Debugf("out: %q, len: %d", out.Bytes(), len(out.Bytes()))
 
 	return out.Bytes(), nil
 }
