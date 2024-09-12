@@ -518,14 +518,6 @@ func (conn *IRODSConnection) sslStartup() error {
 }
 
 func (conn *IRODSConnection) login(password string) error {
-	logger := log.WithFields(log.Fields{
-		"package":  "connection",
-		"struct":   "IRODSConnection",
-		"function": "login",
-	})
-
-	logger.Debugf("password: %q", password)
-
 	// authenticate
 	authRequest := message.NewIRODSMessageAuthRequest()
 	authChallenge := message.IRODSMessageAuthChallengeResponse{}
@@ -621,7 +613,7 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 
 		pamToken = pamAuthResponse.GeneratedPassword
 	} else {
-		logger.Debugf("use auth plugin api: scheme %q, context %q", string(types.AuthSchemePAM), authContext)
+		logger.Debugf("use auth plugin api: scheme %q", string(types.AuthSchemePAM))
 
 		pamAuthRequest := message.NewIRODSMessageAuthPluginRequest(string(types.AuthSchemePAM), authContext)
 		pamAuthResponse := message.IRODSMessageAuthPluginResponse{}

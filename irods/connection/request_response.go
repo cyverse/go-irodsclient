@@ -4,8 +4,6 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/message"
 	"golang.org/x/xerrors"
-
-	log "github.com/sirupsen/logrus"
 )
 
 // Request is an interface for calling iRODS RPC.
@@ -53,12 +51,6 @@ func (conn *IRODSConnection) Request(request Request, response Response, bsBuffe
 // RequestWithTrackerCallBack sends a request and expects a response.
 // bsBuffer is optional
 func (conn *IRODSConnection) RequestWithTrackerCallBack(request Request, response Response, bsBuffer []byte, reqCallback common.TrackerCallBack, resCallback common.TrackerCallBack) error {
-	logger := log.WithFields(log.Fields{
-		"package":  "connection",
-		"struct":   "IRODSConnection",
-		"function": "RequestWithTrackerCallBack",
-	})
-
 	// set transaction dirty
 	conn.SetTransactionDirty(true)
 
@@ -88,9 +80,9 @@ func (conn *IRODSConnection) RequestWithTrackerCallBack(request Request, respons
 		return xerrors.Errorf("failed to receive a response message: %w", err)
 	}
 
-	logger.Debugf("response: %#v", responseMessage)
-	logger.Debugf("response header: %#v", responseMessage.Header)
-	logger.Debugf("response body: %#v", responseMessage.Body)
+	//logger.Debugf("response: %#v", responseMessage)
+	//logger.Debugf("response header: %#v", responseMessage.Header)
+	//logger.Debugf("response body: %#v", responseMessage.Body)
 
 	err = conn.getResponse(responseMessage, response)
 	if err != nil {
