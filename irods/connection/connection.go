@@ -529,7 +529,7 @@ func (conn *IRODSConnection) login(password string) error {
 	// authenticate
 	authRequest := message.NewIRODSMessageAuthRequest()
 	authChallenge := message.IRODSMessageAuthChallengeResponse{}
-	err := conn.Request(authRequest, &authChallenge, nil)
+	err := conn.RequestAndCheck(authRequest, &authChallenge, nil)
 	if err != nil {
 		return xerrors.Errorf("failed to receive authentication challenge message body (%s): %w", err.Error(), types.NewAuthError(conn.account))
 	}
@@ -614,7 +614,7 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 
 		pamAuthRequest := message.NewIRODSMessagePamAuthRequest(conn.account.ClientUser, pamPassword, ttl)
 		pamAuthResponse := message.IRODSMessagePamAuthResponse{}
-		err := conn.Request(pamAuthRequest, &pamAuthResponse, nil)
+		err := conn.RequestAndCheck(pamAuthRequest, &pamAuthResponse, nil)
 		if err != nil {
 			return xerrors.Errorf("failed to receive an authentication challenge message (%s): %w", err.Error(), types.NewAuthError(conn.account))
 		}
@@ -625,7 +625,7 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 
 		pamAuthRequest := message.NewIRODSMessageAuthPluginRequest(string(types.AuthSchemePAM), authContext)
 		pamAuthResponse := message.IRODSMessageAuthPluginResponse{}
-		err := conn.Request(pamAuthRequest, &pamAuthResponse, nil)
+		err := conn.RequestAndCheck(pamAuthRequest, &pamAuthResponse, nil)
 		if err != nil {
 			return xerrors.Errorf("failed to receive an authentication challenge message (%s): %w", err.Error(), types.NewAuthError(conn.account))
 		}

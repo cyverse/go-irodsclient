@@ -1,17 +1,27 @@
 package message
 
 import (
-	"bytes"
-	"encoding/hex"
 	"encoding/xml"
 
+	"github.com/cyverse/go-irodsclient/irods/common"
+	"github.com/cyverse/go-irodsclient/irods/types"
 	"golang.org/x/xerrors"
 )
 
 // IRODSMessageAuthPluginResponse stores auth plugin info
 type IRODSMessageAuthPluginResponse struct {
-	XMLName xml.Name `xml:"authPlugReqOut_PI"`
-	Result  []byte   `xml:"result_"`
+	XMLName           xml.Name `xml:"authPlugReqOut_PI"`
+	GeneratedPassword []byte   `xml:"result_"`
+	// stores error return
+	Result int `xml:"-"`
+}
+
+// CheckError returns error if server returned an error
+func (msg *IRODSMessageAuthPluginResponse) CheckError() error {
+	if msg.Result < 0 {
+		return types.NewIRODSError(common.ErrorCode(msg.Result))
+	}
+	return nil
 }
 
 // GetBytes returns byte array
@@ -30,28 +40,6 @@ func (msg *IRODSMessageAuthPluginResponse) FromBytes(b []byte) error {
 		return xerrors.Errorf("failed to unmarshal xml to irods message: %w", err)
 	}
 
-	// handle escape
-	// GetXMLCorrectorForPasswordResponse() converts non-ascii bytes to hex string
-	buf := msg.Result
-	unescaped := &bytes.Buffer{}
-
-	for len(buf) > 0 {
-		if bytes.HasPrefix(buf, []byte("0x")) {
-			bhex := buf[2:4]
-			original, err := hex.DecodeString(string(bhex))
-			if err != nil {
-				return err
-			}
-
-			unescaped.Write(original)
-			buf = buf[4:]
-		} else {
-			unescaped.Write(buf[:1])
-			buf = buf[1:]
-		}
-	}
-
-	msg.Result = unescaped.Bytes()
 	return nil
 }
 
@@ -61,10 +49,15 @@ func (msg *IRODSMessageAuthPluginResponse) FromMessage(msgIn *IRODSMessage) erro
 		return xerrors.Errorf("empty message body")
 	}
 
-	err := msg.FromBytes(msgIn.Body.Message)
-	if err != nil {
-		return xerrors.Errorf("failed to get irods message from message body: %w", err)
+	msg.Result = int(msgIn.Body.IntInfo)
+
+	if msgIn.Body.Message != nil {
+		err := msg.FromBytes(msgIn.Body.Message)
+		if err != nil {
+			return xerrors.Errorf("failed to get irods message from message body: %w", err)
+		}
 	}
+
 	return nil
 }
 
