@@ -603,20 +603,15 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 
 	useDedicatedPAMApi := true
 	if conn.requirePAMPassword() {
-		useDedicatedPAMApi = false
-		if strings.ContainsAny(pamPassword, ";=") {
-			useDedicatedPAMApi = true
-		} else {
-			// from python-irodsclient code
-			if len(authContext) >= 1024+64 {
-				useDedicatedPAMApi = true
-			}
-		}
+		useDedicatedPAMApi = strings.ContainsAny(pamPassword, ";=") || len(authContext) >= 1024+64
 	}
 
 	// authenticate
 	pamToken := ""
+
 	if useDedicatedPAMApi {
+		logger.Debugf("use dedicated PAM api")
+
 		pamAuthRequest := message.NewIRODSMessagePamAuthRequest(conn.account.ClientUser, pamPassword, ttl)
 		pamAuthResponse := message.IRODSMessagePamAuthResponse{}
 		err := conn.Request(pamAuthRequest, &pamAuthResponse, nil)
@@ -626,6 +621,8 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 
 		pamToken = pamAuthResponse.GeneratedPassword
 	} else {
+		logger.Debugf("use auth plugin api: scheme %q, context %q", string(types.AuthSchemePAM), authContext)
+
 		pamAuthRequest := message.NewIRODSMessageAuthPluginRequest(string(types.AuthSchemePAM), authContext)
 		pamAuthResponse := message.IRODSMessageAuthPluginResponse{}
 		err := conn.Request(pamAuthRequest, &pamAuthResponse, nil)
