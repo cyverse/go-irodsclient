@@ -207,26 +207,12 @@ func (conn *IRODSConnection) setSocketOpt(socket net.Conn, bufferSize int) {
 	}
 }
 
-// Connect connects to iRODS
-func (conn *IRODSConnection) Connect() error {
+func (conn *IRODSConnection) connectTCP() error {
 	logger := log.WithFields(log.Fields{
 		"package":  "connection",
 		"struct":   "IRODSConnection",
-		"function": "Connect",
+		"function": "connectTCP",
 	})
-
-	conn.connected = false
-
-	conn.account.FixAuthConfiguration()
-
-	err := conn.account.Validate()
-	if err != nil {
-		return xerrors.Errorf("invalid account (%q): %w", err.Error(), types.NewConnectionConfigError(conn.account))
-	}
-
-	// lock the connection
-	conn.Lock()
-	defer conn.Unlock()
 
 	server := fmt.Sprintf("%s:%d", conn.account.Host, conn.account.Port)
 	logger.Debugf("Connecting to %s", server)
@@ -254,16 +240,37 @@ func (conn *IRODSConnection) Connect() error {
 	}
 
 	conn.socket = socket
-	var irodsVersion *types.IRODSVersion
+	return nil
+}
 
-	if conn.requiresCSNegotiation() {
-		// client-server negotiation
-		irodsVersion, err = conn.connectWithCSNegotiation()
-	} else {
-		// No client-server negotiation
-		irodsVersion, err = conn.connectWithoutCSNegotiation()
+// Connect connects to iRODS
+func (conn *IRODSConnection) Connect() error {
+	logger := log.WithFields(log.Fields{
+		"package":  "connection",
+		"struct":   "IRODSConnection",
+		"function": "Connect",
+	})
+
+	conn.account.FixAuthConfiguration()
+
+	err := conn.account.Validate()
+	if err != nil {
+		return xerrors.Errorf("invalid account (%q): %w", err.Error(), types.NewConnectionConfigError(conn.account))
 	}
 
+	conn.connected = false
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	// connect TCP
+	err = conn.connectTCP()
+	if err != nil {
+		return err
+	}
+
+	irodsVersion, err := conn.startup()
 	if err != nil {
 		connErr := xerrors.Errorf("failed to startup an iRODS connection to server %q and port %d (%s): %w", conn.account.Host, conn.account.Port, err.Error(), types.NewConnectionError())
 		logger.Errorf("%+v", connErr)
@@ -286,6 +293,33 @@ func (conn *IRODSConnection) Connect() error {
 			err = conn.loginPAMWithToken()
 		} else {
 			err = conn.loginPAMWithPassword()
+			if err != nil {
+				connErr := xerrors.Errorf("failed to login to irods using PAM authentication: %w", err)
+				logger.Errorf("%+v", connErr)
+				return connErr
+			}
+
+			// reconnect when success
+			conn.disconnectNow()
+
+			// connect TCP
+			err = conn.connectTCP()
+			if err != nil {
+				return err
+			}
+
+			_, err = conn.startup()
+			if err != nil {
+				connErr := xerrors.Errorf("failed to startup an iRODS connection to server %q and port %d (%s): %w", conn.account.Host, conn.account.Port, err.Error(), types.NewConnectionError())
+				logger.Errorf("%+v", connErr)
+				_ = conn.disconnectNow()
+				if conn.metrics != nil {
+					conn.metrics.IncreaseCounterForConnectionFailures(1)
+				}
+				return connErr
+			}
+
+			err = conn.loginPAMWithToken()
 		}
 	default:
 		err = xerrors.Errorf("unknown Authentication Scheme %q: %w", conn.account.AuthenticationScheme, types.NewConnectionConfigError(conn.account))
@@ -308,33 +342,46 @@ func (conn *IRODSConnection) Connect() error {
 
 	conn.connected = true
 	conn.lastSuccessfulAccess = time.Now()
-
 	return nil
 }
 
-func (conn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, error) {
+func (conn *IRODSConnection) startup() (*types.IRODSVersion, error) {
 	logger := log.WithFields(log.Fields{
 		"package":  "connection",
 		"struct":   "IRODSConnection",
-		"function": "connectWithCSNegotiation",
+		"function": "startup",
 	})
 
-	// Get client negotiation policy
 	clientPolicy := types.CSNegotiationRequireTCP
-	if len(conn.account.CSNegotiationPolicy) > 0 {
-		clientPolicy = conn.account.CSNegotiationPolicy
+	if conn.requiresCSNegotiation() {
+		// Get client negotiation policy
+		if len(conn.account.CSNegotiationPolicy) > 0 {
+			clientPolicy = conn.account.CSNegotiationPolicy
+		}
 	}
+
+	logger.Debug("Start up an iRODS connection")
 
 	// Send a startup message
-	logger.Debug("Start up a connection with CS Negotiation")
+	startup := message.NewIRODSMessageStartupPack(conn.account, conn.applicationName, conn.requiresCSNegotiation())
 
-	startup := message.NewIRODSMessageStartupPack(conn.account, conn.applicationName, true)
-	err := conn.RequestWithoutResponse(startup)
-	if err != nil {
-		return nil, xerrors.Errorf("failed to send startup (%s): %w", err.Error(), types.NewConnectionError())
+	if conn.requiresCSNegotiation() {
+		err := conn.RequestWithoutResponse(startup)
+		if err != nil {
+			return nil, xerrors.Errorf("failed to send startup (%s): %w", err.Error(), types.NewConnectionError())
+		}
+	} else {
+		// no cs negotiation
+		version := message.IRODSMessageVersion{}
+		err := conn.Request(startup, &version, nil)
+		if err != nil {
+			return nil, xerrors.Errorf("failed to receive version message (%s): %w", err.Error(), types.NewConnectionError())
+		}
+
+		return version.GetVersion(), nil
 	}
 
-	// Server responds with negotiation response
+	// cs negotiation response
 	negotiationMessage, err := conn.ReadMessage(nil)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to receive negotiation message (%s): %w", err.Error(), types.NewConnectionError())
@@ -398,27 +445,7 @@ func (conn *IRODSConnection) connectWithCSNegotiation() (*types.IRODSVersion, er
 	}
 
 	return nil, xerrors.Errorf("unknown response message %q: %w", negotiationMessage.Body.Type, types.NewConnectionError())
-}
 
-func (conn *IRODSConnection) connectWithoutCSNegotiation() (*types.IRODSVersion, error) {
-	logger := log.WithFields(log.Fields{
-		"package":  "connection",
-		"struct":   "IRODSConnection",
-		"function": "connectWithoutCSNegotiation",
-	})
-
-	// No client-server negotiation
-	// Send a startup message
-	logger.Debug("Start up connection without CS Negotiation")
-
-	startup := message.NewIRODSMessageStartupPack(conn.account, conn.applicationName, false)
-	version := message.IRODSMessageVersion{}
-	err := conn.Request(startup, &version, nil)
-	if err != nil {
-		return nil, xerrors.Errorf("failed to receive version message (%s): %w", err.Error(), types.NewConnectionError())
-	}
-
-	return version.GetVersion(), nil
 }
 
 func (conn *IRODSConnection) sslStartup() error {
@@ -611,6 +638,8 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 
 	// save irods generated password for possible future use
 	conn.account.PamToken = pamToken
+
+	// disconnect and connect
 
 	// retry native auth with generated password
 	return conn.login(conn.account.PamToken)
