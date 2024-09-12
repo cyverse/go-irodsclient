@@ -10,7 +10,7 @@ import (
 
 const (
 	// PamTTLDefault is a default value for Pam TTL
-	PamTTLDefault       int    = 1
+	PamTTLDefault       int    = 0 // sever decides
 	UsernameRegexString string = "^((\\w|[-.@])+)$"
 	HashSchemeDefault   string = "SHA256"
 )

@@ -590,7 +590,7 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 
 	ttl := conn.account.PamTTL
 	if ttl < 0 {
-		ttl = 0 // decided by server
+		ttl = 0 // server decides
 	}
 
 	pamPassword := conn.getSafePAMPassword(conn.account.Password)
@@ -616,7 +616,7 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 		pamAuthResponse := message.IRODSMessagePamAuthResponse{}
 		err := conn.RequestAndCheck(pamAuthRequest, &pamAuthResponse, nil)
 		if err != nil {
-			return xerrors.Errorf("failed to receive an authentication challenge message (%s): %w", err.Error(), types.NewAuthError(conn.account))
+			return xerrors.Errorf("failed to receive a PAM token (%s): %w", err.Error(), types.NewAuthError(conn.account))
 		}
 
 		pamToken = pamAuthResponse.GeneratedPassword
@@ -627,10 +627,10 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 		pamAuthResponse := message.IRODSMessageAuthPluginResponse{}
 		err := conn.RequestAndCheck(pamAuthRequest, &pamAuthResponse, nil)
 		if err != nil {
-			return xerrors.Errorf("failed to receive an authentication challenge message (%s): %w", err.Error(), types.NewAuthError(conn.account))
+			return xerrors.Errorf("failed to receive a PAM token (%s): %w", err.Error(), types.NewAuthError(conn.account))
 		}
 
-		pamToken = string(pamAuthResponse.Result)
+		pamToken = string(pamAuthResponse.GeneratedPassword)
 	}
 
 	// save irods generated password for possible future use
