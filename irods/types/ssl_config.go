@@ -1,32 +1,65 @@
 package types
 
 import (
+	"crypto/tls"
 	"crypto/x509"
+	"fmt"
+	"strings"
 
 	"github.com/hashicorp/go-rootcerts"
 	"golang.org/x/xerrors"
 )
 
-// IRODSSSLConfig contains irods ssl configuration
-type IRODSSSLConfig struct {
-	CACertificateFile   string
-	CACertificatePath   string
-	EncryptionKeySize   int
-	EncryptionAlgorithm string
-	SaltSize            int
-	HashRounds          int
+// SSLVerifyServer defines SSL Verify Server options
+type SSLVerifyServer string
+
+const (
+	// SSLVerifyServerCert verifies server by cert
+	SSLVerifyServerCert SSLVerifyServer = "cert"
+	// SSLVerifyServerHostname verifies server by hostname
+	SSLVerifyServerHostname SSLVerifyServer = "hostname"
+	// SSLVerifyServerNone does not verify server
+	SSLVerifyServerNone SSLVerifyServer = "none"
+)
+
+// GetSSLVerifyServer returns SSLVerifyServer value from string
+func GetSSLVerifyServer(verifyServer string) (SSLVerifyServer, error) {
+	sslVerifyServer := SSLVerifyServerNone
+	var err error = nil
+	switch strings.TrimSpace(strings.ToLower(verifyServer)) {
+	case string(SSLVerifyServerCert):
+		sslVerifyServer = SSLVerifyServerCert
+	case string(SSLVerifyServerHostname):
+		sslVerifyServer = SSLVerifyServerHostname
+	case string(SSLVerifyServerNone), "":
+		sslVerifyServer = SSLVerifyServerNone
+	default:
+		sslVerifyServer = SSLVerifyServerNone
+		err = fmt.Errorf("cannot parse string %q", verifyServer)
+	}
+
+	return sslVerifyServer, err
 }
 
-// CreateIRODSSSLConfig creates IRODSSSLConfig
-func CreateIRODSSSLConfig(caCertFile string, caCertPath string, keySize int, algorithm string, saltSize int, hashRounds int) (*IRODSSSLConfig, error) {
-	return &IRODSSSLConfig{
-		CACertificateFile:   caCertFile,
-		CACertificatePath:   caCertPath,
-		EncryptionKeySize:   keySize,
-		EncryptionAlgorithm: algorithm,
-		SaltSize:            saltSize,
-		HashRounds:          hashRounds,
-	}, nil
+// NeedVerification returns if verification is required
+func (verify SSLVerifyServer) NeedVerification() bool {
+	if verify == SSLVerifyServerHostname {
+		return true
+	}
+	return false
+}
+
+// IRODSSSLConfig contains irods ssl configuration
+type IRODSSSLConfig struct {
+	CACertificateFile       string
+	CACertificatePath       string
+	EncryptionKeySize       int
+	EncryptionAlgorithm     string
+	EncryptionSaltSize      int
+	EncryptionNumHashRounds int
+	VerifyServer            SSLVerifyServer
+	DHParamsFile            string
+	ServerName              string // optional server name for verification
 }
 
 // LoadCACert loads CA Cert
@@ -42,4 +75,22 @@ func (config *IRODSSSLConfig) LoadCACert() (*x509.CertPool, error) {
 	}
 
 	return certPool, nil
+}
+
+// GetTLSConfig returns TLS Config
+func (config *IRODSSSLConfig) GetTLSConfig(serverName string) (*tls.Config, error) {
+	caCertPool, err := config.LoadCACert()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(config.ServerName) > 0 {
+		serverName = config.ServerName
+	}
+
+	return &tls.Config{
+		RootCAs:            caCertPool,
+		ServerName:         serverName,
+		InsecureSkipVerify: !config.VerifyServer.NeedVerification(),
+	}, nil
 }

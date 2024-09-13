@@ -19,7 +19,7 @@ const (
 type IRODSAccount struct {
 	AuthenticationScheme    AuthScheme
 	ClientServerNegotiation bool
-	CSNegotiationPolicy     CSNegotiationRequire
+	CSNegotiationPolicy     CSNegotiationPolicyRequest
 	Host                    string
 	Port                    int
 	ClientUser              string
@@ -33,8 +33,6 @@ type IRODSAccount struct {
 	PamTTL                  int
 	PamToken                string
 	SSLConfiguration        *IRODSSSLConfig
-	ServerNameTLS           string // Optional TLS Server Name for SNI connection and TLS verification - defaults to Host
-	SkipVerifyTLS           bool   // Skip TLS verification
 }
 
 // CreateIRODSAccount creates IRODSAccount
@@ -43,7 +41,7 @@ func CreateIRODSAccount(host string, port int, user string, zone string,
 	account := &IRODSAccount{
 		AuthenticationScheme:    authScheme,
 		ClientServerNegotiation: false,
-		CSNegotiationPolicy:     CSNegotiationDontCare,
+		CSNegotiationPolicy:     CSNegotiationPolicyRequestDontCare,
 		Host:                    host,
 		Port:                    port,
 		ClientUser:              user,
@@ -57,8 +55,6 @@ func CreateIRODSAccount(host string, port int, user string, zone string,
 		PamTTL:                  PamTTLDefault,
 		PamToken:                "",
 		SSLConfiguration:        nil,
-		ServerNameTLS:           "",
-		SkipVerifyTLS:           false,
 	}
 
 	account.FixAuthConfiguration()
@@ -72,7 +68,7 @@ func CreateIRODSAccountForTicket(host string, port int, user string, zone string
 	account := &IRODSAccount{
 		AuthenticationScheme:    authScheme,
 		ClientServerNegotiation: false,
-		CSNegotiationPolicy:     CSNegotiationDontCare,
+		CSNegotiationPolicy:     CSNegotiationPolicyRequestDontCare,
 		Host:                    host,
 		Port:                    port,
 		ClientUser:              user,
@@ -86,8 +82,6 @@ func CreateIRODSAccountForTicket(host string, port int, user string, zone string
 		PamTTL:                  PamTTLDefault,
 		PamToken:                "",
 		SSLConfiguration:        nil,
-		ServerNameTLS:           "",
-		SkipVerifyTLS:           false,
 	}
 
 	account.FixAuthConfiguration()
@@ -102,7 +96,7 @@ func CreateIRODSProxyAccount(host string, port int, clientUser string, clientZon
 	account := &IRODSAccount{
 		AuthenticationScheme:    authScheme,
 		ClientServerNegotiation: false,
-		CSNegotiationPolicy:     CSNegotiationDontCare,
+		CSNegotiationPolicy:     CSNegotiationPolicyRequestDontCare,
 		Host:                    host,
 		Port:                    port,
 		ClientUser:              clientUser,
@@ -116,8 +110,6 @@ func CreateIRODSProxyAccount(host string, port int, clientUser string, clientZon
 		PamTTL:                  PamTTLDefault,
 		PamToken:                "",
 		SSLConfiguration:        nil,
-		ServerNameTLS:           "",
-		SkipVerifyTLS:           false,
 	}
 
 	account.FixAuthConfiguration()
@@ -147,11 +139,11 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 		csNegotiation = val.(bool)
 	}
 
-	csNegotiationPolicy := CSNegotiationDontCare
+	csNegotiationPolicy := CSNegotiationPolicyRequestDontCare
 	if val, ok := y["cs_negotiation_policy"]; ok {
-		csNegotiationPolicy, err = GetCSNegotiationRequire(val.(string))
+		csNegotiationPolicy, err = GetCSNegotiationPolicyRequest(val.(string))
 		if err != nil {
-			csNegotiationPolicy = CSNegotiationDontCare
+			csNegotiationPolicy = CSNegotiationPolicyRequestDontCare
 		}
 	}
 
@@ -305,14 +297,6 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 		hashRounds = val.(int)
 	}
 
-	var irodsSSLConfig *IRODSSSLConfig = nil
-	if hasSSLConfig {
-		irodsSSLConfig, err = CreateIRODSSSLConfig(caCertFile, caCertPath, keySize, algorithm, saltSize, hashRounds)
-		if err != nil {
-			return nil, xerrors.Errorf("failed to create irods ssl config: %w", err)
-		}
-	}
-
 	serverNameTLS := ""
 	if val, ok := sslConfig["server_name_tls"]; ok {
 		serverNameTLS = val.(string)
@@ -321,6 +305,25 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 	skipVerifyTLS := false
 	if val, ok := sslConfig["skip_verify_tls"]; ok {
 		skipVerifyTLS = val.(bool)
+	}
+
+	verifyServer := SSLVerifyServerHostname
+	if skipVerifyTLS {
+		verifyServer = SSLVerifyServerNone
+	}
+
+	var irodsSSLConfig *IRODSSSLConfig = nil
+	if hasSSLConfig {
+		irodsSSLConfig = &IRODSSSLConfig{
+			CACertificateFile:       caCertFile,
+			CACertificatePath:       caCertPath,
+			EncryptionAlgorithm:     algorithm,
+			EncryptionKeySize:       keySize,
+			EncryptionSaltSize:      saltSize,
+			EncryptionNumHashRounds: hashRounds,
+			VerifyServer:            verifyServer,
+			ServerName:              serverNameTLS,
+		}
 	}
 
 	account := &IRODSAccount{
@@ -340,8 +343,6 @@ func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
 		PamTTL:                  pamTTL,
 		PamToken:                pamToken,
 		SSLConfiguration:        irodsSSLConfig,
-		ServerNameTLS:           serverNameTLS,
-		SkipVerifyTLS:           skipVerifyTLS,
 	}
 
 	account.FixAuthConfiguration()
@@ -355,7 +356,7 @@ func (account *IRODSAccount) SetSSLConfiguration(sslConf *IRODSSSLConfig) {
 }
 
 // SetCSNegotiation sets CSNegotiation policy
-func (account *IRODSAccount) SetCSNegotiation(requireNegotiation bool, requirePolicy CSNegotiationRequire) {
+func (account *IRODSAccount) SetCSNegotiation(requireNegotiation bool, requirePolicy CSNegotiationPolicyRequest) {
 	account.ClientServerNegotiation = requireNegotiation
 	account.CSNegotiationPolicy = requirePolicy
 
@@ -406,15 +407,15 @@ func (account *IRODSAccount) Validate() error {
 		return xerrors.Errorf("unknown authentication scheme")
 	}
 
-	if account.AuthenticationScheme != AuthSchemeNative && account.CSNegotiationPolicy != CSNegotiationRequireSSL {
+	if account.AuthenticationScheme != AuthSchemeNative && account.CSNegotiationPolicy != CSNegotiationPolicyRequestSSL {
 		return xerrors.Errorf("SSL is required for non-native authentication scheme")
 	}
 
-	if account.CSNegotiationPolicy == CSNegotiationRequireSSL && !account.ClientServerNegotiation {
+	if account.CSNegotiationPolicy == CSNegotiationPolicyRequestSSL && !account.ClientServerNegotiation {
 		return xerrors.Errorf("client-server negotiation is required for SSL")
 	}
 
-	if account.CSNegotiationPolicy == CSNegotiationRequireSSL && account.SSLConfiguration == nil {
+	if account.CSNegotiationPolicy == CSNegotiationPolicyRequestSSL && account.SSLConfiguration == nil {
 		return xerrors.Errorf("SSL configuration is empty")
 	}
 
@@ -447,10 +448,10 @@ func (account *IRODSAccount) FixAuthConfiguration() {
 	}
 
 	if account.AuthenticationScheme != AuthSchemeNative {
-		account.CSNegotiationPolicy = CSNegotiationRequireSSL
+		account.CSNegotiationPolicy = CSNegotiationPolicyRequestSSL
 	}
 
-	if account.CSNegotiationPolicy == CSNegotiationRequireSSL {
+	if account.CSNegotiationPolicy == CSNegotiationPolicyRequestSSL {
 		account.ClientServerNegotiation = true
 	}
 }

@@ -96,8 +96,8 @@ func CreateIcommandsEnvironmentManagerFromIRODSAccount(account *types.IRODSAccou
 		manager.Environment.SSLCACertificatePath = account.SSLConfiguration.CACertificatePath
 		manager.Environment.EncryptionKeySize = account.SSLConfiguration.EncryptionKeySize
 		manager.Environment.EncryptionAlgorithm = account.SSLConfiguration.EncryptionAlgorithm
-		manager.Environment.EncryptionSaltSize = account.SSLConfiguration.SaltSize
-		manager.Environment.EncryptionNumHashRounds = account.SSLConfiguration.HashRounds
+		manager.Environment.EncryptionSaltSize = account.SSLConfiguration.EncryptionSaltSize
+		manager.Environment.EncryptionNumHashRounds = account.SSLConfiguration.EncryptionNumHashRounds
 	}
 
 	manager.Password = account.Password

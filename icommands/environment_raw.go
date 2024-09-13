@@ -60,7 +60,7 @@ func getDefaultICommandsEnvironment() *ICommandsEnvironment {
 		Port:                    1247,
 		AuthenticationScheme:    "native",
 		ClientServerNegotiation: "", // don't perform negotiation
-		ClientServerPolicy:      string(types.CSNegotiationRequireTCP),
+		ClientServerPolicy:      string(types.CSNegotiationPolicyRequestTCP),
 		DefaultHashScheme:       "SHA256",
 		EncryptionKeySize:       32,
 		EncryptionAlgorithm:     "AES-256-CBC",
@@ -86,7 +86,7 @@ func (env *ICommandsEnvironment) ToIRODSAccount() *types.IRODSAccount {
 	authScheme := types.GetAuthScheme(env.AuthenticationScheme)
 
 	negotiationRequired := false
-	negotiationPolicy, _ := types.GetCSNegotiationRequire(env.ClientServerPolicy)
+	negotiationPolicy, _ := types.GetCSNegotiationPolicyRequest(env.ClientServerPolicy)
 
 	if strings.ToLower(env.ClientServerNegotiation) == "request_server_negotiation" {
 		negotiationRequired = true
@@ -113,12 +113,12 @@ func (env *ICommandsEnvironment) ToIRODSAccount() *types.IRODSAccount {
 		PamTTL:                  types.PamTTLDefault,
 		PamToken:                "",
 		SSLConfiguration: &types.IRODSSSLConfig{
-			CACertificateFile:   env.SSLCACertificateFile,
-			CACertificatePath:   env.SSLCACertificatePath,
-			EncryptionKeySize:   env.EncryptionKeySize,
-			EncryptionAlgorithm: env.EncryptionAlgorithm,
-			SaltSize:            env.EncryptionSaltSize,
-			HashRounds:          env.EncryptionNumHashRounds,
+			CACertificateFile:       env.SSLCACertificateFile,
+			CACertificatePath:       env.SSLCACertificatePath,
+			EncryptionKeySize:       env.EncryptionKeySize,
+			EncryptionAlgorithm:     env.EncryptionAlgorithm,
+			EncryptionSaltSize:      env.EncryptionSaltSize,
+			EncryptionNumHashRounds: env.EncryptionNumHashRounds,
 		},
 		ServerNameTLS: "",
 		SkipVerifyTLS: skipVerifyTLS,

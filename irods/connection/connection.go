@@ -352,7 +352,7 @@ func (conn *IRODSConnection) startup() (*types.IRODSVersion, error) {
 		"function": "startup",
 	})
 
-	clientPolicy := types.CSNegotiationRequireTCP
+	clientPolicy := types.CSNegotiationPolicyRequestTCP
 	if conn.requiresCSNegotiation() {
 		// Get client negotiation policy
 		if len(conn.account.CSNegotiationPolicy) > 0 {
@@ -411,7 +411,7 @@ func (conn *IRODSConnection) startup() (*types.IRODSVersion, error) {
 			return nil, xerrors.Errorf("failed to receive negotiation message (%s): %w", err.Error(), types.NewConnectionError())
 		}
 
-		serverPolicy, err := types.GetCSNegotiationRequire(negotiation.Result)
+		serverPolicy, err := types.GetCSNegotiationPolicyRequest(negotiation.Result)
 		if err != nil {
 			return nil, xerrors.Errorf("failed to parse server policy (%s): %w", err.Error(), types.NewConnectionError())
 		}
@@ -462,25 +462,13 @@ func (conn *IRODSConnection) sslStartup() error {
 		return xerrors.Errorf("SSL Configuration is not set: %w", types.NewConnectionConfigError(conn.account))
 	}
 
-	caCertPool, err := irodsSSLConfig.LoadCACert()
+	tlsConfig, err := irodsSSLConfig.GetTLSConfig(conn.account.Host)
 	if err != nil {
-		return xerrors.Errorf("Failed to load CA Certificates: %w", err)
-	}
-
-	serverName := conn.account.Host
-
-	if conn.account.ServerNameTLS != "" {
-		serverName = conn.account.ServerNameTLS
-	}
-
-	sslConf := &tls.Config{
-		RootCAs:            caCertPool,
-		ServerName:         serverName,
-		InsecureSkipVerify: conn.account.SkipVerifyTLS,
+		return xerrors.Errorf("Failed to get TLS config: %w", err)
 	}
 
 	// Create a side connection using the existing socket
-	sslSocket := tls.Client(conn.socket, sslConf)
+	sslSocket := tls.Client(conn.socket, tlsConfig)
 
 	err = sslSocket.Handshake()
 	if err != nil {
@@ -499,7 +487,7 @@ func (conn *IRODSConnection) sslStartup() error {
 	}
 
 	// Send a ssl setting
-	sslSetting := message.NewIRODSMessageSSLSettings(irodsSSLConfig.EncryptionAlgorithm, irodsSSLConfig.EncryptionKeySize, irodsSSLConfig.SaltSize, irodsSSLConfig.HashRounds)
+	sslSetting := message.NewIRODSMessageSSLSettings(irodsSSLConfig.EncryptionAlgorithm, irodsSSLConfig.EncryptionKeySize, irodsSSLConfig.EncryptionSaltSize, irodsSSLConfig.EncryptionNumHashRounds)
 	err = conn.RequestWithoutResponse(sslSetting)
 	if err != nil {
 		return xerrors.Errorf("failed to send ssl setting message (%s): %w", err.Error(), types.NewConnectionError())
