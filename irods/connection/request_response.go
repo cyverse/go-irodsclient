@@ -39,7 +39,7 @@ func (conn *IRODSConnection) useNewXML() bool {
 		return true
 	}
 
-	return conn.serverVersion.HasHigherVersionThan(4, 2, 8)
+	return conn.serverVersion.HasHigherVersionThan(4, 2, 9) // new xml is used in 4.2.9
 }
 
 // Request sends a request and expects a response.
