@@ -628,10 +628,9 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 	// save irods generated password for possible future use
 	conn.account.PamToken = pamToken
 
-	// disconnect and connect
-
-	// retry native auth with generated password
-	return conn.login(conn.account.PamToken)
+	// we do not login here.
+	// connection will be disconnected and reconnected afterwords
+	return nil
 }
 
 func (conn *IRODSConnection) loginPAMWithToken() error {
