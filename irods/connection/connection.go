@@ -629,7 +629,7 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 	conn.account.PamToken = pamToken
 
 	// we do not login here.
-	// connection will be disconnected and reconnected afterwords
+	// connection will be disconnected and reconnected afterword
 	return nil
 }
 
