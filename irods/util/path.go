@@ -13,6 +13,7 @@ func GetCorrectLocalPath(p string) string {
 	return filepath.Clean(p)
 }
 
+// GetBasename returns basename (filename)
 func GetBasename(p string) string {
 	p = strings.TrimRight(p, string(os.PathSeparator))
 	p = strings.TrimRight(p, "/")
@@ -30,6 +31,7 @@ func GetBasename(p string) string {
 	return p[idx2+1:]
 }
 
+// GetDir returns directory part of path
 func GetDir(p string) string {
 	idx1 := strings.LastIndex(p, string(os.PathSeparator))
 	idx2 := strings.LastIndex(p, "/")
@@ -44,6 +46,7 @@ func GetDir(p string) string {
 	return p[:idx2]
 }
 
+// Join joins path
 func Join(p1 string, p2 ...string) string {
 	sep := "/"
 
@@ -60,6 +63,7 @@ func Join(p1 string, p2 ...string) string {
 	return strings.Join(p, sep)
 }
 
+// ExpandHomeDir expands ~/
 func ExpandHomeDir(path string) (string, error) {
 	if len(path) == 0 {
 		return "", nil
@@ -88,6 +92,7 @@ func ExpandHomeDir(path string) (string, error) {
 	return path, nil
 }
 
+// ExistFile checks if file exists
 func ExistFile(path string) bool {
 	st, err := os.Stat(path)
 	if err != nil {

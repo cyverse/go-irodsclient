@@ -1,4 +1,4 @@
-package icommands
+package config
 
 import (
 	"os"
@@ -37,19 +37,36 @@ var (
 	}
 )
 
-// DecodePasswordFile decodes password string in an auth file (defaults to .irodsA)
-func DecodePasswordFile(path string, uid int) (string, error) {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return "", xerrors.Errorf("failed to read file %q: %w", path, err)
-	}
-
-	return DecodePasswordString(string(content), uid), nil
+// PasswordObfuscator obfuscate icommands password
+type PasswordObfuscator struct {
+	UID int
 }
 
-// EncodePasswordFile encodes password string and stores it in an auth file (defaults to .irodsA)
-func EncodePasswordFile(path string, s string, uid int) error {
-	content := EncodePasswordString(s, uid)
+// NewPasswordObfuscator creates a new PasswordObfuscator
+func NewPasswordObfuscator() *PasswordObfuscator {
+	return &PasswordObfuscator{
+		UID: os.Getuid(),
+	}
+}
+
+// SetUID sets UID for seeding
+func (obf *PasswordObfuscator) SetUID(uid int) {
+	obf.UID = uid
+}
+
+// DecodeFile decodes password string in a file
+func (obf *PasswordObfuscator) DecodeFile(path string) ([]byte, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to read file %q: %w", path, err)
+	}
+
+	return obf.Decode(content), nil
+}
+
+// EncodeToFile encodes password string and stores it in a file
+func (obf *PasswordObfuscator) EncodeToFile(path string, password []byte) error {
+	content := obf.Encode(password)
 
 	err := os.WriteFile(path, []byte(content), 0600)
 	if err != nil {
@@ -58,13 +75,11 @@ func EncodePasswordFile(path string, s string, uid int) error {
 	return nil
 }
 
-// DecodePasswordString decodes password string in an auth file (defaults to .irodsA)
-func DecodePasswordString(encodedPassword string, uid int) string {
-	s := []byte(encodedPassword)
-
+// Decode decodes password
+func (obf *PasswordObfuscator) Decode(encodedPassword []byte) []byte {
 	// This value lets us know which seq value to use
 	// Referred to as "rval" in the C code
-	seqIndex := s[6] - 'e'
+	seqIndex := encodedPassword[6] - 'e'
 	seq := seqList[seqIndex]
 
 	// How much we bitshift seq by when we use it
@@ -73,20 +88,15 @@ func DecodePasswordString(encodedPassword string, uid int) string {
 	// we start at 15
 	bitshift := 15
 
-	// The uid is used as a salt.
-	if uid <= 0 {
-		uid = os.Getuid()
-	}
-
 	// The first byte is a dot, the next five are literally irrelevant
 	// garbage, and we already used the seventh one. The string to decode
 	// starts at byte eight.
-	encodedString := s[7:]
-	decodedString := []byte{}
+	encodedBytes := encodedPassword[7:]
+	decodedBytes := []byte{}
 
-	uidOffset := uid & 0xf5f
+	uidOffset := obf.UID & 0xf5f
 
-	for _, c := range encodedString {
+	for _, c := range encodedBytes {
 		if c == 0 {
 			break
 		}
@@ -110,21 +120,21 @@ func DecodePasswordString(encodedPassword string, uid int) string {
 					newWheelIndex += len(wheel)
 				}
 
-				decodedString = append(decodedString, wheel[newWheelIndex])
+				decodedBytes = append(decodedBytes, wheel[newWheelIndex])
 				foundInWheel = true
 				break
 			}
 		}
 
 		if !foundInWheel {
-			decodedString = append(decodedString, c)
+			decodedBytes = append(decodedBytes, c)
 		}
 	}
-	return string(decodedString)
+	return decodedBytes
 }
 
-// EncodePasswordString encodes password string to be stored in an auth file (defaults to .irodsA)
-func EncodePasswordString(s string, uid int) string {
+// Encode encodes password
+func (obf *PasswordObfuscator) Encode(password []byte) []byte {
 	// mtime & 65535 needs to be within 20 seconds of the
 	// .irodsA file's mtime & 65535
 	mtime := time.Now().Unix()
@@ -134,11 +144,6 @@ func EncodePasswordString(s string, uid int) string {
 	// We can't skip the first five bytes this time,
 	// so we start at 0
 	bitshift := 0
-
-	// The uid is used as a salt.
-	if uid <= 0 {
-		uid = os.Getuid()
-	}
 
 	//This value lets us know which seq value to use
 	// Referred to as "rval" in the C code
@@ -161,11 +166,11 @@ func EncodePasswordString(s string, uid int) string {
 	toEncode = append(toEncode, byte('a'+((mtime>>8)&0xf)))
 
 	// We also want to actually encode the passed string
-	toEncode = append(toEncode, []byte(s)...)
+	toEncode = append(toEncode, []byte(password)...)
 
 	// Yeah, the string starts with a dot. Whatever.
-	encodedString := []byte{'.'}
-	uidOffset := uid & 0xf5f
+	encodedBytes := []byte{'.'}
+	uidOffset := obf.UID & 0xf5f
 
 	for _, c := range toEncode {
 		if c == 0 {
@@ -193,26 +198,26 @@ func EncodePasswordString(s string, uid int) string {
 
 				newWheelIndex %= len(wheel)
 
-				encodedString = append(encodedString, wheel[newWheelIndex])
+				encodedBytes = append(encodedBytes, wheel[newWheelIndex])
 				foundInWheel = true
 				break
 			}
 		}
 
 		if !foundInWheel {
-			encodedString = append(encodedString, c)
+			encodedBytes = append(encodedBytes, c)
 		}
 	}
 
 	// insert the seq_index (which is NOT encoded):
-	encodedStringPartA := string(encodedString[:6])
+	encodedStringPartA := string(encodedBytes[:6])
 	encodedStringPartB := string(byte(seqIndex + 'e'))
-	encodedStringPartC := string(encodedString[6:])
+	encodedStringPartC := string(encodedBytes[6:])
 
-	encodedString = []byte(encodedStringPartA + encodedStringPartB + encodedStringPartC)
+	encodedBytes = []byte(encodedStringPartA + encodedStringPartB + encodedStringPartC)
 
 	// aaaaand, append a null character. because we want to print
 	// a null character to the file. because that's a good idea.
-	encodedString = append(encodedString, 0)
-	return string(encodedString)
+	encodedBytes = append(encodedBytes, 0)
+	return encodedBytes
 }

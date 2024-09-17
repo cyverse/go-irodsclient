@@ -26,7 +26,7 @@ type IRODSMessageCSNegotiation struct {
 }
 
 // NewIRODSMessageCSNegotiation creates a IRODSMessageCSNegotiation message
-func NewIRODSMessageCSNegotiation(result types.CSNegotiationPolicy) *IRODSMessageCSNegotiation {
+func NewIRODSMessageCSNegotiation(result types.CSNegotiationResult) *IRODSMessageCSNegotiation {
 	status := 1
 	if result == types.CSNegotiationFailure {
 		// meaning failure

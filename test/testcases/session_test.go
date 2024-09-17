@@ -30,7 +30,7 @@ func testSession(t *testing.T) {
 	account := GetTestAccount()
 
 	account.ClientServerNegotiation = false
-	account.CSNegotiationPolicy = types.CSNegotiationDontCare
+	account.CSNegotiationPolicy = types.CSNegotiationPolicyRequestDontCare
 
 	sessionConfig := GetTestSessionConfig()
 
@@ -58,7 +58,7 @@ func testManyConnections(t *testing.T) {
 	account := GetTestAccount()
 
 	account.ClientServerNegotiation = false
-	account.CSNegotiationPolicy = types.CSNegotiationDontCare
+	account.CSNegotiationPolicy = types.CSNegotiationPolicyRequestDontCare
 
 	sessionConfig := GetTestSessionConfig()
 
@@ -95,7 +95,7 @@ func testConnectionMetrics(t *testing.T) {
 	account := GetTestAccount()
 
 	account.ClientServerNegotiation = false
-	account.CSNegotiationPolicy = types.CSNegotiationDontCare
+	account.CSNegotiationPolicy = types.CSNegotiationPolicyRequestDontCare
 
 	sessionConfig := GetTestSessionConfig()
 

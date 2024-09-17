@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/cyverse/go-irodsclient/config"
 	"github.com/cyverse/go-irodsclient/fs"
-	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
 
 	log "github.com/sirupsen/logrus"
@@ -33,18 +33,13 @@ func main() {
 	destPath := args[1]
 
 	// Read account configuration from YAML file
-	yaml, err := os.ReadFile("account.yml")
+	cfg, err := config.NewConfigFromYamlFile("account.yml")
 	if err != nil {
 		logger.Error(err)
 		panic(err)
 	}
 
-	account, err := types.CreateIRODSAccountFromYAML(yaml)
-	if err != nil {
-		logger.Error(err)
-		panic(err)
-	}
-
+	account := cfg.ToIRODSAccount()
 	logger.Debugf("Account : %v", account.GetRedacted())
 
 	// Create a file system
@@ -95,7 +90,7 @@ func main() {
 		if !fsinfo2.IsDir() {
 			fmt.Printf("Successfully downloaded a file %q to %q, size = %d\n", srcPath, destPath, fsinfo2.Size())
 		} else {
-			logger.Errorf("Unkonwn file type %q", fsinfo2.Mode())
+			logger.Errorf("Unknown file type %q", fsinfo2.Mode())
 		}
 	} else {
 		fmt.Printf("Successfully downloaded a file %q to %q, size = %d\n", srcPath, destPath, fsinfo.Size())

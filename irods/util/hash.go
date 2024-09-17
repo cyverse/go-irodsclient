@@ -17,58 +17,62 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/types"
 )
 
+// HashStrings calculates hash of strings
 func HashStrings(strs []string, hashAlg string) ([]byte, error) {
 	switch strings.ToLower(hashAlg) {
 	case strings.ToLower(string(types.ChecksumAlgorithmMD5)):
-		return GetHashStrings(strs, md5.New())
+		return HashStringsWithAlgorithm(strs, md5.New())
 	case strings.ToLower(string(types.ChecksumAlgorithmADLER32)):
-		return GetHashStrings(strs, adler32.New())
+		return HashStringsWithAlgorithm(strs, adler32.New())
 	case strings.ToLower(string(types.ChecksumAlgorithmSHA1)):
-		return GetHashStrings(strs, sha1.New())
+		return HashStringsWithAlgorithm(strs, sha1.New())
 	case strings.ToLower(string(types.ChecksumAlgorithmSHA256)):
-		return GetHashStrings(strs, sha256.New())
+		return HashStringsWithAlgorithm(strs, sha256.New())
 	case strings.ToLower(string(types.ChecksumAlgorithmSHA512)):
-		return GetHashStrings(strs, sha512.New())
+		return HashStringsWithAlgorithm(strs, sha512.New())
 	default:
 		return nil, xerrors.Errorf("unknown hash algorithm %q", hashAlg)
 	}
 }
 
+// HashLocalFile calculates hash of local file
 func HashLocalFile(sourcePath string, hashAlg string) ([]byte, error) {
 	switch strings.ToLower(hashAlg) {
 	case strings.ToLower(string(types.ChecksumAlgorithmMD5)):
-		return GetHashLocalFile(sourcePath, md5.New())
+		return HashLocalFileWithAlgorithm(sourcePath, md5.New())
 	case strings.ToLower(string(types.ChecksumAlgorithmADLER32)):
-		return GetHashLocalFile(sourcePath, adler32.New())
+		return HashLocalFileWithAlgorithm(sourcePath, adler32.New())
 	case strings.ToLower(string(types.ChecksumAlgorithmSHA1)):
-		return GetHashLocalFile(sourcePath, sha1.New())
+		return HashLocalFileWithAlgorithm(sourcePath, sha1.New())
 	case strings.ToLower(string(types.ChecksumAlgorithmSHA256)):
-		return GetHashLocalFile(sourcePath, sha256.New())
+		return HashLocalFileWithAlgorithm(sourcePath, sha256.New())
 	case strings.ToLower(string(types.ChecksumAlgorithmSHA512)):
-		return GetHashLocalFile(sourcePath, sha512.New())
+		return HashLocalFileWithAlgorithm(sourcePath, sha512.New())
 	default:
 		return nil, xerrors.Errorf("unknown hash algorithm %q", hashAlg)
 	}
 }
 
+// HashBuffer calculates hash of buffer data
 func HashBuffer(buffer *bytes.Buffer, hashAlg string) ([]byte, error) {
 	switch strings.ToLower(hashAlg) {
 	case strings.ToLower(string(types.ChecksumAlgorithmMD5)):
-		return GetHashBuffer(buffer, md5.New())
+		return HashBufferWithAlgorithm(buffer, md5.New())
 	case strings.ToLower(string(types.ChecksumAlgorithmADLER32)):
-		return GetHashBuffer(buffer, adler32.New())
+		return HashBufferWithAlgorithm(buffer, adler32.New())
 	case strings.ToLower(string(types.ChecksumAlgorithmSHA1)):
-		return GetHashBuffer(buffer, sha1.New())
+		return HashBufferWithAlgorithm(buffer, sha1.New())
 	case strings.ToLower(string(types.ChecksumAlgorithmSHA256)):
-		return GetHashBuffer(buffer, sha256.New())
+		return HashBufferWithAlgorithm(buffer, sha256.New())
 	case strings.ToLower(string(types.ChecksumAlgorithmSHA512)):
-		return GetHashBuffer(buffer, sha512.New())
+		return HashBufferWithAlgorithm(buffer, sha512.New())
 	default:
 		return nil, xerrors.Errorf("unknown hash algorithm %q", hashAlg)
 	}
 }
 
-func GetHashStrings(strs []string, hashAlg hash.Hash) ([]byte, error) {
+// HashStringsWithAlgorithm calculates hash of strings
+func HashStringsWithAlgorithm(strs []string, hashAlg hash.Hash) ([]byte, error) {
 	for _, str := range strs {
 		_, err := hashAlg.Write([]byte(str))
 		if err != nil {
@@ -80,7 +84,8 @@ func GetHashStrings(strs []string, hashAlg hash.Hash) ([]byte, error) {
 	return sumBytes, nil
 }
 
-func GetHashLocalFile(sourcePath string, hashAlg hash.Hash) ([]byte, error) {
+// HashLocalFileWithAlgorithm calculates hash of local file
+func HashLocalFileWithAlgorithm(sourcePath string, hashAlg hash.Hash) ([]byte, error) {
 	f, err := os.Open(sourcePath)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to open file %q: %w", sourcePath, err)
@@ -97,7 +102,8 @@ func GetHashLocalFile(sourcePath string, hashAlg hash.Hash) ([]byte, error) {
 	return sumBytes, nil
 }
 
-func GetHashBuffer(buffer *bytes.Buffer, hashAlg hash.Hash) ([]byte, error) {
+// HashBufferWithAlgorithm calculates hash of buffer data
+func HashBufferWithAlgorithm(buffer *bytes.Buffer, hashAlg hash.Hash) ([]byte, error) {
 	_, err := hashAlg.Write(buffer.Bytes())
 	if err != nil {
 		return nil, xerrors.Errorf("failed to write: %w", err)

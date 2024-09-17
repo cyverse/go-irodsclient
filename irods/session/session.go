@@ -123,7 +123,7 @@ func (sess *IRODSSession) getPendingError() error {
 	return sess.lastConnectionError
 }
 
-// IsPermanantFailure returns if there is a failure that is unfixable, permanant
+// IsPermanantFailure returns if there is a failure that is unfixable, permanent
 func (sess *IRODSSession) IsPermanantFailure() bool {
 	sess.mutex.Lock()
 	defer sess.mutex.Unlock()
@@ -470,7 +470,7 @@ func (sess *IRODSSession) ReturnConnection(conn *connection.IRODSConnection) err
 }
 
 // DiscardConnection discards a connection
-func (sess *IRODSSession) DiscardConnection(conn *connection.IRODSConnection) error {
+func (sess *IRODSSession) DiscardConnection(conn *connection.IRODSConnection) {
 	sess.mutex.Lock()
 	defer sess.mutex.Unlock()
 
@@ -481,7 +481,7 @@ func (sess *IRODSSession) DiscardConnection(conn *connection.IRODSConnection) er
 			delete(sess.sharedConnections, conn)
 
 			sess.connectionPool.Discard(conn)
-			return nil
+			return
 		} else {
 			sess.sharedConnections[conn] = share
 		}
@@ -491,8 +491,6 @@ func (sess *IRODSSession) DiscardConnection(conn *connection.IRODSConnection) er
 			conn.Disconnect()
 		}
 	}
-
-	return nil
 }
 
 // Release releases all connections
@@ -544,7 +542,7 @@ func (sess *IRODSSession) SupportParallelUpload() bool {
 
 		conn.Unlock()
 
-		sess.connectionPool.Return(conn)
+		sess.connectionPool.Return(conn) //nolint
 		sess.supportParallelUploadSet = true
 	}
 

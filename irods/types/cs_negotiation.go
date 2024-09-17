@@ -5,84 +5,117 @@ import (
 	"strings"
 )
 
-// CSNegotiationRequire defines Negotiation request
-type CSNegotiationRequire string
+// CSNegotiation defines to perform Negotiation or not
+type CSNegotiation string
 
 const (
-	// CSNegotiationRequireTCP requires Plain TCP connection
-	CSNegotiationRequireTCP CSNegotiationRequire = "CS_NEG_REFUSE"
-	// CSNegotiationRequireSSL requires SSL connection
-	CSNegotiationRequireSSL CSNegotiationRequire = "CS_NEG_REQUIRE"
-	// CSNegotiationDontCare requires any of TCP or SSL connection
-	CSNegotiationDontCare CSNegotiationRequire = "CS_NEG_DONT_CARE"
+	// CSNegotiationRequestServerNegotiation presents negotiation is required
+	CSNegotiationServerNegotiation CSNegotiation = "request_server_negotiation"
+	CSNegotiationOff               CSNegotiation = "off"
 )
 
-// GetCSNegotiationRequire returns CSNegotiationRequire value from string
-func GetCSNegotiationRequire(require string) (CSNegotiationRequire, error) {
-	csNegotiationPolicy := CSNegotiationRequireTCP
+// GetCSNegotiation returns CSNegotiation value from string
+func GetCSNegotiation(negotiation string) (CSNegotiation, error) {
+	var csNegotiation CSNegotiation
 	var err error = nil
-	switch strings.TrimSpace(strings.ToUpper(require)) {
-	case string(CSNegotiationRequireTCP), "TCP":
-		csNegotiationPolicy = CSNegotiationRequireTCP
-	case string(CSNegotiationRequireSSL), "SSL":
-		csNegotiationPolicy = CSNegotiationRequireSSL
-	case string(CSNegotiationDontCare), "DONT_CARE", "":
-		csNegotiationPolicy = CSNegotiationDontCare
+	switch strings.TrimSpace(strings.ToLower(negotiation)) {
+	case string(CSNegotiationServerNegotiation):
+		csNegotiation = CSNegotiationServerNegotiation
+	case string(CSNegotiationOff), "":
+		csNegotiation = CSNegotiationOff
 	default:
-		csNegotiationPolicy = CSNegotiationRequireTCP
-		err = fmt.Errorf("cannot parse string %q", require)
+		csNegotiation = CSNegotiationOff
+		err = fmt.Errorf("cannot parse string %q", negotiation)
 	}
 
-	return csNegotiationPolicy, err
+	return csNegotiation, err
 }
 
-// CSNegotiationPolicy defines Negotiation result
-type CSNegotiationPolicy string
+// IsNegotiationRequired checks if negotiation is required
+func (negotiation CSNegotiation) IsNegotiationRequired() bool {
+	return negotiation == CSNegotiationServerNegotiation
+}
+
+// CSNegotiationPolicyRequest defines Negotiation policy request
+type CSNegotiationPolicyRequest string
+
+const (
+	// CSNegotiationPolicyRequestTCP requests Plain TCP connection
+	CSNegotiationPolicyRequestTCP CSNegotiationPolicyRequest = "CS_NEG_REFUSE"
+	// CSNegotiationPolicyRequestSSL requests SSL connection
+	CSNegotiationPolicyRequestSSL CSNegotiationPolicyRequest = "CS_NEG_REQUIRE"
+	// CSNegotiationPolicyRequestDontCare requests any of TCP or SSL connection
+	CSNegotiationPolicyRequestDontCare CSNegotiationPolicyRequest = "CS_NEG_DONT_CARE"
+)
+
+// GetCSNegotiationPolicyRequest returns CSNegotiationPolicyRequest value from string
+func GetCSNegotiationPolicyRequest(request string) (CSNegotiationPolicyRequest, error) {
+	var csNegotiationPolicyRequest CSNegotiationPolicyRequest
+	var err error = nil
+	switch strings.TrimSpace(strings.ToUpper(request)) {
+	case string(CSNegotiationPolicyRequestTCP), "TCP":
+		csNegotiationPolicyRequest = CSNegotiationPolicyRequestTCP
+	case string(CSNegotiationPolicyRequestSSL), "SSL":
+		csNegotiationPolicyRequest = CSNegotiationPolicyRequestSSL
+	case string(CSNegotiationPolicyRequestDontCare), "DONT_CARE", "":
+		csNegotiationPolicyRequest = CSNegotiationPolicyRequestDontCare
+	default:
+		csNegotiationPolicyRequest = CSNegotiationPolicyRequestTCP
+		err = fmt.Errorf("cannot parse string %q", request)
+	}
+
+	return csNegotiationPolicyRequest, err
+}
+
+// CSNegotiationResult defines Negotiation result
+type CSNegotiationResult string
 
 const (
 	// CSNegotiationFailure presents negotiation is failed
-	CSNegotiationFailure CSNegotiationPolicy = "CS_NEG_FAILURE"
+	CSNegotiationFailure CSNegotiationResult = "CS_NEG_FAILURE"
 	// CSNegotiationUseTCP uses Plain TCP connection
-	CSNegotiationUseTCP CSNegotiationPolicy = "CS_NEG_USE_TCP"
+	CSNegotiationUseTCP CSNegotiationResult = "CS_NEG_USE_TCP"
 	// CSNegotiationUseSSL uses SSL connection
-	CSNegotiationUseSSL CSNegotiationPolicy = "CS_NEG_USE_SSL"
+	CSNegotiationUseSSL CSNegotiationResult = "CS_NEG_USE_SSL"
 )
 
-// GetCSNegotiationPolicy returns CSNegotiationPolicy value from string
-func GetCSNegotiationPolicy(policy string) (CSNegotiationPolicy, error) {
-	csNegotiationPolicy := CSNegotiationFailure
+// GetCSNegotiationResult returns CSNegotiationResult value from string
+func GetCSNegotiationResult(policy string) (CSNegotiationResult, error) {
+	var csNegotiationResult CSNegotiationResult
 	var err error = nil
 	switch strings.TrimSpace(strings.ToUpper(policy)) {
 	case string(CSNegotiationUseTCP), "TCP":
-		csNegotiationPolicy = CSNegotiationUseTCP
+		csNegotiationResult = CSNegotiationUseTCP
 	case string(CSNegotiationUseSSL), "SSL":
-		csNegotiationPolicy = CSNegotiationUseSSL
+		csNegotiationResult = CSNegotiationUseSSL
+	case string(CSNegotiationFailure), "FAILURE":
+		csNegotiationResult = CSNegotiationFailure
 	default:
-		csNegotiationPolicy = CSNegotiationFailure
+		csNegotiationResult = CSNegotiationFailure
 		err = fmt.Errorf("cannot parse string %q", policy)
 	}
 
-	return csNegotiationPolicy, err
+	return csNegotiationResult, err
 }
 
 // PerformCSNegotiation performs CSNegotiation and returns the policy determined
-func PerformCSNegotiation(clientRequest CSNegotiationRequire, serverRequest CSNegotiationRequire) CSNegotiationPolicy {
-	if serverRequest == CSNegotiationDontCare {
+func PerformCSNegotiation(clientRequest CSNegotiationPolicyRequest, serverRequest CSNegotiationPolicyRequest) CSNegotiationResult {
+	if serverRequest == CSNegotiationPolicyRequestDontCare {
 		switch clientRequest {
-		case CSNegotiationDontCare, CSNegotiationRequireTCP:
+		case CSNegotiationPolicyRequestDontCare, CSNegotiationPolicyRequestTCP:
 			return CSNegotiationUseTCP
-		case CSNegotiationRequireSSL:
+		case CSNegotiationPolicyRequestSSL:
 			return CSNegotiationUseSSL
 		default:
 			return CSNegotiationFailure
 		}
 	}
 
-	if clientRequest == CSNegotiationDontCare {
+	if clientRequest == CSNegotiationPolicyRequestDontCare {
 		switch serverRequest {
-		case CSNegotiationRequireTCP:
+		case CSNegotiationPolicyRequestTCP:
 			return CSNegotiationUseTCP
-		case CSNegotiationRequireSSL:
+		case CSNegotiationPolicyRequestSSL:
 			return CSNegotiationUseSSL
 		default:
 			return CSNegotiationFailure
@@ -91,9 +124,9 @@ func PerformCSNegotiation(clientRequest CSNegotiationRequire, serverRequest CSNe
 
 	if clientRequest == serverRequest {
 		switch clientRequest {
-		case CSNegotiationRequireTCP:
+		case CSNegotiationPolicyRequestTCP:
 			return CSNegotiationUseTCP
-		case CSNegotiationRequireSSL:
+		case CSNegotiationPolicyRequestSSL:
 			return CSNegotiationUseSSL
 		default:
 			return CSNegotiationFailure

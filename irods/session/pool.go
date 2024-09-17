@@ -78,11 +78,11 @@ func NewConnectionPool(config *ConnectionPoolConfig, metrics *metrics.IRODSMetri
 						if idleConn.GetLastSuccessfulAccess().Add(pool.config.IdleTimeout).Before(now) {
 							// timeout
 							pool.idleConnections.Remove(elem)
-							idleConn.Disconnect()
+							idleConn.Disconnect() //nolint
 						} else if idleConn.GetCreationTime().Add(pool.config.Lifespan).Before(now) {
 							// too old
 							pool.idleConnections.Remove(elem)
-							idleConn.Disconnect()
+							idleConn.Disconnect() //nolint
 						} else {
 							break
 						}
@@ -155,7 +155,7 @@ func (pool *ConnectionPool) init() error {
 }
 
 // Get gets a new or an idle connection out of the pool
-// the boolean return value indicates if the returned conneciton is new (True) or existing idle (False)
+// the boolean return value indicates if the returned connection is new (True) or existing idle (False)
 func (pool *ConnectionPool) Get() (*connection.IRODSConnection, bool, error) {
 	logger := log.WithFields(log.Fields{
 		"package":  "session",

@@ -119,7 +119,7 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 
 	fileLength := stat.Size()
 
-	logger.Debugf("upload data object %s", localPath)
+	logger.Debugf("upload data object %q", localPath)
 
 	conn, err := session.AcquireConnection()
 	if err != nil {
@@ -402,7 +402,7 @@ func DownloadDataObjectToBuffer(session *session.IRODSSession, irodsPath string,
 		"function": "DownloadDataObject",
 	})
 
-	logger.Debugf("download data object %s", irodsPath)
+	logger.Debugf("download data object %q", irodsPath)
 
 	// use default resource when resource param is empty
 	if len(resource) == 0 {
@@ -479,7 +479,7 @@ func DownloadDataObject(session *session.IRODSSession, irodsPath string, resourc
 		"function": "DownloadDataObject",
 	})
 
-	logger.Debugf("download data object %s", irodsPath)
+	logger.Debugf("download data object %q", irodsPath)
 
 	// use default resource when resource param is empty
 	if len(resource) == 0 {
@@ -568,7 +568,7 @@ func DownloadDataObjectResumable(session *session.IRODSSession, irodsPath string
 		resource = account.DefaultResource
 	}
 
-	logger.Debugf("download data object %s", irodsPath)
+	logger.Debugf("download data object %q", irodsPath)
 
 	// create transfer status
 	transferStatusLocal, err := GetOrNewDataObjectTransferStatusLocal(localPath, fileLength, 1)
@@ -595,19 +595,19 @@ func DownloadDataObjectResumable(session *session.IRODSSession, irodsPath string
 	defer session.ReturnConnection(conn)
 
 	if conn == nil || !conn.IsConnected() {
-		transferStatusLocal.CloseStatusFile()
+		transferStatusLocal.CloseStatusFile() //nolint
 		return xerrors.Errorf("connection is nil or disconnected")
 	}
 
 	handle, _, err := OpenDataObject(conn, irodsPath, resource, "r", keywords)
 	if err != nil {
-		transferStatusLocal.CloseStatusFile()
+		transferStatusLocal.CloseStatusFile() //nolint
 		return xerrors.Errorf("failed to open data object %q: %w", irodsPath, err)
 	}
 
 	f, err := os.OpenFile(localPath, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
-		transferStatusLocal.CloseStatusFile()
+		transferStatusLocal.CloseStatusFile() //nolint
 		return xerrors.Errorf("failed to create file %q: %w", localPath, err)
 	}
 	defer f.Close()
@@ -622,22 +622,22 @@ func DownloadDataObjectResumable(session *session.IRODSSession, irodsPath string
 	}
 
 	if lastOffset > 0 {
-		logger.Debugf("resuming downloading data object %s from offset %d", irodsPath, lastOffset)
+		logger.Debugf("resuming downloading data object %q from offset %d", irodsPath, lastOffset)
 
 		newOffset, err := SeekDataObject(conn, handle, lastOffset, types.SeekSet)
 		if err != nil {
-			transferStatusLocal.CloseStatusFile()
+			transferStatusLocal.CloseStatusFile() //nolint
 			return xerrors.Errorf("failed to seek data object %q to offset %d: %w", irodsPath, lastOffset, err)
 		}
 
 		offset, err := f.Seek(lastOffset, io.SeekStart)
 		if err != nil {
-			transferStatusLocal.CloseStatusFile()
+			transferStatusLocal.CloseStatusFile() //nolint
 			return xerrors.Errorf("failed to seek file %q to offset %d: %w", localPath, lastOffset, err)
 		}
 
 		if newOffset != offset {
-			transferStatusLocal.CloseStatusFile()
+			transferStatusLocal.CloseStatusFile() //nolint
 			return xerrors.Errorf("failed to seek file and data object to target offset %d", lastOffset)
 		}
 	}
@@ -676,7 +676,7 @@ func DownloadDataObjectResumable(session *session.IRODSSession, irodsPath string
 				Length:          fileLength,
 				CompletedLength: totalBytesDownloaded,
 			}
-			transferStatusLocal.WriteStatus(transferStatusEntry)
+			transferStatusLocal.WriteStatus(transferStatusEntry) //nolint
 
 			if callback != nil {
 				callback(totalBytesDownloaded, fileLength)
@@ -693,14 +693,24 @@ func DownloadDataObjectResumable(session *session.IRODSSession, irodsPath string
 		}
 	}
 
-	transferStatusLocal.CloseStatusFile()
-	CloseDataObject(conn, handle)
+	err = transferStatusLocal.CloseStatusFile()
+	if err != nil {
+		return xerrors.Errorf("failed to close status file: %w", err)
+	}
+
+	err = CloseDataObject(conn, handle)
+	if err != nil {
+		return xerrors.Errorf("failed to close data object: %w", err)
+	}
 
 	if writeErr != nil {
 		return writeErr
 	}
 
-	transferStatusLocal.DeleteStatusFile()
+	err = transferStatusLocal.DeleteStatusFile()
+	if err != nil {
+		return xerrors.Errorf("failed to delete status file: %w", err)
+	}
 
 	return nil
 }
@@ -928,7 +938,7 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 
 	err = transferStatusLocal.WriteHeader()
 	if err != nil {
-		transferStatusLocal.CloseStatusFile()
+		transferStatusLocal.CloseStatusFile() //nolint
 		return xerrors.Errorf("failed to write transfer status file header for %q: %w", localPath, err)
 	}
 
@@ -998,7 +1008,7 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 		}
 
 		if lastOffset > 0 {
-			logger.Debugf("resuming downloading data object %s for task offset %d from offset %d", irodsPath, taskOffset, lastOffset)
+			logger.Debugf("resuming downloading data object %q for task offset %d from offset %d", irodsPath, taskOffset, lastOffset)
 
 			newOffset, err := SeekDataObject(taskConn, taskHandle, lastOffset, types.SeekSet)
 			if err != nil {
@@ -1064,7 +1074,7 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 					Length:          taskLength,
 					CompletedLength: (taskLength - taskRemain) + int64(bytesRead),
 				}
-				transferStatusLocal.WriteStatus(transferStatusEntry)
+				transferStatusLocal.WriteStatus(transferStatusEntry) //nolint
 
 				if callback != nil {
 					callback(totalBytesDownloaded, fileLength)
@@ -1108,9 +1118,15 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 		return <-errChan
 	}
 
-	transferStatusLocal.CloseStatusFile()
+	err = transferStatusLocal.CloseStatusFile()
+	if err != nil {
+		return xerrors.Errorf("failed to close status file: %w", err)
+	}
 
-	transferStatusLocal.DeleteStatusFile()
+	err = transferStatusLocal.DeleteStatusFile()
+	if err != nil {
+		return xerrors.Errorf("failed to delete status file: %w", err)
+	}
 
 	return nil
 }

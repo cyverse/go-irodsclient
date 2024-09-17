@@ -352,7 +352,7 @@ func (conn *IRODSConnection) startup() (*types.IRODSVersion, error) {
 		"function": "startup",
 	})
 
-	clientPolicy := types.CSNegotiationRequireTCP
+	clientPolicy := types.CSNegotiationPolicyRequestTCP
 	if conn.requiresCSNegotiation() {
 		// Get client negotiation policy
 		if len(conn.account.CSNegotiationPolicy) > 0 {
@@ -411,7 +411,7 @@ func (conn *IRODSConnection) startup() (*types.IRODSVersion, error) {
 			return nil, xerrors.Errorf("failed to receive negotiation message (%s): %w", err.Error(), types.NewConnectionError())
 		}
 
-		serverPolicy, err := types.GetCSNegotiationRequire(negotiation.Result)
+		serverPolicy, err := types.GetCSNegotiationPolicyRequest(negotiation.Result)
 		if err != nil {
 			return nil, xerrors.Errorf("failed to parse server policy (%s): %w", err.Error(), types.NewConnectionError())
 		}
@@ -462,25 +462,13 @@ func (conn *IRODSConnection) sslStartup() error {
 		return xerrors.Errorf("SSL Configuration is not set: %w", types.NewConnectionConfigError(conn.account))
 	}
 
-	caCertPool, err := irodsSSLConfig.LoadCACert()
+	tlsConfig, err := irodsSSLConfig.GetTLSConfig(conn.account.Host)
 	if err != nil {
-		return xerrors.Errorf("Failed to load CA Certificates: %w", err)
-	}
-
-	serverName := conn.account.Host
-
-	if conn.account.ServerNameTLS != "" {
-		serverName = conn.account.ServerNameTLS
-	}
-
-	sslConf := &tls.Config{
-		RootCAs:            caCertPool,
-		ServerName:         serverName,
-		InsecureSkipVerify: conn.account.SkipVerifyTLS,
+		return xerrors.Errorf("Failed to get TLS config: %w", err)
 	}
 
 	// Create a side connection using the existing socket
-	sslSocket := tls.Client(conn.socket, sslConf)
+	sslSocket := tls.Client(conn.socket, tlsConfig)
 
 	err = sslSocket.Handshake()
 	if err != nil {
@@ -499,7 +487,7 @@ func (conn *IRODSConnection) sslStartup() error {
 	}
 
 	// Send a ssl setting
-	sslSetting := message.NewIRODSMessageSSLSettings(irodsSSLConfig.EncryptionAlgorithm, irodsSSLConfig.EncryptionKeySize, irodsSSLConfig.SaltSize, irodsSSLConfig.HashRounds)
+	sslSetting := message.NewIRODSMessageSSLSettings(irodsSSLConfig.EncryptionAlgorithm, irodsSSLConfig.EncryptionKeySize, irodsSSLConfig.EncryptionSaltSize, irodsSSLConfig.EncryptionNumHashRounds)
 	err = conn.RequestWithoutResponse(sslSetting)
 	if err != nil {
 		return xerrors.Errorf("failed to send ssl setting message (%s): %w", err.Error(), types.NewConnectionError())
@@ -587,7 +575,7 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 
 	pamPassword := conn.getSafePAMPassword(conn.account.Password)
 
-	userKV := fmt.Sprintf("a_user=%s", conn.account.ClientUser)
+	userKV := fmt.Sprintf("a_user=%s", conn.account.ProxyUser)
 	passwordKV := fmt.Sprintf("a_pw=%s", pamPassword)
 	ttlKV := fmt.Sprintf("a_ttl=%s", strconv.Itoa(ttl))
 
@@ -604,7 +592,7 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 	if useDedicatedPAMApi {
 		logger.Debugf("use dedicated PAM api")
 
-		pamAuthRequest := message.NewIRODSMessagePamAuthRequest(conn.account.ClientUser, pamPassword, ttl)
+		pamAuthRequest := message.NewIRODSMessagePamAuthRequest(conn.account.ProxyUser, pamPassword, ttl)
 		pamAuthResponse := message.IRODSMessagePamAuthResponse{}
 		err := conn.RequestAndCheck(pamAuthRequest, &pamAuthResponse, nil)
 		if err != nil {
@@ -645,11 +633,6 @@ func (conn *IRODSConnection) loginPAMWithToken() error {
 	// Check whether ssl has already started, if not, start ssl.
 	if _, ok := conn.socket.(*tls.Conn); !ok {
 		return xerrors.Errorf("connection should be using SSL: %w", types.NewConnectionError())
-	}
-
-	ttl := conn.account.PamTTL
-	if ttl <= 0 {
-		ttl = 1
 	}
 
 	// retry native auth with generated password
@@ -1069,7 +1052,7 @@ func (conn *IRODSConnection) PoorMansRollback() error {
 		return xerrors.Errorf("connection must be locked before use")
 	}
 
-	dummyCol := fmt.Sprintf("/%s/home/%s", conn.account.ClientZone, conn.account.ClientUser)
+	dummyCol := fmt.Sprintf("/%s/home/%s", conn.account.ProxyZone, conn.account.ProxyUser)
 
 	return conn.poorMansEndTransaction(dummyCol, false)
 }

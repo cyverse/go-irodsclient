@@ -104,8 +104,8 @@ func (fs *FileSystem) GetIOConnection() (*connection.IRODSConnection, error) {
 }
 
 // ReturnIOConnection returns irods connection for IO back to session
-func (fs *FileSystem) ReturnIOConnection(conn *connection.IRODSConnection) {
-	fs.ioSession.ReturnConnection(conn)
+func (fs *FileSystem) ReturnIOConnection(conn *connection.IRODSConnection) error {
+	return fs.ioSession.ReturnConnection(conn)
 }
 
 // GetMetadataConnection returns irods connection for metadata operations
@@ -114,8 +114,8 @@ func (fs *FileSystem) GetMetadataConnection() (*connection.IRODSConnection, erro
 }
 
 // ReturnMetadataConnection returns irods connection for metadata operations back to session
-func (fs *FileSystem) ReturnMetadataConnection(conn *connection.IRODSConnection) {
-	fs.metadataSession.ReturnConnection(conn)
+func (fs *FileSystem) ReturnMetadataConnection(conn *connection.IRODSConnection) error {
+	return fs.metadataSession.ReturnConnection(conn)
 }
 
 // ConnectionTotal counts current established connections
@@ -129,7 +129,7 @@ func (fs *FileSystem) GetServerVersion() (*types.IRODSVersion, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	return conn.GetVersion(), nil
 }
@@ -274,7 +274,7 @@ func (fs *FileSystem) RemoveDir(path string, recurse bool, force bool) error {
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	err = irods_fs.DeleteCollection(conn, irodsPath, recurse, force)
 	if err != nil {
@@ -294,7 +294,7 @@ func (fs *FileSystem) RemoveFile(path string, force bool) error {
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	// if file handle is opened, wg
 	wg := sync.WaitGroup{}
@@ -348,7 +348,7 @@ func (fs *FileSystem) RenameDirToDir(srcPath string, destPath string) error {
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	// preprocess
 	handles, err := fs.preprocessRenameFileHandleForDir(irodsSrcPath)
@@ -398,7 +398,7 @@ func (fs *FileSystem) RenameFileToFile(srcPath string, destPath string) error {
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	// preprocess
 	handles, err := fs.preprocessRenameFileHandle(irodsSrcPath)
@@ -550,7 +550,7 @@ func (fs *FileSystem) MakeDir(path string, recurse bool) error {
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	dirEntry, err := fs.StatDir(path)
 	if err == nil {
@@ -598,7 +598,7 @@ func (fs *FileSystem) CopyFileToFile(srcPath string, destPath string, force bool
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	err = irods_fs.CopyDataObject(conn, irodsSrcPath, irodsDestPath, force)
 	if err != nil {
@@ -622,7 +622,7 @@ func (fs *FileSystem) TruncateFile(path string, size int64) error {
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	err = irods_fs.TruncateDataObject(conn, irodsPath, size)
 	if err != nil {
@@ -642,7 +642,7 @@ func (fs *FileSystem) ReplicateFile(path string, resource string, update bool) e
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	err = irods_fs.ReplicateDataObject(conn, irodsPath, resource, update, false)
 	if err != nil {
@@ -666,7 +666,7 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 	keywords := map[common.KeyWord]string{}
 	handle, offset, err := irods_fs.OpenDataObject(conn, irodsPath, resource, mode, keywords)
 	if err != nil {
-		fs.ioSession.ReturnConnection(conn)
+		fs.ioSession.ReturnConnection(conn) //nolint
 		return nil, err
 	}
 
@@ -724,27 +724,27 @@ func (fs *FileSystem) CreateFile(path string, resource string, mode string) (*Fi
 	keywords := map[common.KeyWord]string{}
 	handle, err := irods_fs.CreateDataObject(conn, irodsPath, resource, mode, true, keywords)
 	if err != nil {
-		fs.ioSession.ReturnConnection(conn)
+		fs.ioSession.ReturnConnection(conn) //nolint
 		return nil, err
 	}
 
 	// close - this is required to let other processes see the file existence
 	err = irods_fs.CloseDataObject(conn, handle)
 	if err != nil {
-		fs.ioSession.ReturnConnection(conn)
+		fs.ioSession.ReturnConnection(conn) //nolint
 		return nil, err
 	}
 
 	entry, err := fs.getDataObjectWithConnectionNoCache(conn, irodsPath)
 	if err != nil {
-		fs.ioSession.ReturnConnection(conn)
+		fs.ioSession.ReturnConnection(conn) //nolint
 		return nil, err
 	}
 
 	// re-open
 	handle, offset, err := irods_fs.OpenDataObject(conn, irodsPath, resource, mode, keywords)
 	if err != nil {
-		fs.ioSession.ReturnConnection(conn)
+		fs.ioSession.ReturnConnection(conn) //nolint
 		return nil, err
 	}
 
@@ -773,7 +773,7 @@ func (fs *FileSystem) getCollectionNoCache(path string) (*Entry, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	collection, err := irods_fs.GetCollection(conn, path)
 	if err != nil {
@@ -894,7 +894,7 @@ func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*Entry, 
 	if err != nil {
 		return nil, err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	collections, err := irods_fs.ListSubCollections(conn, collection.Path)
 	if err != nil {
@@ -990,7 +990,7 @@ func (fs *FileSystem) getDataObjectNoCache(path string) (*Entry, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	dataobject, err := irods_fs.GetDataObjectMasterReplicaWithoutCollection(conn, path)
 	if err != nil {

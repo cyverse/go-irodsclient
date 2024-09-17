@@ -17,6 +17,7 @@ const (
 	FileSystemTCPBufferSizeDefault = 4 * 1024 * 1024
 
 	// Metadata Connection
+
 	// FileSystemMetadataConnectionInitNumberDefault is a default value of connection init number
 	FileSystemMetadataConnectionInitNumberDefault = 1
 	// FileSystemMetadataConnectionMaxNumberDefault is a default number of connection max value
@@ -25,6 +26,7 @@ const (
 	FileSystemMetadataConnectionMaxIdleNumberDefault = 2
 
 	// IO Connection
+
 	// FileSystemIOConnectionInitNumberDefault is a default value of connection init number
 	FileSystemIOConnectionInitNumberDefault = 0
 	// FileSystemIOConnectionMaxNumberDefault is a default number of connection max value

@@ -23,7 +23,7 @@ type IRODSMessageQuerySpecificRequest struct {
 	Arg9          string               `xml:"arg9"`
 	Arg10         string               `xml:"arg10"`
 	MaxRows       int                  `xml:"maxRows"`
-	ContinueIndex int                  `xml:"continueInx"` // 1 for continueing, 0 for end
+	ContinueIndex int                  `xml:"continueInx"` // 1 for continuing, 0 for end
 	RowOffset     int                  `xml:"rowOffset"`
 	Options       int                  `xml:"options"`
 	KeyVals       IRODSMessageSSKeyVal `xml:"KeyValPair_PI"`

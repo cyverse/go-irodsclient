@@ -1,9 +1,6 @@
-host:
-  hostname: "data.cyverse.org"
-  port: 1247
-user:
-  username: ""
-  password: ""
-  zone: "iplant"
-  ticket: ""
-auth_scheme: "native"
+irods_authentication_scheme: "native"
+irods_host: "data.cyverse.org"
+irods_port: 1247
+irods_user_name: ""
+irods_user_password: ""
+irods_zone_name: "iplant"

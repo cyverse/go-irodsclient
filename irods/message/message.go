@@ -133,7 +133,6 @@ func (body *IRODSMessageBody) FromBytes(header *IRODSMessageHeader, bodyBytes []
 	offset += int(header.MessageLen)
 	body.Error = bodyBytes[offset : offset+int(header.ErrorLen)]
 
-	offset += int(header.ErrorLen)
 	body.Bs = bsBytes[:int(header.BsLen)]
 
 	return nil
