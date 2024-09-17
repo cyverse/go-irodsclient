@@ -11,7 +11,7 @@ func (fs *FileSystem) ListProcesses(address string, zone string) ([]*types.IRODS
 	if err != nil {
 		return nil, err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	processes, err := irods_fs.StatProcess(conn, address, zone)
 	if err != nil {

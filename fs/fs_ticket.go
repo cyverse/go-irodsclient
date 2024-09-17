@@ -14,7 +14,7 @@ func (fs *FileSystem) GetTicketForAnonymousAccess(ticketName string) (*types.IRO
 	if err != nil {
 		return nil, err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	ticketInfo, err := irods_fs.GetTicketForAnonymousAccess(conn, ticketName)
 	if err != nil {
@@ -30,7 +30,7 @@ func (fs *FileSystem) GetTicket(ticketName string) (*types.IRODSTicket, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	ticketInfo, err := irods_fs.GetTicket(conn, ticketName)
 	if err != nil {
@@ -46,7 +46,7 @@ func (fs *FileSystem) ListTickets() ([]*types.IRODSTicket, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	tickets, err := irods_fs.ListTickets(conn)
 	if err != nil {
@@ -62,7 +62,7 @@ func (fs *FileSystem) ListTicketsBasic() ([]*types.IRODSTicket, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	tickets, err := irods_fs.ListTicketsBasic(conn)
 	if err != nil {
@@ -78,7 +78,7 @@ func (fs *FileSystem) GetTicketRestrictions(ticketID int64) (*IRODSTicketRestric
 	if err != nil {
 		return nil, err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	hosts, err := irods_fs.ListTicketAllowedHosts(conn, ticketID)
 	if err != nil {
@@ -108,7 +108,7 @@ func (fs *FileSystem) ListTicketHostRestrictions(ticketID int64) ([]string, erro
 	if err != nil {
 		return nil, err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	hosts, err := irods_fs.ListTicketAllowedHosts(conn, ticketID)
 	if err != nil {
@@ -124,7 +124,7 @@ func (fs *FileSystem) ListTicketUserNameRestrictions(ticketID int64) ([]string, 
 	if err != nil {
 		return nil, err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	usernames, err := irods_fs.ListTicketAllowedUserNames(conn, ticketID)
 	if err != nil {
@@ -140,7 +140,7 @@ func (fs *FileSystem) ListTicketUserGroupRestrictions(ticketID int64) ([]string,
 	if err != nil {
 		return nil, err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	groupnames, err := irods_fs.ListTicketAllowedGroupNames(conn, ticketID)
 	if err != nil {
@@ -158,7 +158,7 @@ func (fs *FileSystem) CreateTicket(ticketName string, ticketType types.TicketTyp
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	err = irods_fs.CreateTicket(conn, ticketName, ticketType, irodsPath)
 	if err != nil {
@@ -174,7 +174,7 @@ func (fs *FileSystem) DeleteTicket(ticketName string) error {
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	err = irods_fs.DeleteTicket(conn, ticketName)
 	if err != nil {
@@ -190,7 +190,7 @@ func (fs *FileSystem) ModifyTicketUseLimit(ticketName string, uses int64) error 
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	err = irods_fs.ModifyTicketUseLimit(conn, ticketName, uses)
 	if err != nil {
@@ -206,7 +206,7 @@ func (fs *FileSystem) ClearTicketUseLimit(ticketName string) error {
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	err = irods_fs.ClearTicketUseLimit(conn, ticketName)
 	if err != nil {
@@ -222,7 +222,7 @@ func (fs *FileSystem) ModifyTicketWriteFileLimit(ticketName string, count int64)
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	err = irods_fs.ModifyTicketWriteFileLimit(conn, ticketName, count)
 	if err != nil {
@@ -238,7 +238,7 @@ func (fs *FileSystem) ClearTicketWriteFileLimit(ticketName string) error {
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	err = irods_fs.ClearTicketWriteFileLimit(conn, ticketName)
 	if err != nil {
@@ -254,7 +254,7 @@ func (fs *FileSystem) ModifyTicketWriteByteLimit(ticketName string, bytes int64)
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	err = irods_fs.ModifyTicketWriteByteLimit(conn, ticketName, bytes)
 	if err != nil {
@@ -270,7 +270,7 @@ func (fs *FileSystem) ClearTicketWriteByteLimit(ticketName string) error {
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	err = irods_fs.ClearTicketWriteByteLimit(conn, ticketName)
 	if err != nil {
@@ -286,7 +286,7 @@ func (fs *FileSystem) AddTicketAllowedUser(ticketName string, userName string) e
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	err = irods_fs.AddTicketAllowedUser(conn, ticketName, userName)
 	if err != nil {
@@ -302,7 +302,7 @@ func (fs *FileSystem) RemoveTicketAllowedUser(ticketName string, userName string
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	err = irods_fs.RemoveTicketAllowedUser(conn, ticketName, userName)
 	if err != nil {
@@ -318,7 +318,7 @@ func (fs *FileSystem) AddTicketAllowedGroup(ticketName string, groupName string)
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	err = irods_fs.AddTicketAllowedGroup(conn, ticketName, groupName)
 	if err != nil {
@@ -334,7 +334,7 @@ func (fs *FileSystem) RemoveTicketAllowedGroup(ticketName string, groupName stri
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	err = irods_fs.RemoveTicketAllowedGroup(conn, ticketName, groupName)
 	if err != nil {
@@ -350,7 +350,7 @@ func (fs *FileSystem) AddTicketAllowedHost(ticketName string, host string) error
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	err = irods_fs.AddTicketAllowedHost(conn, ticketName, host)
 	if err != nil {
@@ -366,7 +366,7 @@ func (fs *FileSystem) RemoveTicketAllowedHost(ticketName string, host string) er
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	err = irods_fs.RemoveTicketAllowedHost(conn, ticketName, host)
 	if err != nil {
@@ -382,7 +382,7 @@ func (fs *FileSystem) ModifyTicketExpirationTime(ticketName string, expirationTi
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	err = irods_fs.ModifyTicketExpirationTime(conn, ticketName, expirationTime)
 	if err != nil {
@@ -398,7 +398,7 @@ func (fs *FileSystem) ClearTicketExpirationTime(ticketName string) error {
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	err = irods_fs.ClearTicketExpirationTime(conn, ticketName)
 	if err != nil {

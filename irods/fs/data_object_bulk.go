@@ -595,19 +595,19 @@ func DownloadDataObjectResumable(session *session.IRODSSession, irodsPath string
 	defer session.ReturnConnection(conn)
 
 	if conn == nil || !conn.IsConnected() {
-		transferStatusLocal.CloseStatusFile()
+		transferStatusLocal.CloseStatusFile() //nolint
 		return xerrors.Errorf("connection is nil or disconnected")
 	}
 
 	handle, _, err := OpenDataObject(conn, irodsPath, resource, "r", keywords)
 	if err != nil {
-		transferStatusLocal.CloseStatusFile()
+		transferStatusLocal.CloseStatusFile() //nolint
 		return xerrors.Errorf("failed to open data object %q: %w", irodsPath, err)
 	}
 
 	f, err := os.OpenFile(localPath, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
-		transferStatusLocal.CloseStatusFile()
+		transferStatusLocal.CloseStatusFile() //nolint
 		return xerrors.Errorf("failed to create file %q: %w", localPath, err)
 	}
 	defer f.Close()
@@ -626,18 +626,18 @@ func DownloadDataObjectResumable(session *session.IRODSSession, irodsPath string
 
 		newOffset, err := SeekDataObject(conn, handle, lastOffset, types.SeekSet)
 		if err != nil {
-			transferStatusLocal.CloseStatusFile()
+			transferStatusLocal.CloseStatusFile() //nolint
 			return xerrors.Errorf("failed to seek data object %q to offset %d: %w", irodsPath, lastOffset, err)
 		}
 
 		offset, err := f.Seek(lastOffset, io.SeekStart)
 		if err != nil {
-			transferStatusLocal.CloseStatusFile()
+			transferStatusLocal.CloseStatusFile() //nolint
 			return xerrors.Errorf("failed to seek file %q to offset %d: %w", localPath, lastOffset, err)
 		}
 
 		if newOffset != offset {
-			transferStatusLocal.CloseStatusFile()
+			transferStatusLocal.CloseStatusFile() //nolint
 			return xerrors.Errorf("failed to seek file and data object to target offset %d", lastOffset)
 		}
 	}
@@ -676,7 +676,7 @@ func DownloadDataObjectResumable(session *session.IRODSSession, irodsPath string
 				Length:          fileLength,
 				CompletedLength: totalBytesDownloaded,
 			}
-			transferStatusLocal.WriteStatus(transferStatusEntry)
+			transferStatusLocal.WriteStatus(transferStatusEntry) //nolint
 
 			if callback != nil {
 				callback(totalBytesDownloaded, fileLength)
@@ -693,14 +693,24 @@ func DownloadDataObjectResumable(session *session.IRODSSession, irodsPath string
 		}
 	}
 
-	transferStatusLocal.CloseStatusFile()
-	CloseDataObject(conn, handle)
+	err = transferStatusLocal.CloseStatusFile()
+	if err != nil {
+		return xerrors.Errorf("failed to close status file: %w", err)
+	}
+
+	err = CloseDataObject(conn, handle)
+	if err != nil {
+		return xerrors.Errorf("failed to close data object: %w", err)
+	}
 
 	if writeErr != nil {
 		return writeErr
 	}
 
-	transferStatusLocal.DeleteStatusFile()
+	err = transferStatusLocal.DeleteStatusFile()
+	if err != nil {
+		return xerrors.Errorf("failed to delete status file: %w", err)
+	}
 
 	return nil
 }
@@ -928,7 +938,7 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 
 	err = transferStatusLocal.WriteHeader()
 	if err != nil {
-		transferStatusLocal.CloseStatusFile()
+		transferStatusLocal.CloseStatusFile() //nolint
 		return xerrors.Errorf("failed to write transfer status file header for %q: %w", localPath, err)
 	}
 
@@ -1064,7 +1074,7 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 					Length:          taskLength,
 					CompletedLength: (taskLength - taskRemain) + int64(bytesRead),
 				}
-				transferStatusLocal.WriteStatus(transferStatusEntry)
+				transferStatusLocal.WriteStatus(transferStatusEntry) //nolint
 
 				if callback != nil {
 					callback(totalBytesDownloaded, fileLength)
@@ -1108,9 +1118,15 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 		return <-errChan
 	}
 
-	transferStatusLocal.CloseStatusFile()
+	err = transferStatusLocal.CloseStatusFile()
+	if err != nil {
+		return xerrors.Errorf("failed to close status file: %w", err)
+	}
 
-	transferStatusLocal.DeleteStatusFile()
+	err = transferStatusLocal.DeleteStatusFile()
+	if err != nil {
+		return xerrors.Errorf("failed to delete status file: %w", err)
+	}
 
 	return nil
 }

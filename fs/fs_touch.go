@@ -16,7 +16,7 @@ func (fs *FileSystem) Touch(irodsPath string, resource string, noCreate bool) er
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	entry, err := fs.Stat(irodsCorrectPath)
 	if err != nil {

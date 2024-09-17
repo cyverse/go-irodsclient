@@ -18,7 +18,7 @@ func (fs *FileSystem) ListGroupUsers(group string) ([]*types.IRODSUser, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	users, err := irods_fs.ListGroupUsers(conn, group)
 	if err != nil {
@@ -44,7 +44,7 @@ func (fs *FileSystem) ListGroups() ([]*types.IRODSUser, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	groups, err := irods_fs.ListGroups(conn)
 	if err != nil {
@@ -70,7 +70,7 @@ func (fs *FileSystem) ListUserGroups(user string) ([]*types.IRODSUser, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	groupNames, err := irods_fs.ListUserGroupNames(conn, user)
 	if err != nil {
@@ -106,7 +106,7 @@ func (fs *FileSystem) ListUsers() ([]*types.IRODSUser, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer fs.metadataSession.ReturnConnection(conn)
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	users, err := irods_fs.ListUsers(conn)
 	if err != nil {

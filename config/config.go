@@ -66,6 +66,7 @@ type Config struct {
 	GSIServerDN string `json:"irods_gsi_server_dn,omitempty" yaml:"irods_gsi_server_dn,omitempty" envconfig:"IRODS_GSI_SERVER_DN"`
 }
 
+// GetDefaultConfig returns default config
 func GetDefaultConfig() *Config {
 	return &Config{
 		AuthenticationScheme:    AuthenticationSchemeDefault,
@@ -103,8 +104,8 @@ func NewConfigFromYamlFile(yamlPath string) (*Config, error) {
 	return config, nil
 }
 
-// NewConfigFromJsonFile creates Config from JSON
-func NewConfigFromJsonFile(jsonPath string) (*Config, error) {
+// NewConfigFromJSONFile creates Config from JSON
+func NewConfigFromJSONFile(jsonPath string) (*Config, error) {
 	config := GetDefaultConfig()
 
 	jsonBytes, err := os.ReadFile(jsonPath)
@@ -120,8 +121,8 @@ func NewConfigFromJsonFile(jsonPath string) (*Config, error) {
 	return config, nil
 }
 
-// NewConfigFromJson creates Config from JSON
-func NewConfigFromJson(jsonBytes []byte) (*Config, error) {
+// NewConfigFromJSON creates Config from JSON
+func NewConfigFromJSON(jsonBytes []byte) (*Config, error) {
 	config := GetDefaultConfig()
 
 	err := json.Unmarshal(jsonBytes, config)

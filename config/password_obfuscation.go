@@ -49,6 +49,7 @@ func NewPasswordObfuscator() *PasswordObfuscator {
 	}
 }
 
+// SetUID sets UID for seeding
 func (obf *PasswordObfuscator) SetUID(uid int) {
 	obf.UID = uid
 }

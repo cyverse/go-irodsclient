@@ -11,11 +11,11 @@ var (
 
 // MakeRandomString returns a random string
 func MakeRandomString(size int) string {
-	rand.Seed(time.Now().UnixNano())
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	b := make([]rune, size)
 	for i := 0; i < size; i++ {
-		b[i] = letters[rand.Intn(len(letters))]
+		b[i] = letters[r.Intn(len(letters))]
 	}
 
 	bs := string(b)

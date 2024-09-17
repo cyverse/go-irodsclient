@@ -79,6 +79,7 @@ func NewICommandsEnvironmentManager() (*ICommandsEnvironmentManager, error) {
 	}, nil
 }
 
+// SetPPID sets ppid of environment, used to obfuscate password
 func (manager *ICommandsEnvironmentManager) SetPPID(ppid int) {
 	manager.PPID = ppid
 
@@ -139,6 +140,7 @@ func (manager *ICommandsEnvironmentManager) FromIRODSAccount(account *types.IROD
 	}
 }
 
+// SetEnvironmentFilePath sets environment file path
 func (manager *ICommandsEnvironmentManager) SetEnvironmentFilePath(envFilePath string) error {
 	envFilePath, err := util.ExpandHomeDir(envFilePath)
 	if err != nil {
@@ -156,6 +158,7 @@ func (manager *ICommandsEnvironmentManager) SetEnvironmentFilePath(envFilePath s
 	return nil
 }
 
+// SetEnvironmentDirPath sets environment dir path
 func (manager *ICommandsEnvironmentManager) SetEnvironmentDirPath(envDirPath string) error {
 	envDirPath, err := util.ExpandHomeDir(envDirPath)
 	if err != nil {
@@ -185,7 +188,7 @@ func (manager *ICommandsEnvironmentManager) Load() error {
 		if util.ExistFile(manager.EnvironmentFilePath) {
 			logger.Debugf("reading icommands configuration file %q", manager.EnvironmentFilePath)
 
-			cfg, err := NewConfigFromJsonFile(manager.EnvironmentFilePath)
+			cfg, err := NewConfigFromJSONFile(manager.EnvironmentFilePath)
 			if err != nil {
 				return xerrors.Errorf("failed to create icommands configuration from file %q: %w", manager.EnvironmentFilePath, err)
 			}
@@ -203,7 +206,7 @@ func (manager *ICommandsEnvironmentManager) Load() error {
 		if util.ExistFile(manager.SessionFilePath) {
 			logger.Debugf("reading icommands session file %q", manager.SessionFilePath)
 
-			cfg, err := NewConfigFromJsonFile(manager.SessionFilePath)
+			cfg, err := NewConfigFromJSONFile(manager.SessionFilePath)
 			if err != nil {
 				return xerrors.Errorf("failed to create icommands session from file %q: %w", manager.SessionFilePath, err)
 			}
@@ -239,29 +242,30 @@ func (manager *ICommandsEnvironmentManager) Load() error {
 	return nil
 }
 
+// GetSessionConfig returns session config that is merged with environment
 func (manager *ICommandsEnvironmentManager) GetSessionConfig() (*Config, error) {
 	if manager.Environment == nil && manager.Session == nil {
 		return nil, xerrors.Errorf("environment is not set")
 	}
 
-	envJsonBytes, err := manager.Environment.ToJSON()
+	envJSONBytes, err := manager.Environment.ToJSON()
 	if err != nil {
 		return nil, xerrors.Errorf("failed to get json from environment")
 	}
 
 	envMap := map[string]interface{}{}
-	err = json.Unmarshal(envJsonBytes, &envMap)
+	err = json.Unmarshal(envJSONBytes, &envMap)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to unmarshal JSON to map: %w", err)
 	}
 
-	sessionJsonBytes, err := manager.Session.ToJSON()
+	sessionJSONBytes, err := manager.Session.ToJSON()
 	if err != nil {
 		return nil, xerrors.Errorf("failed to get json from session")
 	}
 
 	sessionMap := map[string]interface{}{}
-	err = json.Unmarshal(sessionJsonBytes, &sessionMap)
+	err = json.Unmarshal(sessionJSONBytes, &sessionMap)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to unmarshal JSON to map: %w", err)
 	}
@@ -277,9 +281,10 @@ func (manager *ICommandsEnvironmentManager) GetSessionConfig() (*Config, error) 
 		return nil, xerrors.Errorf("failed to marshal map to JSON: %w", err)
 	}
 
-	return NewConfigFromJson(newEnvBytes)
+	return NewConfigFromJSON(newEnvBytes)
 }
 
+// ToIRODSAccount exports to IRODSAccount
 func (manager *ICommandsEnvironmentManager) ToIRODSAccount() (*types.IRODSAccount, error) {
 	if manager.Environment == nil {
 		return nil, xerrors.Errorf("environment is not set")

@@ -37,6 +37,7 @@ const (
 	FileOpenModeReadAppend FileOpenMode = "a+"
 )
 
+//nolint:golint
 const (
 	// O_RDONLY is for read
 	O_RDONLY FileOpenFlag = 0

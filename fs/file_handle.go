@@ -97,7 +97,7 @@ func (handle *FileHandle) Close() error {
 		handle.irodsFileLockHandle = nil
 	}
 
-	defer handle.filesystem.ioSession.ReturnConnection(handle.connection)
+	defer handle.filesystem.ioSession.ReturnConnection(handle.connection) //nolint
 
 	err := irods_fs.CloseDataObject(handle.connection, handle.irodsFileHandle)
 	handle.filesystem.fileHandleMap.Remove(handle.id)

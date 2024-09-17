@@ -78,11 +78,11 @@ func NewConnectionPool(config *ConnectionPoolConfig, metrics *metrics.IRODSMetri
 						if idleConn.GetLastSuccessfulAccess().Add(pool.config.IdleTimeout).Before(now) {
 							// timeout
 							pool.idleConnections.Remove(elem)
-							idleConn.Disconnect()
+							idleConn.Disconnect() //nolint
 						} else if idleConn.GetCreationTime().Add(pool.config.Lifespan).Before(now) {
 							// too old
 							pool.idleConnections.Remove(elem)
-							idleConn.Disconnect()
+							idleConn.Disconnect() //nolint
 						} else {
 							break
 						}
