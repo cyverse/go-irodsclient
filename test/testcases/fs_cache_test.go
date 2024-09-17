@@ -2,6 +2,8 @@ package testcases
 
 import (
 	"fmt"
+	"os"
+	"path"
 	"testing"
 
 	"github.com/cyverse/go-irodsclient/fs"
@@ -20,7 +22,8 @@ func TestFSCache(t *testing.T) {
 	makeHomeDir(t, fsCacheTestID)
 
 	t.Run("test MakeDir", testMakeDir)
-	t.Run("test testMakeDirCacheEvent", testMakeDirCacheEvent)
+	t.Run("test MakeDirCacheEvent", testMakeDirCacheEvent)
+	t.Run("test UploadAndDeleteDir", testUploadAndDeleteDir)
 }
 
 func testMakeDir(t *testing.T) {
@@ -129,4 +132,48 @@ func testMakeDirCacheEvent(t *testing.T) {
 		eventTypesReceived = []fs.FilesystemCacheEventType{}
 		eventPathsReceived = []string{}
 	}
+}
+
+func testUploadAndDeleteDir(t *testing.T) {
+	account := GetTestAccount()
+
+	account.ClientServerNegotiation = false
+
+	fsConfig := GetTestFileSystemConfig()
+
+	filesystem, err := fs.NewFileSystem(account, fsConfig)
+	failError(t, err)
+	defer filesystem.Release()
+
+	homedir := getHomeDir(fsCacheTestID)
+
+	fileSize := int64(100 * 1024 * 1024) // 100MB
+	localPath, err := createLocalTestFile("test_file_", fileSize)
+	failError(t, err)
+
+	for i := 0; i < 10; i++ {
+		newdir := fmt.Sprintf("%s/test_dir_%d", homedir, i)
+
+		// create test
+		err = filesystem.MakeDir(newdir, false)
+		failError(t, err)
+
+		exist := filesystem.ExistsDir(newdir)
+		assert.True(t, exist)
+
+		// upload
+		iRODSPath := fmt.Sprintf("%s/%s", newdir, path.Base(localPath))
+		_, err = filesystem.UploadFile(localPath, iRODSPath, "", false, true, true, nil)
+		failError(t, err)
+
+		// delete test
+		err = filesystem.RemoveDir(newdir, true, true)
+		failError(t, err)
+
+		exist = filesystem.ExistsDir(newdir)
+		assert.False(t, exist)
+	}
+
+	err = os.Remove(localPath)
+	failError(t, err)
 }
