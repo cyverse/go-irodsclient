@@ -10,15 +10,15 @@ type CSNegotiation string
 
 const (
 	// CSNegotiationRequestServerNegotiation presents negotiation is required
-	CSNegotiationServerNegotiation CSNegotiation = "REQUEST_SERVER_NEGOTIATION"
-	CSNegotiationOff               CSNegotiation = "OFF"
+	CSNegotiationServerNegotiation CSNegotiation = "request_server_negotiation"
+	CSNegotiationOff               CSNegotiation = "off"
 )
 
 // GetCSNegotiation returns CSNegotiation value from string
 func GetCSNegotiation(negotiation string) (CSNegotiation, error) {
-	csNegotiation := CSNegotiationOff
+	var csNegotiation CSNegotiation
 	var err error = nil
-	switch strings.TrimSpace(strings.ToUpper(negotiation)) {
+	switch strings.TrimSpace(strings.ToLower(negotiation)) {
 	case string(CSNegotiationServerNegotiation):
 		csNegotiation = CSNegotiationServerNegotiation
 	case string(CSNegotiationOff), "":
@@ -29,6 +29,11 @@ func GetCSNegotiation(negotiation string) (CSNegotiation, error) {
 	}
 
 	return csNegotiation, err
+}
+
+// IsNegotiationRequired checks if negotiation is required
+func (negotiation CSNegotiation) IsNegotiationRequired() bool {
+	return negotiation == CSNegotiationServerNegotiation
 }
 
 // CSNegotiationPolicyRequest defines Negotiation policy request
@@ -45,7 +50,7 @@ const (
 
 // GetCSNegotiationPolicyRequest returns CSNegotiationPolicyRequest value from string
 func GetCSNegotiationPolicyRequest(request string) (CSNegotiationPolicyRequest, error) {
-	csNegotiationPolicyRequest := CSNegotiationPolicyRequestTCP
+	var csNegotiationPolicyRequest CSNegotiationPolicyRequest
 	var err error = nil
 	switch strings.TrimSpace(strings.ToUpper(request)) {
 	case string(CSNegotiationPolicyRequestTCP), "TCP":
@@ -76,7 +81,7 @@ const (
 
 // GetCSNegotiationResult returns CSNegotiationResult value from string
 func GetCSNegotiationResult(policy string) (CSNegotiationResult, error) {
-	csNegotiationResult := CSNegotiationFailure
+	var csNegotiationResult CSNegotiationResult
 	var err error = nil
 	switch strings.TrimSpace(strings.ToUpper(policy)) {
 	case string(CSNegotiationUseTCP), "TCP":

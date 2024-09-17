@@ -24,7 +24,7 @@ const (
 
 // GetSSLVerifyServer returns SSLVerifyServer value from string
 func GetSSLVerifyServer(verifyServer string) (SSLVerifyServer, error) {
-	sslVerifyServer := SSLVerifyServerNone
+	var sslVerifyServer SSLVerifyServer
 	var err error = nil
 	switch strings.TrimSpace(strings.ToLower(verifyServer)) {
 	case string(SSLVerifyServerCert):
@@ -41,12 +41,9 @@ func GetSSLVerifyServer(verifyServer string) (SSLVerifyServer, error) {
 	return sslVerifyServer, err
 }
 
-// NeedVerification returns if verification is required
-func (verify SSLVerifyServer) NeedVerification() bool {
-	if verify == SSLVerifyServerHostname {
-		return true
-	}
-	return false
+// IsVerificationRequired checks if verification is required
+func (verify SSLVerifyServer) IsVerificationRequired() bool {
+	return verify == SSLVerifyServerHostname
 }
 
 // IRODSSSLConfig contains irods ssl configuration
@@ -91,6 +88,6 @@ func (config *IRODSSSLConfig) GetTLSConfig(serverName string) (*tls.Config, erro
 	return &tls.Config{
 		RootCAs:            caCertPool,
 		ServerName:         serverName,
-		InsecureSkipVerify: !config.VerifyServer.NeedVerification(),
+		InsecureSkipVerify: !config.VerifyServer.IsVerificationRequired(),
 	}, nil
 }

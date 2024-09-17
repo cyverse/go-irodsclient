@@ -192,7 +192,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 		"function": "downloadDataObjectChunkFromResourceServer",
 	})
 
-	logger.Debugf("download data object %s, task %d", handle.Path, taskID)
+	logger.Debugf("download data object %q, task %d", handle.Path, taskID)
 
 	conn := sess.GetRedirectionConnection(controlConnection, handle.RedirectionInfo)
 	err := conn.Connect()
@@ -250,7 +250,6 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 
 		if transferHeader.OperationType == int(common.OPER_TYPE_DONE) {
 			// break
-			cont = false
 			break
 		} else if transferHeader.OperationType != int(common.OPER_TYPE_GET_DATA_OBJ) {
 			return xerrors.Errorf("invalid operation type %d received for transfer", transferHeader.OperationType)
@@ -359,7 +358,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 		}
 	}
 
-	logger.Debugf("downloaded data object %s, task %d", handle.Path, taskID)
+	logger.Debugf("downloaded data object %q, task %d", handle.Path, taskID)
 
 	return nil
 }
@@ -370,7 +369,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 		"function": "uploadDataObjectChunkToResourceServer",
 	})
 
-	logger.Debugf("upload data object %s, task %d", handle.Path, taskID)
+	logger.Debugf("upload data object %q, task %d", handle.Path, taskID)
 
 	conn := sess.GetRedirectionConnection(controlConnection, handle.RedirectionInfo)
 	err := conn.Connect()
@@ -434,7 +433,6 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 
 		if transferHeader.OperationType == int(common.OPER_TYPE_DONE) {
 			// break
-			cont = false
 			break
 		} else if transferHeader.OperationType != int(common.OPER_TYPE_PUT_DATA_OBJ) {
 			return xerrors.Errorf("invalid operation type %d received for transfer", transferHeader.OperationType)
@@ -553,7 +551,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 		}
 	}
 
-	logger.Debugf("uploaded data object %s, task %d", handle.Path, taskID)
+	logger.Debugf("uploaded data object %q, task %d", handle.Path, taskID)
 
 	return nil
 }
@@ -565,7 +563,7 @@ func DownloadDataObjectFromResourceServer(session *session.IRODSSession, irodsPa
 		"function": "DownloadDataObjectFromResourceServer",
 	})
 
-	logger.Debugf("download data object %s", irodsPath)
+	logger.Debugf("download data object %q", irodsPath)
 
 	// use default resource when resource param is empty
 	if len(resource) == 0 {
@@ -609,7 +607,7 @@ func DownloadDataObjectFromResourceServer(session *session.IRODSSession, irodsPa
 		}
 		return "", nil
 	} else if handle.RedirectionInfo != nil {
-		logger.Debugf("Redirect to resource: path %s, threads %d, addr %s, port %d, cookie %d", handle.Path, handle.Threads, handle.RedirectionInfo.Host, handle.RedirectionInfo.Port, handle.RedirectionInfo.Cookie)
+		logger.Debugf("Redirect to resource: path %q, threads %d, addr %q, port %d, cookie %d", handle.Path, handle.Threads, handle.RedirectionInfo.Host, handle.RedirectionInfo.Port, handle.RedirectionInfo.Cookie)
 		// get from portal
 
 		// create an empty file
@@ -680,7 +678,7 @@ func UploadDataObjectToResourceServer(session *session.IRODSSession, localPath s
 		"function": "UploadDataObjectToResourceServer",
 	})
 
-	logger.Debugf("upload data object %s", irodsPath)
+	logger.Debugf("upload data object %q", irodsPath)
 
 	// use default resource when resource param is empty
 	if len(resource) == 0 {
@@ -712,7 +710,7 @@ func UploadDataObjectToResourceServer(session *session.IRODSSession, localPath s
 
 	handle, err := GetDataObjectRedirectionInfoForPut(conn, irodsPath, resource, fileLength, numTasks, keywords)
 	if err != nil {
-		logger.WithError(err).Debugf("failed to get redirection info for data object %s, switch to UploadDataObjctParallel", irodsPath)
+		logger.WithError(err).Debugf("failed to get redirection info for data object %q, switch to UploadDataObjctParallel", irodsPath)
 
 		session.ReturnConnection(conn)
 		return UploadDataObjectParallel(session, localPath, irodsPath, resource, 0, replicate, keywords, callback)
@@ -731,7 +729,7 @@ func UploadDataObjectToResourceServer(session *session.IRODSSession, localPath s
 		}
 		return nil
 	} else if handle.RedirectionInfo != nil {
-		logger.Debugf("Redirect to resource: path %s, threads %d, addr %s, port %d, cookie %d", handle.Path, handle.Threads, handle.RedirectionInfo.Host, handle.RedirectionInfo.Port, handle.RedirectionInfo.Cookie)
+		logger.Debugf("Redirect to resource: path %q, threads %d, addr %q, port %d, cookie %d", handle.Path, handle.Threads, handle.RedirectionInfo.Host, handle.RedirectionInfo.Port, handle.RedirectionInfo.Cookie)
 		// put to portal
 		errChan := make(chan error, handle.Threads)
 		taskWaitGroup := sync.WaitGroup{}

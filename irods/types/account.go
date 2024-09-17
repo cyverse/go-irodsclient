@@ -5,7 +5,6 @@ import (
 
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"golang.org/x/xerrors"
-	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -117,239 +116,6 @@ func CreateIRODSProxyAccount(host string, port int, clientUser string, clientZon
 	return account, nil
 }
 
-// CreateIRODSAccountFromYAML creates IRODSAccount from YAML
-func CreateIRODSAccountFromYAML(yamlBytes []byte) (*IRODSAccount, error) {
-	y := make(map[string]interface{})
-
-	err := yaml.Unmarshal(yamlBytes, &y)
-	if err != nil {
-		return nil, xerrors.Errorf("failed to unmarshal yaml to map: %w", err)
-	}
-
-	authScheme := AuthSchemeNative
-	if val, ok := y["auth_scheme"]; ok {
-		authScheme = GetAuthScheme(val.(string))
-		if authScheme == AuthSchemeUnknown {
-			authScheme = AuthSchemeNative
-		}
-	}
-
-	csNegotiation := false
-	if val, ok := y["cs_negotiation"]; ok {
-		csNegotiation = val.(bool)
-	}
-
-	csNegotiationPolicy := CSNegotiationPolicyRequestDontCare
-	if val, ok := y["cs_negotiation_policy"]; ok {
-		csNegotiationPolicy, err = GetCSNegotiationPolicyRequest(val.(string))
-		if err != nil {
-			csNegotiationPolicy = CSNegotiationPolicyRequestDontCare
-		}
-	}
-
-	host := make(map[string]interface{})
-	if val, ok := y["host"]; ok {
-		host = val.(map[string]interface{})
-	}
-
-	hostname := ""
-	if val, ok := host["hostname"]; ok {
-		hostname = val.(string)
-	}
-
-	port := 1247
-	if val, ok := host["port"]; ok {
-		port = val.(int)
-	}
-
-	defaultResource := ""
-	if val, ok := y["default_resource"]; ok {
-		defaultResource = val.(string)
-	}
-
-	defaultHashScheme := ""
-	if val, ok := y["default_hash_scheme"]; ok {
-		defaultHashScheme = val.(string)
-	}
-
-	// proxy user
-	proxyUser := make(map[string]interface{})
-	if val, ok := y["proxy_user"]; ok {
-		proxyUser = val.(map[string]interface{})
-	}
-
-	proxyUsername := ""
-	if val, ok := proxyUser["username"]; ok {
-		proxyUsername = val.(string)
-	}
-
-	proxyPassword := ""
-	if val, ok := proxyUser["password"]; ok {
-		proxyPassword = val.(string)
-	}
-
-	proxyZone := ""
-	if val, ok := proxyUser["zone"]; ok {
-		proxyZone = val.(string)
-	}
-
-	ticket := ""
-	if val, ok := proxyUser["ticket"]; ok {
-		ticket = val.(string)
-	}
-
-	// client user
-	clientUser := make(map[string]interface{})
-	if val, ok := y["client_user"]; ok {
-		clientUser = val.(map[string]interface{})
-	}
-
-	clientUsername := ""
-	if val, ok := clientUser["username"]; ok {
-		clientUsername = val.(string)
-	}
-
-	clientZone := ""
-	if val, ok := clientUser["zone"]; ok {
-		clientZone = val.(string)
-	}
-
-	if val, ok := clientUser["ticket"]; ok {
-		ticket = val.(string)
-	}
-
-	// normal user
-	user := make(map[string]interface{})
-	if val, ok := y["user"]; ok {
-		user = val.(map[string]interface{})
-	}
-
-	if val, ok := user["username"]; ok {
-		proxyUsername = val.(string)
-		clientUsername = proxyUsername
-
-	}
-
-	if val, ok := user["password"]; ok {
-		proxyPassword = val.(string)
-	}
-
-	if val, ok := user["zone"]; ok {
-		proxyZone = val.(string)
-		clientZone = proxyZone
-	}
-
-	if val, ok := user["ticket"]; ok {
-		ticket = val.(string)
-	}
-
-	// PAM Configuration
-	pamConfig := make(map[string]interface{})
-	if val, ok := y["pam"]; ok {
-		pamConfig = val.(map[string]interface{})
-	}
-
-	pamTTL := 0
-	if val, ok := pamConfig["ttl"]; ok {
-		pamTTL = val.(int)
-	}
-
-	pamToken := ""
-	if val, ok := pamConfig["token"]; ok {
-		pamToken = val.(string)
-	}
-
-	// SSL Configuration
-	hasSSLConfig := false
-	sslConfig := make(map[string]interface{})
-	if val, ok := y["ssl"]; ok {
-		sslConfig = val.(map[string]interface{})
-		hasSSLConfig = true
-	}
-
-	caCertFile := ""
-	if val, ok := sslConfig["ca_cert_file"]; ok {
-		caCertFile = val.(string)
-	}
-
-	caCertPath := ""
-	if val, ok := sslConfig["ca_cert_path"]; ok {
-		caCertPath = val.(string)
-	}
-
-	keySize := 0
-	if val, ok := sslConfig["key_size"]; ok {
-		keySize = val.(int)
-	}
-
-	algorithm := ""
-	if val, ok := sslConfig["algorithm"]; ok {
-		algorithm = val.(string)
-	}
-
-	saltSize := 0
-	if val, ok := sslConfig["salt_size"]; ok {
-		saltSize = val.(int)
-	}
-
-	hashRounds := 0
-	if val, ok := sslConfig["hash_rounds"]; ok {
-		hashRounds = val.(int)
-	}
-
-	serverNameTLS := ""
-	if val, ok := sslConfig["server_name_tls"]; ok {
-		serverNameTLS = val.(string)
-	}
-
-	skipVerifyTLS := false
-	if val, ok := sslConfig["skip_verify_tls"]; ok {
-		skipVerifyTLS = val.(bool)
-	}
-
-	verifyServer := SSLVerifyServerHostname
-	if skipVerifyTLS {
-		verifyServer = SSLVerifyServerNone
-	}
-
-	var irodsSSLConfig *IRODSSSLConfig = nil
-	if hasSSLConfig {
-		irodsSSLConfig = &IRODSSSLConfig{
-			CACertificateFile:       caCertFile,
-			CACertificatePath:       caCertPath,
-			EncryptionAlgorithm:     algorithm,
-			EncryptionKeySize:       keySize,
-			EncryptionSaltSize:      saltSize,
-			EncryptionNumHashRounds: hashRounds,
-			VerifyServer:            verifyServer,
-			ServerName:              serverNameTLS,
-		}
-	}
-
-	account := &IRODSAccount{
-		AuthenticationScheme:    authScheme,
-		ClientServerNegotiation: csNegotiation,
-		CSNegotiationPolicy:     csNegotiationPolicy,
-		Host:                    hostname,
-		Port:                    port,
-		ClientUser:              clientUsername,
-		ClientZone:              clientZone,
-		ProxyUser:               proxyUsername,
-		ProxyZone:               proxyZone,
-		Password:                proxyPassword,
-		Ticket:                  ticket,
-		DefaultResource:         defaultResource,
-		DefaultHashScheme:       defaultHashScheme,
-		PamTTL:                  pamTTL,
-		PamToken:                pamToken,
-		SSLConfiguration:        irodsSSLConfig,
-	}
-
-	account.FixAuthConfiguration()
-
-	return account, nil
-}
-
 // SetSSLConfiguration sets SSL Configuration
 func (account *IRODSAccount) SetSSLConfiguration(sslConf *IRODSSSLConfig) {
 	account.SSLConfiguration = sslConf
@@ -395,7 +161,7 @@ func (account *IRODSAccount) Validate() error {
 	if len(account.ClientUser) > 0 {
 		err = account.validateUsername(account.ClientUser)
 		if err != nil {
-			return xerrors.Errorf("failed to validate username %q: %w", account.ProxyUser, err)
+			return xerrors.Errorf("failed to validate username %q: %w", account.ClientUser, err)
 		}
 	}
 
@@ -454,11 +220,26 @@ func (account *IRODSAccount) FixAuthConfiguration() {
 	if account.CSNegotiationPolicy == CSNegotiationPolicyRequestSSL {
 		account.ClientServerNegotiation = true
 	}
+
+	if len(account.ProxyUser) == 0 {
+		account.ProxyUser = account.ClientUser
+	}
+
+	if len(account.ClientUser) == 0 {
+		account.ClientUser = account.ProxyUser
+	}
+
+	if len(account.ProxyZone) == 0 {
+		account.ProxyZone = account.ClientZone
+	}
+
+	if len(account.ClientZone) == 0 {
+		account.ClientZone = account.ProxyZone
+	}
 }
 
 func (account *IRODSAccount) GetRedacted() *IRODSAccount {
-	account2 := IRODSAccount{}
-	account2 = *account
+	account2 := *account
 	account2.Password = "<Redacted>"
 	account2.PamToken = "<Redacted>"
 	account2.Ticket = "<Redacted>"

@@ -11,11 +11,11 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// configuration default values
 const (
 	AuthenticationSchemeDefault    string = string(types.AuthSchemeNative)
-	AuthenticationFileDefault      string = "~/.irods/.irodsA"
 	ClientServerNegotiationDefault string = string(types.CSNegotiationOff)
-	ClientServerPolicyDefault      string = string(types.CSNegotiationPolicyRequestDontCare)
+	ClientServerPolicyDefault      string = string(types.CSNegotiationPolicyRequestTCP)
 	PortDefault                    int    = 1247
 	HashSchemeDefault              string = types.HashSchemeDefault
 	EncryptionAlgorithmDefault     string = "AES-256-CBC"
@@ -25,8 +25,8 @@ const (
 	SSLVerifyServerDefault         string = "hostname"
 )
 
-// IRODSConfig stores irods config
-type IRODSConfig struct {
+// Config stores irods config
+type Config struct {
 	AuthenticationScheme    string `json:"irods_authentication_scheme,omitempty" yaml:"irods_authentication_scheme,omitempty" envconfig:"IRODS_AUTHENTICATION_SCHEME"`
 	AuthenticationFile      string `json:"irods_authentication_file,omitempty" yaml:"irods_authentication_file,omitempty" envconfig:"IRODS_AUTHENTICATION_FILE"`
 	ClientServerNegotiation string `json:"irods_client_server_negotiation,omitempty" yaml:"irods_client_server_negotiation,omitempty" envconfig:"IRODS_CLIENT_SERVER_NEGOTIATION"`
@@ -66,15 +66,10 @@ type IRODSConfig struct {
 	GSIServerDN string `json:"irods_gsi_server_dn,omitempty" yaml:"irods_gsi_server_dn,omitempty" envconfig:"IRODS_GSI_SERVER_DN"`
 }
 
-func GetDefaultConfig() *IRODSConfig {
-	authenticationFilePath, err := util.ExpandHomeDir(AuthenticationFileDefault)
-	if err != nil {
-		authenticationFilePath = ""
-	}
-
-	return &IRODSConfig{
+func GetDefaultConfig() *Config {
+	return &Config{
 		AuthenticationScheme:    AuthenticationSchemeDefault,
-		AuthenticationFile:      authenticationFilePath,
+		AuthenticationFile:      GetDefaultPasswordFilePath(),
 		ClientServerNegotiation: ClientServerNegotiationDefault,
 		ClientServerPolicy:      ClientServerPolicyDefault,
 		Port:                    PortDefault,
@@ -91,8 +86,8 @@ func GetDefaultConfig() *IRODSConfig {
 	}
 }
 
-// NewConfigFromYAML creates Config from YAML
-func NewConfigFromYAML(yamlPath string) (*IRODSConfig, error) {
+// NewConfigFromYamlFile creates Config from YAML
+func NewConfigFromYamlFile(yamlPath string) (*Config, error) {
 	config := GetDefaultConfig()
 
 	yamlBytes, err := os.ReadFile(yamlPath)
@@ -102,14 +97,14 @@ func NewConfigFromYAML(yamlPath string) (*IRODSConfig, error) {
 
 	err = yaml.Unmarshal(yamlBytes, config)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to unmarshal %q to YAML : %w", yamlPath, err)
+		return nil, xerrors.Errorf("failed to unmarshal YAML file %q to config: %w", yamlPath, err)
 	}
 
 	return config, nil
 }
 
-// NewConfigFromJSON creates Config from JSON
-func NewConfigFromJSON(jsonPath string) (*IRODSConfig, error) {
+// NewConfigFromJsonFile creates Config from JSON
+func NewConfigFromJsonFile(jsonPath string) (*Config, error) {
 	config := GetDefaultConfig()
 
 	jsonBytes, err := os.ReadFile(jsonPath)
@@ -119,14 +114,38 @@ func NewConfigFromJSON(jsonPath string) (*IRODSConfig, error) {
 
 	err = json.Unmarshal(jsonBytes, config)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to unmarshal %q to JSON: %w", jsonPath, err)
+		return nil, xerrors.Errorf("failed to unmarshal JSON file %q to config: %w", jsonPath, err)
 	}
 
 	return config, nil
 }
 
-// NewConfigFromENV creates Config from Environmental variables
-func NewConfigFromENV(config *IRODSConfig) (*IRODSConfig, error) {
+// NewConfigFromJson creates Config from JSON
+func NewConfigFromJson(jsonBytes []byte) (*Config, error) {
+	config := GetDefaultConfig()
+
+	err := json.Unmarshal(jsonBytes, config)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to unmarshal JSON to Config: %w", err)
+	}
+
+	return config, nil
+}
+
+// NewConfigFromEnv creates Config from Environmental variables
+func NewConfigFromEnv() (*Config, error) {
+	config := GetDefaultConfig()
+
+	err := envconfig.Process("", config)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to read config from environmental variables: %w", err)
+	}
+
+	return config, nil
+}
+
+// OverwriteConfigFromEnv overwrites Config from Environmental variables
+func OverwriteConfigFromEnv(config *Config) (*Config, error) {
 	if config == nil {
 		config = GetDefaultConfig()
 	}
@@ -147,4 +166,83 @@ func GetDefaultIRODSConfigPath() string {
 	}
 
 	return irodsConfigPath
+}
+
+// ToIRODSAccount creates IRODSAccount
+func (cfg *Config) ToIRODSAccount() *types.IRODSAccount {
+	authScheme := types.GetAuthScheme(cfg.AuthenticationScheme)
+
+	negotiationPolicy, _ := types.GetCSNegotiationPolicyRequest(cfg.ClientServerPolicy)
+	negotiation, _ := types.GetCSNegotiation(cfg.ClientServerNegotiation)
+
+	verifyServer, _ := types.GetSSLVerifyServer(cfg.SSLVerifyServer)
+
+	account := &types.IRODSAccount{
+		AuthenticationScheme:    authScheme,
+		ClientServerNegotiation: negotiation.IsNegotiationRequired(),
+		CSNegotiationPolicy:     negotiationPolicy,
+		Host:                    cfg.Host,
+		Port:                    cfg.Port,
+		ClientUser:              cfg.ClientUsername,
+		ClientZone:              cfg.ClientZoneName,
+		ProxyUser:               cfg.Username,
+		ProxyZone:               cfg.ZoneName,
+		Password:                cfg.Password,
+		DefaultResource:         cfg.DefaultResource,
+		DefaultHashScheme:       cfg.DefaultHashScheme,
+		PamTTL:                  cfg.PAMTTL,
+		PamToken:                cfg.PAMToken,
+		SSLConfiguration: &types.IRODSSSLConfig{
+			CACertificateFile:       cfg.SSLCACertificateFile,
+			CACertificatePath:       cfg.SSLCACertificatePath,
+			EncryptionKeySize:       cfg.EncryptionKeySize,
+			EncryptionAlgorithm:     cfg.EncryptionAlgorithm,
+			EncryptionSaltSize:      cfg.EncryptionSaltSize,
+			EncryptionNumHashRounds: cfg.EncryptionNumHashRounds,
+			VerifyServer:            verifyServer,
+			DHParamsFile:            cfg.SSLDHParamsFile,
+			ServerName:              cfg.SSLServerName,
+		},
+	}
+
+	account.FixAuthConfiguration()
+
+	return account
+}
+
+// ClearICommandsIncompatibleFields clears all icommands-incompatible fields
+func (cfg *Config) ClearICommandsIncompatibleFields() *Config {
+	cfg2 := *cfg
+
+	cfg2.Password = ""
+	cfg2.Ticket = ""
+	cfg2.PAMToken = ""
+	cfg2.PAMTTL = 0
+	cfg2.SSLServerName = ""
+
+	return &cfg2
+}
+
+// ToJSON converts to JSON bytes
+func (cfg *Config) ToJSON() ([]byte, error) {
+	jsonBytes, err := json.MarshalIndent(cfg, "", "    ")
+	if err != nil {
+		return nil, xerrors.Errorf("failed to marshal configuration to json: %w", err)
+	}
+
+	return jsonBytes, nil
+}
+
+// ToFile saves to a file
+func (cfg *Config) ToFile(envPath string) error {
+	jsonByte, err := cfg.ToJSON()
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(envPath, jsonByte, 0664)
+	if err != nil {
+		return xerrors.Errorf("failed to write to file %q: %w", envPath, err)
+	}
+	return nil
 }

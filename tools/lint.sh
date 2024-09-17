@@ -23,11 +23,12 @@ fi
 go mod tidy
 
 
-for PACKAGE in "fs" "irods" "test"
+for PACKAGE in "config" "examples" "fs" "irods" "test"
 do
     PACKAGE_DIR="$SCRIPT_DIR/../$PACKAGE"
     for dir in $(go list $PACKAGE_DIR/...); do golint $dir; done | tee /tmp/output.txt
     test $(cat /tmp/output.txt | wc -l) -eq 0
-    ineffassign $PACKAGE_DIR
+    
+    ineffassign $PACKAGE_DIR/...
     misspell -error $PACKAGE_DIR
 done

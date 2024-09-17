@@ -119,7 +119,7 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 
 	fileLength := stat.Size()
 
-	logger.Debugf("upload data object %s", localPath)
+	logger.Debugf("upload data object %q", localPath)
 
 	conn, err := session.AcquireConnection()
 	if err != nil {
@@ -402,7 +402,7 @@ func DownloadDataObjectToBuffer(session *session.IRODSSession, irodsPath string,
 		"function": "DownloadDataObject",
 	})
 
-	logger.Debugf("download data object %s", irodsPath)
+	logger.Debugf("download data object %q", irodsPath)
 
 	// use default resource when resource param is empty
 	if len(resource) == 0 {
@@ -479,7 +479,7 @@ func DownloadDataObject(session *session.IRODSSession, irodsPath string, resourc
 		"function": "DownloadDataObject",
 	})
 
-	logger.Debugf("download data object %s", irodsPath)
+	logger.Debugf("download data object %q", irodsPath)
 
 	// use default resource when resource param is empty
 	if len(resource) == 0 {
@@ -568,7 +568,7 @@ func DownloadDataObjectResumable(session *session.IRODSSession, irodsPath string
 		resource = account.DefaultResource
 	}
 
-	logger.Debugf("download data object %s", irodsPath)
+	logger.Debugf("download data object %q", irodsPath)
 
 	// create transfer status
 	transferStatusLocal, err := GetOrNewDataObjectTransferStatusLocal(localPath, fileLength, 1)
@@ -622,7 +622,7 @@ func DownloadDataObjectResumable(session *session.IRODSSession, irodsPath string
 	}
 
 	if lastOffset > 0 {
-		logger.Debugf("resuming downloading data object %s from offset %d", irodsPath, lastOffset)
+		logger.Debugf("resuming downloading data object %q from offset %d", irodsPath, lastOffset)
 
 		newOffset, err := SeekDataObject(conn, handle, lastOffset, types.SeekSet)
 		if err != nil {
@@ -998,7 +998,7 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 		}
 
 		if lastOffset > 0 {
-			logger.Debugf("resuming downloading data object %s for task offset %d from offset %d", irodsPath, taskOffset, lastOffset)
+			logger.Debugf("resuming downloading data object %q for task offset %d from offset %d", irodsPath, taskOffset, lastOffset)
 
 			newOffset, err := SeekDataObject(taskConn, taskHandle, lastOffset, types.SeekSet)
 			if err != nil {

@@ -2,10 +2,9 @@ package testcases
 
 import (
 	"os"
-	"path"
 	"testing"
 
-	"github.com/cyverse/go-irodsclient/icommands"
+	"github.com/cyverse/go-irodsclient/config"
 	"github.com/cyverse/go-irodsclient/test/server"
 	"github.com/stretchr/testify/assert"
 )
@@ -20,28 +19,74 @@ func testSaveAndLoadEnv(t *testing.T) {
 	account, err := server.GetLocalAccount()
 	failError(t, err)
 
-	envMgr, err := icommands.CreateIcommandsEnvironmentManagerFromIRODSAccount(account)
+	// save
+	envMgr, err := config.NewICommandsEnvironmentManager()
 	failError(t, err)
+
+	envMgr.FromIRODSAccount(account)
 
 	envMgr.SetEnvironmentFilePath("~/.irods2/irods_environment.json")
 
 	err = envMgr.SaveEnvironment()
 	failError(t, err)
 
-	envMgr2, err := icommands.CreateIcommandsEnvironmentManager()
+	// load
+	envMgr2, err := config.NewICommandsEnvironmentManager()
 	failError(t, err)
 
 	envMgr2.SetEnvironmentFilePath("~/.irods2/irods_environment.json")
 
-	err = envMgr2.Load(os.Getppid())
+	err = envMgr2.Load()
 	failError(t, err)
 
 	env2 := envMgr2.Environment
 	assert.Equal(t, account.Host, env2.Host)
 	assert.Equal(t, account.Port, env2.Port)
-	assert.Equal(t, account.ClientZone, env2.Zone)
+	assert.Equal(t, account.ClientZone, env2.ZoneName)
 	assert.Equal(t, account.ClientUser, env2.Username)
 	assert.Equal(t, account.Password, envMgr2.Password)
+
+	err = os.RemoveAll("~/.irods2")
+	failError(t, err)
+}
+
+func testSaveAndLoadEnvSession(t *testing.T) {
+	account, err := server.GetLocalAccount()
+	failError(t, err)
+
+	envMgr, err := config.NewICommandsEnvironmentManager()
+	failError(t, err)
+
+	envMgr.FromIRODSAccount(account)
+
+	envMgr.SetEnvironmentFilePath("~/.irods2/irods_environment.json")
+
+	testWorkingDir := "/test/working/dir"
+
+	envMgr.Session.CurrentWorkingDir = testWorkingDir
+
+	err = envMgr.SaveEnvironment()
+	failError(t, err)
+
+	err = envMgr.SaveSession()
+	failError(t, err)
+
+	envMgr2, err := config.NewICommandsEnvironmentManager()
+	failError(t, err)
+
+	envMgr2.SetEnvironmentFilePath("~/.irods2/irods_environment.json")
+
+	envMgr2.Load()
+
+	env2 := envMgr2.Environment
+	assert.Equal(t, account.Host, env2.Host)
+	assert.Equal(t, account.Port, env2.Port)
+	assert.Equal(t, account.ClientZone, env2.ZoneName)
+	assert.Equal(t, account.ClientUser, env2.Username)
+	assert.Equal(t, account.Password, envMgr2.Password)
+
+	sess2 := envMgr2.Session
+	assert.Equal(t, testWorkingDir, sess2.CurrentWorkingDir)
 
 	err = os.RemoveAll("~/.irods2")
 	failError(t, err)
@@ -51,8 +96,10 @@ func testConfiguredAuthFilePath(t *testing.T) {
 	account, err := server.GetLocalAccount()
 	failError(t, err)
 
-	envMgr, err := icommands.CreateIcommandsEnvironmentManagerFromIRODSAccount(account)
+	envMgr, err := config.NewICommandsEnvironmentManager()
 	failError(t, err)
+
+	envMgr.FromIRODSAccount(account)
 
 	// Create a safe temporary directory in TMPDIR
 	dir, err := os.MkdirTemp("", ".irods")
@@ -65,65 +112,33 @@ func testConfiguredAuthFilePath(t *testing.T) {
 
 	failError(t, err)
 
-	envFilePath := path.Join(dir, "irods_environment.json")
-	authFilePath := path.Join(dir, "configured_irodsA")
+	t.Logf("temp dir: %s\n", dir)
 
-	err = envMgr.SetEnvironmentFilePath(envFilePath)
+	err = envMgr.SetEnvironmentDirPath(dir)
 	failError(t, err)
 
-	envMgr.Environment.AuthenticationFile = authFilePath
+	t.Logf("env dir: %s\n", envMgr.EnvironmentDirPath)
+	t.Logf("env file: %s\n", envMgr.EnvironmentFilePath)
+	t.Logf("session file: %s\n", envMgr.SessionFilePath)
+	t.Logf("pass file: %s\n", envMgr.PasswordFilePath)
+
 	err = envMgr.SaveEnvironment()
 	failError(t, err)
 
-	envMgr2, err := icommands.CreateIcommandsEnvironmentManager()
+	envMgr2, err := config.NewICommandsEnvironmentManager()
 	failError(t, err)
 
-	err = envMgr2.SetEnvironmentFilePath(envFilePath)
+	err = envMgr2.SetEnvironmentDirPath(dir)
 	failError(t, err)
 
-	err = envMgr2.Load(os.Getppid())
+	err = envMgr2.Load()
 	failError(t, err)
 
-	assert.Equal(t, authFilePath, envMgr2.Environment.AuthenticationFile, "Configured auth file path should be loaded")
-	assert.Equal(t, authFilePath, envMgr2.GetPasswordFilePath(), "Configured auth file path should be returned")
-}
+	t.Logf("env dir: %s\n", envMgr2.EnvironmentDirPath)
+	t.Logf("env file: %s\n", envMgr2.EnvironmentFilePath)
+	t.Logf("session file: %s\n", envMgr2.SessionFilePath)
+	t.Logf("pass file: %s\n", envMgr2.PasswordFilePath)
 
-func testSaveAndLoadEnvSession(t *testing.T) {
-	account, err := server.GetLocalAccount()
-	failError(t, err)
-
-	envMgr, err := icommands.CreateIcommandsEnvironmentManagerFromIRODSAccount(account)
-	failError(t, err)
-
-	envMgr.SetEnvironmentFilePath("~/.irods2/irods_environment.json")
-
-	testWorkingDir := "/test/working/dir"
-
-	envMgr.Session.CurrentWorkingDir = testWorkingDir
-
-	err = envMgr.SaveEnvironment()
-	failError(t, err)
-	err = envMgr.SaveSession(os.Getppid())
-	failError(t, err)
-
-	envMgr2, err := icommands.CreateIcommandsEnvironmentManager()
-	failError(t, err)
-
-	envMgr2.SetEnvironmentFilePath("~/.irods2/irods_environment.json")
-
-	envMgr2.Load(os.Getppid())
-
-	env2 := envMgr2.Environment
-	assert.Equal(t, account.Host, env2.Host)
-	assert.Equal(t, account.Port, env2.Port)
-	assert.Equal(t, account.ClientZone, env2.Zone)
-	assert.Equal(t, account.ClientUser, env2.Username)
-	assert.Equal(t, account.Password, envMgr2.Password)
-
-	sess2 := envMgr2.Session
-	//t.Logf("%v", sess2)
-	assert.Equal(t, testWorkingDir, sess2.CurrentWorkingDir)
-
-	err = os.RemoveAll("~/.irods2")
-	failError(t, err)
+	assert.Equal(t, envMgr.Environment.AuthenticationFile, envMgr2.Environment.AuthenticationFile, "Configured auth file path should be loaded")
+	assert.Equal(t, account.Password, envMgr2.Password, "Password should be loaded")
 }

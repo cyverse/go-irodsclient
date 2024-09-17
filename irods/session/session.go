@@ -123,7 +123,7 @@ func (sess *IRODSSession) getPendingError() error {
 	return sess.lastConnectionError
 }
 
-// IsPermanantFailure returns if there is a failure that is unfixable, permanant
+// IsPermanantFailure returns if there is a failure that is unfixable, permanent
 func (sess *IRODSSession) IsPermanantFailure() bool {
 	sess.mutex.Lock()
 	defer sess.mutex.Unlock()

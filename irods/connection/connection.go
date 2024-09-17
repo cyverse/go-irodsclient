@@ -575,7 +575,7 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 
 	pamPassword := conn.getSafePAMPassword(conn.account.Password)
 
-	userKV := fmt.Sprintf("a_user=%s", conn.account.ClientUser)
+	userKV := fmt.Sprintf("a_user=%s", conn.account.ProxyUser)
 	passwordKV := fmt.Sprintf("a_pw=%s", pamPassword)
 	ttlKV := fmt.Sprintf("a_ttl=%s", strconv.Itoa(ttl))
 
@@ -592,7 +592,7 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 	if useDedicatedPAMApi {
 		logger.Debugf("use dedicated PAM api")
 
-		pamAuthRequest := message.NewIRODSMessagePamAuthRequest(conn.account.ClientUser, pamPassword, ttl)
+		pamAuthRequest := message.NewIRODSMessagePamAuthRequest(conn.account.ProxyUser, pamPassword, ttl)
 		pamAuthResponse := message.IRODSMessagePamAuthResponse{}
 		err := conn.RequestAndCheck(pamAuthRequest, &pamAuthResponse, nil)
 		if err != nil {
@@ -633,11 +633,6 @@ func (conn *IRODSConnection) loginPAMWithToken() error {
 	// Check whether ssl has already started, if not, start ssl.
 	if _, ok := conn.socket.(*tls.Conn); !ok {
 		return xerrors.Errorf("connection should be using SSL: %w", types.NewConnectionError())
-	}
-
-	ttl := conn.account.PamTTL
-	if ttl <= 0 {
-		ttl = 1
 	}
 
 	// retry native auth with generated password
@@ -1057,7 +1052,7 @@ func (conn *IRODSConnection) PoorMansRollback() error {
 		return xerrors.Errorf("connection must be locked before use")
 	}
 
-	dummyCol := fmt.Sprintf("/%s/home/%s", conn.account.ClientZone, conn.account.ClientUser)
+	dummyCol := fmt.Sprintf("/%s/home/%s", conn.account.ProxyZone, conn.account.ProxyUser)
 
 	return conn.poorMansEndTransaction(dummyCol, false)
 }

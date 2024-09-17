@@ -146,7 +146,7 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 	}, nil
 }
 
-// ListCollectionMeta returns a colleciton metadata for the path
+// ListCollectionMeta returns a collection metadata for the path
 func ListCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types.IRODSMeta, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, xerrors.Errorf("connection is nil or disconnected")
@@ -501,7 +501,7 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 		condVal := fmt.Sprintf("= '%s'", path)
 		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, condVal)
 
-		logger.Infof("sending a request for checking ACLs of path %s", path)
+		logger.Infof("sending a request for checking ACLs of path %q", path)
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -513,7 +513,7 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 			return nil, xerrors.Errorf("failed to receive a collection access query result message: %w", err)
 		}
 
-		logger.Infof("request for checking ACLs of path %s sent and got response", path)
+		logger.Infof("request for checking ACLs of path %q sent and got response", path)
 
 		err = queryResult.CheckError()
 		if err != nil {

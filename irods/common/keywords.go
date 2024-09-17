@@ -103,7 +103,7 @@ const (
 	AGE_KW                       KeyWord = "age"              // age of the file for itrim
 	DRYRUN_KW                    KeyWord = "dryrun"           // do a dry run
 	ACL_COLLECTION_KW            KeyWord = "aclCollection"    // the collection from which the ACL should be used
-	NO_CHK_COPY_LEN_KW           KeyWord = "noChkCopyLen"     // Don't check the len when transfering
+	NO_CHK_COPY_LEN_KW           KeyWord = "noChkCopyLen"     // Don't check the len when transferring
 	TICKET_KW                    KeyWord = "ticket"           // for ticket-based-access
 	PURGE_CACHE_KW               KeyWord = "purgeCache"       // purge the cache copy right after the operation JMC - backport 4537
 	EMPTY_BUNDLE_ONLY_KW         KeyWord = "emptyBundleOnly"  // delete emptyBundleOnly // // JMC - backport 4552

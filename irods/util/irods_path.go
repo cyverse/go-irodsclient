@@ -82,7 +82,7 @@ func GetIRODSPathDepth(p string) int {
 	return len(pArr) - 1
 }
 
-// GetParentDirs returns all parent dirs
+// GetParentIRODSDirs returns all parent dirs
 func GetParentIRODSDirs(p string) []string {
 	parents := []string{}
 
@@ -108,7 +108,7 @@ func GetParentIRODSDirs(p string) []string {
 	return parents
 }
 
-// GetRelativePath returns relative path
+// GetRelativeIRODSPath returns relative path
 func GetRelativeIRODSPath(base string, target string) (string, error) {
 	osBase := strings.ReplaceAll(base, "/", string(os.PathSeparator))
 	osTarget := strings.ReplaceAll(target, "/", string(os.PathSeparator))

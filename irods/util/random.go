@@ -9,7 +9,7 @@ var (
 	letters = []rune("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 )
 
-//MakeRandomString returns a random string
+// MakeRandomString returns a random string
 func MakeRandomString(size int) string {
 	rand.Seed(time.Now().UnixNano())
 

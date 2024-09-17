@@ -1,16 +1,13 @@
-host:
-  hostname: "ssldata.cyverse.org"
-  port: 1247
-user:
-  username: ""
-  password: ""
-  zone: "iplant"
-auth_scheme: "pam"
-cs_negotiation: true
-cs_negotiation_policy: "CS_NEG_REQUIRE"
-ssl:
-  ca_cert_file: "/etc/ssl/certs/ca-bundle.crt"
-  key_size: 32
-  algorithm: "AES-256-CBC"
-  salt_size: 8
-  hash_rounds: 16
+irods_authentication_scheme: "pam"
+irods_client_server_negotiation: "request_server_negotiation"
+irods_client_server_policy: "CS_NEG_REQUIRE"
+irods_host: "ssldata.cyverse.org"
+irods_port: 1247
+irods_user_name: ""
+irods_user_password: ""
+irods_zone_name: "iplant"
+irods_encryption_algorithm: "AES-256-CBC"
+irods_encryption_key_size: 32
+irods_encryption_salt_size: 8
+irods_encryption_num_hash_rounds: 16
+irods_ssl_ca_certificate_file: "/etc/ssl/certs/ca-bundle.crt"
