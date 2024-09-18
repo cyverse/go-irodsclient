@@ -61,6 +61,26 @@ func (mode FileOpenMode) GetFlag() int {
 	return flag
 }
 
+// Truncate returns if the mode needs truncating the file
+func (mode FileOpenMode) Truncate() bool {
+	switch mode {
+	case FileOpenModeReadOnly:
+		return false
+	case FileOpenModeReadWrite:
+		return false
+	case FileOpenModeWriteOnly:
+		return false
+	case FileOpenModeWriteTruncate:
+		return true
+	case FileOpenModeAppend:
+		return false
+	case FileOpenModeReadAppend:
+		return false
+	default:
+		return false
+	}
+}
+
 // SeekToEnd returns if the mode needs seeking to end
 func (mode FileOpenMode) SeekToEnd() bool {
 	_, seekToEnd := mode.GetFlagSeekToEnd()
