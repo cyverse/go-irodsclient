@@ -48,8 +48,6 @@ type ICommandsEnvironmentManager struct {
 	UID  int
 	PPID int
 
-	Password    string
-	PamToken    string
 	Environment *Config
 	Session     *Config
 }
@@ -72,8 +70,6 @@ func NewICommandsEnvironmentManager() (*ICommandsEnvironmentManager, error) {
 		UID:  os.Getuid(),
 		PPID: ppid,
 
-		Password:    "",
-		PamToken:    "",
 		Environment: GetDefaultConfig(),
 		Session:     &Config{},
 	}, nil
@@ -117,15 +113,13 @@ func (manager *ICommandsEnvironmentManager) FromIRODSAccount(account *types.IROD
 	manager.Environment.ZoneName = account.ProxyZone
 	manager.Environment.ClientZoneName = account.ClientZone
 
-	manager.Password = account.Password
 	manager.Environment.Password = account.Password
-	manager.PamToken = account.PamToken
-	manager.Environment.PAMToken = account.PamToken
 	manager.Environment.Ticket = account.Ticket
+	manager.Environment.PAMToken = account.PamToken
+	manager.Environment.PAMTTL = account.PamTTL
 
 	manager.Environment.DefaultResource = account.DefaultResource
 	manager.Environment.DefaultHashScheme = account.DefaultHashScheme
-	manager.Environment.PAMTTL = account.PamTTL
 
 	if account.SSLConfiguration != nil {
 		manager.Environment.SSLCACertificateFile = account.SSLConfiguration.CACertificateFile
@@ -229,11 +223,11 @@ func (manager *ICommandsEnvironmentManager) Load() error {
 			} else {
 				authScheme := types.GetAuthScheme(manager.Environment.AuthenticationScheme)
 				if authScheme.IsPAM() {
-					manager.Password = ""
-					manager.PamToken = string(passwordBytes)
+					manager.Environment.Password = ""
+					manager.Environment.PAMToken = string(passwordBytes)
 				} else {
-					manager.Password = string(passwordBytes)
-					manager.PamToken = ""
+					manager.Environment.Password = string(passwordBytes)
+					manager.Environment.PAMToken = ""
 				}
 			}
 		}
@@ -290,11 +284,7 @@ func (manager *ICommandsEnvironmentManager) ToIRODSAccount() (*types.IRODSAccoun
 		return nil, xerrors.Errorf("environment is not set")
 	}
 
-	account := manager.Environment.ToIRODSAccount()
-	account.Password = manager.Password
-	account.PamToken = manager.PamToken
-
-	return account, nil
+	return manager.Environment.ToIRODSAccount(), nil
 }
 
 // SaveEnvironment saves environment
@@ -321,9 +311,9 @@ func (manager *ICommandsEnvironmentManager) SaveEnvironment() error {
 	if len(manager.PasswordFilePath) > 0 {
 		authScheme := types.GetAuthScheme(manager.Environment.AuthenticationScheme)
 
-		password := manager.Password
+		password := manager.Environment.Password
 		if authScheme.IsPAM() {
-			password = manager.PamToken
+			password = manager.Environment.PAMToken
 		}
 
 		obfuscator := NewPasswordObfuscator()

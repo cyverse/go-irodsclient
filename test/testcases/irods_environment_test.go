@@ -44,7 +44,7 @@ func testSaveAndLoadEnv(t *testing.T) {
 	assert.Equal(t, account.Port, env2.Port)
 	assert.Equal(t, account.ClientZone, env2.ZoneName)
 	assert.Equal(t, account.ClientUser, env2.Username)
-	assert.Equal(t, account.Password, envMgr2.Password)
+	assert.Equal(t, account.Password, envMgr2.Environment.Password)
 
 	err = os.RemoveAll("~/.irods2")
 	failError(t, err)
@@ -83,7 +83,7 @@ func testSaveAndLoadEnvSession(t *testing.T) {
 	assert.Equal(t, account.Port, env2.Port)
 	assert.Equal(t, account.ClientZone, env2.ZoneName)
 	assert.Equal(t, account.ClientUser, env2.Username)
-	assert.Equal(t, account.Password, envMgr2.Password)
+	assert.Equal(t, account.Password, envMgr2.Environment.Password)
 
 	sess2 := envMgr2.Session
 	assert.Equal(t, testWorkingDir, sess2.CurrentWorkingDir)
@@ -140,5 +140,5 @@ func testConfiguredAuthFilePath(t *testing.T) {
 	t.Logf("pass file: %s\n", envMgr2.PasswordFilePath)
 
 	assert.Equal(t, envMgr.Environment.AuthenticationFile, envMgr2.Environment.AuthenticationFile, "Configured auth file path should be loaded")
-	assert.Equal(t, account.Password, envMgr2.Password, "Password should be loaded")
+	assert.Equal(t, account.Password, envMgr2.Environment.Password, "Password should be loaded")
 }
