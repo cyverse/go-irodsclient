@@ -67,7 +67,7 @@ func main() {
 
 	logger.Infof("iRODS path: %q", result.IRODSPath)
 	logger.Infof("Local path: %q", result.LocalPath)
-	logger.Infof("Checksum: %s, iRODS: %q, Local: %q", result.CheckSumAlgorithm, hex.EncodeToString(result.IRODSCheckSum), hex.EncodeToString(result.LocalCheckSum))
+	logger.Infof("Checksum: iRODS: %s:%q, Local: %s:%q", result.IRODSCheckSumAlgorithm, hex.EncodeToString(result.IRODSCheckSum), result.LocalCheckSumAlgorithm, hex.EncodeToString(result.LocalCheckSum))
 	logger.Infof("Size: iRODS: %d, Local: %d", result.IRODSSize, result.LocalSize)
 
 	fsentry, err := filesystem.Stat(destPath)

@@ -66,7 +66,8 @@ func UploadDataObjectFromBuffer(session *session.IRODSSession, buffer *bytes.Buf
 	}
 
 	// open a new file
-	handle, err := OpenDataObjectWithOperation(conn, irodsPath, resource, "w+", common.OPER_TYPE_NONE, keywords)
+	handle, err := CreateDataObject(conn, irodsPath, resource, "w+", true, keywords)
+	//handle, err := OpenDataObjectWithOperation(conn, irodsPath, resource, "w+", common.OPER_TYPE_NONE, keywords)
 	if err != nil {
 		return xerrors.Errorf("failed to open data object %q: %w", irodsPath, err)
 	}
@@ -138,7 +139,8 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 	defer f.Close()
 
 	// open a new file
-	handle, err := OpenDataObjectWithOperation(conn, irodsPath, resource, "w+", common.OPER_TYPE_NONE, keywords)
+	handle, err := CreateDataObject(conn, irodsPath, resource, "w+", true, keywords)
+	//handle, err := OpenDataObjectWithOperation(conn, irodsPath, resource, "w+", common.OPER_TYPE_NONE, keywords)
 	if err != nil {
 		return xerrors.Errorf("failed to open data object %q: %w", irodsPath, err)
 	}
