@@ -191,6 +191,7 @@ func (cfg *Config) ToIRODSAccount() *types.IRODSAccount {
 		Password:                cfg.Password,
 		DefaultResource:         cfg.DefaultResource,
 		DefaultHashScheme:       cfg.DefaultHashScheme,
+		Ticket:                  cfg.Ticket,
 		PamTTL:                  cfg.PAMTTL,
 		PamToken:                cfg.PAMToken,
 		SSLConfiguration: &types.IRODSSSLConfig{

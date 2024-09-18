@@ -250,6 +250,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 
 		if transferHeader.OperationType == int(common.OPER_TYPE_DONE) {
 			// break
+			logger.Debugf("done downloading file chunk for %s at offset %d, length %d", handle.Path, transferHeader.Offset, transferHeader.Length)
 			break
 		} else if transferHeader.OperationType != int(common.OPER_TYPE_GET_DATA_OBJ) {
 			return xerrors.Errorf("invalid operation type %d received for transfer", transferHeader.OperationType)
@@ -317,6 +318,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 
 				if err != nil {
 					if err == io.EOF {
+						logger.Debugf("received EOF for downloading file chunk for %s at offset %d, length %d", handle.Path, transferHeader.Offset, transferHeader.Length)
 						cont = false
 						break
 					}
@@ -348,6 +350,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 
 				if err != nil {
 					if err == io.EOF {
+						logger.Debugf("received EOF for downloading file chunk for %s at offset %d, length %d", handle.Path, transferHeader.Offset, transferHeader.Length)
 						cont = false
 						break
 					}
@@ -433,6 +436,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 
 		if transferHeader.OperationType == int(common.OPER_TYPE_DONE) {
 			// break
+			logger.Debugf("done uploading file chunk for %s at offset %d, length %d", handle.Path, transferHeader.Offset, transferHeader.Length)
 			break
 		} else if transferHeader.OperationType != int(common.OPER_TYPE_PUT_DATA_OBJ) {
 			return xerrors.Errorf("invalid operation type %d received for transfer", transferHeader.OperationType)
@@ -485,10 +489,12 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 
 				if err != nil {
 					if err == io.EOF {
+						logger.Debugf("received EOF for uploading file chunk for %s at offset %d, length %d", handle.Path, transferHeader.Offset, transferHeader.Length)
 						cont = false
-					} else {
-						return xerrors.Errorf("failed to read data %q, offset %d: %w", localPath, curOffset, err)
+						break
 					}
+
+					return xerrors.Errorf("failed to read data %q, offset %d: %w", localPath, curOffset, err)
 				}
 
 				encryptionHeaderBuffer, err := encryptionHeader.GetBytes()
@@ -541,11 +547,12 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 
 				if err != nil {
 					if err == io.EOF {
+						logger.Debugf("received EOF for uploading file chunk for %s at offset %d, length %d", handle.Path, transferHeader.Offset, transferHeader.Length)
 						cont = false
 						break
-					} else {
-						return xerrors.Errorf("failed to read data %q, offset %d: %w", localPath, transferHeader.Offset, err)
 					}
+
+					return xerrors.Errorf("failed to read data %q, offset %d: %w", localPath, transferHeader.Offset, err)
 				}
 			}
 		}
