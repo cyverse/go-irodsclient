@@ -115,7 +115,7 @@ func (manager *ICommandsEnvironmentManager) FromIRODSAccount(account *types.IROD
 
 	manager.Environment.Password = account.Password
 	manager.Environment.Ticket = account.Ticket
-	manager.Environment.PAMToken = account.PamToken
+	manager.Environment.PAMToken = account.PAMToken
 	manager.Environment.PAMTTL = account.PamTTL
 
 	manager.Environment.DefaultResource = account.DefaultResource

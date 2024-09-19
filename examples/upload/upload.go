@@ -34,7 +34,7 @@ func main() {
 	destPath := args[1]
 
 	// Read account configuration from YAML file
-	cfg, err := config.NewConfigFromYamlFile("account.yml")
+	cfg, err := config.NewConfigFromYAMLFile("account.yml")
 	if err != nil {
 		logger.Error(err)
 		panic(err)

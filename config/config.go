@@ -87,8 +87,8 @@ func GetDefaultConfig() *Config {
 	}
 }
 
-// NewConfigFromYamlFile creates Config from YAML
-func NewConfigFromYamlFile(yamlPath string) (*Config, error) {
+// NewConfigFromYAMLFile creates Config from YAML
+func NewConfigFromYAMLFile(yamlPath string) (*Config, error) {
 	config := GetDefaultConfig()
 
 	yamlBytes, err := os.ReadFile(yamlPath)
@@ -193,7 +193,7 @@ func (cfg *Config) ToIRODSAccount() *types.IRODSAccount {
 		DefaultHashScheme:       cfg.DefaultHashScheme,
 		Ticket:                  cfg.Ticket,
 		PamTTL:                  cfg.PAMTTL,
-		PamToken:                cfg.PAMToken,
+		PAMToken:                cfg.PAMToken,
 		SSLConfiguration: &types.IRODSSSLConfig{
 			CACertificateFile:       cfg.SSLCACertificateFile,
 			CACertificatePath:       cfg.SSLCACertificatePath,

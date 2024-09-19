@@ -30,7 +30,7 @@ type IRODSAccount struct {
 	DefaultResource         string
 	DefaultHashScheme       string
 	PamTTL                  int
-	PamToken                string
+	PAMToken                string
 	SSLConfiguration        *IRODSSSLConfig
 }
 
@@ -52,7 +52,7 @@ func CreateIRODSAccount(host string, port int, user string, zone string,
 		DefaultResource:         defaultResource,
 		DefaultHashScheme:       HashSchemeDefault,
 		PamTTL:                  PamTTLDefault,
-		PamToken:                "",
+		PAMToken:                "",
 		SSLConfiguration:        nil,
 	}
 
@@ -79,7 +79,7 @@ func CreateIRODSAccountForTicket(host string, port int, user string, zone string
 		DefaultResource:         defaultResource,
 		DefaultHashScheme:       HashSchemeDefault,
 		PamTTL:                  PamTTLDefault,
-		PamToken:                "",
+		PAMToken:                "",
 		SSLConfiguration:        nil,
 	}
 
@@ -107,7 +107,7 @@ func CreateIRODSProxyAccount(host string, port int, clientUser string, clientZon
 		DefaultResource:         defaultResource,
 		DefaultHashScheme:       HashSchemeDefault,
 		PamTTL:                  PamTTLDefault,
-		PamToken:                "",
+		PAMToken:                "",
 		SSLConfiguration:        nil,
 	}
 
@@ -241,7 +241,7 @@ func (account *IRODSAccount) FixAuthConfiguration() {
 func (account *IRODSAccount) GetRedacted() *IRODSAccount {
 	account2 := *account
 	account2.Password = "<Redacted>"
-	account2.PamToken = "<Redacted>"
+	account2.PAMToken = "<Redacted>"
 	account2.Ticket = "<Redacted>"
 
 	return &account2

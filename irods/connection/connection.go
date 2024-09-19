@@ -129,7 +129,7 @@ func (conn *IRODSConnection) requiresCSNegotiation() bool {
 
 // GetPAMToken returns server generated token For PAM Auth
 func (conn *IRODSConnection) GetPAMToken() string {
-	return conn.account.PamToken
+	return conn.account.PAMToken
 }
 
 // GetSSLSharedSecret returns ssl shared secret
@@ -289,7 +289,7 @@ func (conn *IRODSConnection) Connect() error {
 	case types.AuthSchemeGSI:
 		err = conn.loginGSI()
 	case types.AuthSchemePAM, types.AuthSchemePAMPassword:
-		if len(conn.account.PamToken) > 0 {
+		if len(conn.account.PAMToken) > 0 {
 			err = conn.loginPAMWithToken()
 		} else {
 			err = conn.loginPAMWithPassword()
@@ -614,7 +614,7 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 	}
 
 	// save irods generated password for possible future use
-	conn.account.PamToken = pamToken
+	conn.account.PAMToken = pamToken
 
 	// we do not login here.
 	// connection will be disconnected and reconnected afterword
@@ -636,7 +636,7 @@ func (conn *IRODSConnection) loginPAMWithToken() error {
 	}
 
 	// retry native auth with generated password
-	return conn.login(conn.account.PamToken)
+	return conn.login(conn.account.PAMToken)
 }
 
 // Disconnect disconnects
