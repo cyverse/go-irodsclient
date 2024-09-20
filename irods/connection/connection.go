@@ -411,9 +411,9 @@ func (conn *IRODSConnection) startup() (*types.IRODSVersion, error) {
 			return nil, xerrors.Errorf("failed to receive negotiation message (%s): %w", err.Error(), types.NewConnectionError())
 		}
 
-		serverPolicy, err := types.GetCSNegotiationPolicyRequest(negotiation.Result)
+		serverPolicy := types.GetCSNegotiationPolicyRequest(negotiation.Result)
 		if err != nil {
-			return nil, xerrors.Errorf("failed to parse server policy (%s): %w", err.Error(), types.NewConnectionError())
+			return nil, xerrors.Errorf("failed to parse server policy (%s): %w", negotiation.Result, types.NewConnectionError())
 		}
 
 		logger.Debugf("Client policy %q, server policy %q", clientPolicy, serverPolicy)

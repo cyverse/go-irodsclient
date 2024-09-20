@@ -1,7 +1,6 @@
 package types
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -10,30 +9,25 @@ type CSNegotiation string
 
 const (
 	// CSNegotiationRequestServerNegotiation presents negotiation is required
-	CSNegotiationServerNegotiation CSNegotiation = "request_server_negotiation"
-	CSNegotiationOff               CSNegotiation = "off"
+	CSNegotiationRequestServerNegotiation CSNegotiation = "request_server_negotiation"
+	CSNegotiationOff                      CSNegotiation = "off"
 )
 
 // GetCSNegotiation returns CSNegotiation value from string
-func GetCSNegotiation(negotiation string) (CSNegotiation, error) {
-	var csNegotiation CSNegotiation
-	var err error = nil
+func GetCSNegotiation(negotiation string) CSNegotiation {
 	switch strings.TrimSpace(strings.ToLower(negotiation)) {
-	case string(CSNegotiationServerNegotiation):
-		csNegotiation = CSNegotiationServerNegotiation
-	case string(CSNegotiationOff), "":
-		csNegotiation = CSNegotiationOff
+	case string(CSNegotiationRequestServerNegotiation), "request":
+		return CSNegotiationRequestServerNegotiation
+	case string(CSNegotiationOff), "none", "":
+		return CSNegotiationOff
 	default:
-		csNegotiation = CSNegotiationOff
-		err = fmt.Errorf("cannot parse string %q", negotiation)
+		return CSNegotiationOff
 	}
-
-	return csNegotiation, err
 }
 
 // IsNegotiationRequired checks if negotiation is required
 func (negotiation CSNegotiation) IsNegotiationRequired() bool {
-	return negotiation == CSNegotiationServerNegotiation
+	return negotiation == CSNegotiationRequestServerNegotiation
 }
 
 // CSNegotiationPolicyRequest defines Negotiation policy request
@@ -49,22 +43,17 @@ const (
 )
 
 // GetCSNegotiationPolicyRequest returns CSNegotiationPolicyRequest value from string
-func GetCSNegotiationPolicyRequest(request string) (CSNegotiationPolicyRequest, error) {
-	var csNegotiationPolicyRequest CSNegotiationPolicyRequest
-	var err error = nil
+func GetCSNegotiationPolicyRequest(request string) CSNegotiationPolicyRequest {
 	switch strings.TrimSpace(strings.ToUpper(request)) {
 	case string(CSNegotiationPolicyRequestTCP), "TCP":
-		csNegotiationPolicyRequest = CSNegotiationPolicyRequestTCP
+		return CSNegotiationPolicyRequestTCP
 	case string(CSNegotiationPolicyRequestSSL), "SSL":
-		csNegotiationPolicyRequest = CSNegotiationPolicyRequestSSL
+		return CSNegotiationPolicyRequestSSL
 	case string(CSNegotiationPolicyRequestDontCare), "DONT_CARE", "":
-		csNegotiationPolicyRequest = CSNegotiationPolicyRequestDontCare
+		return CSNegotiationPolicyRequestDontCare
 	default:
-		csNegotiationPolicyRequest = CSNegotiationPolicyRequestTCP
-		err = fmt.Errorf("cannot parse string %q", request)
+		return CSNegotiationPolicyRequestTCP
 	}
-
-	return csNegotiationPolicyRequest, err
 }
 
 // CSNegotiationResult defines Negotiation result
@@ -80,22 +69,17 @@ const (
 )
 
 // GetCSNegotiationResult returns CSNegotiationResult value from string
-func GetCSNegotiationResult(policy string) (CSNegotiationResult, error) {
-	var csNegotiationResult CSNegotiationResult
-	var err error = nil
+func GetCSNegotiationResult(policy string) CSNegotiationResult {
 	switch strings.TrimSpace(strings.ToUpper(policy)) {
 	case string(CSNegotiationUseTCP), "TCP":
-		csNegotiationResult = CSNegotiationUseTCP
+		return CSNegotiationUseTCP
 	case string(CSNegotiationUseSSL), "SSL":
-		csNegotiationResult = CSNegotiationUseSSL
+		return CSNegotiationUseSSL
 	case string(CSNegotiationFailure), "FAILURE":
-		csNegotiationResult = CSNegotiationFailure
+		return CSNegotiationFailure
 	default:
-		csNegotiationResult = CSNegotiationFailure
-		err = fmt.Errorf("cannot parse string %q", policy)
+		return CSNegotiationFailure
 	}
-
-	return csNegotiationResult, err
 }
 
 // PerformCSNegotiation performs CSNegotiation and returns the policy determined

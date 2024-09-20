@@ -169,12 +169,47 @@ func GetDefaultIRODSConfigPath() string {
 	return irodsConfigPath
 }
 
+// FixAuthConfiguration fixes auth configuration
+func (cfg *Config) FixAuthConfiguration() {
+	if len(cfg.AuthenticationScheme) == 0 {
+		cfg.AuthenticationScheme = string(types.AuthSchemeNative)
+	}
+
+	authScheme := types.GetAuthScheme(cfg.AuthenticationScheme)
+
+	if authScheme != types.AuthSchemeNative {
+		cfg.ClientServerPolicy = string(types.CSNegotiationPolicyRequestSSL)
+	}
+
+	csPolicy := types.GetCSNegotiationPolicyRequest(cfg.ClientServerPolicy)
+
+	if csPolicy == types.CSNegotiationPolicyRequestSSL {
+		cfg.ClientServerNegotiation = string(types.CSNegotiationRequestServerNegotiation)
+	}
+
+	if len(cfg.Username) == 0 {
+		cfg.Username = cfg.ClientUsername
+	}
+
+	if len(cfg.ClientUsername) == 0 {
+		cfg.ClientUsername = cfg.Username
+	}
+
+	if len(cfg.ZoneName) == 0 {
+		cfg.ZoneName = cfg.ClientZoneName
+	}
+
+	if len(cfg.ClientZoneName) == 0 {
+		cfg.ClientZoneName = cfg.ZoneName
+	}
+}
+
 // ToIRODSAccount creates IRODSAccount
 func (cfg *Config) ToIRODSAccount() *types.IRODSAccount {
 	authScheme := types.GetAuthScheme(cfg.AuthenticationScheme)
 
-	negotiationPolicy, _ := types.GetCSNegotiationPolicyRequest(cfg.ClientServerPolicy)
-	negotiation, _ := types.GetCSNegotiation(cfg.ClientServerNegotiation)
+	negotiationPolicy := types.GetCSNegotiationPolicyRequest(cfg.ClientServerPolicy)
+	negotiation := types.GetCSNegotiation(cfg.ClientServerNegotiation)
 
 	verifyServer, _ := types.GetSSLVerifyServer(cfg.SSLVerifyServer)
 

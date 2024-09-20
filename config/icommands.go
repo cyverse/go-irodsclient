@@ -85,6 +85,11 @@ func (manager *ICommandsEnvironmentManager) SetPPID(ppid int) {
 	manager.SessionFilePath = sessionFilePath
 }
 
+// FixAuthConfiguration fixes auth configuration
+func (manager *ICommandsEnvironmentManager) FixAuthConfiguration() {
+	manager.Environment.FixAuthConfiguration()
+}
+
 // FromIRODSAccount loads from IRODSAccount
 func (manager *ICommandsEnvironmentManager) FromIRODSAccount(account *types.IRODSAccount) {
 	account.FixAuthConfiguration()
@@ -104,7 +109,7 @@ func (manager *ICommandsEnvironmentManager) FromIRODSAccount(account *types.IROD
 	manager.Environment.Port = account.Port
 
 	if account.ClientServerNegotiation {
-		manager.Environment.ClientServerNegotiation = string(types.CSNegotiationServerNegotiation)
+		manager.Environment.ClientServerNegotiation = string(types.CSNegotiationRequestServerNegotiation)
 	}
 
 	manager.Environment.Username = account.ProxyUser
@@ -132,6 +137,8 @@ func (manager *ICommandsEnvironmentManager) FromIRODSAccount(account *types.IROD
 		manager.Environment.SSLDHParamsFile = account.SSLConfiguration.DHParamsFile
 		manager.Environment.SSLServerName = account.SSLConfiguration.ServerName
 	}
+
+	manager.FixAuthConfiguration()
 }
 
 // SetEnvironmentFilePath sets environment file path
@@ -233,6 +240,8 @@ func (manager *ICommandsEnvironmentManager) Load() error {
 		}
 	}
 
+	manager.FixAuthConfiguration()
+
 	return nil
 }
 
@@ -241,6 +250,8 @@ func (manager *ICommandsEnvironmentManager) GetSessionConfig() (*Config, error) 
 	if manager.Environment == nil && manager.Session == nil {
 		return nil, xerrors.Errorf("environment is not set")
 	}
+
+	manager.FixAuthConfiguration()
 
 	envJSONBytes, err := manager.Environment.ToJSON()
 	if err != nil {
@@ -284,6 +295,8 @@ func (manager *ICommandsEnvironmentManager) ToIRODSAccount() (*types.IRODSAccoun
 		return nil, xerrors.Errorf("environment is not set")
 	}
 
+	manager.FixAuthConfiguration()
+
 	return manager.Environment.ToIRODSAccount(), nil
 }
 
@@ -292,6 +305,8 @@ func (manager *ICommandsEnvironmentManager) SaveEnvironment() error {
 	if manager.Environment == nil {
 		return xerrors.Errorf("environment is not set")
 	}
+
+	manager.FixAuthConfiguration()
 
 	if len(manager.EnvironmentFilePath) > 0 {
 		// make dir first if not exist
@@ -333,6 +348,8 @@ func (manager *ICommandsEnvironmentManager) SaveSession() error {
 	if manager.Session == nil {
 		return nil
 	}
+
+	manager.FixAuthConfiguration()
 
 	if len(manager.SessionFilePath) > 0 {
 		// make dir first if not exist
