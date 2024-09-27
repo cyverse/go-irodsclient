@@ -71,7 +71,6 @@ type Config struct {
 func GetDefaultConfig() *Config {
 	return &Config{
 		AuthenticationScheme:    AuthenticationSchemeDefault,
-		AuthenticationFile:      GetDefaultPasswordFilePath(),
 		ClientServerNegotiation: ClientServerNegotiationDefault,
 		ClientServerPolicy:      ClientServerPolicyDefault,
 		Port:                    PortDefault,

@@ -70,7 +70,7 @@ func ExpandHomeDir(path string) (string, error) {
 	}
 
 	if path[0] != '~' {
-		return path, nil
+		return filepath.Abs(path)
 	}
 
 	homedir, err := os.UserHomeDir()
@@ -80,16 +80,16 @@ func ExpandHomeDir(path string) (string, error) {
 
 	// resolve "~"
 	if len(path) == 1 {
-		return homedir, nil
+		return filepath.Abs(homedir)
 	}
 
 	// resolve "~/"
 	if path[1] == '/' {
 		path = filepath.Join(homedir, path[2:])
-		return filepath.Clean(path), nil
+		return filepath.Abs(path)
 	}
 
-	return path, nil
+	return filepath.Abs(path)
 }
 
 // ExistFile checks if file exists

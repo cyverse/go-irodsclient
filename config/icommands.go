@@ -150,10 +150,8 @@ func (manager *ICommandsEnvironmentManager) SetEnvironmentFilePath(envFilePath s
 
 	manager.EnvironmentDirPath = filepath.Dir(envFilePath)
 	manager.EnvironmentFilePath = envFilePath
+	manager.SessionFilePath = fmt.Sprintf("%s.%d", manager.EnvironmentFilePath, manager.PPID)
 	manager.PasswordFilePath = filepath.Join(manager.EnvironmentDirPath, passwordFilenameDefault)
-
-	sessionFilePath := fmt.Sprintf("%s.%d", manager.EnvironmentFilePath, manager.PPID)
-	manager.SessionFilePath = sessionFilePath
 
 	manager.Environment.AuthenticationFile = manager.PasswordFilePath
 	return nil
@@ -168,10 +166,8 @@ func (manager *ICommandsEnvironmentManager) SetEnvironmentDirPath(envDirPath str
 
 	manager.EnvironmentDirPath = envDirPath
 	manager.EnvironmentFilePath = filepath.Join(envDirPath, environmentFilenameDefault)
+	manager.SessionFilePath = fmt.Sprintf("%s.%d", manager.EnvironmentFilePath, manager.PPID)
 	manager.PasswordFilePath = filepath.Join(manager.EnvironmentDirPath, passwordFilenameDefault)
-
-	sessionFilePath := fmt.Sprintf("%s.%d", manager.EnvironmentFilePath, manager.PPID)
-	manager.SessionFilePath = sessionFilePath
 
 	manager.Environment.AuthenticationFile = manager.PasswordFilePath
 	return nil
