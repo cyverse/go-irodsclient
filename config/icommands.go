@@ -189,7 +189,7 @@ func (manager *ICommandsEnvironmentManager) Load() error {
 		if util.ExistFile(manager.EnvironmentFilePath) {
 			logger.Debugf("reading icommands configuration file %q", manager.EnvironmentFilePath)
 
-			cfg, err := NewConfigFromJSONFile(GetDefaultConfig(), manager.EnvironmentFilePath)
+			cfg, err := NewConfigFromFile(GetDefaultConfig(), manager.EnvironmentFilePath)
 			if err != nil {
 				return xerrors.Errorf("failed to create icommands configuration from file %q: %w", manager.EnvironmentFilePath, err)
 			}
