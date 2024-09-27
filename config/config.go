@@ -88,8 +88,10 @@ func GetDefaultConfig() *Config {
 }
 
 // NewConfigFromYAMLFile creates Config from YAML
-func NewConfigFromYAMLFile(yamlPath string) (*Config, error) {
-	config := GetDefaultConfig()
+func NewConfigFromYAMLFile(config *Config, yamlPath string) (*Config, error) {
+	if config == nil {
+		config = &Config{}
+	}
 
 	yamlBytes, err := os.ReadFile(yamlPath)
 	if err != nil {
@@ -104,9 +106,25 @@ func NewConfigFromYAMLFile(yamlPath string) (*Config, error) {
 	return config, nil
 }
 
+// NewConfigFromYAML creates Config from YAML
+func NewConfigFromYAML(config *Config, yamlBytes []byte) (*Config, error) {
+	if config == nil {
+		config = &Config{}
+	}
+
+	err := yaml.Unmarshal(yamlBytes, config)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to unmarshal YAML to config: %w", err)
+	}
+
+	return config, nil
+}
+
 // NewConfigFromJSONFile creates Config from JSON
-func NewConfigFromJSONFile(jsonPath string) (*Config, error) {
-	config := GetDefaultConfig()
+func NewConfigFromJSONFile(config *Config, jsonPath string) (*Config, error) {
+	if config == nil {
+		config = &Config{}
+	}
 
 	jsonBytes, err := os.ReadFile(jsonPath)
 	if err != nil {
@@ -122,8 +140,10 @@ func NewConfigFromJSONFile(jsonPath string) (*Config, error) {
 }
 
 // NewConfigFromJSON creates Config from JSON
-func NewConfigFromJSON(jsonBytes []byte) (*Config, error) {
-	config := GetDefaultConfig()
+func NewConfigFromJSON(config *Config, jsonBytes []byte) (*Config, error) {
+	if config == nil {
+		config = &Config{}
+	}
 
 	err := json.Unmarshal(jsonBytes, config)
 	if err != nil {
@@ -134,21 +154,9 @@ func NewConfigFromJSON(jsonBytes []byte) (*Config, error) {
 }
 
 // NewConfigFromEnv creates Config from Environmental variables
-func NewConfigFromEnv() (*Config, error) {
-	config := GetDefaultConfig()
-
-	err := envconfig.Process("", config)
-	if err != nil {
-		return nil, xerrors.Errorf("failed to read config from environmental variables: %w", err)
-	}
-
-	return config, nil
-}
-
-// OverwriteConfigFromEnv overwrites Config from Environmental variables
-func OverwriteConfigFromEnv(config *Config) (*Config, error) {
+func NewConfigFromEnv(config *Config) (*Config, error) {
 	if config == nil {
-		config = GetDefaultConfig()
+		config = &Config{}
 	}
 
 	err := envconfig.Process("", config)

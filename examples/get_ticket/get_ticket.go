@@ -30,7 +30,7 @@ func main() {
 	ticketName := args[0]
 
 	// Read account configuration from YAML file
-	cfg, err := config.NewConfigFromYAMLFile("account.yml")
+	cfg, err := config.NewConfigFromYAMLFile(config.GetDefaultConfig(), "account.yml")
 	if err != nil {
 		logger.Error(err)
 		panic(err)

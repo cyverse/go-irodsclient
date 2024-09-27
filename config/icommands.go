@@ -189,7 +189,7 @@ func (manager *ICommandsEnvironmentManager) Load() error {
 		if util.ExistFile(manager.EnvironmentFilePath) {
 			logger.Debugf("reading icommands configuration file %q", manager.EnvironmentFilePath)
 
-			cfg, err := NewConfigFromJSONFile(manager.EnvironmentFilePath)
+			cfg, err := NewConfigFromJSONFile(GetDefaultConfig(), manager.EnvironmentFilePath)
 			if err != nil {
 				return xerrors.Errorf("failed to create icommands configuration from file %q: %w", manager.EnvironmentFilePath, err)
 			}
@@ -207,7 +207,7 @@ func (manager *ICommandsEnvironmentManager) Load() error {
 		if util.ExistFile(manager.SessionFilePath) {
 			logger.Debugf("reading icommands session file %q", manager.SessionFilePath)
 
-			cfg, err := NewConfigFromJSONFile(manager.SessionFilePath)
+			cfg, err := NewConfigFromJSONFile(nil, manager.SessionFilePath)
 			if err != nil {
 				return xerrors.Errorf("failed to create icommands session from file %q: %w", manager.SessionFilePath, err)
 			}
@@ -286,7 +286,7 @@ func (manager *ICommandsEnvironmentManager) GetSessionConfig() (*Config, error) 
 		return nil, xerrors.Errorf("failed to marshal map to JSON: %w", err)
 	}
 
-	return NewConfigFromJSON(newEnvBytes)
+	return NewConfigFromJSON(nil, newEnvBytes)
 }
 
 // ToIRODSAccount exports to IRODSAccount
