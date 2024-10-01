@@ -308,7 +308,7 @@ func (fs *FileSystem) RemoveFile(path string, force bool) error {
 
 	defer fs.fileHandleMap.RemoveCloseEventHandler(eventHandlerID)
 
-	if util.WaitTimeout(&wg, fs.config.MetadataConnection.OperationTimeout) {
+	if util.WaitTimeout(&wg, time.Duration(fs.config.MetadataConnection.OperationTimeout)) {
 		// timed out
 		return xerrors.Errorf("failed to remove file, there are files still opened")
 	}

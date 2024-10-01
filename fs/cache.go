@@ -12,30 +12,30 @@ import (
 
 // MetadataCacheTimeoutSetting defines cache timeout for path
 type MetadataCacheTimeoutSetting struct {
-	Path    string
-	Timeout time.Duration
-	Inherit bool
+	Path    string         `yaml:"path" json:"path"`
+	Timeout types.Duration `yaml:"timeout" json:"timeout"`
+	Inherit bool           `yaml:"inherit,omitempty" json:"inherit,omitempty"`
 }
 
 // CacheConfig defines cache config
 type CacheConfig struct {
-	Timeout                 time.Duration // cache timeout
-	CleanupTime             time.Duration //
-	MetadataTimeoutSettings []MetadataCacheTimeoutSetting
+	Timeout                 types.Duration                `yaml:"timeout,omitempty" json:"timeout,omitempty"`           // cache timeout
+	CleanupTime             types.Duration                `yaml:"cleanup_time,omitempty" json:"cleanup_time,omitempty"` // cache cleanup time
+	MetadataTimeoutSettings []MetadataCacheTimeoutSetting `yaml:"metadata_timeout_settings,omitempty" json:"metadata_timeout_settings,omitempty"`
 	// determine if we will invalidate parent dir's entry cache
 	// at subdir/file creation/deletion
 	// turn to false to allow short cache inconsistency
-	InvalidateParentEntryCacheImmediately bool
+	InvalidateParentEntryCacheImmediately bool `yaml:"invalidate_parent_entry_cache_immediately,omitempty" json:"invalidate_parent_entry_cache_immediately,omitempty"`
 	// for mysql iCAT backend, this should be true.
 	// for postgresql iCAT backend, this can be false.
-	StartNewTransaction bool
+	StartNewTransaction bool `yaml:"start_new_transaction,omitempty" json:"start_new_transaction,omitempty"`
 }
 
 // NewDefaultCacheConfig creates a new default CacheConfig
 func NewDefaultCacheConfig() CacheConfig {
 	return CacheConfig{
-		Timeout:                               FileSystemTimeoutDefault,
-		CleanupTime:                           FileSystemTimeoutDefault,
+		Timeout:                               types.Duration(FileSystemTimeoutDefault),
+		CleanupTime:                           types.Duration(FileSystemTimeoutDefault),
 		MetadataTimeoutSettings:               []MetadataCacheTimeoutSetting{},
 		InvalidateParentEntryCacheImmediately: true,
 		StartNewTransaction:                   true,
@@ -61,15 +61,18 @@ type FileSystemCache struct {
 
 // NewFileSystemCache creates a new FileSystemCache
 func NewFileSystemCache(config *CacheConfig) *FileSystemCache {
-	entryCache := gocache.New(config.Timeout, config.CleanupTime)
-	negativeEntryCache := gocache.New(config.Timeout, config.CleanupTime)
-	dirCache := gocache.New(config.Timeout, config.CleanupTime)
-	metadataCache := gocache.New(config.Timeout, config.CleanupTime)
-	groupUsersCache := gocache.New(config.Timeout, config.CleanupTime)
-	userGroupsCache := gocache.New(config.Timeout, config.CleanupTime)
-	groupsCache := gocache.New(config.Timeout, config.CleanupTime)
-	usersCache := gocache.New(config.Timeout, config.CleanupTime)
-	aclCache := gocache.New(config.Timeout, config.CleanupTime)
+	timeout := time.Duration(config.Timeout)
+	cleanupTime := time.Duration(config.CleanupTime)
+
+	entryCache := gocache.New(timeout, cleanupTime)
+	negativeEntryCache := gocache.New(timeout, cleanupTime)
+	dirCache := gocache.New(timeout, cleanupTime)
+	metadataCache := gocache.New(timeout, cleanupTime)
+	groupUsersCache := gocache.New(timeout, cleanupTime)
+	userGroupsCache := gocache.New(timeout, cleanupTime)
+	groupsCache := gocache.New(timeout, cleanupTime)
+	usersCache := gocache.New(timeout, cleanupTime)
+	aclCache := gocache.New(timeout, cleanupTime)
 
 	// build a map for quick search
 	cacheTimeoutSettingMap := map[string]MetadataCacheTimeoutSetting{}
@@ -103,7 +106,7 @@ func (cache *FileSystemCache) getCacheTTLForPath(path string) time.Duration {
 	// check map first
 	if timeoutSetting, ok := cache.cacheTimeoutPathMap[path]; ok {
 		// exact match
-		return timeoutSetting.Timeout
+		return time.Duration(timeoutSetting.Timeout)
 	}
 
 	// check inherit
@@ -115,7 +118,7 @@ func (cache *FileSystemCache) getCacheTTLForPath(path string) time.Duration {
 			// parent match
 			if timeoutSetting.Inherit {
 				// inherit
-				return timeoutSetting.Timeout
+				return time.Duration(timeoutSetting.Timeout)
 			}
 		}
 	}
