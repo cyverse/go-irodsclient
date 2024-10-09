@@ -33,7 +33,10 @@ func Touch(conn *connection.IRODSConnection, path string, resource string, noCre
 		} else if types.GetIRODSErrorCode(err) == common.SYS_UNMATCHED_API_NUM {
 			// not supported
 			return xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewAPINotSupportedError(common.TOUCH_APN))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
+
 		return xerrors.Errorf("failed to touch: %w", err)
 	}
 

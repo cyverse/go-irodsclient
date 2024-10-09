@@ -108,7 +108,10 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				return nil, xerrors.Errorf("failed to find the data object for path %q: %w", filepath, types.NewFileNotFoundError(filepath))
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", filepath, types.NewFileNotFoundError(filepath))
 			}
+
 			return nil, xerrors.Errorf("received data object query error: %w", err)
 		}
 
@@ -301,7 +304,10 @@ func GetDataObjectWithoutCollection(conn *connection.IRODSConnection, filepath s
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				return nil, xerrors.Errorf("failed to find the data object for path %q: %w", filepath, types.NewFileNotFoundError(filepath))
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", filepath, types.NewFileNotFoundError(filepath))
 			}
+
 			return nil, xerrors.Errorf("received data object query error: %w", err)
 		}
 
@@ -495,7 +501,10 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				return nil, xerrors.Errorf("failed to find the data object for path %q: %w", filepath, types.NewFileNotFoundError(filepath))
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", filepath, types.NewFileNotFoundError(filepath))
 			}
+
 			return nil, xerrors.Errorf("received data object query error: %w", err)
 		}
 
@@ -696,7 +705,10 @@ func GetDataObjectMasterReplicaWithoutCollection(conn *connection.IRODSConnectio
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				return nil, xerrors.Errorf("failed to find the data object for path %q: %w", filepath, types.NewFileNotFoundError(filepath))
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", filepath, types.NewFileNotFoundError(filepath))
 			}
+
 			return nil, xerrors.Errorf("received data object query error: %w", err)
 		}
 
@@ -895,7 +907,10 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
 				break
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collection.Path, types.NewFileNotFoundError(collection.Path))
 			}
+
 			return nil, xerrors.Errorf("received data object query error: %w", err)
 		}
 
@@ -1085,7 +1100,10 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
 				break
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collection.Path, types.NewFileNotFoundError(collection.Path))
 			}
+
 			return nil, xerrors.Errorf("received data object query error: %w", err)
 		}
 
@@ -1275,7 +1293,10 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, collection *types.IROD
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
 				break
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collection.Path, types.NewFileNotFoundError(collection.Path))
 			}
+
 			return nil, xerrors.Errorf("received data object metadata query error: %w", err)
 		}
 
@@ -1395,7 +1416,10 @@ func ListDataObjectAccesses(conn *connection.IRODSConnection, collection *types.
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
 				break
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collection.Path, types.NewFileNotFoundError(collection.Path))
 			}
+
 			return nil, xerrors.Errorf("received data object access query error: %w", err)
 		}
 
@@ -1497,7 +1521,10 @@ func ListAccessesForDataObjects(conn *connection.IRODSConnection, collection *ty
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
 				break
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collection.Path, types.NewFileNotFoundError(collection.Path))
 			}
+
 			return nil, xerrors.Errorf("received data object access query error: %w", err)
 		}
 
@@ -1580,7 +1607,10 @@ func DeleteDataObject(conn *connection.IRODSConnection, path string, force bool)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
+
 		return xerrors.Errorf("failed to delete data object: %w", err)
 	}
 	return nil
@@ -1607,7 +1637,10 @@ func MoveDataObject(conn *connection.IRODSConnection, srcPath string, destPath s
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the data object for path %q: %w", srcPath, types.NewFileNotFoundError(srcPath))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return xerrors.Errorf("failed to find the collection for path %q: %w", srcPath, types.NewFileNotFoundError(srcPath))
 		}
+
 		return xerrors.Errorf("failed to move data object: %w", err)
 	}
 	return nil
@@ -1634,7 +1667,10 @@ func CopyDataObject(conn *connection.IRODSConnection, srcPath string, destPath s
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the data object for path %q: %w", srcPath, types.NewFileNotFoundError(srcPath))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return xerrors.Errorf("failed to find the collection for path %q: %w", srcPath, types.NewFileNotFoundError(srcPath))
 		}
+
 		return xerrors.Errorf("failed to copy data object: %w", err)
 	}
 	return nil
@@ -1661,7 +1697,10 @@ func TruncateDataObject(conn *connection.IRODSConnection, path string, size int6
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
+
 		return xerrors.Errorf("failed to truncate data object: %w", err)
 	}
 	return nil
@@ -1703,7 +1742,10 @@ func ReplicateDataObject(conn *connection.IRODSConnection, path string, resource
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
+
 		return xerrors.Errorf("failed to replicate data object: %w", err)
 	}
 	return nil
@@ -1741,7 +1783,10 @@ func TrimDataObject(conn *connection.IRODSConnection, path string, resource stri
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
+
 		return xerrors.Errorf("failed to trim data object: %w", err)
 	}
 	return nil
@@ -1779,6 +1824,12 @@ func CreateDataObject(conn *connection.IRODSConnection, path string, resource st
 
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
+		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+			return nil, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return nil, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+		}
+
 		return nil, xerrors.Errorf("failed to create data object: %w", err)
 	}
 
@@ -1825,7 +1876,10 @@ func OpenDataObject(conn *connection.IRODSConnection, path string, resource stri
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return nil, -1, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return nil, -1, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
+
 		return nil, -1, xerrors.Errorf("failed to open data object: %w", err)
 	}
 
@@ -1887,7 +1941,10 @@ func OpenDataObjectWithReplicaToken(conn *connection.IRODSConnection, path strin
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return nil, -1, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return nil, -1, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
+
 		return nil, -1, xerrors.Errorf("failed to open data object with replica token: %w", err)
 	}
 
@@ -1949,7 +2006,10 @@ func OpenDataObjectWithOperation(conn *connection.IRODSConnection, path string, 
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return nil, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
+
 		return nil, xerrors.Errorf("failed to open data object: %w", err)
 	}
 
@@ -2010,7 +2070,10 @@ func OpenDataObjectForPutParallel(conn *connection.IRODSConnection, path string,
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return nil, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
+
 		return nil, xerrors.Errorf("failed to open data object: %w", err)
 	}
 
@@ -2058,7 +2121,10 @@ func GetReplicaAccessInfo(conn *connection.IRODSConnection, handle *types.IRODSF
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return "", "", xerrors.Errorf("failed to find the data object for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return "", "", xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
 		}
+
 		return "", "", xerrors.Errorf("failed to get replica access info: %w", err)
 	}
 
@@ -2099,7 +2165,10 @@ func seekDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHan
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return -1, xerrors.Errorf("failed to find the data object for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return -1, xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
 		}
+
 		return -1, xerrors.Errorf("failed to seek data object: %w", err)
 	}
 
@@ -2132,7 +2201,10 @@ func ReadDataObjectWithTrackerCallBack(conn *connection.IRODSConnection, handle 
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return 0, xerrors.Errorf("failed to find the data object for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return 0, xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
 		}
+
 		return 0, xerrors.Errorf("failed to read data object: %w", err)
 	}
 
@@ -2171,7 +2243,10 @@ func WriteDataObjectWithTrackerCallBack(conn *connection.IRODSConnection, handle
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the data object for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
 		}
+
 		return xerrors.Errorf("failed to write to data object: %w", err)
 	}
 	return nil
@@ -2220,6 +2295,9 @@ func WriteDataObjectAsyncWithTrackerCallBack(conn *connection.IRODSConnection, h
 				if resErr != nil {
 					if types.GetIRODSErrorCode(resErr) == common.CAT_NO_ROWS_FOUND {
 						returnErr = xerrors.Errorf("failed to find the data object for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+						return
+					} else if types.GetIRODSErrorCode(resErr) == common.CAT_UNKNOWN_COLLECTION {
+						returnErr = xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
 						return
 					}
 
@@ -2326,7 +2404,10 @@ func TruncateDataObjectHandle(conn *connection.IRODSConnection, handle *types.IR
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the data object for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
 		}
+
 		return xerrors.Errorf("failed to close data object: %w", err)
 	}
 
@@ -2337,7 +2418,10 @@ func TruncateDataObjectHandle(conn *connection.IRODSConnection, handle *types.IR
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the data object for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
 		}
+
 		return xerrors.Errorf("failed to truncate data object: %w", err)
 	}
 
@@ -2348,7 +2432,10 @@ func TruncateDataObjectHandle(conn *connection.IRODSConnection, handle *types.IR
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the data object for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
 		}
+
 		return xerrors.Errorf("failed to reopen data object: %w", err)
 	}
 
@@ -2361,7 +2448,10 @@ func TruncateDataObjectHandle(conn *connection.IRODSConnection, handle *types.IR
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the data object for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
 		}
+
 		return xerrors.Errorf("failed to seek data object: %w", err)
 	}
 
@@ -2393,7 +2483,10 @@ func CloseDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHa
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the data object for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
 		}
+
 		return xerrors.Errorf("failed to close data object: %w", err)
 	}
 	return nil
@@ -2424,7 +2517,10 @@ func LockDataObject(conn *connection.IRODSConnection, path string, lockType type
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return nil, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
+
 		return nil, xerrors.Errorf("failed to lock data object: %w", err)
 	}
 
@@ -2464,7 +2560,10 @@ func GetLockDataObject(conn *connection.IRODSConnection, path string) (*types.IR
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return nil, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
+
 		return nil, xerrors.Errorf("failed to get data object lock: %w", err)
 	}
 
@@ -2508,7 +2607,10 @@ func UnlockDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileL
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the data object for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
 		}
+
 		return xerrors.Errorf("failed to unlock data object: %w", err)
 	}
 	return nil
@@ -2536,7 +2638,10 @@ func AddDataObjectMeta(conn *connection.IRODSConnection, path string, metadata *
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
+
 		return xerrors.Errorf("failed to add data object meta: %w", err)
 	}
 	return nil
@@ -2573,7 +2678,10 @@ func DeleteDataObjectMeta(conn *connection.IRODSConnection, path string, metadat
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
+
 		return xerrors.Errorf("failed to delete data object meta: %w", err)
 	}
 	return nil
@@ -3456,7 +3564,10 @@ func ChangeDataObjectAccess(conn *connection.IRODSConnection, path string, acces
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
+
 		return xerrors.Errorf("failed to change data object access: %w", err)
 	}
 	return nil

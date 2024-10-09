@@ -39,7 +39,10 @@ func CloseDataObjectReplica(conn *connection.IRODSConnection, handle *types.IROD
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the data object for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
 		}
+
 		return xerrors.Errorf("failed to close data object replica: %w", err)
 	}
 	return nil

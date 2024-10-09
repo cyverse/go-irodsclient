@@ -53,7 +53,10 @@ func GetDataObjectRedirectionInfoForGet(conn *connection.IRODSConnection, path s
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return nil, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
+
 		return nil, xerrors.Errorf("failed to get data object redirection info for path %q: %w", path, err)
 	}
 
@@ -122,7 +125,10 @@ func GetDataObjectRedirectionInfoForPut(conn *connection.IRODSConnection, path s
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return nil, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
+
 		return nil, xerrors.Errorf("failed to get data object redirection info for path %q: %w", path, err)
 	}
 
@@ -179,7 +185,10 @@ func CompleteDataObjectRedirection(conn *connection.IRODSConnection, handle *typ
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to complete data object redirection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			return xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
 		}
+
 		return xerrors.Errorf("failed to complete data object redirection for path %q: %w", handle.Path, err)
 	}
 
