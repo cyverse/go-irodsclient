@@ -114,27 +114,24 @@ func (conn *IRODSResourceServerConnection) setSocketOpt(socket net.Conn, bufferS
 
 	if tcpSocket, ok := socket.(*net.TCPConn); ok {
 		// TCP socket
-
-		// nodelay is default
-		//tcpSocket.SetNoDelay(true)
+		tcpSocket.SetNoDelay(true)
 
 		tcpSocket.SetKeepAlive(true)
+		tcpSocket.SetLinger(5)
 
 		// TCP buffer size
-		if bufferSize <= 0 {
-			bufferSize = TCPBufferSizeDefault
-		}
+		if bufferSize > 0 {
+			sockErr := tcpSocket.SetReadBuffer(bufferSize)
+			if sockErr != nil {
+				sockBuffErr := xerrors.Errorf("failed to set tcp read buffer size %d: %w", bufferSize, sockErr)
+				logger.Errorf("%+v", sockBuffErr)
+			}
 
-		sockErr := tcpSocket.SetReadBuffer(bufferSize)
-		if sockErr != nil {
-			sockBuffErr := xerrors.Errorf("failed to set tcp read buffer size %d: %w", bufferSize, sockErr)
-			logger.Errorf("%+v", sockBuffErr)
-		}
-
-		sockErr = tcpSocket.SetWriteBuffer(bufferSize)
-		if sockErr != nil {
-			sockBuffErr := xerrors.Errorf("failed to set tcp write buffer size %d: %w", bufferSize, sockErr)
-			logger.Errorf("%+v", sockBuffErr)
+			sockErr = tcpSocket.SetWriteBuffer(bufferSize)
+			if sockErr != nil {
+				sockBuffErr := xerrors.Errorf("failed to set tcp write buffer size %d: %w", bufferSize, sockErr)
+				logger.Errorf("%+v", sockBuffErr)
+			}
 		}
 	}
 }
