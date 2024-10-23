@@ -119,7 +119,7 @@ func (conn *IRODSConnection) SupportParallelUpload() bool {
 	return conn.serverVersion.HasHigherVersionThan(4, 2, 9)
 }
 
-func (conn *IRODSConnection) requirePAMPassword() bool {
+func (conn *IRODSConnection) requreNewPamAuth() bool {
 	return conn.serverVersion.HasHigherVersionThan(4, 3, 0)
 }
 
@@ -579,7 +579,7 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 	authContext := strings.Join([]string{userKV, passwordKV, ttlKV}, ";")
 
 	useDedicatedPAMApi := true
-	if conn.requirePAMPassword() {
+	if conn.requreNewPamAuth() {
 		useDedicatedPAMApi = strings.ContainsAny(pamPassword, ";=") || len(authContext) >= 1024+64
 	}
 
@@ -589,7 +589,7 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 	if useDedicatedPAMApi {
 		logger.Debugf("use dedicated PAM api")
 
-		pamAuthRequest := message.NewIRODSMessagePamAuthRequest(conn.account.ProxyUser, pamPassword, ttl)
+		pamAuthRequest := message.NewIRODSMessagePamAuthRequest(conn.account.ProxyUser, conn.account.Password, ttl)
 		pamAuthResponse := message.IRODSMessagePamAuthResponse{}
 		err := conn.RequestAndCheck(pamAuthRequest, &pamAuthResponse, nil)
 		if err != nil {
