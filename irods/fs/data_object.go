@@ -1606,7 +1606,11 @@ func DeleteDataObject(conn *connection.IRODSConnection, path string, force bool)
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+			if !force {
+				return xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+			}
+			// suppress
+			return nil
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
 			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
