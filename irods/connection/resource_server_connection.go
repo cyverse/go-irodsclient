@@ -117,7 +117,8 @@ func (conn *IRODSResourceServerConnection) setSocketOpt(socket net.Conn, bufferS
 		tcpSocket.SetNoDelay(true)
 
 		tcpSocket.SetKeepAlive(true)
-		tcpSocket.SetLinger(5)
+		tcpSocket.SetKeepAlivePeriod(15 * time.Second) // 15 seconds
+		tcpSocket.SetLinger(5)                         // 5 seconds
 
 		// TCP buffer size
 		if bufferSize > 0 {
