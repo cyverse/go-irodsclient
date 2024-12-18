@@ -51,7 +51,7 @@ func GetDataObjectRedirectionInfoForGet(conn *connection.IRODSConnection, path s
 
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
-		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 			return nil, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
 			return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
@@ -123,7 +123,7 @@ func GetDataObjectRedirectionInfoForPut(conn *connection.IRODSConnection, path s
 
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
-		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 			return nil, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
 			return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
@@ -183,7 +183,7 @@ func CompleteDataObjectRedirection(conn *connection.IRODSConnection, handle *typ
 	response := message.IRODSMessageGetDataObjectCompleteResponse{}
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
-		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 			return xerrors.Errorf("failed to complete data object redirection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
 			return xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))

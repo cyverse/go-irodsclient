@@ -70,7 +70,7 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
-		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 			return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
 
@@ -81,7 +81,7 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
-		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 			return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
 
@@ -190,7 +190,7 @@ func ListCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
 				break
-			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 			}
 
@@ -202,7 +202,7 @@ func ListCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
 				break
-			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 			}
 
@@ -315,7 +315,7 @@ func GetCollectionAccessInheritance(conn *connection.IRODSConnection, path strin
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
 				break
-			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 			}
 
@@ -327,7 +327,7 @@ func GetCollectionAccessInheritance(conn *connection.IRODSConnection, path strin
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
 				break
-			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 			}
 
@@ -414,7 +414,7 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
 				break
-			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 			}
 
@@ -426,7 +426,7 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
 				break
-			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 			}
 
@@ -533,7 +533,7 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
 				break
-			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 			}
 
@@ -547,7 +547,7 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
 				break
-			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 			}
 
@@ -653,7 +653,7 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, path string
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
 				break
-			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 			}
 
@@ -760,7 +760,7 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
 				break
-			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 			}
 
@@ -886,7 +886,7 @@ func DeleteCollection(conn *connection.IRODSConnection, path string, recurse boo
 			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		} else if types.GetIRODSErrorCode(err) == common.CAT_COLLECTION_NOT_EMPTY {
 			return xerrors.Errorf("the collection for path %q is empty: %w", path, types.NewCollectionNotEmptyError(path))
-		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
 
@@ -935,7 +935,7 @@ func MoveCollection(conn *connection.IRODSConnection, srcPath string, destPath s
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the collection for path %q: %w", srcPath, types.NewFileNotFoundError(srcPath))
-		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 			return xerrors.Errorf("failed to find the collection for path %q: %w", srcPath, types.NewFileNotFoundError(srcPath))
 		}
 
@@ -1000,7 +1000,7 @@ func DeleteCollectionMeta(conn *connection.IRODSConnection, path string, metadat
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
-		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
 
@@ -1278,7 +1278,7 @@ func ChangeCollectionAccess(conn *connection.IRODSConnection, path string, acces
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
-		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
 
@@ -1314,7 +1314,7 @@ func SetAccessInherit(conn *connection.IRODSConnection, path string, inherit, re
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
-		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
 		}
 

@@ -278,6 +278,10 @@ func (fs *FileSystem) RemoveDir(path string, recurse bool, force bool) error {
 
 	err = irods_fs.DeleteCollection(conn, irodsPath, recurse, force)
 	if err != nil {
+		if types.IsFileNotFoundError(err) {
+			fs.invalidateCacheForFileRemove(irodsPath)
+			fs.cachePropagation.PropagateFileRemove(irodsPath)
+		}
 		return err
 	}
 
@@ -316,6 +320,10 @@ func (fs *FileSystem) RemoveFile(path string, force bool) error {
 	// wait done
 	err = irods_fs.DeleteDataObject(conn, irodsPath, force)
 	if err != nil {
+		if types.IsFileNotFoundError(err) {
+			fs.invalidateCacheForFileRemove(irodsPath)
+			fs.cachePropagation.PropagateFileRemove(irodsPath)
+		}
 		return err
 	}
 
