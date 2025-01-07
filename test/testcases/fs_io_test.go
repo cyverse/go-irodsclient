@@ -23,6 +23,7 @@ func TestFSIO(t *testing.T) {
 	makeHomeDir(t, fsIOTestID)
 
 	t.Run("test UpDownMBFiles", testUpDownMBFiles)
+	t.Run("test UpRemoveMBFiles", testUpRemoveMBFiles)
 	t.Run("test UpDownMBFilesParallel", testUpDownMBFilesParallel)
 	t.Run("test UpDownMBFilesParallelRedirectToResource", testUpDownMBFilesParallelRedirectToResource)
 }
@@ -68,6 +69,53 @@ func testUpDownMBFiles(t *testing.T) {
 		failError(t, err)
 
 		err = os.Remove(localDownloadPath)
+		failError(t, err)
+	}
+
+	err = os.Remove(localPath)
+	failError(t, err)
+}
+
+func testUpRemoveMBFiles(t *testing.T) {
+	account := GetTestAccount()
+
+	account.ClientServerNegotiation = false
+
+	fsConfig := GetTestFileSystemConfig()
+
+	filesystem, err := fs.NewFileSystem(account, fsConfig)
+	failError(t, err)
+	defer filesystem.Release()
+
+	homedir := getHomeDir(fsIOTestID)
+	testDirPath := path.Join(homedir, "test_dir")
+
+	fileSize := int64(100 * 1024 * 1024) // 100MB
+	localPath, err := createLocalTestFile("test_file_", fileSize)
+	failError(t, err)
+
+	iRODSPath := fmt.Sprintf("%s/%s", testDirPath, path.Base(localPath))
+
+	// core
+	for i := 0; i < 100; i++ {
+		t.Logf("iteration %d, making dir", i)
+		err = filesystem.MakeDir(testDirPath, true)
+		failError(t, err)
+
+		t.Logf("iteration %d, uploading file", i)
+		_, err = filesystem.UploadFile(localPath, iRODSPath, "", false, true, true, nil)
+		failError(t, err)
+
+		t.Logf("iteration %d, stating file", i)
+		fileStat, err := filesystem.Stat(iRODSPath)
+		failError(t, err)
+
+		if fileStat.Size != fileSize {
+			failError(t, fmt.Errorf("wrong size"))
+		}
+
+		t.Logf("iteration %d, removing dir", i)
+		err = filesystem.RemoveDir(testDirPath, true, true)
 		failError(t, err)
 	}
 
