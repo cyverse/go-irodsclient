@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cyverse/go-irodsclient/fs"
+	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/rs/xid"
 )
 
@@ -117,6 +118,16 @@ func testUpRemoveMBFiles(t *testing.T) {
 		t.Logf("iteration %d, removing dir", i)
 		err = filesystem.RemoveDir(testDirPath, true, true)
 		failError(t, err)
+
+		t.Logf("iteration %d, stating file again", i)
+		fileStat2, err := filesystem.Stat(iRODSPath)
+		if err != nil {
+			if !types.IsFileNotFoundError(err) {
+				failError(t, err)
+			}
+		} else {
+			failError(t, fmt.Errorf("file not deleted - %q (size %d)", fileStat2.Path, fileStat2.Size))
+		}
 	}
 
 	err = os.Remove(localPath)

@@ -53,7 +53,7 @@ func (fs *FileSystem) invalidateCacheForDirCreate(path string) {
 	fs.cache.RemoveNegativeEntryCache(path)
 
 	// parent dir's entry also changes
-	fs.cache.RemoveParentDirCache(path)
+	fs.cache.RemoveParentDirEntryCache(path, true)
 	// parent dir's dir entry also changes
 	parentPath := util.GetIRODSPathDirname(path)
 	parentDirEntries := fs.cache.GetDirCache(parentPath)
@@ -100,7 +100,7 @@ func (fs *FileSystem) invalidateCacheForDirRemove(path string, recurse bool) {
 	fs.cache.RemoveAllNegativeEntryCacheForPath(path)
 
 	fs.cache.AddNegativeEntryCache(path)
-	fs.cache.RemoveEntryCache(path)
+	fs.cache.RemoveDirEntryCache(path, false)
 	fs.cache.RemoveMetadataCache(path)
 
 	if recurse && entry != nil {
@@ -117,7 +117,8 @@ func (fs *FileSystem) invalidateCacheForDirRemove(path string, recurse bool) {
 	fs.cache.RemoveACLsCache(path)
 
 	// parent dir's entry also changes
-	fs.cache.RemoveParentDirCache(path)
+	fs.cache.RemoveParentDirEntryCache(path, recurse)
+
 	// parent dir's dir entry also changes
 	parentPath := util.GetIRODSPathDirname(path)
 	parentDirEntries := fs.cache.GetDirCache(parentPath)
@@ -161,7 +162,7 @@ func (fs *FileSystem) invalidateCacheForDirExtract(path string) {
 	fs.cache.RemoveACLsCache(path)
 
 	// parent dir's entry also changes
-	fs.cache.RemoveParentDirCache(path)
+	fs.cache.RemoveParentDirEntryCache(path, true)
 	// parent dir's dir entry also changes
 	parentPath := util.GetIRODSPathDirname(path)
 	parentDirEntries := fs.cache.GetDirCache(parentPath)
@@ -190,7 +191,7 @@ func (fs *FileSystem) invalidateCacheForFileCreate(path string) {
 	fs.cache.RemoveNegativeEntryCache(path)
 
 	// parent dir's entry also changes
-	fs.cache.RemoveParentDirCache(path)
+	fs.cache.RemoveParentDirEntryCache(path, true)
 	// parent dir's dir entry also changes
 	parentPath := util.GetIRODSPathDirname(path)
 	parentDirEntries := fs.cache.GetDirCache(parentPath)
@@ -211,7 +212,7 @@ func (fs *FileSystem) invalidateCacheForFileRemove(path string) {
 	fs.cache.RemoveMetadataCache(path)
 
 	// parent dir's entry also changes
-	fs.cache.RemoveParentDirCache(path)
+	fs.cache.RemoveParentDirEntryCache(path, false)
 	// parent dir's dir entry also changes
 	parentPath := util.GetIRODSPathDirname(path)
 	parentDirEntries := fs.cache.GetDirCache(parentPath)
