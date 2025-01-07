@@ -555,12 +555,6 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 				curOffset += toPut
 
 				if err != nil {
-					if err == io.EOF {
-						logger.Debugf("received EOF for uploading file chunk for %s, task %d, offset %d, length %d", handle.Path, taskID, transferHeader.Offset, transferHeader.Length)
-						cont = false
-						break
-					}
-
 					return xerrors.Errorf("failed to read data %q, task %d, offset %d: %w", localPath, taskID, transferHeader.Offset, err)
 				}
 			}

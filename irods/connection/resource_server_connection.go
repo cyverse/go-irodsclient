@@ -326,10 +326,8 @@ func (conn *IRODSResourceServerConnection) SendFromReader(src io.Reader, size in
 	}
 
 	if err != nil {
-		if err != io.EOF {
-			conn.socketFail()
-			return xerrors.Errorf("failed to send data: %w", err)
-		}
+		conn.socketFail()
+		return xerrors.Errorf("failed to send data: %w", err)
 	}
 
 	conn.lastSuccessfulAccess = time.Now()
@@ -357,15 +355,21 @@ func (conn *IRODSResourceServerConnection) RecvWithTrackerCallBack(buffer []byte
 	}
 
 	readLen, err := util.ReadBytesWithTrackerCallBack(conn.socket, buffer, size, callback)
-	if err != nil {
-		conn.socketFail()
-		return readLen, xerrors.Errorf("failed to receive data: %w", err)
-	}
-
 	if readLen > 0 {
 		if conn.metrics != nil {
 			conn.metrics.IncreaseBytesReceived(uint64(readLen))
 		}
+	}
+
+	if err != nil {
+		if err == io.EOF {
+			conn.lastSuccessfulAccess = time.Now()
+			conn.disconnectNow()
+			return readLen, io.EOF
+		}
+
+		conn.socketFail()
+		return readLen, xerrors.Errorf("failed to receive data: %w", err)
 	}
 
 	conn.lastSuccessfulAccess = time.Now()
@@ -395,10 +399,14 @@ func (conn *IRODSResourceServerConnection) RecvToWriter(writer io.Writer, size i
 	}
 
 	if err != nil {
-		if err != io.EOF {
-			conn.socketFail()
-			return copyLen, xerrors.Errorf("failed to receive data: %w", err)
+		if err == io.EOF {
+			conn.lastSuccessfulAccess = time.Now()
+			conn.disconnectNow()
+			return copyLen, io.EOF
 		}
+
+		conn.socketFail()
+		return copyLen, xerrors.Errorf("failed to receive data: %w", err)
 	}
 
 	conn.lastSuccessfulAccess = time.Now()

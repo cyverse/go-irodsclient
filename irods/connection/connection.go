@@ -748,7 +748,7 @@ func (conn *IRODSConnection) SendFromReader(src io.Reader, size int64) error {
 
 	copyLen, err := io.CopyN(conn.socket, src, size)
 	if copyLen != size {
-		return xerrors.Errorf("failed to send data. src returned EOF (requested %d, copied %d)", size, copyLen)
+		return xerrors.Errorf("failed to send data. failed to send data fully (requested %d vs sent %d)", size, copyLen)
 	}
 
 	if copyLen > 0 {
@@ -758,10 +758,8 @@ func (conn *IRODSConnection) SendFromReader(src io.Reader, size int64) error {
 	}
 
 	if err != nil {
-		if err != io.EOF {
-			conn.socketFail()
-			return xerrors.Errorf("failed to send data: %w", err)
-		}
+		conn.socketFail()
+		return xerrors.Errorf("failed to send data: %w", err)
 	}
 
 	conn.lastSuccessfulAccess = time.Now()
@@ -789,15 +787,21 @@ func (conn *IRODSConnection) RecvWithTrackerCallBack(buffer []byte, size int, ca
 	}
 
 	readLen, err := util.ReadBytesWithTrackerCallBack(conn.socket, buffer, size, callback)
-	if err != nil {
-		conn.socketFail()
-		return readLen, xerrors.Errorf("failed to receive data: %w", err)
-	}
-
 	if readLen > 0 {
 		if conn.metrics != nil {
 			conn.metrics.IncreaseBytesReceived(uint64(readLen))
 		}
+	}
+
+	if err != nil {
+		if err == io.EOF {
+			conn.lastSuccessfulAccess = time.Now()
+			conn.disconnectNow()
+			return readLen, io.EOF
+		}
+
+		conn.socketFail()
+		return readLen, xerrors.Errorf("failed to receive data: %w", err)
 	}
 
 	conn.lastSuccessfulAccess = time.Now()
@@ -827,10 +831,14 @@ func (conn *IRODSConnection) RecvToWriter(writer io.Writer, size int64) (int64, 
 	}
 
 	if err != nil {
-		if err != io.EOF {
-			conn.socketFail()
-			return copyLen, xerrors.Errorf("failed to receive data: %w", err)
+		if err == io.EOF {
+			conn.lastSuccessfulAccess = time.Now()
+			conn.disconnectNow()
+			return copyLen, io.EOF
 		}
+
+		conn.socketFail()
+		return copyLen, xerrors.Errorf("failed to receive data: %w", err)
 	}
 
 	conn.lastSuccessfulAccess = time.Now()
@@ -919,7 +927,10 @@ func (conn *IRODSConnection) SendMessageWithTrackerCallBack(msg *message.IRODSMe
 	// send body-bs
 	if msg.Body != nil {
 		if msg.Body.Bs != nil {
-			conn.SendWithTrackerCallBack(msg.Body.Bs, len(msg.Body.Bs), callback)
+			err = conn.SendWithTrackerCallBack(msg.Body.Bs, len(msg.Body.Bs), callback)
+			if err != nil {
+				return xerrors.Errorf("failed to send message: %w", err)
+			}
 		}
 	}
 	return nil
