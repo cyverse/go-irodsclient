@@ -139,6 +139,11 @@ func (fs *FileSystem) SupportParallelUpload() bool {
 	return fs.metadataSession.SupportParallelUpload()
 }
 
+// IsTicketAccess returns if the access is authenticated using ticket
+func (fs *FileSystem) IsTicketAccess() bool {
+	return fs.account.UseTicket()
+}
+
 // GetMetrics returns metrics
 func (fs *FileSystem) GetMetrics() *metrics.IRODSMetrics {
 	ioMetrics := fs.ioSession.GetMetrics()

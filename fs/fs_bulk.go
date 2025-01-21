@@ -554,9 +554,18 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 			localFileName := filepath.Base(localSrcPath)
 			irodsFilePath = util.MakeIRODSPath(irodsDestPath, localFileName)
 		} else {
-			err = fs.RemoveFile(irodsDestPath, true)
-			if err != nil {
-				return fileTransferResult, xerrors.Errorf("failed to remove data object %q for overwrite: %w", irodsDestPath, err)
+			if fs.IsTicketAccess() {
+				// ticket does not support removing a file
+				if stat.Size() < entry.Size {
+					return fileTransferResult, xerrors.Errorf("failed to overwrite a file %q with a smaller file", irodsDestPath)
+				}
+
+				// try to overwrite the file
+			} else {
+				err = fs.RemoveFile(irodsDestPath, true)
+				if err != nil {
+					return fileTransferResult, xerrors.Errorf("failed to remove data object %q for overwrite: %w", irodsDestPath, err)
+				}
 			}
 		}
 	}
@@ -644,9 +653,18 @@ func (fs *FileSystem) UploadFileFromBuffer(buffer *bytes.Buffer, irodsPath strin
 		if entry.IsDir() {
 			return fileTransferResult, xerrors.Errorf("invalid entry type %q. Destination must be a file", entry.Type)
 		} else {
-			err = fs.RemoveFile(irodsDestPath, true)
-			if err != nil {
-				return fileTransferResult, xerrors.Errorf("failed to remove data object %q for overwrite: %w", irodsDestPath, err)
+			if fs.IsTicketAccess() {
+				// ticket does not support removing a file
+				if int64(buffer.Len()) < entry.Size {
+					return fileTransferResult, xerrors.Errorf("failed to overwrite a file %q with a smaller file", irodsDestPath)
+				}
+
+				// try to overwrite the file
+			} else {
+				err = fs.RemoveFile(irodsDestPath, true)
+				if err != nil {
+					return fileTransferResult, xerrors.Errorf("failed to remove data object %q for overwrite: %w", irodsDestPath, err)
+				}
 			}
 		}
 	}
@@ -750,9 +768,18 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 			localFileName := filepath.Base(localSrcPath)
 			irodsFilePath = util.MakeIRODSPath(irodsDestPath, localFileName)
 		} else {
-			err = fs.RemoveFile(irodsDestPath, true)
-			if err != nil {
-				return fileTransferResult, xerrors.Errorf("failed to remove data object %q for overwrite: %w", irodsDestPath, err)
+			if fs.IsTicketAccess() {
+				// ticket does not support removing a file
+				if stat.Size() < entry.Size {
+					return fileTransferResult, xerrors.Errorf("failed to overwrite a file %q with a smaller file", irodsDestPath)
+				}
+
+				// try to overwrite the file
+			} else {
+				err = fs.RemoveFile(irodsDestPath, true)
+				if err != nil {
+					return fileTransferResult, xerrors.Errorf("failed to remove data object %q for overwrite: %w", irodsDestPath, err)
+				}
 			}
 		}
 	}
@@ -856,9 +883,18 @@ func (fs *FileSystem) UploadFileParallelRedirectToResource(localPath string, iro
 			localFileName := filepath.Base(localSrcPath)
 			irodsFilePath = util.MakeIRODSPath(irodsDestPath, localFileName)
 		} else {
-			err = fs.RemoveFile(irodsDestPath, true)
-			if err != nil {
-				return fileTransferResult, xerrors.Errorf("failed to remove data object %q for overwrite: %w", irodsDestPath, err)
+			if fs.IsTicketAccess() {
+				// ticket does not support removing a file
+				if stat.Size() < entry.Size {
+					return fileTransferResult, xerrors.Errorf("failed to overwrite a file %q with a smaller file", irodsDestPath)
+				}
+
+				// try to overwrite the file
+			} else {
+				err = fs.RemoveFile(irodsDestPath, true)
+				if err != nil {
+					return fileTransferResult, xerrors.Errorf("failed to remove data object %q for overwrite: %w", irodsDestPath, err)
+				}
 			}
 		}
 	}
