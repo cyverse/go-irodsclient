@@ -52,7 +52,7 @@ func testUpDownMBFiles(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		start := time.Now()
-		_, err = filesystem.UploadFile(localPath, iRODSPath, "", false, true, true, nil)
+		_, err = filesystem.UploadFile(localPath, iRODSPath, "", false, true, true, false, nil)
 		duration := time.Since(start)
 
 		t.Logf("upload a file in size %d took time - %v", fileSize, duration)
@@ -104,7 +104,7 @@ func testUpRemoveMBFiles(t *testing.T) {
 		failError(t, err)
 
 		t.Logf("iteration %d, uploading file", i)
-		_, err = filesystem.UploadFile(localPath, iRODSPath, "", false, true, true, nil)
+		_, err = filesystem.UploadFile(localPath, iRODSPath, "", false, true, true, false, nil)
 		failError(t, err)
 
 		t.Logf("iteration %d, stating file", i)
@@ -157,7 +157,7 @@ func testUpDownMBFilesParallel(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		start := time.Now()
-		_, err = filesystem.UploadFileParallel(localPath, iRODSPath, "", 0, false, true, true, nil)
+		_, err = filesystem.UploadFileParallel(localPath, iRODSPath, "", 0, false, true, true, false, nil)
 		duration := time.Since(start)
 
 		t.Logf("upload a file in size %d took time - %v", fileSize, duration)
@@ -205,7 +205,7 @@ func testUpDownMBFilesParallelRedirectToResource(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		start := time.Now()
-		_, err = filesystem.UploadFileParallelRedirectToResource(localPath, iRODSPath, "", 0, false, true, true, nil)
+		_, err = filesystem.UploadFileParallelRedirectToResource(localPath, iRODSPath, "", 0, false, true, true, false, nil)
 		duration := time.Since(start)
 
 		t.Logf("upload a file in size %d took time - %v", fileSize, duration)

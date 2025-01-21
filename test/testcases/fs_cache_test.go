@@ -163,7 +163,7 @@ func testUploadAndDeleteDir(t *testing.T) {
 
 		// upload
 		iRODSPath := fmt.Sprintf("%s/%s", newdir, path.Base(localPath))
-		_, err = filesystem.UploadFile(localPath, iRODSPath, "", false, true, true, nil)
+		_, err = filesystem.UploadFile(localPath, iRODSPath, "", false, true, true, false, nil)
 		failError(t, err)
 
 		// delete test
