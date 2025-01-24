@@ -4,9 +4,11 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/hashicorp/go-rootcerts"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/xerrors"
 )
 
@@ -60,7 +62,45 @@ type IRODSSSLConfig struct {
 }
 
 // LoadCACert loads CA Cert
-func (config *IRODSSSLConfig) LoadCACert() (*x509.CertPool, error) {
+func (config *IRODSSSLConfig) LoadCACert(ignoreWrongFile bool) (*x509.CertPool, error) {
+	logger := log.WithFields(log.Fields{
+		"package":  "types",
+		"struct":   "IRODSSSLConfig",
+		"function": "LoadCACert",
+	})
+
+	if len(config.CACertificateFile) > 0 {
+		// check file exists
+		_, err := os.Stat(config.CACertificateFile)
+		if err != nil {
+			if os.IsNotExist(err) {
+				if ignoreWrongFile {
+					logger.Debugf("CA Certificate File %q does not exist, ignoring.", config.CACertificateFile)
+				} else {
+					return nil, xerrors.Errorf("CA Certificate File %q error: %w", config.CACertificateFile, NewFileNotFoundError(config.CACertificateFile))
+				}
+			} else {
+				return nil, xerrors.Errorf("CA Certificate File %q error: %w", config.CACertificateFile, err)
+			}
+		}
+	}
+
+	if len(config.CACertificatePath) > 0 {
+		// check file exists
+		_, err := os.Stat(config.CACertificatePath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				if ignoreWrongFile {
+					return nil, xerrors.Errorf("CA Certificate Path %q error: %w", config.CACertificatePath, NewFileNotFoundError(config.CACertificatePath))
+				} else {
+					logger.Debugf("CA Certificate Path %q does not exist, ignoring.", config.CACertificatePath)
+				}
+			} else {
+				return nil, xerrors.Errorf("CA Certificate Path %q error: %w", config.CACertificatePath, err)
+			}
+		}
+	}
+
 	certConfig := &rootcerts.Config{
 		CAFile: config.CACertificateFile,
 		CAPath: config.CACertificatePath,
@@ -75,8 +115,8 @@ func (config *IRODSSSLConfig) LoadCACert() (*x509.CertPool, error) {
 }
 
 // GetTLSConfig returns TLS Config
-func (config *IRODSSSLConfig) GetTLSConfig(serverName string) (*tls.Config, error) {
-	caCertPool, err := config.LoadCACert()
+func (config *IRODSSSLConfig) GetTLSConfig(serverName string, ignoreCertFileError bool) (*tls.Config, error) {
+	caCertPool, err := config.LoadCACert(ignoreCertFileError)
 	if err != nil {
 		return nil, err
 	}
@@ -90,4 +130,46 @@ func (config *IRODSSSLConfig) GetTLSConfig(serverName string) (*tls.Config, erro
 		ServerName:         serverName,
 		InsecureSkipVerify: !config.VerifyServer.IsVerificationRequired(),
 	}, nil
+}
+
+func (config *IRODSSSLConfig) Validate() error {
+	// icommands ignores non-existing ca cert files and paths
+	//if len(config.CACertificateFile) > 0 {
+	//	// check file exists
+	//	_, err := os.Stat(config.CACertificateFile)
+	//	if err != nil {
+	//		return xerrors.Errorf("CA Certificate File %q does not exist: %w", config.CACertificateFile, err)
+	//	}
+	//}
+
+	//if len(config.CACertificatePath) > 0 {
+	//	// check file exists
+	//	_, err := os.Stat(config.CACertificatePath)
+	//	if err != nil {
+	//		return xerrors.Errorf("CA Certificate Path %q does not exist: %w", config.CACertificatePath, err)
+	//	}
+	//}
+
+	if config.EncryptionKeySize <= 0 {
+		return xerrors.Errorf("invalid encryption key size")
+	}
+
+	if len(config.EncryptionAlgorithm) == 0 {
+		return xerrors.Errorf("empty encryption algorithm")
+	}
+
+	if config.EncryptionSaltSize <= 0 {
+		return xerrors.Errorf("invalid encryption salt size")
+	}
+
+	if config.EncryptionNumHashRounds <= 0 {
+		return xerrors.Errorf("invalid encryption number of hash rounds")
+	}
+
+	_, err := GetSSLVerifyServer(string(config.VerifyServer))
+	if err != nil {
+		return xerrors.Errorf("failed to validate SSL verify server: %w", err)
+	}
+
+	return nil
 }

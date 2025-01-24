@@ -270,7 +270,7 @@ func (conn *IRODSConnection) Connect() error {
 
 	irodsVersion, err := conn.startup()
 	if err != nil {
-		connErr := xerrors.Errorf("failed to startup an iRODS connection to server %q and port %d (%s): %w", conn.account.Host, conn.account.Port, err.Error(), types.NewConnectionError())
+		connErr := xerrors.Errorf("failed to startup an iRODS connection to server %q and port %d: %w", conn.account.Host, conn.account.Port, err)
 		logger.Errorf("%+v", connErr)
 		_ = conn.disconnectNow()
 		if conn.metrics != nil {
@@ -460,7 +460,7 @@ func (conn *IRODSConnection) sslStartup() error {
 		return xerrors.Errorf("SSL Configuration is not set: %w", types.NewConnectionConfigError(conn.account))
 	}
 
-	tlsConfig, err := irodsSSLConfig.GetTLSConfig(conn.account.Host)
+	tlsConfig, err := irodsSSLConfig.GetTLSConfig(conn.account.Host, true)
 	if err != nil {
 		return xerrors.Errorf("Failed to get TLS config: %w", err)
 	}

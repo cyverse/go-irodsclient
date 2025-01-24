@@ -185,6 +185,13 @@ func (account *IRODSAccount) Validate() error {
 		return xerrors.Errorf("SSL configuration is empty")
 	}
 
+	if account.SSLConfiguration != nil {
+		err = account.SSLConfiguration.Validate()
+		if err != nil {
+			return xerrors.Errorf("failed to validate SSL configuration: %w", err)
+		}
+	}
+
 	return nil
 }
 
