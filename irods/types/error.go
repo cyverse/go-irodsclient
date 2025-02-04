@@ -237,6 +237,39 @@ func IsFileNotFoundError(err error) bool {
 	return errors.Is(err, &FileNotFoundError{})
 }
 
+// ResourceNotFoundError contains resource not found error information
+type ResourceNotFoundError struct {
+	Name string
+}
+
+// NewResourceNotFoundError creates an error for resource not found
+func NewResourceNotFoundError(name string) error {
+	return &ResourceNotFoundError{
+		Name: name,
+	}
+}
+
+// Error returns error message
+func (err *ResourceNotFoundError) Error() string {
+	return fmt.Sprintf("resource not found for path %q", err.Name)
+}
+
+// Is tests type of error
+func (err *ResourceNotFoundError) Is(other error) bool {
+	_, ok := other.(*ResourceNotFoundError)
+	return ok
+}
+
+// ToString stringifies the object
+func (err *ResourceNotFoundError) ToString() string {
+	return fmt.Sprintf("<ResourceNotFoundError %q>", err.Name)
+}
+
+// IsResourceNotFoundError checks if the given error is ResourceNotFoundError
+func IsResourceNotFoundError(err error) bool {
+	return errors.Is(err, &ResourceNotFoundError{})
+}
+
 // FileAlreadyExistError contains file already exist error information
 type FileAlreadyExistError struct {
 	Path string
@@ -303,7 +336,40 @@ func IsTicketNotFoundError(err error) bool {
 	return errors.Is(err, &TicketNotFoundError{})
 }
 
-// UserNotFoundError contains user/group not found error information
+// GroupNotFoundError contains group not found error information
+type GroupNotFoundError struct {
+	Name string
+}
+
+// NewGroupNotFoundError creates an error for group not found
+func NewGroupNotFoundError(name string) error {
+	return &GroupNotFoundError{
+		Name: name,
+	}
+}
+
+// Error returns error message
+func (err *GroupNotFoundError) Error() string {
+	return fmt.Sprintf("group %s not found", err.Name)
+}
+
+// Is tests type of error
+func (err *GroupNotFoundError) Is(other error) bool {
+	_, ok := other.(*GroupNotFoundError)
+	return ok
+}
+
+// ToString stringifies the object
+func (err *GroupNotFoundError) ToString() string {
+	return fmt.Sprintf("<GroupNotFoundError %s>", err.Name)
+}
+
+// IsGroupNotFoundError checks if the given error is GroupNotFoundError
+func IsGroupNotFoundError(err error) bool {
+	return errors.Is(err, &GroupNotFoundError{})
+}
+
+// UserNotFoundError contains user not found error information
 type UserNotFoundError struct {
 	Name string
 }
@@ -317,7 +383,7 @@ func NewUserNotFoundError(name string) error {
 
 // Error returns error message
 func (err *UserNotFoundError) Error() string {
-	return fmt.Sprintf("user/group %s not found", err.Name)
+	return fmt.Sprintf("user %s not found", err.Name)
 }
 
 // Is tests type of error

@@ -101,6 +101,12 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
+				return nil, xerrors.Errorf("failed to find the data object for path %q: %w", filepath, types.NewFileNotFoundError(filepath))
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", filepath, types.NewFileNotFoundError(filepath))
+			}
+
 			return nil, xerrors.Errorf("failed to receive a data object query result message: %w", err)
 		}
 
@@ -297,6 +303,12 @@ func GetDataObjectWithoutCollection(conn *connection.IRODSConnection, filepath s
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
+				return nil, xerrors.Errorf("failed to find the data object for path %q: %w", filepath, types.NewFileNotFoundError(filepath))
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", filepath, types.NewFileNotFoundError(filepath))
+			}
+
 			return nil, xerrors.Errorf("failed to receive a data object query result message: %w", err)
 		}
 
@@ -494,6 +506,12 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
+				return nil, xerrors.Errorf("failed to find the data object for path %q: %w", filepath, types.NewFileNotFoundError(filepath))
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", filepath, types.NewFileNotFoundError(filepath))
+			}
+
 			return nil, xerrors.Errorf("failed to receive a data object query result message: %w", err)
 		}
 
@@ -698,6 +716,12 @@ func GetDataObjectMasterReplicaWithoutCollection(conn *connection.IRODSConnectio
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
+				return nil, xerrors.Errorf("failed to find the data object for path %q: %w", filepath, types.NewFileNotFoundError(filepath))
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", filepath, types.NewFileNotFoundError(filepath))
+			}
+
 			return nil, xerrors.Errorf("failed to receive a data object query result message: %w", err)
 		}
 
@@ -899,6 +923,13 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collection.Path, types.NewFileNotFoundError(collection.Path))
+			}
+
 			return nil, xerrors.Errorf("failed to receive a data object query result message: %w", err)
 		}
 
@@ -1092,6 +1123,13 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collection.Path, types.NewFileNotFoundError(collection.Path))
+			}
+
 			return nil, xerrors.Errorf("failed to receive a data object query result message: %w", err)
 		}
 
@@ -1285,6 +1323,13 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, collection *types.IROD
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collection.Path, types.NewFileNotFoundError(collection.Path))
+			}
+
 			return nil, xerrors.Errorf("failed to receive a data object metadata query result message: %w", err)
 		}
 
@@ -1408,6 +1453,13 @@ func ListDataObjectAccesses(conn *connection.IRODSConnection, collection *types.
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collection.Path, types.NewFileNotFoundError(collection.Path))
+			}
+
 			return nil, xerrors.Errorf("failed to receive a data object access query result message: %w", err)
 		}
 
@@ -1513,6 +1565,13 @@ func ListAccessesForDataObjects(conn *connection.IRODSConnection, collection *ty
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collection.Path, types.NewFileNotFoundError(collection.Path))
+			}
+
 			return nil, xerrors.Errorf("failed to receive a data object access query result message: %w", err)
 		}
 
@@ -2740,6 +2799,11 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			}
+
 			return nil, xerrors.Errorf("failed to receive a data object query result message: %w", err)
 		}
 
@@ -2749,6 +2813,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 				// empty
 				break
 			}
+
 			return nil, xerrors.Errorf("received data object query error: %w", err)
 		}
 
@@ -2950,6 +3015,11 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			}
+
 			return nil, xerrors.Errorf("failed to receive a data object query result message: %w", err)
 		}
 
@@ -2959,6 +3029,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 				// empty
 				break
 			}
+
 			return nil, xerrors.Errorf("received data object query error: %w", err)
 		}
 
@@ -3168,6 +3239,11 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			}
+
 			return nil, xerrors.Errorf("failed to receive a data object query result message: %w", err)
 		}
 
@@ -3177,6 +3253,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 				// empty
 				break
 			}
+
 			return nil, xerrors.Errorf("received data object query error: %w", err)
 		}
 
@@ -3379,6 +3456,11 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			}
+
 			return nil, xerrors.Errorf("failed to receive a data object query result message: %w", err)
 		}
 
@@ -3388,6 +3470,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 				// empty
 				break
 			}
+
 			return nil, xerrors.Errorf("received data object query error: %w", err)
 		}
 

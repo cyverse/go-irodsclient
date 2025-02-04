@@ -39,6 +39,10 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticketName st
 	queryResult := message.IRODSMessageQueryResponse{}
 	err := conn.Request(query, &queryResult, nil)
 	if err != nil {
+		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+			return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+		}
+
 		return nil, xerrors.Errorf("failed to receive a ticket query result message: %w", err)
 	}
 
@@ -173,6 +177,10 @@ func GetTicketForDataObjects(conn *connection.IRODSConnection, ticketName string
 	queryResult := message.IRODSMessageQueryResponse{}
 	err := conn.Request(query, &queryResult, nil)
 	if err != nil {
+		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+			return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+		}
+
 		return nil, xerrors.Errorf("failed to receive a ticket query result message: %w", err)
 	}
 
@@ -341,6 +349,10 @@ func GetTicketForCollections(conn *connection.IRODSConnection, ticketName string
 	queryResult := message.IRODSMessageQueryResponse{}
 	err := conn.Request(query, &queryResult, nil)
 	if err != nil {
+		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+			return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+		}
+
 		return nil, xerrors.Errorf("failed to receive a ticket query result message: %w", err)
 	}
 
@@ -354,7 +366,6 @@ func GetTicketForCollections(conn *connection.IRODSConnection, ticketName string
 	}
 
 	if queryResult.RowCount != 1 {
-		// file not found
 		return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
 	}
 
@@ -532,6 +543,11 @@ func ListTicketsForDataObjects(conn *connection.IRODSConnection) ([]*types.IRODS
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			}
+
 			return nil, xerrors.Errorf("failed to receive a ticket query result message: %w", err)
 		}
 
@@ -712,6 +728,11 @@ func ListTicketsForCollections(conn *connection.IRODSConnection) ([]*types.IRODS
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			}
+
 			return nil, xerrors.Errorf("failed to receive a ticket query result message: %w", err)
 		}
 
@@ -877,6 +898,11 @@ func ListTicketsBasic(conn *connection.IRODSConnection) ([]*types.IRODSTicket, e
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			}
+
 			return nil, xerrors.Errorf("failed to receive a ticket query result message: %w", err)
 		}
 
@@ -1031,6 +1057,11 @@ func ListTicketAllowedHosts(conn *connection.IRODSConnection, ticketID int64) ([
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			}
+
 			return nil, xerrors.Errorf("failed to receive a ticket restriction query result message: %w", err)
 		}
 
@@ -1107,6 +1138,11 @@ func ListTicketAllowedUserNames(conn *connection.IRODSConnection, ticketID int64
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			}
+
 			return nil, xerrors.Errorf("failed to receive a ticket restriction query result message: %w", err)
 		}
 
@@ -1183,6 +1219,11 @@ func ListTicketAllowedGroupNames(conn *connection.IRODSConnection, ticketID int6
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			}
+
 			return nil, xerrors.Errorf("failed to receive a ticket restriction query result message: %w", err)
 		}
 

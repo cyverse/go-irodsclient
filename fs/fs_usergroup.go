@@ -118,3 +118,20 @@ func (fs *FileSystem) ListUsers() ([]*types.IRODSUser, error) {
 
 	return users, nil
 }
+
+/*
+func (fs *FileSystem) CreateUser(username string, zone string, userType string) (*types.IRODSUser, error) {
+	conn, err := fs.metadataSession.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
+
+	err = irods_fs.CreateUser(conn, username, zone, userType)
+	if err != nil {
+		return nil, err
+	}
+
+	user, err := irods_fs.GetUser(conn, username)
+}
+*/

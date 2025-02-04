@@ -645,6 +645,13 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, path string
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
+				return nil, xerrors.Errorf("failed to find the collection access for path %q: %w", path, types.NewFileNotFoundError(path))
+			}
+
 			return nil, xerrors.Errorf("failed to receive a collection access query result message: %w", err)
 		}
 
@@ -752,6 +759,13 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+			}
+
 			return nil, xerrors.Errorf("failed to receive a collection query result message: %w", err)
 		}
 
@@ -964,6 +978,12 @@ func AddCollectionMeta(conn *connection.IRODSConnection, path string, metadata *
 	response := message.IRODSMessageModifyMetadataResponse{}
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
+		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
+			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+		}
+
 		return xerrors.Errorf("received add collection meta error: %w", err)
 	}
 	return nil
@@ -1045,6 +1065,11 @@ func SearchCollectionsByMeta(conn *connection.IRODSConnection, metaName string, 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			}
+
 			return nil, xerrors.Errorf("failed to receive a collection query result message: %w", err)
 		}
 
@@ -1166,6 +1191,11 @@ func SearchCollectionsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
 		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			}
+
 			return nil, xerrors.Errorf("failed to receive a collection query result message: %w", err)
 		}
 

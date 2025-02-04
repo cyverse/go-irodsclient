@@ -10,6 +10,7 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/types"
 	irods_util "github.com/cyverse/go-irodsclient/irods/util"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/xerrors"
 )
 
 func TestAdmin(t *testing.T) {
@@ -65,11 +66,26 @@ func testCreateAndRemoveUser(t *testing.T) {
 	testUsername := "test_user"
 	testPassword := "test_password"
 
+	_, err = fs.GetUser(conn, testUsername)
+	if err == nil {
+		failError(t, xerrors.Errorf("User %s already exists", testUsername))
+	}
+	if err != nil && !types.IsUserNotFoundError(err) {
+		failError(t, err)
+	}
+
 	err = fs.CreateUser(conn, testUsername, account.ClientZone, "rodsuser")
 	failError(t, err)
 
 	err = fs.ChangeUserPassword(conn, testUsername, account.ClientZone, testPassword)
 	failError(t, err)
+
+	myuser, err := fs.GetUser(conn, testUsername)
+	failError(t, err)
+
+	assert.Equal(t, testUsername, myuser.Name)
+	assert.Equal(t, account.ClientZone, myuser.Zone)
+	assert.Equal(t, types.IRODSUserRodsUser, myuser.Type)
 
 	// login test
 	userAccount := &types.IRODSAccount{
@@ -96,6 +112,14 @@ func testCreateAndRemoveUser(t *testing.T) {
 	// delete
 	err = fs.RemoveUser(conn, testUsername, account.ClientZone)
 	failError(t, err)
+
+	_, err = fs.GetUser(conn, testUsername)
+	if err == nil {
+		failError(t, xerrors.Errorf("User %s still exists", testUsername))
+	}
+	if err != nil && !types.IsUserNotFoundError(err) {
+		failError(t, err)
+	}
 
 	userConn = connection.NewIRODSConnection(userAccount, 300*time.Second, GetTestApplicationName())
 	err = userConn.Connect()

@@ -23,6 +23,11 @@ func StatProcess(conn *connection.IRODSConnection, address string, zone string) 
 	queryResult := message.IRODSMessageQueryResponse{}
 	err := conn.Request(req, &queryResult, nil)
 	if err != nil {
+		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+			// empty
+			return processes, nil
+		}
+
 		return nil, xerrors.Errorf("failed to receive a process stat result message: %w", err)
 	}
 
@@ -32,6 +37,7 @@ func StatProcess(conn *connection.IRODSConnection, address string, zone string) 
 			// empty
 			return processes, nil
 		}
+
 		return nil, xerrors.Errorf("received a process stat query error: %w", err)
 	}
 
