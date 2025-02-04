@@ -5,10 +5,10 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/types"
 )
 
-// ListGroupUsers lists all users in a group
-func (fs *FileSystem) ListGroupUsers(group string) ([]*types.IRODSUser, error) {
+// ListGroupMembers lists all members in a group
+func (fs *FileSystem) ListGroupMembers(group string) ([]*types.IRODSUser, error) {
 	// check cache first
-	cachedUsers := fs.cache.GetGroupUsersCache(group)
+	cachedUsers := fs.cache.GetGroupMembersCache(group)
 	if cachedUsers != nil {
 		return cachedUsers, nil
 	}
@@ -20,41 +20,15 @@ func (fs *FileSystem) ListGroupUsers(group string) ([]*types.IRODSUser, error) {
 	}
 	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
-	users, err := irods_fs.ListGroupUsers(conn, group)
+	users, err := irods_fs.ListGroupMembers(conn, group)
 	if err != nil {
 		return nil, err
 	}
 
 	// cache it
-	fs.cache.AddGroupUsersCache(group, users)
+	fs.cache.AddGroupMembersCache(group, users)
 
 	return users, nil
-}
-
-// ListGroups lists all groups
-func (fs *FileSystem) ListGroups() ([]*types.IRODSUser, error) {
-	// check cache first
-	cachedGroups := fs.cache.GetGroupsCache()
-	if cachedGroups != nil {
-		return cachedGroups, nil
-	}
-
-	// otherwise, retrieve it and add it to cache
-	conn, err := fs.metadataSession.AcquireConnection()
-	if err != nil {
-		return nil, err
-	}
-	defer fs.metadataSession.ReturnConnection(conn) //nolint
-
-	groups, err := irods_fs.ListGroups(conn)
-	if err != nil {
-		return nil, err
-	}
-
-	// cache it
-	fs.cache.AddGroupsCache(groups)
-
-	return groups, nil
 }
 
 // ListUserGroups lists all groups that a user belongs to
@@ -79,7 +53,7 @@ func (fs *FileSystem) ListUserGroups(user string) ([]*types.IRODSUser, error) {
 
 	groups := []*types.IRODSUser{}
 	for _, groupName := range groupNames {
-		group, err := irods_fs.GetGroup(conn, groupName)
+		group, err := irods_fs.GetUser(conn, groupName, types.IRODSUserRodsGroup)
 		if err != nil {
 			return nil, err
 		}
@@ -93,10 +67,41 @@ func (fs *FileSystem) ListUserGroups(user string) ([]*types.IRODSUser, error) {
 	return groups, nil
 }
 
-// ListUsers lists all users
-func (fs *FileSystem) ListUsers() ([]*types.IRODSUser, error) {
+// GetUser returns a user
+func (fs *FileSystem) GetUser(username string, userType types.IRODSUserType) (*types.IRODSUser, error) {
 	// check cache first
-	cachedUsers := fs.cache.GetUsersCache()
+	cachedUsers := fs.cache.GetUsersCache(userType)
+	for _, cachedUser := range cachedUsers {
+		if cachedUser.Name == username {
+			return cachedUser, nil
+		}
+	}
+
+	// otherwise, retrieve it and add it to cache
+	conn, err := fs.metadataSession.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
+
+	user, err := irods_fs.GetUser(conn, username, userType)
+	if err != nil {
+		return nil, err
+	}
+
+	// cache it
+	if cachedUsers == nil {
+		cachedUsers = append(cachedUsers, user)
+		fs.cache.AddUsersCache(userType, cachedUsers)
+	}
+
+	return user, nil
+}
+
+// ListUsers lists all users
+func (fs *FileSystem) ListUsers(userType types.IRODSUserType) ([]*types.IRODSUser, error) {
+	// check cache first
+	cachedUsers := fs.cache.GetUsersCache(userType)
 	if cachedUsers != nil {
 		return cachedUsers, nil
 	}
@@ -108,13 +113,13 @@ func (fs *FileSystem) ListUsers() ([]*types.IRODSUser, error) {
 	}
 	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
-	users, err := irods_fs.ListUsers(conn)
+	users, err := irods_fs.ListUsers(conn, userType)
 	if err != nil {
 		return nil, err
 	}
 
 	// cache it
-	fs.cache.AddUsersCache(users)
+	fs.cache.AddUsersCache(userType, users)
 
 	return users, nil
 }

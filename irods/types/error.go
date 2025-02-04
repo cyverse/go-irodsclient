@@ -336,39 +336,6 @@ func IsTicketNotFoundError(err error) bool {
 	return errors.Is(err, &TicketNotFoundError{})
 }
 
-// GroupNotFoundError contains group not found error information
-type GroupNotFoundError struct {
-	Name string
-}
-
-// NewGroupNotFoundError creates an error for group not found
-func NewGroupNotFoundError(name string) error {
-	return &GroupNotFoundError{
-		Name: name,
-	}
-}
-
-// Error returns error message
-func (err *GroupNotFoundError) Error() string {
-	return fmt.Sprintf("group %s not found", err.Name)
-}
-
-// Is tests type of error
-func (err *GroupNotFoundError) Is(other error) bool {
-	_, ok := other.(*GroupNotFoundError)
-	return ok
-}
-
-// ToString stringifies the object
-func (err *GroupNotFoundError) ToString() string {
-	return fmt.Sprintf("<GroupNotFoundError %s>", err.Name)
-}
-
-// IsGroupNotFoundError checks if the given error is GroupNotFoundError
-func IsGroupNotFoundError(err error) bool {
-	return errors.Is(err, &GroupNotFoundError{})
-}
-
 // UserNotFoundError contains user not found error information
 type UserNotFoundError struct {
 	Name string

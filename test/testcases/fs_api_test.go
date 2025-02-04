@@ -50,7 +50,7 @@ func TestFSAPI(t *testing.T) {
 	t.Run("test ReadWriteIRODSDataObjectWithSingleConnection", testReadWriteIRODSDataObjectWithSingleConnection)
 	t.Run("test MixedReadWriteIRODSDataObjectWithSingleConnection", testMixedReadWriteIRODSDataObjectWithSingleConnection)
 	t.Run("test TruncateIRODSDataObject", testTruncateIRODSDataObject)
-	t.Run("test ListIRODSGroupUsers", testListIRODSGroupUsers)
+	t.Run("test ListIRODSGroupMembers", testListIRODSGroupMembers)
 	t.Run("test SearchDataObjectsByMeta", testSearchDataObjectsByMeta)
 	t.Run("test SearchDataObjectsByMetaWildcard", testSearchDataObjectsByMetaWildcard)
 	t.Run("test ParallelUploadAndDownloadDataObject", testParallelUploadAndDownloadDataObject)
@@ -772,7 +772,7 @@ func testTruncateIRODSDataObject(t *testing.T) {
 	failError(t, err)
 }
 
-func testListIRODSGroupUsers(t *testing.T) {
+func testListIRODSGroupMembers(t *testing.T) {
 	account := GetTestAccount()
 
 	account.ClientServerNegotiation = false
@@ -782,7 +782,7 @@ func testListIRODSGroupUsers(t *testing.T) {
 	failError(t, err)
 	defer conn.Disconnect()
 
-	users, err := fs.ListGroupUsers(conn, "rodsadmin")
+	users, err := fs.ListGroupMembers(conn, "rodsadmin")
 	failError(t, err)
 
 	assert.GreaterOrEqual(t, len(users), 1)

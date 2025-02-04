@@ -13,203 +13,8 @@ import (
 	"golang.org/x/xerrors"
 )
 
-// GetGroup returns the group
-func GetGroup(conn *connection.IRODSConnection, groupName string) (*types.IRODSUser, error) {
-	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
-	}
-
-	// lock the connection
-	conn.Lock()
-	defer conn.Unlock()
-
-	query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, 0, 0, 0)
-	query.AddSelect(common.ICAT_COLUMN_USER_ID, 1)
-	query.AddSelect(common.ICAT_COLUMN_USER_NAME, 1)
-	query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
-	query.AddSelect(common.ICAT_COLUMN_USER_ZONE, 1)
-
-	condNameVal := fmt.Sprintf("= '%s'", groupName)
-	query.AddCondition(common.ICAT_COLUMN_USER_NAME, condNameVal)
-	condTypeVal := fmt.Sprintf("= '%s'", types.IRODSUserRodsGroup)
-	query.AddCondition(common.ICAT_COLUMN_USER_TYPE, condTypeVal)
-
-	queryResult := message.IRODSMessageQueryResponse{}
-	err := conn.Request(query, &queryResult, nil)
-	if err != nil {
-		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, xerrors.Errorf("failed to find the group for name %q: %w", groupName, types.NewGroupNotFoundError(groupName))
-		}
-
-		return nil, xerrors.Errorf("failed to receive a group query result message: %w", err)
-	}
-
-	err = queryResult.CheckError()
-	if err != nil {
-		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, xerrors.Errorf("failed to find the group for name %q: %w", groupName, types.NewGroupNotFoundError(groupName))
-		}
-
-		return nil, xerrors.Errorf("received a group query error: %w", err)
-	}
-
-	if queryResult.RowCount == 0 {
-		return nil, xerrors.Errorf("failed to find the group for name %q: %w", groupName, types.NewGroupNotFoundError(groupName))
-	}
-
-	if queryResult.AttributeCount > len(queryResult.SQLResult) {
-		return nil, xerrors.Errorf("failed to receive group attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
-	}
-
-	userID := int64(-1)
-	zone := ""
-	groupname := ""
-	userType := types.IRODSUserRodsGroup
-
-	for idx := 0; idx < queryResult.AttributeCount; idx++ {
-		sqlResult := queryResult.SQLResult[idx]
-		if len(sqlResult.Values) != queryResult.RowCount {
-			return nil, xerrors.Errorf("failed to receive group rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
-		}
-
-		value := sqlResult.Values[0]
-
-		switch sqlResult.AttributeIndex {
-		case int(common.ICAT_COLUMN_USER_ID):
-			uID, err := strconv.ParseInt(value, 10, 64)
-			if err != nil {
-				return nil, xerrors.Errorf("failed to parse user id %q: %w", value, err)
-			}
-			userID = uID
-		case int(common.ICAT_COLUMN_USER_ZONE):
-			zone = value
-		case int(common.ICAT_COLUMN_USER_NAME):
-			groupname = value
-		case int(common.ICAT_COLUMN_USER_TYPE):
-			userType = types.IRODSUserType(value)
-		default:
-			// ignore
-		}
-	}
-
-	if userID == -1 {
-		return nil, xerrors.Errorf("failed to find the group for name %q: %w", groupName, types.NewGroupNotFoundError(groupName))
-	}
-
-	return &types.IRODSUser{
-		ID:   userID,
-		Zone: zone,
-		Name: groupname,
-		Type: userType,
-	}, nil
-}
-
-// ListGroups returns all groups
-func ListGroups(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
-	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
-	}
-
-	// lock the connection
-	conn.Lock()
-	defer conn.Unlock()
-
-	groups := []*types.IRODSUser{}
-
-	continueQuery := true
-	continueIndex := 0
-	for continueQuery {
-		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
-		query.AddSelect(common.ICAT_COLUMN_USER_ID, 1)
-		query.AddSelect(common.ICAT_COLUMN_USER_NAME, 1)
-		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
-		query.AddSelect(common.ICAT_COLUMN_USER_ZONE, 1)
-
-		condTypeVal := fmt.Sprintf("= '%s'", types.IRODSUserRodsGroup)
-		query.AddCondition(common.ICAT_COLUMN_USER_TYPE, condTypeVal)
-
-		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
-		if err != nil {
-			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-				// empty
-				break
-			}
-
-			return nil, xerrors.Errorf("failed to receive a group query result message: %w", err)
-		}
-
-		err = queryResult.CheckError()
-		if err != nil {
-			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-				// empty
-				break
-			}
-
-			return nil, xerrors.Errorf("received a group query error: %w", err)
-		}
-
-		if queryResult.RowCount == 0 {
-			break
-		}
-
-		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive group attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
-		}
-
-		pagenatedGroups := make([]*types.IRODSUser, queryResult.RowCount)
-
-		for attr := 0; attr < queryResult.AttributeCount; attr++ {
-			sqlResult := queryResult.SQLResult[attr]
-			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive group rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
-			}
-
-			for row := 0; row < queryResult.RowCount; row++ {
-				value := sqlResult.Values[row]
-
-				if pagenatedGroups[row] == nil {
-					// create a new
-					pagenatedGroups[row] = &types.IRODSUser{
-						ID:   -1,
-						Zone: "",
-						Name: "",
-						Type: types.IRODSUserRodsUser,
-					}
-				}
-
-				switch sqlResult.AttributeIndex {
-				case int(common.ICAT_COLUMN_USER_ID):
-					userID, err := strconv.ParseInt(value, 10, 64)
-					if err != nil {
-						return nil, xerrors.Errorf("failed to parse user id %q: %w", value, err)
-					}
-					pagenatedGroups[row].ID = userID
-				case int(common.ICAT_COLUMN_USER_ZONE):
-					pagenatedGroups[row].Zone = value
-				case int(common.ICAT_COLUMN_USER_NAME):
-					pagenatedGroups[row].Name = value
-				case int(common.ICAT_COLUMN_USER_TYPE):
-					pagenatedGroups[row].Type = types.IRODSUserType(value)
-				default:
-					// ignore
-				}
-			}
-		}
-
-		groups = append(groups, pagenatedGroups...)
-
-		continueIndex = queryResult.ContinueIndex
-		if continueIndex == 0 {
-			continueQuery = false
-		}
-	}
-
-	return groups, nil
-}
-
 // GetUser returns the user
-func GetUser(conn *connection.IRODSConnection, username string) (*types.IRODSUser, error) {
+func GetUser(conn *connection.IRODSConnection, username string, userType types.IRODSUserType) (*types.IRODSUser, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
@@ -226,7 +31,7 @@ func GetUser(conn *connection.IRODSConnection, username string) (*types.IRODSUse
 
 	condNameVal := fmt.Sprintf("= '%s'", username)
 	query.AddCondition(common.ICAT_COLUMN_USER_NAME, condNameVal)
-	condTypeVal := fmt.Sprintf("<> '%s'", types.IRODSUserRodsGroup)
+	condTypeVal := fmt.Sprintf("= '%s'", userType)
 	query.AddCondition(common.ICAT_COLUMN_USER_TYPE, condTypeVal)
 
 	queryResult := message.IRODSMessageQueryResponse{}
@@ -259,7 +64,7 @@ func GetUser(conn *connection.IRODSConnection, username string) (*types.IRODSUse
 	userID := int64(-1)
 	zone := ""
 	name := ""
-	userType := types.IRODSUserRodsUser
+	usertype := types.IRODSUserRodsUser
 
 	for idx := 0; idx < queryResult.AttributeCount; idx++ {
 		sqlResult := queryResult.SQLResult[idx]
@@ -281,7 +86,7 @@ func GetUser(conn *connection.IRODSConnection, username string) (*types.IRODSUse
 		case int(common.ICAT_COLUMN_USER_NAME):
 			name = value
 		case int(common.ICAT_COLUMN_USER_TYPE):
-			userType = types.IRODSUserType(value)
+			usertype = types.IRODSUserType(value)
 		default:
 			// ignore
 		}
@@ -295,12 +100,12 @@ func GetUser(conn *connection.IRODSConnection, username string) (*types.IRODSUse
 		ID:   userID,
 		Zone: zone,
 		Name: name,
-		Type: userType,
+		Type: usertype,
 	}, nil
 }
 
 // ListUsers lists all users
-func ListUsers(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
+func ListUsers(conn *connection.IRODSConnection, usertype types.IRODSUserType) ([]*types.IRODSUser, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
@@ -320,7 +125,7 @@ func ListUsers(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_ZONE, 1)
 
-		condTypeVal := fmt.Sprintf("<> '%s'", types.IRODSUserRodsGroup)
+		condTypeVal := fmt.Sprintf("= '%s'", usertype)
 		query.AddCondition(common.ICAT_COLUMN_USER_TYPE, condTypeVal)
 
 		queryResult := message.IRODSMessageQueryResponse{}
@@ -369,7 +174,7 @@ func ListUsers(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 						ID:   -1,
 						Zone: "",
 						Name: "",
-						Type: types.IRODSUserRodsUser,
+						Type: usertype,
 					}
 				}
 
@@ -403,8 +208,8 @@ func ListUsers(conn *connection.IRODSConnection) ([]*types.IRODSUser, error) {
 	return users, nil
 }
 
-// ListGroupUsers returns users in the group
-func ListGroupUsers(conn *connection.IRODSConnection, group string) ([]*types.IRODSUser, error) {
+// ListGroupMembers returns members in the group
+func ListGroupMembers(conn *connection.IRODSConnection, group string) ([]*types.IRODSUser, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
@@ -435,7 +240,7 @@ func ListGroupUsers(conn *connection.IRODSConnection, group string) ([]*types.IR
 				break
 			}
 
-			return nil, xerrors.Errorf("failed to receive a group user query result message: %w", err)
+			return nil, xerrors.Errorf("failed to receive a group member query result message: %w", err)
 		}
 
 		err = queryResult.CheckError()
@@ -445,7 +250,7 @@ func ListGroupUsers(conn *connection.IRODSConnection, group string) ([]*types.IR
 				break
 			}
 
-			return nil, xerrors.Errorf("received a group user query error: %w", err)
+			return nil, xerrors.Errorf("received a group member query error: %w", err)
 		}
 
 		if queryResult.RowCount == 0 {
@@ -453,7 +258,7 @@ func ListGroupUsers(conn *connection.IRODSConnection, group string) ([]*types.IR
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive group user attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, xerrors.Errorf("failed to receive group member attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedUsers := make([]*types.IRODSUser, queryResult.RowCount)
@@ -461,7 +266,7 @@ func ListGroupUsers(conn *connection.IRODSConnection, group string) ([]*types.IR
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive group user rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, xerrors.Errorf("failed to receive group member rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -587,19 +392,18 @@ func ListUserGroupNames(conn *connection.IRODSConnection, user string) ([]string
 }
 
 // CreateUser creates a user.
-func CreateUser(conn *connection.IRODSConnection, username string, zone string, userType string) error {
+func CreateUser(conn *connection.IRODSConnection, username string, zone string, userType types.IRODSUserType) error {
 	// lock the connection
 	conn.Lock()
 	defer conn.Unlock()
 
-	userZoneName := fmt.Sprintf("%s#%s", username, zone)
-
-	req := message.NewIRODSMessageAdminRequest("add", "user", userZoneName, userType, zone)
+	req := message.NewIRODSMessageAdminCreateUserRequest(username, zone, userType)
 
 	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
 	if err != nil {
 		return xerrors.Errorf("received create user error: %w", err)
 	}
+
 	return nil
 }
 
@@ -608,8 +412,6 @@ func ChangeUserPassword(conn *connection.IRODSConnection, username string, zone 
 	// lock the connection
 	conn.Lock()
 	defer conn.Unlock()
-
-	userZoneName := fmt.Sprintf("%s#%s", username, zone)
 
 	account := conn.GetAccount()
 
@@ -620,7 +422,7 @@ func ChangeUserPassword(conn *connection.IRODSConnection, username string, zone 
 
 	scrambledPassword := util.ObfuscateNewPassword(newPassword, oldPassword, conn.GetClientSignature())
 
-	req := message.NewIRODSMessageAdminChangePasswordRequest(userZoneName, scrambledPassword, zone)
+	req := message.NewIRODSMessageAdminChangePasswordRequest(username, zone, scrambledPassword)
 
 	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
 	if err != nil {
@@ -630,18 +432,17 @@ func ChangeUserPassword(conn *connection.IRODSConnection, username string, zone 
 
 		return xerrors.Errorf("received change user password error: %w", err)
 	}
+
 	return nil
 }
 
 // ChangeUserType changes the type / role of a user object
-func ChangeUserType(conn *connection.IRODSConnection, username string, zone string, newType string) error {
+func ChangeUserType(conn *connection.IRODSConnection, username string, zone string, newType types.IRODSUserType) error {
 	// lock the connection
 	conn.Lock()
 	defer conn.Unlock()
 
-	userZoneName := fmt.Sprintf("%s#%s", username, zone)
-
-	req := message.NewIRODSMessageAdminRequest("modify", "user", userZoneName, "type", newType, zone)
+	req := message.NewIRODSMessageAdminChangeUserTypeRequest(username, zone, newType)
 
 	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
 	if err != nil {
@@ -651,6 +452,7 @@ func ChangeUserType(conn *connection.IRODSConnection, username string, zone stri
 
 		return xerrors.Errorf("received change user type error: %w", err)
 	}
+
 	return nil
 }
 
@@ -660,7 +462,7 @@ func RemoveUser(conn *connection.IRODSConnection, username string, zone string) 
 	conn.Lock()
 	defer conn.Unlock()
 
-	req := message.NewIRODSMessageAdminRequest("rm", "user", username, zone)
+	req := message.NewIRODSMessageAdminRemoveUserRequest(username, zone)
 
 	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
 	if err != nil {
@@ -670,21 +472,7 @@ func RemoveUser(conn *connection.IRODSConnection, username string, zone string) 
 
 		return xerrors.Errorf("received remove user error: %w", err)
 	}
-	return nil
-}
 
-// CreateGroup creates a group.
-func CreateGroup(conn *connection.IRODSConnection, groupname string, groupType string) error {
-	// lock the connection
-	conn.Lock()
-	defer conn.Unlock()
-
-	req := message.NewIRODSMessageAdminRequest("add", "user", groupname, groupType)
-
-	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
-	if err != nil {
-		return xerrors.Errorf("received create group error: %w", err)
-	}
 	return nil
 }
 
@@ -694,7 +482,7 @@ func AddGroupMember(conn *connection.IRODSConnection, groupname string, username
 	conn.Lock()
 	defer conn.Unlock()
 
-	req := message.NewIRODSMessageAdminRequest("modify", "group", groupname, "add", username, zone)
+	req := message.NewIRODSMessageAdminAddGroupMemberRequest(groupname, username, zone)
 
 	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
 	if err != nil {
@@ -713,12 +501,12 @@ func RemoveGroupMember(conn *connection.IRODSConnection, groupname string, usern
 	conn.Lock()
 	defer conn.Unlock()
 
-	req := message.NewIRODSMessageAdminRequest("modify", "group", groupname, "remove", username, zone)
+	req := message.NewIRODSMessageAdminRemoveGroupMemberRequest(groupname, username, zone)
 
 	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return xerrors.Errorf("failed to find the group for name %q: %w", groupname, types.NewGroupNotFoundError(username))
+			return xerrors.Errorf("failed to find the group for name %q: %w", groupname, types.NewUserNotFoundError(username))
 		}
 
 		return xerrors.Errorf("received remove group member error: %w", err)

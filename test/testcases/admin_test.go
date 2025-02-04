@@ -22,6 +22,7 @@ func TestAdmin(t *testing.T) {
 	t.Run("test ClientSignature", testClientSignature)
 
 	t.Run("test CreateAndRemoveUser", testCreateAndRemoveUser)
+	t.Run("test ListUsers", testListUsers)
 }
 
 func testEncoderRing(t *testing.T) {
@@ -66,7 +67,7 @@ func testCreateAndRemoveUser(t *testing.T) {
 	testUsername := "test_user"
 	testPassword := "test_password"
 
-	_, err = fs.GetUser(conn, testUsername)
+	_, err = fs.GetUser(conn, testUsername, types.IRODSUserRodsUser)
 	if err == nil {
 		failError(t, xerrors.Errorf("User %s already exists", testUsername))
 	}
@@ -74,13 +75,13 @@ func testCreateAndRemoveUser(t *testing.T) {
 		failError(t, err)
 	}
 
-	err = fs.CreateUser(conn, testUsername, account.ClientZone, "rodsuser")
+	err = fs.CreateUser(conn, testUsername, account.ClientZone, types.IRODSUserRodsUser)
 	failError(t, err)
 
 	err = fs.ChangeUserPassword(conn, testUsername, account.ClientZone, testPassword)
 	failError(t, err)
 
-	myuser, err := fs.GetUser(conn, testUsername)
+	myuser, err := fs.GetUser(conn, testUsername, types.IRODSUserRodsUser)
 	failError(t, err)
 
 	assert.Equal(t, testUsername, myuser.Name)
@@ -113,7 +114,7 @@ func testCreateAndRemoveUser(t *testing.T) {
 	err = fs.RemoveUser(conn, testUsername, account.ClientZone)
 	failError(t, err)
 
-	_, err = fs.GetUser(conn, testUsername)
+	_, err = fs.GetUser(conn, testUsername, types.IRODSUserRodsUser)
 	if err == nil {
 		failError(t, xerrors.Errorf("User %s still exists", testUsername))
 	}
@@ -125,4 +126,59 @@ func testCreateAndRemoveUser(t *testing.T) {
 	err = userConn.Connect()
 	assert.Error(t, err)
 	userConn.Disconnect()
+}
+
+func testListUsers(t *testing.T) {
+	account := GetTestAccount()
+
+	account.ClientServerNegotiation = false
+
+	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
+	err := conn.Connect()
+	failError(t, err)
+	defer conn.Disconnect()
+
+	users, err := fs.ListUsers(conn, types.IRODSUserRodsUser)
+	failError(t, err)
+
+	for _, user := range users {
+		t.Logf("User: %s", user.Name)
+
+		if user.Type != types.IRODSUserRodsUser {
+			failError(t, xerrors.Errorf("User %s is not %s", user.Name, types.IRODSUserRodsUser))
+		}
+	}
+
+	groups, err := fs.ListUsers(conn, types.IRODSUserRodsGroup)
+	failError(t, err)
+
+	for _, group := range groups {
+		t.Logf("Group: %s", group.Name)
+
+		if group.Type != types.IRODSUserRodsGroup {
+			failError(t, xerrors.Errorf("Group %s is not %s", group.Name, types.IRODSUserRodsGroup))
+		}
+	}
+
+	admins, err := fs.ListUsers(conn, types.IRODSUserRodsAdmin)
+	failError(t, err)
+
+	for _, admin := range admins {
+		t.Logf("Admin: %s", admin.Name)
+
+		if admin.Type != types.IRODSUserRodsAdmin {
+			failError(t, xerrors.Errorf("Admin %s is not %s", admin.Name, types.IRODSUserRodsAdmin))
+		}
+	}
+
+	groupAdmins, err := fs.ListUsers(conn, types.IRODSUserGroupAdmin)
+	failError(t, err)
+
+	for _, groupAdmin := range groupAdmins {
+		t.Logf("Group Admin: %s", groupAdmin.Name)
+
+		if groupAdmin.Type != types.IRODSUserGroupAdmin {
+			failError(t, xerrors.Errorf("Group Admin %s is not %s", groupAdmin.Name, types.IRODSUserGroupAdmin))
+		}
+	}
 }

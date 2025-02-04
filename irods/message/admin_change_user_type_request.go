@@ -5,29 +5,30 @@ import (
 	"fmt"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
+	"github.com/cyverse/go-irodsclient/irods/types"
 	"golang.org/x/xerrors"
 )
 
-// IRODSMessageAdminRequestIRODSMessageAdminChangePasswordRequest stores change password request
-type IRODSMessageAdminChangePasswordRequest IRODSMessageAdminRequest
+// IRODSMessageAdminChangeUserTypeRequest stores chage user type request
+type IRODSMessageAdminChangeUserTypeRequest IRODSMessageAdminRequest
 
-// NewIRODSMessageAdminChangePasswordRequest creates a new IRODSMessageAdminChangePasswordRequest
-func NewIRODSMessageAdminChangePasswordRequest(username string, zone string, password string) *IRODSMessageAdminChangePasswordRequest {
-	request := &IRODSMessageAdminChangePasswordRequest{
+// NewIRODSMessageAdminChangeUserTypeRequest creates a new IRODSMessageAdminChangeUserTypeRequest
+func NewIRODSMessageAdminChangeUserTypeRequest(username string, zone string, userType types.IRODSUserType) *IRODSMessageAdminChangeUserTypeRequest {
+	request := &IRODSMessageAdminChangeUserTypeRequest{
 		Action: "modify",
 		Target: "user",
 	}
 
 	request.Arg2 = fmt.Sprintf("%s#%s", username, zone)
-	request.Arg3 = "password"
-	request.Arg4 = password // password
+	request.Arg3 = "type"
+	request.Arg4 = string(userType)
 	request.Arg5 = zone
 
 	return request
 }
 
 // GetBytes returns byte array
-func (msg *IRODSMessageAdminChangePasswordRequest) GetBytes() ([]byte, error) {
+func (msg *IRODSMessageAdminChangeUserTypeRequest) GetBytes() ([]byte, error) {
 	xmlBytes, err := xml.Marshal(msg)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to marshal irods message to xml: %w", err)
@@ -36,7 +37,7 @@ func (msg *IRODSMessageAdminChangePasswordRequest) GetBytes() ([]byte, error) {
 }
 
 // FromBytes returns struct from bytes
-func (msg *IRODSMessageAdminChangePasswordRequest) FromBytes(bytes []byte) error {
+func (msg *IRODSMessageAdminChangeUserTypeRequest) FromBytes(bytes []byte) error {
 	err := xml.Unmarshal(bytes, msg)
 	if err != nil {
 		return xerrors.Errorf("failed to unmarshal xml to irods message: %w", err)
@@ -45,7 +46,7 @@ func (msg *IRODSMessageAdminChangePasswordRequest) FromBytes(bytes []byte) error
 }
 
 // GetMessage builds a message
-func (msg *IRODSMessageAdminChangePasswordRequest) GetMessage() (*IRODSMessage, error) {
+func (msg *IRODSMessageAdminChangeUserTypeRequest) GetMessage() (*IRODSMessage, error) {
 	bytes, err := msg.GetBytes()
 	if err != nil {
 		return nil, xerrors.Errorf("failed to get bytes from irods message: %w", err)
@@ -71,6 +72,6 @@ func (msg *IRODSMessageAdminChangePasswordRequest) GetMessage() (*IRODSMessage, 
 }
 
 // GetXMLCorrector returns XML corrector for this message
-func (msg *IRODSMessageAdminChangePasswordRequest) GetXMLCorrector() XMLCorrector {
-	return GetXMLCorrectorForPasswordRequest()
+func (msg *IRODSMessageAdminChangeUserTypeRequest) GetXMLCorrector() XMLCorrector {
+	return GetXMLCorrectorForRequest()
 }

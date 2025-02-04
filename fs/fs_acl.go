@@ -48,14 +48,14 @@ func (fs *FileSystem) ListACLsWithGroupUsers(path string) ([]*types.IRODSAccess,
 
 	accesses := []*types.IRODSAccess{}
 	if stat.Type == DirectoryEntry {
-		accessList, err := fs.ListDirACLsWithGroupUsers(path)
+		accessList, err := fs.ListDirACLsWithGroupMembers(path)
 		if err != nil {
 			return nil, err
 		}
 
 		accesses = append(accesses, accessList...)
 	} else if stat.Type == FileEntry {
-		accessList, err := fs.ListFileACLsWithGroupUsers(path)
+		accessList, err := fs.ListFileACLsWithGroupMembers(path)
 		if err != nil {
 			return nil, err
 		}
@@ -115,9 +115,9 @@ func (fs *FileSystem) ListDirACLs(path string) ([]*types.IRODSAccess, error) {
 	return accesses, nil
 }
 
-// ListDirACLsWithGroupUsers returns ACLs of a directory
+// ListDirACLsWithGroupMembers returns ACLs of a directory
 // CAUTION: this can fail if a group contains a lot of users
-func (fs *FileSystem) ListDirACLsWithGroupUsers(path string) ([]*types.IRODSAccess, error) {
+func (fs *FileSystem) ListDirACLsWithGroupMembers(path string) ([]*types.IRODSAccess, error) {
 	accesses, err := fs.ListDirACLs(path)
 	if err != nil {
 		return nil, err
@@ -129,7 +129,7 @@ func (fs *FileSystem) ListDirACLsWithGroupUsers(path string) ([]*types.IRODSAcce
 	for _, access := range accesses {
 		if access.UserType == types.IRODSUserRodsGroup {
 			// retrieve all users in the group
-			users, err := fs.ListGroupUsers(access.UserName)
+			users, err := fs.ListGroupMembers(access.UserName)
 			if err != nil {
 				return nil, err
 			}
@@ -194,8 +194,8 @@ func (fs *FileSystem) ListFileACLs(path string) ([]*types.IRODSAccess, error) {
 	return accesses, nil
 }
 
-// ListFileACLsWithGroupUsers returns ACLs of a file
-func (fs *FileSystem) ListFileACLsWithGroupUsers(path string) ([]*types.IRODSAccess, error) {
+// ListFileACLsWithGroupMembers returns ACLs of a file
+func (fs *FileSystem) ListFileACLsWithGroupMembers(path string) ([]*types.IRODSAccess, error) {
 	accesses, err := fs.ListFileACLs(path)
 	if err != nil {
 		return nil, err
@@ -206,8 +206,8 @@ func (fs *FileSystem) ListFileACLsWithGroupUsers(path string) ([]*types.IRODSAcc
 
 	for _, access := range accesses {
 		if access.UserType == types.IRODSUserRodsGroup {
-			// retrieve all users in the group
-			users, err := fs.ListGroupUsers(access.UserName)
+			// retrieve all members in the group
+			users, err := fs.ListGroupMembers(access.UserName)
 			if err != nil {
 				return nil, err
 			}
