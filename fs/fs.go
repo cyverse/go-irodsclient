@@ -687,7 +687,8 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 	openMode := types.FileOpenMode(mode)
 	if openMode.IsOpeningExisting() {
 		// file may exists
-		entryExisting, err := fs.getDataObjectWithConnection(conn, irodsPath)
+		// we don't use cache to use fresh data object info
+		entryExisting, err := fs.getDataObjectWithConnectionNoCache(conn, irodsPath)
 		if err == nil {
 			entry = entryExisting
 		}
