@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/cyverse/go-irodsclient/fs"
+	irods_fs "github.com/cyverse/go-irodsclient/irods/fs"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
 )
@@ -23,6 +24,7 @@ func TestFSCache(t *testing.T) {
 
 	t.Run("test MakeDir", testMakeDir)
 	t.Run("test MakeDirCacheEvent", testMakeDirCacheEvent)
+	t.Run("test MakeDirRecurse", testMakeDirRecurse)
 	t.Run("test UploadAndDeleteDir", testUploadAndDeleteDir)
 }
 
@@ -132,6 +134,54 @@ func testMakeDirCacheEvent(t *testing.T) {
 		eventTypesReceived = []fs.FilesystemCacheEventType{}
 		eventPathsReceived = []string{}
 	}
+}
+
+func testMakeDirRecurse(t *testing.T) {
+	account := GetTestAccount()
+
+	account.ClientServerNegotiation = false
+
+	fsConfig := GetTestFileSystemConfig()
+
+	filesystem, err := fs.NewFileSystem(account, fsConfig)
+	failError(t, err)
+	defer filesystem.Release()
+
+	homedir := getHomeDir(fsCacheTestID)
+
+	newdir := fmt.Sprintf("%s/make_dir_recurse", homedir)
+
+	// get side connection
+	conn, err := filesystem.GetMetadataConnection()
+	failError(t, err)
+	defer filesystem.ReturnMetadataConnection(conn)
+
+	// stat first
+	dirStat, err := filesystem.StatDir(newdir)
+	assert.Nil(t, dirStat)
+	assert.Error(t, err)
+
+	// make dir using the side connection without cache update
+	err = irods_fs.CreateCollection(conn, newdir, false)
+	failError(t, err)
+
+	// make dir using the side connection without cache update - again
+	err = irods_fs.CreateCollection(conn, newdir, true)
+	failError(t, err)
+
+	// make dir
+	err = filesystem.MakeDir(newdir, true)
+	failError(t, err)
+
+	dirStat, err = filesystem.StatDir(newdir)
+	assert.NotNil(t, dirStat)
+	failError(t, err)
+	assert.Equal(t, newdir, dirStat.Path)
+	assert.True(t, dirStat.IsDir())
+
+	// remove
+	err = filesystem.RemoveDir(newdir, true, true)
+	failError(t, err)
 }
 
 func testUploadAndDeleteDir(t *testing.T) {
