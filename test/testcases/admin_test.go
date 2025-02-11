@@ -67,15 +67,12 @@ func testCreateAndRemoveUser(t *testing.T) {
 	testUsername := "test_user"
 	testPassword := "test_password"
 
-	user, err := fs.GetUser(conn, testUsername, account.ClientZone)
+	_, err = fs.GetUser(conn, testUsername, account.ClientZone)
 	if err == nil {
 		failError(t, xerrors.Errorf("User %s already exists", testUsername))
 	}
 	if err != nil && !types.IsUserNotFoundError(err) {
 		failError(t, err)
-	}
-	if user.Type != types.IRODSUserRodsUser {
-		failError(t, xerrors.Errorf("User %s is not %s", testUsername, types.IRODSUserRodsUser))
 	}
 
 	err = fs.CreateUser(conn, testUsername, account.ClientZone, types.IRODSUserRodsUser)
