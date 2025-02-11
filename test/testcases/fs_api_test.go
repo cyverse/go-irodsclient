@@ -782,7 +782,7 @@ func testListIRODSGroupMembers(t *testing.T) {
 	failError(t, err)
 	defer conn.Disconnect()
 
-	users, err := fs.ListGroupMembers(conn, "rodsadmin")
+	users, err := fs.ListGroupMembers(conn, "rodsadmin", account.ClientZone)
 	failError(t, err)
 
 	assert.GreaterOrEqual(t, len(users), 1)

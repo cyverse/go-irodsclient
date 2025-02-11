@@ -6,14 +6,14 @@ import (
 )
 
 // ListProcesses lists all processes
-func (fs *FileSystem) ListProcesses(address string, zone string) ([]*types.IRODSProcess, error) {
+func (fs *FileSystem) ListProcesses(address string, zoneName string) ([]*types.IRODSProcess, error) {
 	conn, err := fs.metadataSession.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
 	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
-	processes, err := irods_fs.StatProcess(conn, address, zone)
+	processes, err := irods_fs.StatProcess(conn, address, zoneName)
 	if err != nil {
 		return nil, err
 	}

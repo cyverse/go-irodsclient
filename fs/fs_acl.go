@@ -92,7 +92,7 @@ func (fs *FileSystem) ListDirACLs(path string) ([]*types.IRODSAccess, error) {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
 	// check cache first
-	cachedAccesses := fs.cache.GetACLsCache(irodsPath)
+	cachedAccesses := fs.cache.GetAclCache(irodsPath)
 	if cachedAccesses != nil {
 		return cachedAccesses, nil
 	}
@@ -110,7 +110,7 @@ func (fs *FileSystem) ListDirACLs(path string) ([]*types.IRODSAccess, error) {
 	}
 
 	// cache it
-	fs.cache.AddACLsCache(irodsPath, accesses)
+	fs.cache.AddAclCache(irodsPath, accesses)
 
 	return accesses, nil
 }
@@ -129,7 +129,7 @@ func (fs *FileSystem) ListDirACLsWithGroupMembers(path string) ([]*types.IRODSAc
 	for _, access := range accesses {
 		if access.UserType == types.IRODSUserRodsGroup {
 			// retrieve all users in the group
-			users, err := fs.ListGroupMembers(access.UserName)
+			users, err := fs.ListGroupMembers(access.UserZone, access.UserName)
 			if err != nil {
 				return nil, err
 			}
@@ -164,7 +164,7 @@ func (fs *FileSystem) ListFileACLs(path string) ([]*types.IRODSAccess, error) {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
 	// check cache first
-	cachedAccesses := fs.cache.GetACLsCache(irodsPath)
+	cachedAccesses := fs.cache.GetAclCache(irodsPath)
 	if cachedAccesses != nil {
 		return cachedAccesses, nil
 	}
@@ -189,7 +189,7 @@ func (fs *FileSystem) ListFileACLs(path string) ([]*types.IRODSAccess, error) {
 	}
 
 	// cache it
-	fs.cache.AddACLsCache(irodsPath, accesses)
+	fs.cache.AddAclCache(irodsPath, accesses)
 
 	return accesses, nil
 }
@@ -207,7 +207,7 @@ func (fs *FileSystem) ListFileACLsWithGroupMembers(path string) ([]*types.IRODSA
 	for _, access := range accesses {
 		if access.UserType == types.IRODSUserRodsGroup {
 			// retrieve all members in the group
-			users, err := fs.ListGroupMembers(access.UserName)
+			users, err := fs.ListGroupMembers(access.UserName, access.UserName)
 			if err != nil {
 				return nil, err
 			}
@@ -247,7 +247,7 @@ func (fs *FileSystem) listACLsForEntries(collection *types.IRODSCollection) ([]*
 	if cachedDirEntryPaths != nil {
 		useCached = true
 		for _, cachedDirEntryPath := range cachedDirEntryPaths {
-			cachedAccess := fs.cache.GetACLsCache(cachedDirEntryPath)
+			cachedAccess := fs.cache.GetAclCache(cachedDirEntryPath)
 			if cachedAccess != nil {
 				cachedAccesses = append(cachedAccesses, cachedAccess...)
 			} else {
@@ -332,7 +332,7 @@ func (fs *FileSystem) listACLsForEntries(collection *types.IRODSCollection) ([]*
 	accesses = append(accesses, collectionAccesses...)
 
 	// cache it
-	fs.cache.AddACLsCacheMulti(collectionAccesses)
+	fs.cache.AddAclCacheMulti(collectionAccesses)
 
 	dataobjectAccesses, err := irods_fs.ListAccessesForDataObjects(conn, collection)
 	if err != nil {
@@ -342,7 +342,7 @@ func (fs *FileSystem) listACLsForEntries(collection *types.IRODSCollection) ([]*
 	accesses = append(accesses, dataobjectAccesses...)
 
 	// cache it
-	fs.cache.AddACLsCacheMulti(dataobjectAccesses)
+	fs.cache.AddAclCacheMulti(dataobjectAccesses)
 
 	for _, acc := range accesses {
 		dirEntryPathsAdded[acc.Path] = true
@@ -352,7 +352,7 @@ func (fs *FileSystem) listACLsForEntries(collection *types.IRODSCollection) ([]*
 	for _, pathToBeAdded := range dirEntryPathsToBeAdded {
 		if _, ok := dirEntryPathsAdded[pathToBeAdded]; !ok {
 			// add empty one
-			fs.cache.AddACLsCache(pathToBeAdded, []*types.IRODSAccess{})
+			fs.cache.AddAclCache(pathToBeAdded, []*types.IRODSAccess{})
 			dirEntryPathsAdded[pathToBeAdded] = true
 		}
 	}

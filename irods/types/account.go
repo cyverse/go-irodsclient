@@ -35,7 +35,7 @@ type IRODSAccount struct {
 }
 
 // CreateIRODSAccount creates IRODSAccount
-func CreateIRODSAccount(host string, port int, user string, zone string,
+func CreateIRODSAccount(host string, port int, username string, zoneName string,
 	authScheme AuthScheme, password string, defaultResource string) (*IRODSAccount, error) {
 	account := &IRODSAccount{
 		AuthenticationScheme:    authScheme,
@@ -43,10 +43,10 @@ func CreateIRODSAccount(host string, port int, user string, zone string,
 		CSNegotiationPolicy:     CSNegotiationPolicyRequestDontCare,
 		Host:                    host,
 		Port:                    port,
-		ClientUser:              user,
-		ClientZone:              zone,
-		ProxyUser:               user,
-		ProxyZone:               zone,
+		ClientUser:              username,
+		ClientZone:              zoneName,
+		ProxyUser:               username,
+		ProxyZone:               zoneName,
 		Password:                password,
 		Ticket:                  "",
 		DefaultResource:         defaultResource,
@@ -62,7 +62,7 @@ func CreateIRODSAccount(host string, port int, user string, zone string,
 }
 
 // CreateIRODSAccountForTicket creates IRODSAccount
-func CreateIRODSAccountForTicket(host string, port int, user string, zone string,
+func CreateIRODSAccountForTicket(host string, port int, username string, zoneName string,
 	authScheme AuthScheme, password string, ticket string, defaultResource string) (*IRODSAccount, error) {
 	account := &IRODSAccount{
 		AuthenticationScheme:    authScheme,
@@ -70,10 +70,10 @@ func CreateIRODSAccountForTicket(host string, port int, user string, zone string
 		CSNegotiationPolicy:     CSNegotiationPolicyRequestDontCare,
 		Host:                    host,
 		Port:                    port,
-		ClientUser:              user,
-		ClientZone:              zone,
-		ProxyUser:               user,
-		ProxyZone:               zone,
+		ClientUser:              username,
+		ClientZone:              zoneName,
+		ProxyUser:               username,
+		ProxyZone:               zoneName,
 		Password:                password,
 		Ticket:                  ticket,
 		DefaultResource:         defaultResource,
@@ -89,8 +89,8 @@ func CreateIRODSAccountForTicket(host string, port int, user string, zone string
 }
 
 // CreateIRODSProxyAccount creates IRODSAccount for proxy access
-func CreateIRODSProxyAccount(host string, port int, clientUser string, clientZone string,
-	proxyUser string, proxyZone string,
+func CreateIRODSProxyAccount(host string, port int, clientUsername string, clientZoneName string,
+	proxyUsername string, proxyZoneName string,
 	authScheme AuthScheme, password string, defaultResource string) (*IRODSAccount, error) {
 	account := &IRODSAccount{
 		AuthenticationScheme:    authScheme,
@@ -98,10 +98,10 @@ func CreateIRODSProxyAccount(host string, port int, clientUser string, clientZon
 		CSNegotiationPolicy:     CSNegotiationPolicyRequestDontCare,
 		Host:                    host,
 		Port:                    port,
-		ClientUser:              clientUser,
-		ClientZone:              clientZone,
-		ProxyUser:               proxyUser,
-		ProxyZone:               proxyZone,
+		ClientUser:              clientUsername,
+		ClientZone:              clientZoneName,
+		ProxyUser:               proxyUsername,
+		ProxyZone:               proxyZoneName,
 		Password:                password,
 		Ticket:                  "",
 		DefaultResource:         defaultResource,

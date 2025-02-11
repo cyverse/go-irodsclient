@@ -2,31 +2,31 @@ package message
 
 import (
 	"encoding/xml"
+	"fmt"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"golang.org/x/xerrors"
 )
 
-// IRODSMessageAdminRemoveGroupMemberRequest stores remove group member request
-type IRODSMessageAdminRemoveGroupMemberRequest IRODSMessageAdminRequest
+// IRODSMessageAdminSetGroupResourceQuotaRequest stores set group resource quota request
+type IRODSMessageAdminSetGroupResourceQuotaRequest IRODSMessageAdminRequest
 
-// NewIRODSMessageAdminRemoveGroupMemberRequest creates a new IRODSMessageAdminRemoveGroupMemberRequest
-func NewIRODSMessageAdminRemoveGroupMemberRequest(groupName string, username string, zoneName string) *IRODSMessageAdminRemoveGroupMemberRequest {
-	request := &IRODSMessageAdminRemoveGroupMemberRequest{
-		Action: "modify",
+// NewIRODSMessageAdminSetGroupResourceQuotaRequest creates a new IRODSMessageAdminSetGroupResourceQuotaRequest
+func NewIRODSMessageAdminSetGroupResourceQuotaRequest(groupName string, zoneName string, resource string, value string) *IRODSMessageAdminSetGroupResourceQuotaRequest {
+	request := &IRODSMessageAdminSetGroupResourceQuotaRequest{
+		Action: "set-quota",
 		Target: "group",
 	}
 
-	request.Arg2 = groupName
-	request.Arg3 = "remove"
-	request.Arg4 = username
-	request.Arg3 = zoneName
+	request.Arg2 = fmt.Sprintf("%s#%s", groupName, zoneName)
+	request.Arg3 = resource
+	request.Arg4 = value
 
 	return request
 }
 
 // GetBytes returns byte array
-func (msg *IRODSMessageAdminRemoveGroupMemberRequest) GetBytes() ([]byte, error) {
+func (msg *IRODSMessageAdminSetGroupResourceQuotaRequest) GetBytes() ([]byte, error) {
 	xmlBytes, err := xml.Marshal(msg)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to marshal irods message to xml: %w", err)
@@ -35,7 +35,7 @@ func (msg *IRODSMessageAdminRemoveGroupMemberRequest) GetBytes() ([]byte, error)
 }
 
 // FromBytes returns struct from bytes
-func (msg *IRODSMessageAdminRemoveGroupMemberRequest) FromBytes(bytes []byte) error {
+func (msg *IRODSMessageAdminSetGroupResourceQuotaRequest) FromBytes(bytes []byte) error {
 	err := xml.Unmarshal(bytes, msg)
 	if err != nil {
 		return xerrors.Errorf("failed to unmarshal xml to irods message: %w", err)
@@ -44,7 +44,7 @@ func (msg *IRODSMessageAdminRemoveGroupMemberRequest) FromBytes(bytes []byte) er
 }
 
 // GetMessage builds a message
-func (msg *IRODSMessageAdminRemoveGroupMemberRequest) GetMessage() (*IRODSMessage, error) {
+func (msg *IRODSMessageAdminSetGroupResourceQuotaRequest) GetMessage() (*IRODSMessage, error) {
 	bytes, err := msg.GetBytes()
 	if err != nil {
 		return nil, xerrors.Errorf("failed to get bytes from irods message: %w", err)
@@ -70,6 +70,6 @@ func (msg *IRODSMessageAdminRemoveGroupMemberRequest) GetMessage() (*IRODSMessag
 }
 
 // GetXMLCorrector returns XML corrector for this message
-func (msg *IRODSMessageAdminRemoveGroupMemberRequest) GetXMLCorrector() XMLCorrector {
+func (msg *IRODSMessageAdminSetGroupResourceQuotaRequest) GetXMLCorrector() XMLCorrector {
 	return GetXMLCorrectorForRequest()
 }

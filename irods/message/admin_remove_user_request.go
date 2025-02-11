@@ -11,14 +11,14 @@ import (
 type IRODSMessageAdminRemoveUserRequest IRODSMessageAdminRequest
 
 // NewIRODSMessageAdminRemoveUserRequest creates a new IRODSMessageAdminRemoveUserRequest
-func NewIRODSMessageAdminRemoveUserRequest(username string, zone string) *IRODSMessageAdminRemoveUserRequest {
+func NewIRODSMessageAdminRemoveUserRequest(username string, zoneName string) *IRODSMessageAdminRemoveUserRequest {
 	request := &IRODSMessageAdminRemoveUserRequest{
 		Action: "rm",
 		Target: "user",
 	}
 
 	request.Arg2 = username
-	request.Arg3 = zone
+	request.Arg3 = zoneName
 
 	return request
 }

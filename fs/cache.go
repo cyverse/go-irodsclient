@@ -52,9 +52,10 @@ type FileSystemCache struct {
 	negativeEntryCache *gocache.Cache
 	dirCache           *gocache.Cache
 	metadataCache      *gocache.Cache
-	groupMembersCache  *gocache.Cache
-	userGroupsCache    *gocache.Cache
-	usersCache         *gocache.Cache
+	userCache          map[string]*gocache.Cache // zone is key
+	userListCache      map[string]*gocache.Cache // zone is key
+	groupMemberCache   map[string]*gocache.Cache // zone is key
+	userGroupCache     map[string]*gocache.Cache // zone is key
 	aclCache           *gocache.Cache
 }
 
@@ -67,9 +68,10 @@ func NewFileSystemCache(config *CacheConfig) *FileSystemCache {
 	negativeEntryCache := gocache.New(timeout, cleanupTime)
 	dirCache := gocache.New(timeout, cleanupTime)
 	metadataCache := gocache.New(timeout, cleanupTime)
-	groupUsersCache := gocache.New(timeout, cleanupTime)
-	userGroupsCache := gocache.New(timeout, cleanupTime)
-	usersCache := gocache.New(timeout, cleanupTime)
+	userCache := map[string]*gocache.Cache{}
+	userListCache := map[string]*gocache.Cache{}
+	groupUserCache := map[string]*gocache.Cache{}
+	userGroupCache := map[string]*gocache.Cache{}
 	aclCache := gocache.New(timeout, cleanupTime)
 
 	// build a map for quick search
@@ -87,9 +89,10 @@ func NewFileSystemCache(config *CacheConfig) *FileSystemCache {
 		negativeEntryCache: negativeEntryCache,
 		dirCache:           dirCache,
 		metadataCache:      metadataCache,
-		groupMembersCache:  groupUsersCache,
-		userGroupsCache:    userGroupsCache,
-		usersCache:         usersCache,
+		groupMemberCache:   groupUserCache,
+		userGroupCache:     userGroupCache,
+		userCache:          userCache,
+		userListCache:      userListCache,
 		aclCache:           aclCache,
 	}
 }
@@ -271,77 +274,250 @@ func (cache *FileSystemCache) ClearMetadataCache() {
 	cache.metadataCache.Flush()
 }
 
-// AddGroupMembersCache adds group members (users in a group) cache
-func (cache *FileSystemCache) AddGroupMembersCache(group string, users []*types.IRODSUser) {
-	cache.groupMembersCache.Set(group, users, 0)
+// AddUserCache adds a user cache (cache of a user)
+func (cache *FileSystemCache) AddUserCache(user *types.IRODSUser) {
+	userCacheForZone := cache.userCache[user.Zone]
+	if userCacheForZone == nil {
+		timeout := time.Duration(cache.config.Timeout)
+		cleanupTime := time.Duration(cache.config.CleanupTime)
+
+		// create cache if not exist
+		userCacheForZone = gocache.New(timeout, cleanupTime)
+		cache.userCache[user.Zone] = userCacheForZone
+	}
+
+	userCacheForZone.Set(user.Name, user, 0)
 }
 
-// RemoveGroupMembersCache removes group users (users in a group) cache
-func (cache *FileSystemCache) RemoveGroupMembersCache(group string) {
-	cache.groupMembersCache.Delete(group)
+// AddUserCacheMulti adds multiple user caches (cache of a user)
+func (cache *FileSystemCache) AddUserCacheMulti(users []*types.IRODSUser) {
+	for _, user := range users {
+		cache.AddUserCache(user)
+	}
 }
 
-// GetGroupMembersCache retrives group members (users in a group) cache
-func (cache *FileSystemCache) GetGroupMembersCache(group string) []*types.IRODSUser {
-	users, exist := cache.groupMembersCache.Get(group)
+// RemoveUserCache removes a user cache (cache of a user)
+func (cache *FileSystemCache) RemoveUserCache(username string, zoneName string) {
+	userCacheForZone := cache.userCache[zoneName]
+	if userCacheForZone == nil {
+		return
+	}
+
+	userCacheForZone.Delete(username)
+}
+
+// GetUserCache retrives a user cache (cache of a user)
+func (cache *FileSystemCache) GetUserCache(username string, zoneName string) *types.IRODSUser {
+	userCacheForZone := cache.userCache[zoneName]
+	if userCacheForZone == nil {
+		return nil
+	}
+
+	user, exist := userCacheForZone.Get(username)
 	if exist {
-		if irodsUsers, ok := users.([]*types.IRODSUser); ok {
-			return irodsUsers
+		if user, ok := user.(*types.IRODSUser); ok {
+			return user
 		}
 	}
+
 	return nil
 }
 
-// AddUserGroupsCache adds a user's groups (groups that a user belongs to) cache
-func (cache *FileSystemCache) AddUserGroupsCache(user string, groups []*types.IRODSUser) {
-	cache.userGroupsCache.Set(user, groups, 0)
+// ClearUserCacheForZone clears user caches for a zone
+func (cache *FileSystemCache) ClearUserCacheForZone(zoneName string) {
+	userCacheForZone := cache.userCache[zoneName]
+	if userCacheForZone == nil {
+		return
+	}
+
+	userCacheForZone.Flush()
 }
 
-// RemoveUserGroupsCache removes a user's groups (groups that a user belongs to) cache
-func (cache *FileSystemCache) RemoveUserGroupsCache(user string) {
-	cache.userGroupsCache.Delete(user)
+// ClearAllUserCache clears all user caches
+func (cache *FileSystemCache) ClearAllUserCache() {
+	for _, userCacheForZone := range cache.userCache {
+		userCacheForZone.Flush()
+	}
 }
 
-// GetUserGroupsCache retrives a user's groups (groups that a user belongs to) cache
-func (cache *FileSystemCache) GetUserGroupsCache(user string) []*types.IRODSUser {
-	groups, exist := cache.userGroupsCache.Get(user)
+// AddUserListCache adds a user list cache (cache of a list of all user names)
+func (cache *FileSystemCache) AddUserListCache(zoneName string, userType types.IRODSUserType, usernames []string) {
+	userListCacheForZone := cache.userListCache[zoneName]
+	if userListCacheForZone == nil {
+		timeout := time.Duration(cache.config.Timeout)
+		cleanupTime := time.Duration(cache.config.CleanupTime)
+
+		// create cache if not exist
+		userListCacheForZone = gocache.New(timeout, cleanupTime)
+		cache.userListCache[zoneName] = userListCacheForZone
+	}
+
+	userListCacheForZone.Set(string(userType), usernames, 0)
+}
+
+// RemoveUserListCache removes a user list cache (cache of a list of all users)
+func (cache *FileSystemCache) RemoveUserListCache(zoneName string, userType types.IRODSUserType) {
+	userListCacheForZone := cache.userListCache[zoneName]
+	if userListCacheForZone == nil {
+		return
+	}
+
+	userListCacheForZone.Delete(string(userType))
+}
+
+// GetUserListCache retrives a user list cache (cache of a list of all users)
+func (cache *FileSystemCache) GetUserListCache(zoneName string, userType types.IRODSUserType) []string {
+	userListCacheForZone := cache.userListCache[zoneName]
+	if userListCacheForZone == nil {
+		return nil
+	}
+
+	userlist, exist := userListCacheForZone.Get(string(userType))
 	if exist {
-		if irodsGroups, ok := groups.([]*types.IRODSUser); ok {
-			return irodsGroups
+		if user, ok := userlist.([]string); ok {
+			return user
 		}
 	}
+
 	return nil
 }
 
-// AddUsersCache adds a users cache (cache of a list of all users)
-func (cache *FileSystemCache) AddUsersCache(userType types.IRODSUserType, users []*types.IRODSUser) {
-	cache.usersCache.Set(string(userType), users, 0)
+// ClearUserListCacheForZone clears all user list caches for a zone
+func (cache *FileSystemCache) ClearUserListCacheForZone(zoneName string) {
+	userListCacheForZone := cache.userListCache[zoneName]
+	if userListCacheForZone == nil {
+		return
+	}
+
+	userListCacheForZone.Flush()
 }
 
-// RemoveUsersCache removes a users cache (cache of a list of all users)
-func (cache *FileSystemCache) RemoveUsersCache(userType types.IRODSUserType) {
-	cache.usersCache.Delete(string(userType))
+// ClearAllUserListCache clears all user caches
+func (cache *FileSystemCache) ClearAllUserListCache() {
+	for _, userListCacheForZone := range cache.userListCache {
+		userListCacheForZone.Flush()
+	}
 }
 
-// GetUsersCache retrives a users cache (cache of a list of all users)
-func (cache *FileSystemCache) GetUsersCache(userType types.IRODSUserType) []*types.IRODSUser {
-	users, exist := cache.usersCache.Get(string(userType))
+// AddGroupMemberCache adds group member (users in a group) cache
+func (cache *FileSystemCache) AddGroupMemberCache(groupName string, zoneName string, usernames []string) {
+	groupMemberCacheForZone := cache.groupMemberCache[zoneName]
+	if groupMemberCacheForZone == nil {
+		timeout := time.Duration(cache.config.Timeout)
+		cleanupTime := time.Duration(cache.config.CleanupTime)
+
+		// create cache if not exist
+		groupMemberCacheForZone = gocache.New(timeout, cleanupTime)
+		cache.groupMemberCache[zoneName] = groupMemberCacheForZone
+	}
+
+	groupMemberCacheForZone.Set(groupName, usernames, 0)
+}
+
+// RemoveGroupMemberCache removes group users (users in a group) cache
+func (cache *FileSystemCache) RemoveGroupMemberCache(groupName string, zoneName string) {
+	groupMemberCacheForZone := cache.groupMemberCache[zoneName]
+	if groupMemberCacheForZone == nil {
+		return
+	}
+
+	groupMemberCacheForZone.Delete(groupName)
+}
+
+// GetGroupMemberCache retrives group members (users in a group) cache
+func (cache *FileSystemCache) GetGroupMemberCache(groupName string, zoneName string) []string {
+	groupMemberCacheForZone := cache.groupMemberCache[zoneName]
+	if groupMemberCacheForZone == nil {
+		return nil
+	}
+
+	groupMembers, exist := groupMemberCacheForZone.Get(groupName)
 	if exist {
-		if irodsUsers, ok := users.([]*types.IRODSUser); ok {
-			return irodsUsers
+		if usernames, ok := groupMembers.([]string); ok {
+			return usernames
 		}
 	}
+
 	return nil
 }
 
-// AddACLsCache adds a ACLs cache
-func (cache *FileSystemCache) AddACLsCache(path string, accesses []*types.IRODSAccess) {
+// ClearGroupMembersCacheForZone clears all group members (users in a group) caches for a zone
+func (cache *FileSystemCache) ClearGroupMembersCacheForZone(zoneName string) {
+	groupMemberCacheForZone := cache.groupMemberCache[zoneName]
+	if groupMemberCacheForZone == nil {
+		return
+	}
+
+	groupMemberCacheForZone.Flush()
+}
+
+// ClearAllGroupMembersCache clears all group members (users in a group) caches
+func (cache *FileSystemCache) ClearAllGroupMembersCache() {
+	for _, groupMemberCacheForZone := range cache.groupMemberCache {
+		groupMemberCacheForZone.Flush()
+	}
+}
+
+// AddUserGroupCache adds a user's groups (groups that a user belongs to) cache
+func (cache *FileSystemCache) AddUserGroupCache(zoneName string, username string, groupNames []string) {
+	userGroupCacheForZone := cache.userGroupCache[zoneName]
+	if userGroupCacheForZone == nil {
+		timeout := time.Duration(cache.config.Timeout)
+		cleanupTime := time.Duration(cache.config.CleanupTime)
+
+		// create cache if not exist
+		userGroupCacheForZone = gocache.New(timeout, cleanupTime)
+		cache.userGroupCache[zoneName] = userGroupCacheForZone
+	}
+
+	userGroupCacheForZone.Set(username, groupNames, 0)
+}
+
+// RemoveUserGroupCache removes a user's groups (groups that a user belongs to) cache
+func (cache *FileSystemCache) RemoveUserGroupCache(zoneName string, username string) {
+	userGroupCacheForZone := cache.userGroupCache[zoneName]
+	if userGroupCacheForZone == nil {
+		return
+	}
+
+	userGroupCacheForZone.Delete(username)
+}
+
+// GetUserGroupCache retrives a user's groups (groups that a user belongs to) cache
+func (cache *FileSystemCache) GetUserGroupCache(zoneName string, username string) []string {
+	userGroupCacheForZone := cache.userGroupCache[zoneName]
+	if userGroupCacheForZone == nil {
+		return nil
+	}
+
+	groupNames, exist := userGroupCacheForZone.Get(username)
+	if exist {
+		if groups, ok := groupNames.([]string); ok {
+			return groups
+		}
+	}
+
+	return nil
+}
+
+// ClearUserGroupCache clears all user's groups caches for a zone
+func (cache *FileSystemCache) ClearUserGroupCacheForZone(zoneName string) {
+	userGroupCacheForZone := cache.userGroupCache[zoneName]
+	if userGroupCacheForZone == nil {
+		return
+	}
+
+	userGroupCacheForZone.Flush()
+}
+
+// AddAclCache adds a ACLs cache
+func (cache *FileSystemCache) AddAclCache(path string, accesses []*types.IRODSAccess) {
 	ttl := cache.getCacheTTLForPath(path)
 	cache.aclCache.Set(path, accesses, ttl)
 }
 
-// AddACLsCacheMulti adds multiple ACLs caches
-func (cache *FileSystemCache) AddACLsCacheMulti(accesses []*types.IRODSAccess) {
+// AddAclCacheMulti adds multiple ACLs caches
+func (cache *FileSystemCache) AddAclCacheMulti(accesses []*types.IRODSAccess) {
 	m := map[string][]*types.IRODSAccess{}
 
 	for _, access := range accesses {
@@ -361,13 +537,13 @@ func (cache *FileSystemCache) AddACLsCacheMulti(accesses []*types.IRODSAccess) {
 	}
 }
 
-// RemoveACLsCache removes a ACLs cache
-func (cache *FileSystemCache) RemoveACLsCache(path string) {
+// RemoveAclCache removes a ACLs cache
+func (cache *FileSystemCache) RemoveAclCache(path string) {
 	cache.aclCache.Delete(path)
 }
 
-// GetACLsCache retrives a ACLs cache
-func (cache *FileSystemCache) GetACLsCache(path string) []*types.IRODSAccess {
+// GetAclCache retrives a ACLs cache
+func (cache *FileSystemCache) GetAclCache(path string) []*types.IRODSAccess {
 	data, exist := cache.aclCache.Get(path)
 	if exist {
 		if entries, ok := data.([]*types.IRODSAccess); ok {
@@ -377,7 +553,7 @@ func (cache *FileSystemCache) GetACLsCache(path string) []*types.IRODSAccess {
 	return nil
 }
 
-// ClearACLsCache clears all ACLs caches
-func (cache *FileSystemCache) ClearACLsCache() {
+// ClearAclCache clears all ACLs caches
+func (cache *FileSystemCache) ClearAclCache() {
 	cache.aclCache.Flush()
 }

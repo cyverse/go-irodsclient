@@ -33,8 +33,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticketName st
 	query.AddSelect(common.ICAT_COLUMN_TICKET_EXPIRY_TS, 1)
 	// We can't get common.ICAT_COLUMN_TICKET_STRING using query since it's not available for anonymous access
 
-	condVal := fmt.Sprintf("= '%s'", ticketName)
-	query.AddCondition(common.ICAT_COLUMN_TICKET_STRING, condVal)
+	query.AddEqualStringCondition(common.ICAT_COLUMN_TICKET_STRING, ticketName)
 
 	queryResult := message.IRODSMessageQueryResponse{}
 	err := conn.Request(query, &queryResult, nil)
@@ -171,8 +170,7 @@ func GetTicketForDataObjects(conn *connection.IRODSConnection, ticketName string
 	query.AddSelect(common.ICAT_COLUMN_TICKET_OWNER_NAME, 1)
 	query.AddSelect(common.ICAT_COLUMN_TICKET_OWNER_ZONE, 1)
 
-	condVal := fmt.Sprintf("= '%s'", ticketName)
-	query.AddCondition(common.ICAT_COLUMN_TICKET_STRING, condVal)
+	query.AddEqualStringCondition(common.ICAT_COLUMN_TICKET_STRING, ticketName)
 
 	queryResult := message.IRODSMessageQueryResponse{}
 	err := conn.Request(query, &queryResult, nil)
@@ -343,8 +341,7 @@ func GetTicketForCollections(conn *connection.IRODSConnection, ticketName string
 	query.AddSelect(common.ICAT_COLUMN_TICKET_OWNER_NAME, 1)
 	query.AddSelect(common.ICAT_COLUMN_TICKET_OWNER_ZONE, 1)
 
-	condVal := fmt.Sprintf("= '%s'", ticketName)
-	query.AddCondition(common.ICAT_COLUMN_TICKET_STRING, condVal)
+	query.AddEqualStringCondition(common.ICAT_COLUMN_TICKET_STRING, ticketName)
 
 	queryResult := message.IRODSMessageQueryResponse{}
 	err := conn.Request(query, &queryResult, nil)
@@ -1051,8 +1048,7 @@ func ListTicketAllowedHosts(conn *connection.IRODSConnection, ticketID int64) ([
 		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
 		query.AddSelect(common.ICAT_COLUMN_TICKET_ALLOWED_HOST, 1)
 
-		collCondVal := fmt.Sprintf("= '%d'", ticketID)
-		query.AddCondition(common.ICAT_COLUMN_TICKET_ALLOWED_HOST_TICKET_ID, collCondVal)
+		query.AddEqualIDCondition(common.ICAT_COLUMN_TICKET_ALLOWED_HOST_TICKET_ID, ticketID)
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -1132,8 +1128,7 @@ func ListTicketAllowedUserNames(conn *connection.IRODSConnection, ticketID int64
 		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
 		query.AddSelect(common.ICAT_COLUMN_TICKET_ALLOWED_USER_NAME, 1)
 
-		collCondVal := fmt.Sprintf("= '%d'", ticketID)
-		query.AddCondition(common.ICAT_COLUMN_TICKET_ALLOWED_USER_TICKET_ID, collCondVal)
+		query.AddEqualIDCondition(common.ICAT_COLUMN_TICKET_ALLOWED_USER_TICKET_ID, ticketID)
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -1213,8 +1208,7 @@ func ListTicketAllowedGroupNames(conn *connection.IRODSConnection, ticketID int6
 		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
 		query.AddSelect(common.ICAT_COLUMN_TICKET_ALLOWED_GROUP_NAME, 1)
 
-		collCondVal := fmt.Sprintf("= '%d'", ticketID)
-		query.AddCondition(common.ICAT_COLUMN_TICKET_ALLOWED_GROUP_TICKET_ID, collCondVal)
+		query.AddEqualIDCondition(common.ICAT_COLUMN_TICKET_ALLOWED_GROUP_TICKET_ID, ticketID)
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)

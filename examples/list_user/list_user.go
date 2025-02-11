@@ -36,7 +36,7 @@ func main() {
 
 	defer filesystem.Release()
 
-	users, err := filesystem.ListUsers(types.IRODSUserRodsUser)
+	users, err := filesystem.ListUsers(account.ClientZone, types.IRODSUserRodsUser)
 	if err != nil {
 		logger.Error(err)
 		panic(err)
@@ -58,7 +58,7 @@ func main() {
 
 	fmt.Printf("Groups:\n")
 
-	groups, err := filesystem.ListUsers(types.IRODSUserRodsGroup)
+	groups, err := filesystem.ListUsers(account.ClientZone, types.IRODSUserRodsGroup)
 	if err != nil {
 		logger.Error(err)
 		panic(err)
@@ -78,7 +78,7 @@ func main() {
 
 	fmt.Printf("Admin:\n")
 
-	admins, err := filesystem.ListUsers(types.IRODSUserRodsAdmin)
+	admins, err := filesystem.ListUsers(account.ClientZone, types.IRODSUserRodsAdmin)
 	if err != nil {
 		logger.Error(err)
 		panic(err)
@@ -98,7 +98,7 @@ func main() {
 
 	fmt.Printf("Group Admin:\n")
 
-	groupadmins, err := filesystem.ListUsers(types.IRODSUserGroupAdmin)
+	groupadmins, err := filesystem.ListUsers(account.ClientZone, types.IRODSUserGroupAdmin)
 	if err != nil {
 		logger.Error(err)
 		panic(err)

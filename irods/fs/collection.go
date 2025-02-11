@@ -2,7 +2,6 @@ package fs
 
 import (
 	"encoding/binary"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -62,8 +61,7 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 	query.AddSelect(common.ICAT_COLUMN_COLL_CREATE_TIME, 1)
 	query.AddSelect(common.ICAT_COLUMN_COLL_MODIFY_TIME, 1)
 
-	condVal := fmt.Sprintf("= '%s'", path)
-	query.AddCondition(common.ICAT_COLUMN_COLL_NAME, condVal)
+	query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, path)
 
 	queryResult := message.IRODSMessageQueryResponse{}
 	err := conn.Request(query, &queryResult, nil)
@@ -181,8 +179,7 @@ func ListCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types
 		query.AddSelect(common.ICAT_COLUMN_META_COLL_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_META_COLL_MODIFY_TIME, 1)
 
-		condVal := fmt.Sprintf("= '%s'", path)
-		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, condVal)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, path)
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -306,8 +303,7 @@ func GetCollectionAccessInheritance(conn *connection.IRODSConnection, path strin
 		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
 		query.AddSelect(common.ICAT_COLUMN_COLL_INHERITANCE, 1)
 
-		condVal := fmt.Sprintf("= '%s'", path)
-		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, condVal)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, path)
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -522,8 +518,7 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 		query.AddSelect(common.ICAT_COLUMN_USER_ZONE, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
 
-		condVal := fmt.Sprintf("= '%s'", path)
-		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, condVal)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, path)
 
 		logger.Infof("sending a request for checking ACLs of path %q", path)
 
@@ -639,8 +634,7 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, path string
 		query.AddSelect(common.ICAT_COLUMN_USER_ZONE, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
 
-		condVal := fmt.Sprintf("= '%s'", path)
-		query.AddCondition(common.ICAT_COLUMN_COLL_PARENT_NAME, condVal)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_PARENT_NAME, path)
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -753,8 +747,7 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 		query.AddSelect(common.ICAT_COLUMN_COLL_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_MODIFY_TIME, 1)
 
-		condVal := fmt.Sprintf("= '%s'", path)
-		query.AddCondition(common.ICAT_COLUMN_COLL_PARENT_NAME, condVal)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_PARENT_NAME, path)
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -1057,10 +1050,8 @@ func SearchCollectionsByMeta(conn *connection.IRODSConnection, metaName string, 
 		query.AddSelect(common.ICAT_COLUMN_COLL_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_MODIFY_TIME, 1)
 
-		metaNameCondVal := fmt.Sprintf("= '%s'", metaName)
-		query.AddCondition(common.ICAT_COLUMN_META_COLL_ATTR_NAME, metaNameCondVal)
-		metaValueCondVal := fmt.Sprintf("= '%s'", metaValue)
-		query.AddCondition(common.ICAT_COLUMN_META_COLL_ATTR_VALUE, metaValueCondVal)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_META_COLL_ATTR_NAME, metaName)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_META_COLL_ATTR_VALUE, metaValue)
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -1183,10 +1174,8 @@ func SearchCollectionsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 		query.AddSelect(common.ICAT_COLUMN_COLL_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_MODIFY_TIME, 1)
 
-		metaNameCondVal := fmt.Sprintf("= '%s'", metaName)
-		query.AddCondition(common.ICAT_COLUMN_META_COLL_ATTR_NAME, metaNameCondVal)
-		metaValueCondVal := fmt.Sprintf("like '%s'", metaValue)
-		query.AddCondition(common.ICAT_COLUMN_META_COLL_ATTR_VALUE, metaValueCondVal)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_META_COLL_ATTR_NAME, metaName)
+		query.AddLikeStringCondition(common.ICAT_COLUMN_META_COLL_ATTR_VALUE, metaValue)
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)

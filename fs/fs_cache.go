@@ -6,7 +6,7 @@ import (
 
 // ClearCache clears all file system caches
 func (fs *FileSystem) ClearCache() {
-	fs.cache.ClearACLsCache()
+	fs.cache.ClearAclCache()
 	fs.cache.ClearMetadataCache()
 	fs.cache.ClearEntryCache()
 	fs.cache.ClearNegativeEntryCache()
@@ -31,7 +31,7 @@ func (fs *FileSystem) invalidateCacheForRemoveInternal(path string, recurse bool
 	}
 
 	fs.cache.RemoveEntryCache(path)
-	fs.cache.RemoveACLsCache(path)
+	fs.cache.RemoveAclCache(path)
 	fs.cache.RemoveMetadataCache(path)
 
 	if recurse && entry != nil {
@@ -114,7 +114,7 @@ func (fs *FileSystem) invalidateCacheForDirRemove(path string, recurse bool) {
 	}
 
 	fs.cache.RemoveDirCache(path)
-	fs.cache.RemoveACLsCache(path)
+	fs.cache.RemoveAclCache(path)
 
 	// parent dir's entry also changes
 	fs.cache.RemoveParentDirEntryCache(path, recurse)
@@ -159,7 +159,7 @@ func (fs *FileSystem) invalidateCacheForDirExtract(path string) {
 	}
 
 	fs.cache.RemoveDirCache(path)
-	fs.cache.RemoveACLsCache(path)
+	fs.cache.RemoveAclCache(path)
 
 	// parent dir's entry also changes
 	fs.cache.RemoveParentDirEntryCache(path, true)
@@ -208,7 +208,7 @@ func (fs *FileSystem) invalidateCacheForFileCreate(path string) {
 func (fs *FileSystem) invalidateCacheForFileRemove(path string) {
 	fs.cache.AddNegativeEntryCache(path)
 	fs.cache.RemoveEntryCache(path)
-	fs.cache.RemoveACLsCache(path)
+	fs.cache.RemoveAclCache(path)
 	fs.cache.RemoveMetadataCache(path)
 
 	// parent dir's entry also changes

@@ -88,11 +88,11 @@ func (fs *FileSystem) AddMetadata(irodsPath string, attName string, attValue str
 }
 
 // DeleteMetadata deletes a metadata for the path
-func (fs *FileSystem) DeleteMetadata(irodsPath string, avuid int64) error {
+func (fs *FileSystem) DeleteMetadata(irodsPath string, avuID int64) error {
 	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
 	metadata := &types.IRODSMeta{
-		AVUID: avuid,
+		AVUID: avuID,
 	}
 
 	conn, err := fs.metadataSession.AcquireConnection()
@@ -149,7 +149,7 @@ func (fs *FileSystem) DeleteMetadataByName(irodsPath string, attName string) err
 }
 
 // AddUserMetadata adds a user metadata
-func (fs *FileSystem) AddUserMetadata(user string, attName, attValue, attUnits string) error {
+func (fs *FileSystem) AddUserMetadata(username string, zoneName string, attName string, attValue string, attUnits string) error {
 	metadata := &types.IRODSMeta{
 		Name:  attName,
 		Value: attValue,
@@ -162,7 +162,7 @@ func (fs *FileSystem) AddUserMetadata(user string, attName, attValue, attUnits s
 	}
 	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
-	err = irods_fs.AddUserMeta(conn, user, metadata)
+	err = irods_fs.AddUserMeta(conn, username, zoneName, metadata)
 	if err != nil {
 		return err
 	}
@@ -171,9 +171,9 @@ func (fs *FileSystem) AddUserMetadata(user string, attName, attValue, attUnits s
 }
 
 // DeleteUserMetadata deletes a user metadata
-func (fs *FileSystem) DeleteUserMetadata(user string, avuid int64) error {
+func (fs *FileSystem) DeleteUserMetadata(username string, zoneName string, avuID int64) error {
 	metadata := &types.IRODSMeta{
-		AVUID: avuid,
+		AVUID: avuID,
 	}
 
 	conn, err := fs.metadataSession.AcquireConnection()
@@ -182,7 +182,7 @@ func (fs *FileSystem) DeleteUserMetadata(user string, avuid int64) error {
 	}
 	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
-	err = irods_fs.DeleteUserMeta(conn, user, metadata)
+	err = irods_fs.DeleteUserMeta(conn, username, zoneName, metadata)
 	if err != nil {
 		return err
 	}
@@ -191,7 +191,7 @@ func (fs *FileSystem) DeleteUserMetadata(user string, avuid int64) error {
 }
 
 // DeleteUserMetadataByName deletes a user metadata by name
-func (fs *FileSystem) DeleteUserMetadataByName(user string, attName string) error {
+func (fs *FileSystem) DeleteUserMetadataByName(username string, zoneName string, attName string) error {
 	metadata := &types.IRODSMeta{
 		AVUID: 0,
 		Name:  attName,
@@ -203,7 +203,7 @@ func (fs *FileSystem) DeleteUserMetadataByName(user string, attName string) erro
 	}
 	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
-	err = irods_fs.DeleteUserMeta(conn, user, metadata)
+	err = irods_fs.DeleteUserMeta(conn, username, zoneName, metadata)
 	if err != nil {
 		return err
 	}
@@ -212,14 +212,14 @@ func (fs *FileSystem) DeleteUserMetadataByName(user string, attName string) erro
 }
 
 // ListUserMetadata lists all user metadata
-func (fs *FileSystem) ListUserMetadata(user string) ([]*types.IRODSMeta, error) {
+func (fs *FileSystem) ListUserMetadata(username string, zoneName string) ([]*types.IRODSMeta, error) {
 	conn, err := fs.metadataSession.AcquireConnection()
 	if err != nil {
 		return nil, err
 	}
 	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
-	metadataobjects, err := irods_fs.ListUserMeta(conn, user)
+	metadataobjects, err := irods_fs.ListUserMeta(conn, username, zoneName)
 	if err != nil {
 		return nil, err
 	}
@@ -250,9 +250,9 @@ func (fs *FileSystem) AddResourceMetadata(resource string, attName, attValue, at
 }
 
 // DeleteResourceMetadata deletes a resource metadata
-func (fs *FileSystem) DeleteResourceMetadata(resource string, avuid int64) error {
+func (fs *FileSystem) DeleteResourceMetadata(resource string, avuID int64) error {
 	metadata := &types.IRODSMeta{
-		AVUID: avuid,
+		AVUID: avuID,
 	}
 
 	conn, err := fs.metadataSession.AcquireConnection()

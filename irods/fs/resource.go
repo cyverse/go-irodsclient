@@ -1,7 +1,6 @@
 package fs
 
 import (
-	"fmt"
 	"strconv"
 	"time"
 
@@ -35,8 +34,7 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 	query.AddSelect(common.ICAT_COLUMN_R_CREATE_TIME, 1)
 	query.AddSelect(common.ICAT_COLUMN_R_MODIFY_TIME, 1)
 
-	rescCondVal := fmt.Sprintf("= '%s'", name)
-	query.AddCondition(common.ICAT_COLUMN_R_RESC_NAME, rescCondVal)
+	query.AddEqualStringCondition(common.ICAT_COLUMN_R_RESC_NAME, name)
 
 	queryResult := message.IRODSMessageQueryResponse{}
 	err := conn.Request(query, &queryResult, nil)
@@ -341,8 +339,7 @@ func ListResourceMeta(conn *connection.IRODSConnection, name string) ([]*types.I
 		query.AddSelect(common.ICAT_COLUMN_META_RESC_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_META_RESC_MODIFY_TIME, 1)
 
-		nameCondVal := fmt.Sprintf("= '%s'", name)
-		query.AddCondition(common.ICAT_COLUMN_R_RESC_NAME, nameCondVal)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_R_RESC_NAME, name)
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -440,4 +437,19 @@ func ListResourceMeta(conn *connection.IRODSConnection, name string) ([]*types.I
 	}
 
 	return metas, nil
+}
+
+// AddChildToResource adds a child to a parent resource
+func AddChildToResource(conn *connection.IRODSConnection, parent string, child string, options string) error {
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	req := message.NewIRODSMessageAdminRequest("add", "childtoresc", parent, child, options)
+
+	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	if err != nil {
+		return xerrors.Errorf("received add child to resc error: %w", err)
+	}
+	return nil
 }

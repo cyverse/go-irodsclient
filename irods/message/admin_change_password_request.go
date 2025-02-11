@@ -12,16 +12,16 @@ import (
 type IRODSMessageAdminChangePasswordRequest IRODSMessageAdminRequest
 
 // NewIRODSMessageAdminChangePasswordRequest creates a new IRODSMessageAdminChangePasswordRequest
-func NewIRODSMessageAdminChangePasswordRequest(username string, zone string, password string) *IRODSMessageAdminChangePasswordRequest {
+func NewIRODSMessageAdminChangePasswordRequest(username string, zoneName string, password string) *IRODSMessageAdminChangePasswordRequest {
 	request := &IRODSMessageAdminChangePasswordRequest{
 		Action: "modify",
 		Target: "user",
 	}
 
-	request.Arg2 = fmt.Sprintf("%s#%s", username, zone)
+	request.Arg2 = fmt.Sprintf("%s#%s", username, zoneName)
 	request.Arg3 = "password"
 	request.Arg4 = password // password
-	request.Arg5 = zone
+	request.Arg5 = zoneName
 
 	return request
 }

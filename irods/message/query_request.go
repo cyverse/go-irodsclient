@@ -2,6 +2,7 @@ package message
 
 import (
 	"encoding/xml"
+	"fmt"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/util"
@@ -48,6 +49,21 @@ func (msg *IRODSMessageQueryRequest) AddSelect(key common.ICATColumnNumber, val 
 func (msg *IRODSMessageQueryRequest) AddCondition(key common.ICATColumnNumber, val string) {
 	escapedVal := util.EscapeXMLSpecialChars(val)
 	msg.Conditions.Add(int(key), escapedVal)
+}
+
+// AddEqualStringCondition adds a condition that checks equality of a string
+func (msg *IRODSMessageQueryRequest) AddEqualStringCondition(key common.ICATColumnNumber, val string) {
+	msg.AddCondition(key, fmt.Sprintf("= '%s'", val))
+}
+
+// AddEqualIDCondition adds a condition that checks equality of an ID
+func (msg *IRODSMessageQueryRequest) AddEqualIDCondition(key common.ICATColumnNumber, val int64) {
+	msg.AddCondition(key, fmt.Sprintf("= '%d'", val))
+}
+
+// AddLikeStringCondition adds a condition that checks containment of a string
+func (msg *IRODSMessageQueryRequest) AddLikeStringCondition(key common.ICATColumnNumber, val string) {
+	msg.AddCondition(key, fmt.Sprintf("like '%s'", val))
 }
 
 // AddKeyVal adds a key-value pair

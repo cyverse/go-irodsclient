@@ -13,16 +13,16 @@ import (
 type IRODSMessageAdminChangeUserTypeRequest IRODSMessageAdminRequest
 
 // NewIRODSMessageAdminChangeUserTypeRequest creates a new IRODSMessageAdminChangeUserTypeRequest
-func NewIRODSMessageAdminChangeUserTypeRequest(username string, zone string, userType types.IRODSUserType) *IRODSMessageAdminChangeUserTypeRequest {
+func NewIRODSMessageAdminChangeUserTypeRequest(username string, zoneName string, userType types.IRODSUserType) *IRODSMessageAdminChangeUserTypeRequest {
 	request := &IRODSMessageAdminChangeUserTypeRequest{
 		Action: "modify",
 		Target: "user",
 	}
 
-	request.Arg2 = fmt.Sprintf("%s#%s", username, zone)
+	request.Arg2 = fmt.Sprintf("%s#%s", username, zoneName)
 	request.Arg3 = "type"
 	request.Arg4 = string(userType)
-	request.Arg5 = zone
+	request.Arg5 = zoneName
 
 	return request
 }

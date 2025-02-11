@@ -12,13 +12,13 @@ import (
 )
 
 // StatProcess stats processes.
-func StatProcess(conn *connection.IRODSConnection, address string, zone string) ([]*types.IRODSProcess, error) {
+func StatProcess(conn *connection.IRODSConnection, address string, zoneName string) ([]*types.IRODSProcess, error) {
 	// lock the connection
 	conn.Lock()
 	defer conn.Unlock()
 
 	processes := []*types.IRODSProcess{}
-	req := message.NewIRODSMessageGetProcessstatRequest(address, zone)
+	req := message.NewIRODSMessageGetProcessstatRequest(address, zoneName)
 
 	queryResult := message.IRODSMessageQueryResponse{}
 	err := conn.Request(req, &queryResult, nil)

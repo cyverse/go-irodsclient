@@ -67,12 +67,15 @@ func testCreateAndRemoveUser(t *testing.T) {
 	testUsername := "test_user"
 	testPassword := "test_password"
 
-	_, err = fs.GetUser(conn, testUsername, types.IRODSUserRodsUser)
+	user, err := fs.GetUser(conn, testUsername, account.ClientZone)
 	if err == nil {
 		failError(t, xerrors.Errorf("User %s already exists", testUsername))
 	}
 	if err != nil && !types.IsUserNotFoundError(err) {
 		failError(t, err)
+	}
+	if user.Type != types.IRODSUserRodsUser {
+		failError(t, xerrors.Errorf("User %s is not %s", testUsername, types.IRODSUserRodsUser))
 	}
 
 	err = fs.CreateUser(conn, testUsername, account.ClientZone, types.IRODSUserRodsUser)
@@ -81,7 +84,7 @@ func testCreateAndRemoveUser(t *testing.T) {
 	err = fs.ChangeUserPassword(conn, testUsername, account.ClientZone, testPassword)
 	failError(t, err)
 
-	myuser, err := fs.GetUser(conn, testUsername, types.IRODSUserRodsUser)
+	myuser, err := fs.GetUser(conn, testUsername, account.ClientZone)
 	failError(t, err)
 
 	assert.Equal(t, testUsername, myuser.Name)
@@ -114,7 +117,7 @@ func testCreateAndRemoveUser(t *testing.T) {
 	err = fs.RemoveUser(conn, testUsername, account.ClientZone)
 	failError(t, err)
 
-	_, err = fs.GetUser(conn, testUsername, types.IRODSUserRodsUser)
+	_, err = fs.GetUser(conn, testUsername, account.ClientZone)
 	if err == nil {
 		failError(t, xerrors.Errorf("User %s still exists", testUsername))
 	}
@@ -138,45 +141,37 @@ func testListUsers(t *testing.T) {
 	failError(t, err)
 	defer conn.Disconnect()
 
-	users, err := fs.ListUsers(conn, types.IRODSUserRodsUser)
+	users, err := fs.ListUsersByType(conn, types.IRODSUserRodsUser, account.ClientZone)
 	failError(t, err)
 
 	for _, user := range users {
-		t.Logf("User: %s", user.Name)
-
 		if user.Type != types.IRODSUserRodsUser {
 			failError(t, xerrors.Errorf("User %s is not %s", user.Name, types.IRODSUserRodsUser))
 		}
 	}
 
-	groups, err := fs.ListUsers(conn, types.IRODSUserRodsGroup)
+	groups, err := fs.ListUsersByType(conn, types.IRODSUserRodsGroup, account.ClientZone)
 	failError(t, err)
 
 	for _, group := range groups {
-		t.Logf("Group: %s", group.Name)
-
 		if group.Type != types.IRODSUserRodsGroup {
 			failError(t, xerrors.Errorf("Group %s is not %s", group.Name, types.IRODSUserRodsGroup))
 		}
 	}
 
-	admins, err := fs.ListUsers(conn, types.IRODSUserRodsAdmin)
+	admins, err := fs.ListUsersByType(conn, types.IRODSUserRodsAdmin, account.ClientZone)
 	failError(t, err)
 
 	for _, admin := range admins {
-		t.Logf("Admin: %s", admin.Name)
-
 		if admin.Type != types.IRODSUserRodsAdmin {
 			failError(t, xerrors.Errorf("Admin %s is not %s", admin.Name, types.IRODSUserRodsAdmin))
 		}
 	}
 
-	groupAdmins, err := fs.ListUsers(conn, types.IRODSUserGroupAdmin)
+	groupAdmins, err := fs.ListUsersByType(conn, types.IRODSUserGroupAdmin, account.ClientZone)
 	failError(t, err)
 
 	for _, groupAdmin := range groupAdmins {
-		t.Logf("Group Admin: %s", groupAdmin.Name)
-
 		if groupAdmin.Type != types.IRODSUserGroupAdmin {
 			failError(t, xerrors.Errorf("Group Admin %s is not %s", groupAdmin.Name, types.IRODSUserGroupAdmin))
 		}

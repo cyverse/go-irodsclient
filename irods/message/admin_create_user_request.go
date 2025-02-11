@@ -13,7 +13,7 @@ import (
 type IRODSMessageAdminCreateUserRequest IRODSMessageAdminRequest
 
 // NewIRODSMessageAdminCreateUserRequest creates a new IRODSMessageAdminCreateUserRequest
-func NewIRODSMessageAdminCreateUserRequest(username string, zone string, userType types.IRODSUserType) *IRODSMessageAdminCreateUserRequest {
+func NewIRODSMessageAdminCreateUserRequest(username string, zoneName string, userType types.IRODSUserType) *IRODSMessageAdminCreateUserRequest {
 	request := &IRODSMessageAdminCreateUserRequest{
 		Action: "add",
 		Target: "user",
@@ -23,14 +23,14 @@ func NewIRODSMessageAdminCreateUserRequest(username string, zone string, userTyp
 		// creating a group
 		request.Arg2 = username
 	} else {
-		request.Arg2 = fmt.Sprintf("%s#%s", username, zone)
+		request.Arg2 = fmt.Sprintf("%s#%s", username, zoneName)
 	}
 
 	request.Arg3 = string(userType)
 
 	if userType != types.IRODSUserRodsGroup && userType != types.IRODSUserGroupAdmin {
 		// not a group
-		request.Arg4 = zone
+		request.Arg4 = zoneName
 	}
 
 	return request

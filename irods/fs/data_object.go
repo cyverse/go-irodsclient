@@ -92,11 +92,8 @@ func GetDataObject(conn *connection.IRODSConnection, collection *types.IRODSColl
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
-		collCondVal := fmt.Sprintf("= '%s'", collection.Path)
-		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, collCondVal)
-
-		pathCondVal := fmt.Sprintf("= '%s'", filename)
-		query.AddCondition(common.ICAT_COLUMN_DATA_NAME, pathCondVal)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, collection.Path)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_DATA_NAME, filename)
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -294,11 +291,8 @@ func GetDataObjectWithoutCollection(conn *connection.IRODSConnection, filepath s
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
-		collCondVal := fmt.Sprintf("= '%s'", path.Dir(filepath))
-		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, collCondVal)
-
-		pathCondVal := fmt.Sprintf("= '%s'", path.Base(filepath))
-		query.AddCondition(common.ICAT_COLUMN_DATA_NAME, pathCondVal)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, path.Dir(filepath))
+		query.AddEqualStringCondition(common.ICAT_COLUMN_DATA_NAME, path.Base(filepath))
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -497,11 +491,9 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, collection *ty
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
-		collCondVal := fmt.Sprintf("= '%s'", collection.Path)
-		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, collCondVal)
-		pathCondVal := fmt.Sprintf("= '%s'", filename)
-		query.AddCondition(common.ICAT_COLUMN_DATA_NAME, pathCondVal)
-		query.AddCondition(common.ICAT_COLUMN_D_REPL_STATUS, "= '1'")
+		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, collection.Path)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_DATA_NAME, filename)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_D_REPL_STATUS, "1")
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -707,11 +699,9 @@ func GetDataObjectMasterReplicaWithoutCollection(conn *connection.IRODSConnectio
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
-		collCondVal := fmt.Sprintf("= '%s'", path.Dir(filepath))
-		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, collCondVal)
-		pathCondVal := fmt.Sprintf("= '%s'", path.Base(filepath))
-		query.AddCondition(common.ICAT_COLUMN_DATA_NAME, pathCondVal)
-		query.AddCondition(common.ICAT_COLUMN_D_REPL_STATUS, "= '1'")
+		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, path.Dir(filepath))
+		query.AddEqualStringCondition(common.ICAT_COLUMN_DATA_NAME, path.Base(filepath))
+		query.AddEqualStringCondition(common.ICAT_COLUMN_D_REPL_STATUS, "1")
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -917,8 +907,7 @@ func ListDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCo
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
-		collCondVal := fmt.Sprintf("= '%s'", collection.Path)
-		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, collCondVal)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, collection.Path)
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -1116,9 +1105,8 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
-		collCondVal := fmt.Sprintf("= '%s'", collection.Path)
-		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, collCondVal)
-		query.AddCondition(common.ICAT_COLUMN_D_REPL_STATUS, "= '1'")
+		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, collection.Path)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_D_REPL_STATUS, "1")
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -1315,10 +1303,8 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, collection *types.IROD
 		query.AddSelect(common.ICAT_COLUMN_META_DATA_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_META_DATA_MODIFY_TIME, 1)
 
-		collCondVal := fmt.Sprintf("= '%s'", collection.Path)
-		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, collCondVal)
-		nameCondVal := fmt.Sprintf("= '%s'", filename)
-		query.AddCondition(common.ICAT_COLUMN_DATA_NAME, nameCondVal)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, collection.Path)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_DATA_NAME, filename)
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -1445,10 +1431,8 @@ func ListDataObjectAccesses(conn *connection.IRODSConnection, collection *types.
 		query.AddSelect(common.ICAT_COLUMN_USER_ZONE, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
 
-		collCondVal := fmt.Sprintf("= '%s'", collection.Path)
-		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, collCondVal)
-		nameCondVal := fmt.Sprintf("= '%s'", filename)
-		query.AddCondition(common.ICAT_COLUMN_DATA_NAME, nameCondVal)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, collection.Path)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_DATA_NAME, filename)
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -1559,8 +1543,7 @@ func ListAccessesForDataObjects(conn *connection.IRODSConnection, collection *ty
 		query.AddSelect(common.ICAT_COLUMN_USER_ZONE, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
 
-		collCondVal := fmt.Sprintf("= '%s'", collection.Path)
-		query.AddCondition(common.ICAT_COLUMN_COLL_NAME, collCondVal)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, collection.Path)
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -2791,10 +2774,8 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
-		metaNameCondVal := fmt.Sprintf("= '%s'", metaName)
-		query.AddCondition(common.ICAT_COLUMN_META_DATA_ATTR_NAME, metaNameCondVal)
-		metaValueCondVal := fmt.Sprintf("= '%s'", metaValue)
-		query.AddCondition(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, metaValueCondVal)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_META_DATA_ATTR_NAME, metaName)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, metaValue)
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -3006,11 +2987,9 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
-		metaNameCondVal := fmt.Sprintf("= '%s'", metaName)
-		query.AddCondition(common.ICAT_COLUMN_META_DATA_ATTR_NAME, metaNameCondVal)
-		metaValueCondVal := fmt.Sprintf("= '%s'", metaValue)
-		query.AddCondition(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, metaValueCondVal)
-		query.AddCondition(common.ICAT_COLUMN_D_REPL_STATUS, "= '1'")
+		query.AddEqualStringCondition(common.ICAT_COLUMN_META_DATA_ATTR_NAME, metaName)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, metaValue)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_D_REPL_STATUS, "1")
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -3231,10 +3210,8 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
-		metaNameCondVal := fmt.Sprintf("= '%s'", metaName)
-		query.AddCondition(common.ICAT_COLUMN_META_DATA_ATTR_NAME, metaNameCondVal)
-		metaValueCondVal := fmt.Sprintf("like '%s'", metaValue)
-		query.AddCondition(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, metaValueCondVal)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_META_DATA_ATTR_NAME, metaName)
+		query.AddLikeStringCondition(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, metaValue)
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -3447,11 +3424,9 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
-		metaNameCondVal := fmt.Sprintf("= '%s'", metaName)
-		query.AddCondition(common.ICAT_COLUMN_META_DATA_ATTR_NAME, metaNameCondVal)
-		metaValueCondVal := fmt.Sprintf("like '%s'", metaValue)
-		query.AddCondition(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, metaValueCondVal)
-		query.AddCondition(common.ICAT_COLUMN_D_REPL_STATUS, "= '1'")
+		query.AddEqualStringCondition(common.ICAT_COLUMN_META_DATA_ATTR_NAME, metaName)
+		query.AddLikeStringCondition(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, metaValue)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_D_REPL_STATUS, "1")
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)

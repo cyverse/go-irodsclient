@@ -17,10 +17,10 @@ type IRODSMessageGetProcessstatRequest struct {
 }
 
 // NewIRODSMessageGetProcessstatRequest creates a IRODSMessageGetProcessstatRequest message
-func NewIRODSMessageGetProcessstatRequest(address string, zone string) *IRODSMessageGetProcessstatRequest {
+func NewIRODSMessageGetProcessstatRequest(address string, zoneName string) *IRODSMessageGetProcessstatRequest {
 	return &IRODSMessageGetProcessstatRequest{
 		Address: address,
-		Zone:    zone,
+		Zone:    zoneName,
 		KeyVals: IRODSMessageSSKeyVal{
 			Length: 0,
 		},

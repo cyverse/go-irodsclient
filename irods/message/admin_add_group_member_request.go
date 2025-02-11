@@ -11,16 +11,16 @@ import (
 type IRODSMessageAdminAddGroupMemberRequest IRODSMessageAdminRequest
 
 // NewIRODSMessageAdminAddGroupMemberRequest creates a new IRODSMessageAdminAddGroupMemberRequest
-func NewIRODSMessageAdminAddGroupMemberRequest(groupname string, username string, zone string) *IRODSMessageAdminAddGroupMemberRequest {
+func NewIRODSMessageAdminAddGroupMemberRequest(groupName string, username string, zoneName string) *IRODSMessageAdminAddGroupMemberRequest {
 	request := &IRODSMessageAdminAddGroupMemberRequest{
 		Action: "modify",
 		Target: "group",
 	}
 
-	request.Arg2 = groupname
+	request.Arg2 = groupName
 	request.Arg3 = "add"
 	request.Arg4 = username
-	request.Arg3 = zone
+	request.Arg3 = zoneName
 
 	return request
 }
