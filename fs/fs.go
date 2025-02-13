@@ -2,7 +2,6 @@ package fs
 
 import (
 	"path"
-	"sync"
 	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
@@ -306,7 +305,7 @@ func (fs *FileSystem) RemoveFile(path string, force bool) error {
 	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
 	// if file handle is opened, wg
-	wg := sync.WaitGroup{}
+	wg := util.NewTimeoutWaitGroup()
 	wg.Add(1)
 
 	eventHandlerID := fs.fileHandleMap.AddCloseEventHandler(irodsPath, func(path, id string, empty bool) {
@@ -317,7 +316,7 @@ func (fs *FileSystem) RemoveFile(path string, force bool) error {
 
 	defer fs.fileHandleMap.RemoveCloseEventHandler(eventHandlerID)
 
-	if util.WaitTimeout(&wg, time.Duration(fs.config.MetadataConnection.OperationTimeout)) {
+	if wg.WaitTimeout(time.Duration(fs.config.MetadataConnection.OperationTimeout)) {
 		// timed out
 		return xerrors.Errorf("failed to remove file, there are files still opened")
 	}
