@@ -1286,10 +1286,10 @@ func SearchDataObjectsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 		metrics.IncreaseCounterForList(1)
 	}
 
-	pathUnixWildcard = util.UnixWildcardsToSQLWildcards(pathUnixWildcard)
+	pathSqlWildcard := util.UnixWildcardsToSQLWildcards(pathUnixWildcard)
 	// we don't use util.GetBasename() and util.GetDir() as wildcard may have '\' in the path
-	basenameSqlWildcard := path.Base(pathUnixWildcard)
-	dirnameSqlWildcard := path.Dir(pathUnixWildcard)
+	basenameSqlWildcard := path.Base(pathSqlWildcard)
+	dirnameSqlWildcard := path.Dir(pathSqlWildcard)
 
 	// lock the connection
 	conn.Lock()
@@ -1512,10 +1512,10 @@ func SearchDataObjectsMasterReplicaUnixWildcard(conn *connection.IRODSConnection
 		metrics.IncreaseCounterForList(1)
 	}
 
-	pathUnixWildcard = util.UnixWildcardsToSQLWildcards(pathUnixWildcard)
+	pathSqlWildcard := util.UnixWildcardsToSQLWildcards(pathUnixWildcard)
 	// we don't use util.GetBasename() and util.GetDir() as wildcard may have '\' in the path
-	basenameSqlWildcard := path.Base(pathUnixWildcard)
-	dirnameSqlWildcard := path.Dir(pathUnixWildcard)
+	basenameSqlWildcard := path.Base(pathSqlWildcard)
+	dirnameSqlWildcard := path.Dir(pathSqlWildcard)
 
 	// lock the connection
 	conn.Lock()

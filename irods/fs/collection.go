@@ -737,7 +737,7 @@ func SearchCollectionsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 		metrics.IncreaseCounterForList(1)
 	}
 
-	pathUnixWildcard = util.UnixWildcardsToSQLWildcards(pathUnixWildcard)
+	pathSqlWildcard := util.UnixWildcardsToSQLWildcards(pathUnixWildcard)
 
 	// lock the connection
 	conn.Lock()
@@ -756,7 +756,7 @@ func SearchCollectionsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 		query.AddSelect(common.ICAT_COLUMN_COLL_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_MODIFY_TIME, 1)
 
-		query.AddLikeStringCondition(common.ICAT_COLUMN_COLL_NAME, pathUnixWildcard)
+		query.AddLikeStringCondition(common.ICAT_COLUMN_COLL_NAME, pathSqlWildcard)
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
