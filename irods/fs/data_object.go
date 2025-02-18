@@ -1274,6 +1274,458 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 	return mergedDataObjects, nil
 }
 
+// SearchDataObjects searches data objects in the given collection using wildcard
+func SearchDataObjects(conn *connection.IRODSConnection, pathWildcard string) ([]*types.IRODSDataObject, error) {
+	if conn == nil || !conn.IsConnected() {
+		return nil, xerrors.Errorf("connection is nil or disconnected")
+	}
+
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForList(1)
+	}
+
+	pathWildcard = util.UnixWildcardsToSQLWildcards(pathWildcard)
+	// we don't use util.GetBasename() and util.GetDir() as wildcard may have '\' in the path
+	basenameSqlWildcard := path.Base(pathWildcard)
+	dirnameSqlWildcard := path.Dir(pathWildcard)
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	dataObjects := []*types.IRODSDataObject{}
+
+	continueQuery := true
+	continueIndex := 0
+	for continueQuery {
+		// data object
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
+		query.AddSelect(common.ICAT_COLUMN_D_DATA_ID, 1)
+		query.AddSelect(common.ICAT_COLUMN_D_COLL_ID, 1)
+		query.AddSelect(common.ICAT_COLUMN_DATA_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_DATA_SIZE, 1)
+		query.AddSelect(common.ICAT_COLUMN_DATA_TYPE_NAME, 1)
+
+		// replica
+		query.AddSelect(common.ICAT_COLUMN_DATA_REPL_NUM, 1)
+		query.AddSelect(common.ICAT_COLUMN_D_OWNER_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_D_DATA_CHECKSUM, 1)
+		query.AddSelect(common.ICAT_COLUMN_D_REPL_STATUS, 1)
+		query.AddSelect(common.ICAT_COLUMN_D_RESC_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_D_DATA_PATH, 1)
+		query.AddSelect(common.ICAT_COLUMN_D_RESC_HIER, 1)
+		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
+		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
+
+		query.AddLikeStringCondition(common.ICAT_COLUMN_COLL_NAME, dirnameSqlWildcard)
+		query.AddLikeStringCondition(common.ICAT_COLUMN_DATA_NAME, basenameSqlWildcard)
+
+		queryResult := message.IRODSMessageQueryResponse{}
+		err := conn.Request(query, &queryResult, nil)
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
+				break
+			}
+
+			return nil, xerrors.Errorf("failed to receive a data object query result message: %w", err)
+		}
+
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
+				break
+			}
+
+			return nil, xerrors.Errorf("received data object query error: %w", err)
+		}
+
+		if queryResult.RowCount == 0 {
+			break
+		}
+
+		if queryResult.AttributeCount > len(queryResult.SQLResult) {
+			return nil, xerrors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+		}
+
+		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
+		pagenatedDataObjectCollectionNames := make([]string, queryResult.RowCount)
+
+		for attr := 0; attr < queryResult.AttributeCount; attr++ {
+			sqlResult := queryResult.SQLResult[attr]
+			if len(sqlResult.Values) != queryResult.RowCount {
+				return nil, xerrors.Errorf("failed to receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+			}
+
+			for row := 0; row < queryResult.RowCount; row++ {
+				value := sqlResult.Values[row]
+
+				if pagenatedDataObjects[row] == nil {
+					// create a new
+					replica := &types.IRODSReplica{
+						Number:            -1,
+						Owner:             "",
+						Checksum:          nil,
+						Status:            "",
+						ResourceName:      "",
+						Path:              "",
+						ResourceHierarchy: "",
+						CreateTime:        time.Time{},
+						ModifyTime:        time.Time{},
+					}
+
+					pagenatedDataObjects[row] = &types.IRODSDataObject{
+						ID:           -1,
+						CollectionID: -1,
+						Path:         "",
+						Name:         "",
+						Size:         0,
+						DataType:     "",
+						Replicas:     []*types.IRODSReplica{replica},
+					}
+				}
+
+				switch sqlResult.AttributeIndex {
+				case int(common.ICAT_COLUMN_D_DATA_ID):
+					objID, err := strconv.ParseInt(value, 10, 64)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse data object id %q: %w", value, err)
+					}
+					pagenatedDataObjects[row].ID = objID
+				case int(common.ICAT_COLUMN_D_COLL_ID):
+					colID, err := strconv.ParseInt(value, 10, 64)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse collection id %q: %w", value, err)
+					}
+					pagenatedDataObjects[row].CollectionID = colID
+				case int(common.ICAT_COLUMN_DATA_NAME):
+					pagenatedDataObjects[row].Name = value
+					if len(pagenatedDataObjectCollectionNames[row]) > 0 {
+						pagenatedDataObjects[row].Path = util.MakeIRODSPath(pagenatedDataObjectCollectionNames[row], value)
+					}
+				case int(common.ICAT_COLUMN_COLL_NAME):
+					pagenatedDataObjectCollectionNames[row] = value
+
+					if len(pagenatedDataObjects[row].Name) > 0 {
+						pagenatedDataObjects[row].Path = util.MakeIRODSPath(value, pagenatedDataObjects[row].Name)
+					}
+				case int(common.ICAT_COLUMN_DATA_SIZE):
+					objSize, err := strconv.ParseInt(value, 10, 64)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse data object size %q: %w", value, err)
+					}
+					pagenatedDataObjects[row].Size = objSize
+				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
+					pagenatedDataObjects[row].DataType = value
+				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
+					repNum, err := strconv.ParseInt(value, 10, 64)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse data object replica number %q: %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].Number = repNum
+				case int(common.ICAT_COLUMN_D_OWNER_NAME):
+					pagenatedDataObjects[row].Replicas[0].Owner = value
+				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
+					checksum, err := types.CreateIRODSChecksum(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse data object checksum %q: %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
+				case int(common.ICAT_COLUMN_D_REPL_STATUS):
+					pagenatedDataObjects[row].Replicas[0].Status = value
+				case int(common.ICAT_COLUMN_D_RESC_NAME):
+					pagenatedDataObjects[row].Replicas[0].ResourceName = value
+				case int(common.ICAT_COLUMN_D_DATA_PATH):
+					pagenatedDataObjects[row].Replicas[0].Path = value
+				case int(common.ICAT_COLUMN_D_RESC_HIER):
+					pagenatedDataObjects[row].Replicas[0].ResourceHierarchy = value
+				case int(common.ICAT_COLUMN_D_CREATE_TIME):
+					cT, err := util.GetIRODSDateTime(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
+				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
+					mT, err := util.GetIRODSDateTime(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
+				default:
+					// ignore
+				}
+			}
+		}
+
+		dataObjects = append(dataObjects, pagenatedDataObjects...)
+
+		continueIndex = queryResult.ContinueIndex
+		if continueIndex == 0 {
+			continueQuery = false
+		}
+	}
+
+	// merge data objects per file
+	mergedDataObjectsMap := map[int64]*types.IRODSDataObject{}
+	for _, object := range dataObjects {
+		existingObj, exists := mergedDataObjectsMap[object.ID]
+		if exists {
+			// merge
+			existingObj.Replicas = append(existingObj.Replicas, object.Replicas[0])
+		} else {
+			// add
+			mergedDataObjectsMap[object.ID] = object
+		}
+	}
+
+	// convert map to array
+	mergedDataObjects := []*types.IRODSDataObject{}
+	for _, object := range mergedDataObjectsMap {
+		mergedDataObjects = append(mergedDataObjects, object)
+	}
+
+	return mergedDataObjects, nil
+}
+
+// SearchDataObjectsMasterReplica searches data objects in the given collection using wildcard, returns only master replica
+func SearchDataObjectsMasterReplica(conn *connection.IRODSConnection, pathWildcard string) ([]*types.IRODSDataObject, error) {
+	if conn == nil || !conn.IsConnected() {
+		return nil, xerrors.Errorf("connection is nil or disconnected")
+	}
+
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForList(1)
+	}
+
+	pathWildcard = util.UnixWildcardsToSQLWildcards(pathWildcard)
+	// we don't use util.GetBasename() and util.GetDir() as wildcard may have '\' in the path
+	basenameSqlWildcard := path.Base(pathWildcard)
+	dirnameSqlWildcard := path.Dir(pathWildcard)
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	dataObjects := []*types.IRODSDataObject{}
+
+	continueQuery := true
+	continueIndex := 0
+	for continueQuery {
+		// data object
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
+		query.AddSelect(common.ICAT_COLUMN_D_DATA_ID, 1)
+		query.AddSelect(common.ICAT_COLUMN_D_COLL_ID, 1)
+		query.AddSelect(common.ICAT_COLUMN_DATA_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_DATA_SIZE, 1)
+		query.AddSelect(common.ICAT_COLUMN_DATA_TYPE_NAME, 1)
+
+		// replica
+		query.AddSelect(common.ICAT_COLUMN_DATA_REPL_NUM, 1)
+		query.AddSelect(common.ICAT_COLUMN_D_OWNER_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_D_DATA_CHECKSUM, 1)
+		query.AddSelect(common.ICAT_COLUMN_D_REPL_STATUS, 1)
+		query.AddSelect(common.ICAT_COLUMN_D_RESC_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_D_DATA_PATH, 1)
+		query.AddSelect(common.ICAT_COLUMN_D_RESC_HIER, 1)
+		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
+		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
+
+		query.AddLikeStringCondition(common.ICAT_COLUMN_COLL_NAME, dirnameSqlWildcard)
+		query.AddLikeStringCondition(common.ICAT_COLUMN_DATA_NAME, basenameSqlWildcard)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_D_REPL_STATUS, "1")
+
+		queryResult := message.IRODSMessageQueryResponse{}
+		err := conn.Request(query, &queryResult, nil)
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
+				break
+			}
+
+			return nil, xerrors.Errorf("failed to receive a data object query result message: %w", err)
+		}
+
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
+				break
+			}
+
+			return nil, xerrors.Errorf("received data object query error: %w", err)
+		}
+
+		if queryResult.RowCount == 0 {
+			break
+		}
+
+		if queryResult.AttributeCount > len(queryResult.SQLResult) {
+			return nil, xerrors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+		}
+
+		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
+		pagenatedDataObjectCollectionNames := make([]string, queryResult.RowCount)
+
+		for attr := 0; attr < queryResult.AttributeCount; attr++ {
+			sqlResult := queryResult.SQLResult[attr]
+			if len(sqlResult.Values) != queryResult.RowCount {
+				return nil, xerrors.Errorf("failed to receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+			}
+
+			for row := 0; row < queryResult.RowCount; row++ {
+				value := sqlResult.Values[row]
+
+				if pagenatedDataObjects[row] == nil {
+					// create a new
+					replica := &types.IRODSReplica{
+						Number:            -1,
+						Owner:             "",
+						Checksum:          nil,
+						Status:            "",
+						ResourceName:      "",
+						Path:              "",
+						ResourceHierarchy: "",
+						CreateTime:        time.Time{},
+						ModifyTime:        time.Time{},
+					}
+
+					pagenatedDataObjects[row] = &types.IRODSDataObject{
+						ID:           -1,
+						CollectionID: -1,
+						Path:         "",
+						Name:         "",
+						Size:         0,
+						DataType:     "",
+						Replicas:     []*types.IRODSReplica{replica},
+					}
+				}
+
+				switch sqlResult.AttributeIndex {
+				case int(common.ICAT_COLUMN_D_DATA_ID):
+					objID, err := strconv.ParseInt(value, 10, 64)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse data object id %q: %w", value, err)
+					}
+					pagenatedDataObjects[row].ID = objID
+				case int(common.ICAT_COLUMN_D_COLL_ID):
+					colID, err := strconv.ParseInt(value, 10, 64)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse collection id %q: %w", value, err)
+					}
+					pagenatedDataObjects[row].CollectionID = colID
+				case int(common.ICAT_COLUMN_DATA_NAME):
+					pagenatedDataObjects[row].Name = value
+					if len(pagenatedDataObjectCollectionNames[row]) > 0 {
+						pagenatedDataObjects[row].Path = util.MakeIRODSPath(pagenatedDataObjectCollectionNames[row], value)
+					}
+				case int(common.ICAT_COLUMN_COLL_NAME):
+					pagenatedDataObjectCollectionNames[row] = value
+
+					if len(pagenatedDataObjects[row].Name) > 0 {
+						pagenatedDataObjects[row].Path = util.MakeIRODSPath(value, pagenatedDataObjects[row].Name)
+					}
+				case int(common.ICAT_COLUMN_DATA_SIZE):
+					objSize, err := strconv.ParseInt(value, 10, 64)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse data object size %q: %w", value, err)
+					}
+					pagenatedDataObjects[row].Size = objSize
+				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
+					pagenatedDataObjects[row].DataType = value
+				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
+					repNum, err := strconv.ParseInt(value, 10, 64)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse data object replica number %q: %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].Number = repNum
+				case int(common.ICAT_COLUMN_D_OWNER_NAME):
+					pagenatedDataObjects[row].Replicas[0].Owner = value
+				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
+					checksum, err := types.CreateIRODSChecksum(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse data object checksum %q: %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
+				case int(common.ICAT_COLUMN_D_REPL_STATUS):
+					pagenatedDataObjects[row].Replicas[0].Status = value
+				case int(common.ICAT_COLUMN_D_RESC_NAME):
+					pagenatedDataObjects[row].Replicas[0].ResourceName = value
+				case int(common.ICAT_COLUMN_D_DATA_PATH):
+					pagenatedDataObjects[row].Replicas[0].Path = value
+				case int(common.ICAT_COLUMN_D_RESC_HIER):
+					pagenatedDataObjects[row].Replicas[0].ResourceHierarchy = value
+				case int(common.ICAT_COLUMN_D_CREATE_TIME):
+					cT, err := util.GetIRODSDateTime(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
+				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
+					mT, err := util.GetIRODSDateTime(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
+				default:
+					// ignore
+				}
+			}
+		}
+
+		dataObjects = append(dataObjects, pagenatedDataObjects...)
+
+		continueIndex = queryResult.ContinueIndex
+		if continueIndex == 0 {
+			continueQuery = false
+		}
+	}
+
+	// merge data objects per file
+	mergedDataObjectsMap := map[int64]*types.IRODSDataObject{}
+
+	for _, object := range dataObjects {
+		existingObj, exists := mergedDataObjectsMap[object.ID]
+		if exists {
+			// compare and replace
+			if len(existingObj.Replicas) == 0 {
+				// replace
+				mergedDataObjectsMap[object.ID] = object
+			} else if len(object.Replicas) > 0 {
+				if existingObj.Replicas[0].CreateTime.After(object.Replicas[0].CreateTime) {
+					// found old replica (meaning master) - replace
+					mergedDataObjectsMap[object.ID] = object
+				}
+			}
+		} else {
+			// add
+			mergedDataObjectsMap[object.ID] = object
+		}
+	}
+
+	// convert map to array
+	mergedDataObjects := []*types.IRODSDataObject{}
+	for _, object := range mergedDataObjectsMap {
+		mergedDataObjects = append(mergedDataObjects, object)
+	}
+
+	return mergedDataObjects, nil
+}
+
 // ListDataObjectMeta returns a data object metadata for the path
 func ListDataObjectMeta(conn *connection.IRODSConnection, collection *types.IRODSCollection, filename string) ([]*types.IRODSMeta, error) {
 	if conn == nil || !conn.IsConnected() {

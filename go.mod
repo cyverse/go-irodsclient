@@ -3,6 +3,7 @@ module github.com/cyverse/go-irodsclient
 go 1.18
 
 require (
+	github.com/dlclark/regexp2 v1.11.5
 	github.com/hashicorp/go-rootcerts v1.0.2
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible

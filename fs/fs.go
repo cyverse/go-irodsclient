@@ -270,6 +270,78 @@ func (fs *FileSystem) List(path string) ([]*Entry, error) {
 	return fs.listEntries(collection)
 }
 
+func (fs *FileSystem) Search(pathWildcard string) ([]*Entry, error) {
+	conn, err := fs.metadataSession.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
+
+	results := []*Entry{}
+
+	collEntries, err := irods_fs.SearchCollections(conn, pathWildcard)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, entry := range collEntries {
+		results = append(results, fs.getEntryFromCollection(entry))
+	}
+
+	objectEntries, err := irods_fs.SearchDataObjectsMasterReplica(conn, pathWildcard)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, entry := range objectEntries {
+		results = append(results, fs.getEntryFromDataObject(entry))
+	}
+
+	return results, nil
+}
+
+func (fs *FileSystem) SearchDir(pathWildcard string) ([]*Entry, error) {
+	conn, err := fs.metadataSession.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
+
+	results := []*Entry{}
+
+	collEntries, err := irods_fs.SearchCollections(conn, pathWildcard)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, entry := range collEntries {
+		results = append(results, fs.getEntryFromCollection(entry))
+	}
+
+	return results, nil
+}
+
+func (fs *FileSystem) SearchFile(pathWildcard string) ([]*Entry, error) {
+	conn, err := fs.metadataSession.AcquireConnection()
+	if err != nil {
+		return nil, err
+	}
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
+
+	results := []*Entry{}
+
+	objectEntries, err := irods_fs.SearchDataObjectsMasterReplica(conn, pathWildcard)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, entry := range objectEntries {
+		results = append(results, fs.getEntryFromDataObject(entry))
+	}
+
+	return results, nil
+}
+
 // RemoveDir deletes a directory
 func (fs *FileSystem) RemoveDir(path string, recurse bool, force bool) error {
 	irodsPath := util.GetCorrectIRODSPath(path)
@@ -890,6 +962,7 @@ func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*Entry, 
 				cachedEntries = append(cachedEntries, cachedEntry)
 			} else {
 				useCached = false
+				break
 			}
 		}
 	}

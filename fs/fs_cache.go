@@ -95,7 +95,7 @@ func (fs *FileSystem) invalidateCacheForDirRemove(path string, recurse bool) {
 		entry = fs.cache.GetEntryCache(path)
 	}
 
-	// we need to expunge all negatie entry caches under irodsDestPath
+	// we need to expunge all negative entry caches under irodsDestPath
 	// since all sub-directories/files are also moved
 	fs.cache.RemoveAllNegativeEntryCacheForPath(path)
 
