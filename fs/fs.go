@@ -270,7 +270,7 @@ func (fs *FileSystem) List(path string) ([]*Entry, error) {
 	return fs.listEntries(collection)
 }
 
-func (fs *FileSystem) Search(pathWildcard string) ([]*Entry, error) {
+func (fs *FileSystem) SearchUnixWildcard(pathUnixWildcard string) ([]*Entry, error) {
 	conn, err := fs.metadataSession.AcquireConnection()
 	if err != nil {
 		return nil, err
@@ -279,7 +279,7 @@ func (fs *FileSystem) Search(pathWildcard string) ([]*Entry, error) {
 
 	results := []*Entry{}
 
-	collEntries, err := irods_fs.SearchCollections(conn, pathWildcard)
+	collEntries, err := irods_fs.SearchCollectionsUnixWildcard(conn, pathUnixWildcard)
 	if err != nil {
 		return nil, err
 	}
@@ -288,7 +288,7 @@ func (fs *FileSystem) Search(pathWildcard string) ([]*Entry, error) {
 		results = append(results, fs.getEntryFromCollection(entry))
 	}
 
-	objectEntries, err := irods_fs.SearchDataObjectsMasterReplica(conn, pathWildcard)
+	objectEntries, err := irods_fs.SearchDataObjectsMasterReplicaUnixWildcard(conn, pathUnixWildcard)
 	if err != nil {
 		return nil, err
 	}
@@ -309,7 +309,7 @@ func (fs *FileSystem) SearchDir(pathWildcard string) ([]*Entry, error) {
 
 	results := []*Entry{}
 
-	collEntries, err := irods_fs.SearchCollections(conn, pathWildcard)
+	collEntries, err := irods_fs.SearchCollectionsUnixWildcard(conn, pathWildcard)
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +330,7 @@ func (fs *FileSystem) SearchFile(pathWildcard string) ([]*Entry, error) {
 
 	results := []*Entry{}
 
-	objectEntries, err := irods_fs.SearchDataObjectsMasterReplica(conn, pathWildcard)
+	objectEntries, err := irods_fs.SearchDataObjectsMasterReplicaUnixWildcard(conn, pathWildcard)
 	if err != nil {
 		return nil, err
 	}

@@ -48,7 +48,7 @@ func main() {
 
 	defer filesystem.Release()
 
-	entries, err := filesystem.Search(inputPath)
+	entries, err := filesystem.SearchUnixWildcard(inputPath)
 	if err != nil {
 		logger.Error(err)
 		panic(err)

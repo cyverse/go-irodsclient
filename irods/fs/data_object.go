@@ -14,6 +14,7 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/message"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
+	"github.com/danwakefield/fnmatch"
 	"golang.org/x/xerrors"
 )
 
@@ -1274,8 +1275,8 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collection *
 	return mergedDataObjects, nil
 }
 
-// SearchDataObjects searches data objects in the given collection using wildcard
-func SearchDataObjects(conn *connection.IRODSConnection, pathWildcard string) ([]*types.IRODSDataObject, error) {
+// SearchDataObjectsUnixWildcard searches data objects in the given collection using unix-style wildcard
+func SearchDataObjectsUnixWildcard(conn *connection.IRODSConnection, pathUnixWildcard string) ([]*types.IRODSDataObject, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
@@ -1285,10 +1286,10 @@ func SearchDataObjects(conn *connection.IRODSConnection, pathWildcard string) ([
 		metrics.IncreaseCounterForList(1)
 	}
 
-	pathWildcard = util.UnixWildcardsToSQLWildcards(pathWildcard)
+	pathUnixWildcard = util.UnixWildcardsToSQLWildcards(pathUnixWildcard)
 	// we don't use util.GetBasename() and util.GetDir() as wildcard may have '\' in the path
-	basenameSqlWildcard := path.Base(pathWildcard)
-	dirnameSqlWildcard := path.Dir(pathWildcard)
+	basenameSqlWildcard := path.Base(pathUnixWildcard)
+	dirnameSqlWildcard := path.Dir(pathUnixWildcard)
 
 	// lock the connection
 	conn.Lock()
@@ -1413,7 +1414,6 @@ func SearchDataObjects(conn *connection.IRODSConnection, pathWildcard string) ([
 					}
 				case int(common.ICAT_COLUMN_COLL_NAME):
 					pagenatedDataObjectCollectionNames[row] = value
-
 					if len(pagenatedDataObjects[row].Name) > 0 {
 						pagenatedDataObjects[row].Path = util.MakeIRODSPath(value, pagenatedDataObjects[row].Name)
 					}
@@ -1465,7 +1465,13 @@ func SearchDataObjects(conn *connection.IRODSConnection, pathWildcard string) ([
 			}
 		}
 
-		dataObjects = append(dataObjects, pagenatedDataObjects...)
+		// Filter results by original unix wildcard, since the SQL wildcards
+		// are less strict (e.g. a unix wildcard range is converted to a generic wildcards in SQL).
+		for _, pagenatedDataObject := range pagenatedDataObjects {
+			if fnmatch.Match(pathUnixWildcard, pagenatedDataObject.Path, fnmatch.FNM_PATHNAME) {
+				dataObjects = append(dataObjects, pagenatedDataObject)
+			}
+		}
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -1495,8 +1501,8 @@ func SearchDataObjects(conn *connection.IRODSConnection, pathWildcard string) ([
 	return mergedDataObjects, nil
 }
 
-// SearchDataObjectsMasterReplica searches data objects in the given collection using wildcard, returns only master replica
-func SearchDataObjectsMasterReplica(conn *connection.IRODSConnection, pathWildcard string) ([]*types.IRODSDataObject, error) {
+// SearchDataObjectsMasterReplicaUnixWildcard searches data objects in the given collection using unix-style wildcard, returns only master replica
+func SearchDataObjectsMasterReplicaUnixWildcard(conn *connection.IRODSConnection, pathUnixWildcard string) ([]*types.IRODSDataObject, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
@@ -1506,10 +1512,10 @@ func SearchDataObjectsMasterReplica(conn *connection.IRODSConnection, pathWildca
 		metrics.IncreaseCounterForList(1)
 	}
 
-	pathWildcard = util.UnixWildcardsToSQLWildcards(pathWildcard)
+	pathUnixWildcard = util.UnixWildcardsToSQLWildcards(pathUnixWildcard)
 	// we don't use util.GetBasename() and util.GetDir() as wildcard may have '\' in the path
-	basenameSqlWildcard := path.Base(pathWildcard)
-	dirnameSqlWildcard := path.Dir(pathWildcard)
+	basenameSqlWildcard := path.Base(pathUnixWildcard)
+	dirnameSqlWildcard := path.Dir(pathUnixWildcard)
 
 	// lock the connection
 	conn.Lock()
@@ -1635,7 +1641,6 @@ func SearchDataObjectsMasterReplica(conn *connection.IRODSConnection, pathWildca
 					}
 				case int(common.ICAT_COLUMN_COLL_NAME):
 					pagenatedDataObjectCollectionNames[row] = value
-
 					if len(pagenatedDataObjects[row].Name) > 0 {
 						pagenatedDataObjects[row].Path = util.MakeIRODSPath(value, pagenatedDataObjects[row].Name)
 					}
@@ -1687,7 +1692,13 @@ func SearchDataObjectsMasterReplica(conn *connection.IRODSConnection, pathWildca
 			}
 		}
 
-		dataObjects = append(dataObjects, pagenatedDataObjects...)
+		// Filter results by original unix wildcard, since the SQL wildcards
+		// are less strict (e.g. a unix wildcard range is converted to a generic wildcards in SQL).
+		for _, pagenatedDataObject := range pagenatedDataObjects {
+			if fnmatch.Match(pathUnixWildcard, pagenatedDataObject.Path, fnmatch.FNM_PATHNAME) {
+				dataObjects = append(dataObjects, pagenatedDataObject)
+			}
+		}
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {

@@ -3,6 +3,7 @@ module github.com/cyverse/go-irodsclient
 go 1.18
 
 require (
+	github.com/danwakefield/fnmatch v0.0.0-20160403171240-cbb64ac3d964
 	github.com/dlclark/regexp2 v1.11.5
 	github.com/hashicorp/go-rootcerts v1.0.2
 	github.com/kelseyhightower/envconfig v1.4.0

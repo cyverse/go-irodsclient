@@ -10,6 +10,7 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/message"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
+	"github.com/danwakefield/fnmatch"
 	"golang.org/x/xerrors"
 )
 
@@ -725,8 +726,8 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 	return collections, nil
 }
 
-// SearchCollections searches collections using wildcard
-func SearchCollections(conn *connection.IRODSConnection, pathWildcard string) ([]*types.IRODSCollection, error) {
+// SearchCollectionsUnixWildcard searches collections using unix-style wildcard
+func SearchCollectionsUnixWildcard(conn *connection.IRODSConnection, pathUnixWildcard string) ([]*types.IRODSCollection, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
@@ -736,7 +737,7 @@ func SearchCollections(conn *connection.IRODSConnection, pathWildcard string) ([
 		metrics.IncreaseCounterForList(1)
 	}
 
-	pathWildcard = util.UnixWildcardsToSQLWildcards(pathWildcard)
+	pathUnixWildcard = util.UnixWildcardsToSQLWildcards(pathUnixWildcard)
 
 	// lock the connection
 	conn.Lock()
@@ -755,7 +756,7 @@ func SearchCollections(conn *connection.IRODSConnection, pathWildcard string) ([
 		query.AddSelect(common.ICAT_COLUMN_COLL_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_COLL_MODIFY_TIME, 1)
 
-		query.AddLikeStringCondition(common.ICAT_COLUMN_COLL_NAME, pathWildcard)
+		query.AddLikeStringCondition(common.ICAT_COLUMN_COLL_NAME, pathUnixWildcard)
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -843,7 +844,13 @@ func SearchCollections(conn *connection.IRODSConnection, pathWildcard string) ([
 			}
 		}
 
-		collections = append(collections, pagenatedCollections...)
+		// Filter results by original unix wildcard, since the SQL wildcards
+		// are less strict (e.g. a unix wildcard range is converted to a generic wildcards in SQL).
+		for _, pagenatedCollection := range pagenatedCollections {
+			if fnmatch.Match(pathUnixWildcard, pagenatedCollection.Path, fnmatch.FNM_PATHNAME) {
+				collections = append(collections, pagenatedCollection)
+			}
+		}
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
