@@ -298,6 +298,7 @@ func (conn *IRODSConnection) Connect() error {
 			}
 
 			// reconnect when success
+			_ = conn.logout()
 			conn.disconnectNow()
 
 			// connect TCP
@@ -310,6 +311,7 @@ func (conn *IRODSConnection) Connect() error {
 			if err != nil {
 				connErr := xerrors.Errorf("failed to startup an iRODS connection to server %q and port %d (%s): %w", conn.account.Host, conn.account.Port, err.Error(), types.NewConnectionError())
 				logger.Errorf("%+v", connErr)
+				_ = conn.logout()
 				_ = conn.disconnectNow()
 				if conn.metrics != nil {
 					conn.metrics.IncreaseCounterForConnectionFailures(1)
@@ -326,6 +328,7 @@ func (conn *IRODSConnection) Connect() error {
 	if err != nil {
 		connErr := xerrors.Errorf("failed to login to irods: %w", err)
 		logger.Errorf("%+v", connErr)
+		_ = conn.logout()
 		_ = conn.disconnectNow()
 		return connErr
 	}
@@ -334,6 +337,8 @@ func (conn *IRODSConnection) Connect() error {
 		req := message.NewIRODSMessageTicketAdminRequest("session", conn.account.Ticket)
 		err := conn.RequestAndCheck(req, &message.IRODSMessageTicketAdminResponse{}, nil)
 		if err != nil {
+			_ = conn.logout()
+			_ = conn.disconnectNow()
 			return xerrors.Errorf("received supply ticket error (%s): %w", err.Error(), types.NewAuthError(conn.account))
 		}
 	}
@@ -637,6 +642,20 @@ func (conn *IRODSConnection) loginPAMWithToken() error {
 	return conn.login(conn.account.PAMToken)
 }
 
+// logout sends logout
+func (conn *IRODSConnection) logout() error {
+	disconnect := message.NewIRODSMessageDisconnect()
+	err := conn.RequestWithoutResponse(disconnect)
+
+	conn.lastSuccessfulAccess = time.Now()
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Disconnect disconnects
 func (conn *IRODSConnection) disconnectNow() error {
 	conn.connected = false
@@ -671,10 +690,7 @@ func (conn *IRODSConnection) Disconnect() error {
 	conn.Lock()
 	defer conn.Unlock()
 
-	disconnect := message.NewIRODSMessageDisconnect()
-	err := conn.RequestWithoutResponse(disconnect)
-
-	conn.lastSuccessfulAccess = time.Now()
+	err := conn.logout()
 
 	err2 := conn.disconnectNow()
 	if err2 != nil {
