@@ -527,7 +527,7 @@ func (conn *IRODSConnection) login(password string) error {
 
 	encodedPassword := auth.GenerateAuthResponse(challengeBytes, password)
 
-	authResponse := message.NewIRODSMessageAuthResponse(encodedPassword, conn.account.ProxyUser)
+	authResponse := message.NewIRODSMessageAuthResponse(encodedPassword, conn.account.ProxyUser, conn.account.ProxyZone)
 	authResult := message.IRODSMessageAuthResult{}
 	err = conn.RequestAndCheck(authResponse, &authResult, nil)
 	if err != nil {

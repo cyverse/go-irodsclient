@@ -2,6 +2,7 @@ package message
 
 import (
 	"encoding/xml"
+	"fmt"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/types"
@@ -18,10 +19,10 @@ type IRODSMessageAuthResponse struct {
 }
 
 // NewIRODSMessageAuthResponse creates a IRODSMessageAuthResponse message
-func NewIRODSMessageAuthResponse(response string, username string) *IRODSMessageAuthResponse {
+func NewIRODSMessageAuthResponse(response string, username string, zoneName string) *IRODSMessageAuthResponse {
 	return &IRODSMessageAuthResponse{
 		Response: response,
-		Username: username,
+		Username: fmt.Sprintf("%s#%s", username, zoneName),
 	}
 }
 
