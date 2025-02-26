@@ -2,6 +2,7 @@ package testcases
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"testing"
 
@@ -25,7 +26,7 @@ func highlevelFilesystemTest(t *testing.T, test *Test) {
 func testMakeDir(t *testing.T) {
 	test := GetCurrentTest()
 	server := test.GetServer()
-	filesystem, err := server.GetFilesystem()
+	filesystem, err := server.GetFileSystem()
 	FailError(t, err)
 	defer filesystem.Release()
 
@@ -80,7 +81,7 @@ func testMakeDir(t *testing.T) {
 func testMakeDirRecurse(t *testing.T) {
 	test := GetCurrentTest()
 	server := test.GetServer()
-	filesystem, err := server.GetFilesystem()
+	filesystem, err := server.GetFileSystem()
 	FailError(t, err)
 	defer filesystem.Release()
 
@@ -125,7 +126,7 @@ func testMakeDirRecurse(t *testing.T) {
 func testUploadAndDeleteDir(t *testing.T) {
 	test := GetCurrentTest()
 	server := test.GetServer()
-	filesystem, err := server.GetFilesystem()
+	filesystem, err := server.GetFileSystem()
 	FailError(t, err)
 	defer filesystem.Release()
 
@@ -134,6 +135,10 @@ func testUploadAndDeleteDir(t *testing.T) {
 	fileSize := int64(100 * 1024 * 1024) // 100MB
 	localPath, err := CreateLocalTestFile(t, "test_file_", fileSize)
 	FailError(t, err)
+	defer func() {
+		err = os.Remove(localPath)
+		FailError(t, err)
+	}()
 
 	for i := 0; i < 10; i++ {
 		newDir := fmt.Sprintf("%s/test_dir_%d", homeDir, i)

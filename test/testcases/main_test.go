@@ -12,11 +12,12 @@ import (
 )
 
 type Test struct {
-	Name         string
-	Func         func(t *testing.T, test *Test)
-	testHomeName string
-	Versions     []server.IRODSTestServerVersion // if empty, run for all versions
-	server       *server.IRODSTestServer
+	Name           string
+	Func           func(t *testing.T, test *Test)
+	testHomeName   string
+	Versions       []server.IRODSTestServerVersion // if empty, run for all versions
+	server         *server.IRODSTestServer
+	currentVersion server.IRODSTestServerVersion
 }
 
 func (test *Test) GetTestHomeDir() string {
@@ -30,26 +31,30 @@ func (test *Test) MakeTestHomeDir() error {
 		"function": "MakeTestHomeDir",
 	})
 
-	fs, err := test.server.GetFilesystem()
+	fs, err := test.server.GetFileSystem()
 	if err != nil {
 		return xerrors.Errorf("failed to create a new filesystem: %w", err)
 	}
 	defer fs.Release()
 
-	homedir := test.GetTestHomeDir()
+	homeDir := test.GetTestHomeDir()
 
-	err = fs.MakeDir(homedir, true)
+	err = fs.MakeDir(homeDir, true)
 	if err != nil {
-		return xerrors.Errorf("failed to make a home directory %q: %w", homedir, err)
+		return xerrors.Errorf("failed to make a home directory %q: %w", homeDir, err)
 	}
 
-	logger.Infof("Created test home directory: %s", homedir)
+	logger.Infof("Created test home directory: %s", homeDir)
 
 	return nil
 }
 
 func (test *Test) GetServer() *server.IRODSTestServer {
 	return test.server
+}
+
+func (test *Test) GetCurrentVersion() server.IRODSTestServerVersion {
+	return test.currentVersion
 }
 
 func checkRunForVersion(testFunc Test, version server.IRODSTestServerVersion) bool {
@@ -112,6 +117,7 @@ func testMainForVersion(t *testing.T, ver server.IRODSTestServerVersion, tests [
 				// setup
 				test.testHomeName = makeTestUUID()
 				test.server = irodsServer
+				test.currentVersion = ver
 
 				// create home directory
 				err = test.MakeTestHomeDir()
@@ -145,9 +151,12 @@ func TestMain(t *testing.T) {
 	tests = append(tests, getLowlevelSessionTest())
 	tests = append(tests, getLowlevelProcessTest())
 	tests = append(tests, getLowlevelUserTest())
-	tests = append(tests, getLowlevelUpdownTest())
+	tests = append(tests, getLowlevelLockTest())
+	tests = append(tests, getLowlevelFileTransferTest())
 	tests = append(tests, getHighlevelFilesystemTest())
 	tests = append(tests, getHighlevelFilesystemCacheTest())
+	tests = append(tests, getHighlevelFileTransferTest())
+	tests = append(tests, getHighlevelTicketTest())
 
 	for _, ver := range versions {
 		testMainForVersion(t, ver, tests)

@@ -22,7 +22,7 @@ func highlevelFilesystemCacheTest(t *testing.T, test *Test) {
 func testMakeDirCacheEvent(t *testing.T) {
 	test := GetCurrentTest()
 	server := test.GetServer()
-	filesystem, err := server.GetFilesystem()
+	filesystem, err := server.GetFileSystem()
 	FailError(t, err)
 	defer filesystem.Release()
 

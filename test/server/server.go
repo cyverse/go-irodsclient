@@ -109,7 +109,7 @@ func (server *IRODSTestServer) Start() error {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		err = comp.Down(ctx)
+		err = comp.Down(ctx, compose.RemoveOrphans(true))
 		if err != nil {
 			logger.Error(xerrors.Errorf("failed to stop iRODS test server: %w", err))
 		}
@@ -162,7 +162,7 @@ func (server *IRODSTestServer) GetSession() (*session.IRODSSession, error) {
 	return session.NewIRODSSession(account, sessionConfig)
 }
 
-func (server *IRODSTestServer) GetFilesystem() (*irods_fs.FileSystem, error) {
+func (server *IRODSTestServer) GetFileSystem() (*irods_fs.FileSystem, error) {
 	account := server.GetAccountCopy()
 	fsConfig := server.GetFileSystemConfig()
 	return irods_fs.NewFileSystem(account, fsConfig)

@@ -64,7 +64,7 @@ func CreateLocalTestFile(t *testing.T, name string, size int64) (string, error) 
 }
 
 func CreateSampleFilesAndDirs(t *testing.T, server *server.IRODSTestServer, dest string, numFiles int, numDirs int) ([]string, []string, error) {
-	fs, err := server.GetFilesystem()
+	fs, err := server.GetFileSystem()
 	if err != nil {
 		return nil, nil, xerrors.Errorf("failed to create a new filesystem: %w", err)
 	}
