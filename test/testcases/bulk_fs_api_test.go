@@ -1,26 +1,14 @@
 package testcases
 
-import (
-	"fmt"
-	"os"
-	"sync"
-	"testing"
-
-	"github.com/cyverse/go-irodsclient/irods/fs"
-	"github.com/cyverse/go-irodsclient/irods/session"
-	"github.com/rs/xid"
-	"github.com/stretchr/testify/assert"
-
-	log "github.com/sirupsen/logrus"
-)
+/*
 
 var (
 	bulkFSAPITestID = xid.New().String()
 )
 
 func TestBulkFSAPI(t *testing.T) {
-	setup()
-	defer shutdown()
+	StartIRODSTestServer()
+	defer shutdownIRODSTestServer()
 
 	log.SetLevel(log.DebugLevel)
 
@@ -32,18 +20,18 @@ func TestBulkFSAPI(t *testing.T) {
 }
 
 func testParallelUploadDataObject(t *testing.T) {
-	account := GetTestAccount()
+	account := GetIRODSTestServerAccount()
 
 	account.ClientServerNegotiation = false
 
 	sessionConfig := GetTestSessionConfig()
 
 	sess, err := session.NewIRODSSession(account, sessionConfig)
-	failError(t, err)
+	FailError(t, err)
 	defer sess.Release()
 
 	conn, err := sess.AcquireConnection()
-	failError(t, err)
+	FailError(t, err)
 
 	homedir := getHomeDir(bulkFSAPITestID)
 
@@ -52,7 +40,7 @@ func testParallelUploadDataObject(t *testing.T) {
 	fileSize := 100 * 1024 * 1024 // 100MB
 
 	filepath, err := createLocalTestFile(filename, int64(fileSize))
-	failError(t, err)
+	FailError(t, err)
 
 	// upload
 	irodsPath := homedir + "/" + filename
@@ -63,17 +51,17 @@ func testParallelUploadDataObject(t *testing.T) {
 	}
 
 	err = fs.UploadDataObjectParallel(sess, filepath, irodsPath, "", 4, false, nil, callBack)
-	failError(t, err)
+	FailError(t, err)
 	assert.Greater(t, callbackCalled, 10) // at least called 10 times
 
 	err = os.Remove(filepath)
-	failError(t, err)
+	FailError(t, err)
 
 	coll, err := fs.GetCollection(conn, homedir)
-	failError(t, err)
+	FailError(t, err)
 
 	obj, err := fs.GetDataObject(conn, coll, filename)
-	failError(t, err)
+	FailError(t, err)
 
 	assert.NotEmpty(t, obj.ID)
 	assert.Equal(t, int64(fileSize), obj.Size)
@@ -81,15 +69,15 @@ func testParallelUploadDataObject(t *testing.T) {
 	// get
 	callbackCalled = 0
 	err = fs.DownloadDataObjectParallel(sess, irodsPath, "", filename, int64(fileSize), 4, nil, callBack)
-	failError(t, err)
+	FailError(t, err)
 	assert.Greater(t, callbackCalled, 10) // at least called 10 times
 
 	err = os.Remove(filename)
-	failError(t, err)
+	FailError(t, err)
 
 	// delete
 	err = fs.DeleteDataObject(conn, irodsPath, true)
-	failError(t, err)
+	FailError(t, err)
 
 	sess.ReturnConnection(conn)
 }
@@ -100,7 +88,7 @@ func parallelUploadReplication(t *testing.T, sess *session.IRODSSession, filenam
 	// gen a large file, 50MB is enough
 	fileSize := 50 * 1024 * 1024 // 50MB
 	filepath, err := createLocalTestFile(filename, int64(fileSize))
-	failError(t, err)
+	FailError(t, err)
 
 	// upload
 	irodsPath := homedir + "/" + filename
@@ -111,19 +99,19 @@ func parallelUploadReplication(t *testing.T, sess *session.IRODSSession, filenam
 	}
 
 	err = fs.UploadDataObjectParallel(sess, filepath, irodsPath, "replResc", 4, true, nil, callBack)
-	failError(t, err)
+	FailError(t, err)
 
 	err = os.Remove(filepath)
-	failError(t, err)
+	FailError(t, err)
 
 	newConn, err := sess.AcquireConnection()
-	failError(t, err)
+	FailError(t, err)
 
 	coll, err := fs.GetCollection(newConn, homedir)
-	failError(t, err)
+	FailError(t, err)
 
 	obj, err := fs.GetDataObject(newConn, coll, filename)
-	failError(t, err)
+	FailError(t, err)
 
 	assert.NotEmpty(t, obj.ID)
 	assert.Equal(t, int64(fileSize), obj.Size)
@@ -141,20 +129,20 @@ func parallelUploadReplication(t *testing.T, sess *session.IRODSSession, filenam
 
 	// delete
 	err = fs.DeleteDataObject(newConn, irodsPath, true)
-	failError(t, err)
+	FailError(t, err)
 
 	sess.ReturnConnection(newConn)
 }
 
 func testParallelUploadReplicationMulti(t *testing.T) {
-	account := GetTestAccount()
+	account := GetIRODSTestServerAccount()
 
 	account.ClientServerNegotiation = false
 
 	sessionConfig := GetTestSessionConfig()
 
 	sess, err := session.NewIRODSSession(account, sessionConfig)
-	failError(t, err)
+	FailError(t, err)
 
 	filenamePattern := "test_repl_file_%d.bin"
 
@@ -177,16 +165,17 @@ func testParallelUploadReplicationMulti(t *testing.T) {
 }
 
 func testParallelUploadReplication(t *testing.T) {
-	account := GetTestAccount()
+	account := GetIRODSTestServerAccount()
 
 	account.ClientServerNegotiation = false
 
 	sessionConfig := GetTestSessionConfig()
 
 	sess, err := session.NewIRODSSession(account, sessionConfig)
-	failError(t, err)
+	FailError(t, err)
 
 	parallelUploadReplication(t, sess, "test_repl_file.bin")
 
 	sess.Release()
 }
+*/

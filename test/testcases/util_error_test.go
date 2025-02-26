@@ -7,11 +7,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestError(t *testing.T) {
-	t.Run("test ErrorString", testErrorString)
+func getUtilErrorTest() Test {
+	return Test{
+		Name: "Util_Error",
+		Func: utilErrorTest,
+	}
 }
 
-func testErrorString(t *testing.T) {
+func utilErrorTest(t *testing.T, test *Test) {
+	t.Run("ErrorCode", testErrorCode)
+}
+
+func testErrorCode(t *testing.T) {
 	errcode := common.REMOTE_SERVER_AUTHENTICATION_FAILURE
 
 	// test - value

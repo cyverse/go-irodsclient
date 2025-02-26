@@ -9,13 +9,20 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-func TestDuration(t *testing.T) {
-	t.Run("test YAMLMarshal", testYAMLMarshal)
-	t.Run("test YAMLUnmarshalFromStringWithoutUnits", testYAMLUnmarshalFromStringWithoutUnits)
-	t.Run("test YAMLUnmarshalFromString", testYAMLUnmarshalFromString)
+func getTypeDurationTest() Test {
+	return Test{
+		Name: "Type_Duration",
+		Func: typeDurationTest,
+	}
 }
 
-func testYAMLMarshal(t *testing.T) {
+func typeDurationTest(t *testing.T, test *Test) {
+	t.Run("MarshalToYAML", testDurationMarshalToYAML)
+	t.Run("UnmarshalFromYAMLWithoutUnits", testDurationUnmarshalFromYAMLWithoutUnits)
+	t.Run("UnmarshalFromYAML", testDurationUnmarshalFromYAML)
+}
+
+func testDurationMarshalToYAML(t *testing.T) {
 	d1 := types.Duration(5 * time.Minute)
 
 	yamlBytes, err := yaml.Marshal(d1)
@@ -28,7 +35,7 @@ func testYAMLMarshal(t *testing.T) {
 	assert.Equal(t, d1, d2)
 }
 
-func testYAMLUnmarshalFromStringWithoutUnits(t *testing.T) {
+func testDurationUnmarshalFromYAMLWithoutUnits(t *testing.T) {
 	v1 := []byte("60000000000")
 
 	var d1 types.Duration
@@ -44,7 +51,7 @@ func testYAMLUnmarshalFromStringWithoutUnits(t *testing.T) {
 	assert.Equal(t, 6*time.Hour+1*time.Minute, time.Duration(d2))
 }
 
-func testYAMLUnmarshalFromString(t *testing.T) {
+func testDurationUnmarshalFromYAML(t *testing.T) {
 	v1 := []byte("6m")
 
 	var d1 types.Duration

@@ -9,12 +9,20 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestPasswordObfuscation(t *testing.T) {
-	t.Run("test PasswordObfuscation", testEncodeDecodePassword)
-	t.Run("test EncodeDecodeRandomPassword", testEncodeDecodeRandomPassword)
+func getUtilPasswordObfuscationTest() Test {
+	return Test{
+		Name: "Util_PasswordObfuscation",
+		Func: utilPasswordObfuscation,
+	}
 }
 
-func testEncodeDecodePassword(t *testing.T) {
+func utilPasswordObfuscation(t *testing.T, test *Test) {
+	t.Run("StaticPasswords", testStaticPasswords)
+	t.Run("RandomPasswords", testRandomPasswords)
+
+}
+
+func testStaticPasswords(t *testing.T) {
 	obf := config.NewPasswordObfuscator()
 
 	mypassword := "mypassword_1234_!@#$"
@@ -33,17 +41,11 @@ func testEncodeDecodePassword(t *testing.T) {
 		encodedPassword := obf.Encode([]byte(mypassword))
 		decodedPassword := obf.Decode(encodedPassword)
 
-		//t.Logf("enc: %s", encodedPassword)
-		//t.Logf("dec: %s", decodedPassword)
-
 		assert.Equal(t, mypassword, string(decodedPassword))
 	}
-
-	//t.Logf("enc: %s", encodedPassword)
-	//t.Logf("dec: %s", decodedPassword)
 }
 
-func testEncodeDecodeRandomPassword(t *testing.T) {
+func testRandomPasswords(t *testing.T) {
 	obf := config.NewPasswordObfuscator()
 
 	for i := 0; i < 100000; i++ {
@@ -51,13 +53,9 @@ func testEncodeDecodeRandomPassword(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		//t.Logf("test password %q", mypassword)
 
 		encodedPassword := obf.Encode([]byte(mypassword))
 		decodedPassword := obf.Decode(encodedPassword)
-
-		//t.Logf("enc: %s", encodedPassword)
-		//t.Logf("dec: %s", decodedPassword)
 
 		assert.Equal(t, mypassword, string(decodedPassword))
 	}

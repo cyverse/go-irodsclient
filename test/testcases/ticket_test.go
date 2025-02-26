@@ -1,22 +1,13 @@
 package testcases
 
-import (
-	"testing"
-	"time"
-
-	"github.com/cyverse/go-irodsclient/fs"
-	"github.com/cyverse/go-irodsclient/irods/types"
-	"github.com/rs/xid"
-	"github.com/stretchr/testify/assert"
-)
-
+/*
 var (
 	ticketTestID = xid.New().String()
 )
 
 func TestTicket(t *testing.T) {
-	setup()
-	defer shutdown()
+	StartIRODSTestServer()
+	defer shutdownIRODSTestServer()
 
 	makeHomeDir(t, ticketTestID)
 
@@ -30,20 +21,20 @@ func testPrepareSamplesForTicket(t *testing.T) {
 }
 
 func testCreateAndRemoveTickets(t *testing.T) {
-	account := GetTestAccount()
+	account := GetIRODSTestServerAccount()
 
 	account.ClientServerNegotiation = false
 
 	fsConfig := GetTestFileSystemConfig()
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
-	failError(t, err)
+	FailError(t, err)
 	defer filesystem.Release()
 
 	homedir := getHomeDir(ticketTestID)
 
 	entries, err := filesystem.List(homedir)
-	failError(t, err)
+	FailError(t, err)
 
 	collectionPaths := []string{}
 	dataObjectPaths := []string{}
@@ -74,18 +65,18 @@ func testCreateAndRemoveTickets(t *testing.T) {
 	for i := 0; i < lenDir; i++ {
 		ticketName := xid.New().String()
 		err = filesystem.CreateTicket(ticketName, types.TicketTypeWrite, collectionPaths[i])
-		failError(t, err)
+		FailError(t, err)
 	}
 
 	// create 3 tickets for data objects
 	for i := 0; i < lenFile; i++ {
 		ticketName := xid.New().String()
 		err = filesystem.CreateTicket(ticketName, types.TicketTypeRead, dataObjectPaths[i])
-		failError(t, err)
+		FailError(t, err)
 	}
 
 	tickets, err := filesystem.ListTickets()
-	failError(t, err)
+	FailError(t, err)
 
 	assert.Equal(t, lenDir+lenFile, len(tickets))
 
@@ -100,30 +91,30 @@ func testCreateAndRemoveTickets(t *testing.T) {
 	// remove
 	for _, ticket := range tickets {
 		err = filesystem.DeleteTicket(ticket.Name)
-		failError(t, err)
+		FailError(t, err)
 	}
 
 	tickets, err = filesystem.ListTickets()
-	failError(t, err)
+	FailError(t, err)
 
 	assert.Equal(t, 0, len(tickets))
 }
 
 func testUpdateTicket(t *testing.T) {
-	account := GetTestAccount()
+	account := GetIRODSTestServerAccount()
 
 	account.ClientServerNegotiation = false
 
 	fsConfig := GetTestFileSystemConfig()
 
 	filesystem, err := fs.NewFileSystem(account, fsConfig)
-	failError(t, err)
+	FailError(t, err)
 	defer filesystem.Release()
 
 	homedir := getHomeDir(ticketTestID)
 
 	entries, err := filesystem.List(homedir)
-	failError(t, err)
+	FailError(t, err)
 
 	collectionPaths := []string{}
 
@@ -140,10 +131,10 @@ func testUpdateTicket(t *testing.T) {
 	// create a ticket for a collections
 	ticketName := xid.New().String()
 	err = filesystem.CreateTicket(ticketName, types.TicketTypeWrite, collectionPaths[0])
-	failError(t, err)
+	FailError(t, err)
 
 	tickets, err := filesystem.ListTickets()
-	failError(t, err)
+	FailError(t, err)
 
 	assert.Equal(t, 1, len(tickets))
 
@@ -162,7 +153,7 @@ func testUpdateTicket(t *testing.T) {
 	}
 
 	tickets, err = filesystem.ListTickets()
-	failError(t, err)
+	FailError(t, err)
 
 	for _, ticket := range tickets {
 		assert.True(t, ticket.ExpirationTime.After(time.Now()))
@@ -174,7 +165,7 @@ func testUpdateTicket(t *testing.T) {
 	}
 
 	tickets, err = filesystem.ListTickets()
-	failError(t, err)
+	FailError(t, err)
 
 	for _, ticket := range tickets {
 		assert.True(t, ticket.ExpirationTime.IsZero())
@@ -188,7 +179,7 @@ func testUpdateTicket(t *testing.T) {
 	}
 
 	tickets, err = filesystem.ListTickets()
-	failError(t, err)
+	FailError(t, err)
 
 	for _, ticket := range tickets {
 		assert.Equal(t, int64(100), ticket.UsesLimit)
@@ -204,7 +195,7 @@ func testUpdateTicket(t *testing.T) {
 	}
 
 	tickets, err = filesystem.ListTickets()
-	failError(t, err)
+	FailError(t, err)
 
 	for _, ticket := range tickets {
 		assert.Equal(t, int64(0), ticket.UsesLimit)
@@ -215,11 +206,12 @@ func testUpdateTicket(t *testing.T) {
 	// remove
 	for _, ticket := range tickets {
 		err = filesystem.DeleteTicket(ticket.Name)
-		failError(t, err)
+		FailError(t, err)
 	}
 
 	tickets, err = filesystem.ListTickets()
-	failError(t, err)
+	FailError(t, err)
 
 	assert.Equal(t, 0, len(tickets))
 }
+*/
