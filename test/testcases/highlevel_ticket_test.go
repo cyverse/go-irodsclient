@@ -85,10 +85,8 @@ func testCreateAndRemoveTickets(t *testing.T) {
 
 	// remove files
 	for _, file := range files {
-		t.Logf("Removing file %s", file)
 		err = filesystem.RemoveFile(file, true)
 		FailError(t, err)
-		t.Logf("Removed file %s", file)
 	}
 
 	for _, dir := range dirs {
@@ -202,10 +200,8 @@ func testUpdateTicket(t *testing.T) {
 
 	// remove files
 	for _, file := range files {
-		t.Logf("Removing file %s", file)
 		err = filesystem.RemoveFile(file, true)
 		FailError(t, err)
-		t.Logf("Removed file %s", file)
 	}
 
 	for _, dir := range dirs {
