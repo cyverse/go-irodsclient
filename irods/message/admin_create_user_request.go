@@ -19,17 +19,13 @@ func NewIRODSMessageAdminCreateUserRequest(username string, zoneName string, use
 		Target: "user",
 	}
 
-	if userType == types.IRODSUserRodsGroup {
-		// creating a group
+	if userType == types.IRODSUserRodsGroup || userType == types.IRODSUserGroupAdmin {
 		request.Arg2 = username
+		request.Arg3 = string(userType)
+		request.Arg4 = zoneName
 	} else {
 		request.Arg2 = fmt.Sprintf("%s#%s", username, zoneName)
-	}
-
-	request.Arg3 = string(userType)
-
-	if userType != types.IRODSUserRodsGroup && userType != types.IRODSUserGroupAdmin {
-		// not a group
+		request.Arg3 = string(userType)
 		request.Arg4 = zoneName
 	}
 

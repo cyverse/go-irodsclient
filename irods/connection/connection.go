@@ -223,7 +223,6 @@ func (conn *IRODSConnection) connectTCP() error {
 	socket, err := dialer.DialContext(ctx, "tcp", server)
 	if err != nil {
 		connErr := xerrors.Errorf("failed to connect to specified host %q and port %d (%s): %w", conn.account.Host, conn.account.Port, err.Error(), types.NewConnectionError())
-		logger.Errorf("%+v", connErr)
 
 		if conn.metrics != nil {
 			conn.metrics.IncreaseCounterForConnectionFailures(1)
@@ -243,12 +242,6 @@ func (conn *IRODSConnection) connectTCP() error {
 
 // Connect connects to iRODS
 func (conn *IRODSConnection) Connect() error {
-	logger := log.WithFields(log.Fields{
-		"package":  "connection",
-		"struct":   "IRODSConnection",
-		"function": "Connect",
-	})
-
 	conn.account.FixAuthConfiguration()
 
 	err := conn.account.Validate()
@@ -271,7 +264,6 @@ func (conn *IRODSConnection) Connect() error {
 	irodsVersion, err := conn.startup()
 	if err != nil {
 		connErr := xerrors.Errorf("failed to startup an iRODS connection to server %q and port %d: %w", conn.account.Host, conn.account.Port, err)
-		logger.Errorf("%+v", connErr)
 		_ = conn.disconnectNow()
 		if conn.metrics != nil {
 			conn.metrics.IncreaseCounterForConnectionFailures(1)
@@ -292,9 +284,7 @@ func (conn *IRODSConnection) Connect() error {
 		} else {
 			err = conn.loginPAMWithPassword()
 			if err != nil {
-				connErr := xerrors.Errorf("failed to login to irods using PAM authentication: %w", err)
-				logger.Errorf("%+v", connErr)
-				return connErr
+				return xerrors.Errorf("failed to login to irods using PAM authentication: %w", err)
 			}
 
 			// reconnect when success
@@ -310,7 +300,6 @@ func (conn *IRODSConnection) Connect() error {
 			_, err = conn.startup()
 			if err != nil {
 				connErr := xerrors.Errorf("failed to startup an iRODS connection to server %q and port %d (%s): %w", conn.account.Host, conn.account.Port, err.Error(), types.NewConnectionError())
-				logger.Errorf("%+v", connErr)
 				_ = conn.logout()
 				_ = conn.disconnectNow()
 				if conn.metrics != nil {
@@ -327,7 +316,6 @@ func (conn *IRODSConnection) Connect() error {
 
 	if err != nil {
 		connErr := xerrors.Errorf("failed to login to irods: %w", err)
-		logger.Errorf("%+v", connErr)
 		_ = conn.logout()
 		_ = conn.disconnectNow()
 		return connErr

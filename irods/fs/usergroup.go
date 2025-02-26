@@ -502,7 +502,7 @@ func CreateUser(conn *connection.IRODSConnection, username string, zoneName stri
 
 	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
 	if err != nil {
-		return xerrors.Errorf("received create user error: %w", err)
+		return xerrors.Errorf("received create user error for user %q, zone %q, type %q: %w", username, zoneName, userType, err)
 	}
 
 	return nil
@@ -528,10 +528,10 @@ func ChangeUserPassword(conn *connection.IRODSConnection, username string, zoneN
 	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return xerrors.Errorf("failed to find the user for name %q: %w", username, types.NewUserNotFoundError(username))
+			return xerrors.Errorf("failed to find the user for user %q: %w", username, types.NewUserNotFoundError(username))
 		}
 
-		return xerrors.Errorf("received change user password error: %w", err)
+		return xerrors.Errorf("received change user password error for user %q, zone %q: %w", username, zoneName, err)
 	}
 
 	return nil
@@ -551,19 +551,19 @@ func ChangeUserType(conn *connection.IRODSConnection, username string, zoneName 
 			return xerrors.Errorf("failed to find the user for name %q: %w", username, types.NewUserNotFoundError(username))
 		}
 
-		return xerrors.Errorf("received change user type error: %w", err)
+		return xerrors.Errorf("received change user type error for user %q, zone %q, type %q: %w", username, zoneName, newType, err)
 	}
 
 	return nil
 }
 
 // RemoveUser removes a user or a group.
-func RemoveUser(conn *connection.IRODSConnection, username string, zoneName string) error {
+func RemoveUser(conn *connection.IRODSConnection, username string, zoneName string, userType types.IRODSUserType) error {
 	// lock the connection
 	conn.Lock()
 	defer conn.Unlock()
 
-	req := message.NewIRODSMessageAdminRemoveUserRequest(username, zoneName)
+	req := message.NewIRODSMessageAdminRemoveUserRequest(username, zoneName, userType)
 
 	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
 	if err != nil {
@@ -571,7 +571,7 @@ func RemoveUser(conn *connection.IRODSConnection, username string, zoneName stri
 			return xerrors.Errorf("failed to find the user for name %q: %w", username, types.NewUserNotFoundError(username))
 		}
 
-		return xerrors.Errorf("received remove user error: %w", err)
+		return xerrors.Errorf("received remove user error for user %q, zone %q: %w", username, zoneName, err)
 	}
 
 	return nil
@@ -591,7 +591,7 @@ func AddGroupMember(conn *connection.IRODSConnection, groupName string, username
 			return xerrors.Errorf("failed to find the group %q or user %q: %w", groupName, username, types.NewUserNotFoundError(username))
 		}
 
-		return xerrors.Errorf("received add group member error: %w", err)
+		return xerrors.Errorf("received add group member error for group %q, user %q, zone %q: %w", groupName, username, zoneName, err)
 	}
 	return nil
 }
@@ -610,7 +610,7 @@ func RemoveGroupMember(conn *connection.IRODSConnection, groupName string, usern
 			return xerrors.Errorf("failed to find the group for name %q: %w", groupName, types.NewUserNotFoundError(username))
 		}
 
-		return xerrors.Errorf("received remove group member error: %w", err)
+		return xerrors.Errorf("received remove group member error for group %q, user %q, zone %q: %w", groupName, username, zoneName, err)
 	}
 	return nil
 }

@@ -20,7 +20,7 @@ func NewIRODSMessageAdminRemoveGroupMemberRequest(groupName string, username str
 	request.Arg2 = groupName
 	request.Arg3 = "remove"
 	request.Arg4 = username
-	request.Arg3 = zoneName
+	request.Arg5 = zoneName
 
 	return request
 }

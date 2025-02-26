@@ -309,14 +309,14 @@ func (fs *FileSystem) ChangeUserType(username string, zoneName string, newType t
 }
 
 // RemoveUser removes a user
-func (fs *FileSystem) RemoveUser(username string, zoneName string) error {
+func (fs *FileSystem) RemoveUser(username string, zoneName string, userType types.IRODSUserType) error {
 	conn, err := fs.metadataSession.AcquireConnection()
 	if err != nil {
 		return err
 	}
 	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
-	err = irods_fs.RemoveUser(conn, username, zoneName)
+	err = irods_fs.RemoveUser(conn, username, zoneName, userType)
 	if err != nil {
 		return err
 	}

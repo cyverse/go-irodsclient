@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
+	"github.com/cyverse/go-irodsclient/irods/types"
 	"golang.org/x/xerrors"
 )
 
@@ -11,10 +12,16 @@ import (
 type IRODSMessageAdminRemoveUserRequest IRODSMessageAdminRequest
 
 // NewIRODSMessageAdminRemoveUserRequest creates a new IRODSMessageAdminRemoveUserRequest
-func NewIRODSMessageAdminRemoveUserRequest(username string, zoneName string) *IRODSMessageAdminRemoveUserRequest {
+func NewIRODSMessageAdminRemoveUserRequest(username string, zoneName string, userType types.IRODSUserType) *IRODSMessageAdminRemoveUserRequest {
+	target := "user"
+
+	//if userType == types.IRODSUserRodsGroup {
+	//	target = "group"
+	//}
+
 	request := &IRODSMessageAdminRemoveUserRequest{
 		Action: "rm",
-		Target: "user",
+		Target: target,
 	}
 
 	request.Arg2 = username

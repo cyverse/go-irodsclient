@@ -20,7 +20,7 @@ func NewIRODSMessageAdminAddGroupMemberRequest(groupName string, username string
 	request.Arg2 = groupName
 	request.Arg3 = "add"
 	request.Arg4 = username
-	request.Arg3 = zoneName
+	request.Arg5 = zoneName
 
 	return request
 }
