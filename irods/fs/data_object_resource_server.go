@@ -581,6 +581,11 @@ func DownloadDataObjectFromResourceServer(session *session.IRODSSession, irodsPa
 		resource = account.DefaultResource
 	}
 
+	if fileLength == 0 {
+		// empty file
+		return "", DownloadDataObject(session, irodsPath, resource, localPath, fileLength, keywords, callback)
+	}
+
 	numTasks := taskNum
 	if numTasks <= 0 {
 		numTasks = util.GetNumTasksForParallelTransfer(fileLength)
@@ -702,6 +707,10 @@ func UploadDataObjectToResourceServer(session *session.IRODSSession, localPath s
 	}
 
 	fileLength := stat.Size()
+	if fileLength == 0 {
+		// empty file
+		return UploadDataObject(session, localPath, irodsPath, resource, replicate, keywords, callback)
+	}
 
 	numTasks := taskNum
 	if numTasks <= 0 {

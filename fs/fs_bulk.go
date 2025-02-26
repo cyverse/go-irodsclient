@@ -861,8 +861,8 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 	return fileTransferResult, nil
 }
 
-// UploadFileParallelRedirectToResource uploads a file from local to resource server in parallel
-func (fs *FileSystem) UploadFileParallelRedirectToResource(localPath string, irodsPath string, resource string, taskNum int, replicate bool, checksum bool, verifyChecksum bool, ignoreOverwriteError bool, callback common.TrackerCallBack) (*FileTransferResult, error) {
+// UploadFileRedirectToResource uploads a file from local to resource server in parallel
+func (fs *FileSystem) UploadFileRedirectToResource(localPath string, irodsPath string, resource string, taskNum int, replicate bool, checksum bool, verifyChecksum bool, ignoreOverwriteError bool, callback common.TrackerCallBack) (*FileTransferResult, error) {
 	localSrcPath := util.GetCorrectLocalPath(localPath)
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 

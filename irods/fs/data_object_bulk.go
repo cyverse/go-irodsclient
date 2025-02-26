@@ -230,6 +230,11 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 
 	fileLength := stat.Size()
 
+	if fileLength == 0 {
+		// empty file
+		return UploadDataObject(session, localPath, irodsPath, resource, replicate, keywords, callback)
+	}
+
 	numTasks := taskNum
 	if numTasks <= 0 {
 		numTasks = util.GetNumTasksForParallelTransfer(fileLength)
@@ -734,6 +739,11 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 		resource = account.DefaultResource
 	}
 
+	if fileLength == 0 {
+		// empty file
+		return DownloadDataObject(session, irodsPath, resource, localPath, fileLength, keywords, callback)
+	}
+
 	numTasks := taskNum
 	if numTasks <= 0 {
 		numTasks = util.GetNumTasksForParallelTransfer(fileLength)
@@ -902,6 +912,11 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 	if len(resource) == 0 {
 		account := session.GetAccount()
 		resource = account.DefaultResource
+	}
+
+	if fileLength == 0 {
+		// empty file
+		return DownloadDataObject(session, irodsPath, resource, localPath, fileLength, keywords, callback)
 	}
 
 	numTasks := taskNum
