@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/cyverse/go-irodsclient/test/server"
+	"github.com/rs/xid"
 	"golang.org/x/xerrors"
 )
 
@@ -79,9 +80,11 @@ func CreateSampleFilesAndDirs(t *testing.T, server *server.IRODSTestServer, dest
 
 	// create random files
 	baseRecord := 100
+	id := xid.New().String()
+
 	for i := 0; i < numFiles; i++ {
 		filesize := int64((i + 1) * 62 * baseRecord)
-		filename := fmt.Sprintf("test_file_%d.bin", filesize)
+		filename := fmt.Sprintf("test_file_%s_%d.bin", id, filesize)
 
 		tempPath, err := CreateLocalTestFile(t, filename, filesize)
 		if err != nil {
@@ -104,7 +107,7 @@ func CreateSampleFilesAndDirs(t *testing.T, server *server.IRODSTestServer, dest
 
 	// create random directories
 	for i := 0; i < numDirs; i++ {
-		dirname := fmt.Sprintf("test_dir_%d", i)
+		dirname := fmt.Sprintf("test_dir_%s_%d", id, i)
 
 		irodsPath := dest + "/" + dirname
 		err = fs.MakeDir(irodsPath, true)

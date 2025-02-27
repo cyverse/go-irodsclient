@@ -160,7 +160,7 @@ func (cache *FileSystemCache) RemoveDirEntryCache(path string, recursive bool) {
 func (cache *FileSystemCache) RemoveParentDirEntryCache(path string, recursive bool) {
 	if cache.config.InvalidateParentEntryCacheImmediately {
 		parentPath := util.GetIRODSPathDirname(path)
-		cache.RemoveDirEntryCache(parentPath, true)
+		cache.RemoveDirEntryCache(parentPath, recursive)
 	}
 }
 

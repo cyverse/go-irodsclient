@@ -191,7 +191,7 @@ func (fs *FileSystem) invalidateCacheForFileCreate(path string) {
 	fs.cache.RemoveNegativeEntryCache(path)
 
 	// parent dir's entry also changes
-	fs.cache.RemoveParentDirEntryCache(path, true)
+	fs.cache.RemoveParentDirEntryCache(path, false)
 	// parent dir's dir entry also changes
 	parentPath := util.GetIRODSPathDirname(path)
 	parentDirEntries := fs.cache.GetDirCache(parentPath)
