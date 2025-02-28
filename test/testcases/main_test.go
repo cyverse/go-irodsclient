@@ -142,25 +142,21 @@ func TestMain(t *testing.T) {
 	tests := []Test{}
 
 	// Add all test cases here
-	/*
-		tests = append(tests, getUtilEncodingTest())
-		tests = append(tests, getTypeDurationTest())
-		tests = append(tests, getUtilErrorTest())
-		tests = append(tests, getUtilEnvironmentTest())
-		tests = append(tests, getUtilPasswordObfuscationTest())
-		tests = append(tests, getLowlevelConnectionTest())
-		tests = append(tests, getLowlevelSessionTest())
-		tests = append(tests, getLowlevelProcessTest())
-		tests = append(tests, getLowlevelUserTest())
-		tests = append(tests, getLowlevelLockTest())
-		tests = append(tests, getLowlevelFileTransferTest())
-	*/
+	tests = append(tests, getUtilEncodingTest())
+	tests = append(tests, getTypeDurationTest())
+	tests = append(tests, getUtilErrorTest())
+	tests = append(tests, getUtilEnvironmentTest())
+	tests = append(tests, getUtilPasswordObfuscationTest())
+	tests = append(tests, getLowlevelConnectionTest())
+	tests = append(tests, getLowlevelSessionTest())
+	tests = append(tests, getLowlevelProcessTest())
+	tests = append(tests, getLowlevelUserTest())
+	tests = append(tests, getLowlevelLockTest())
+	tests = append(tests, getLowlevelFileTransferTest())
 	tests = append(tests, getHighlevelFilesystemTest())
-	/*
-		tests = append(tests, getHighlevelFilesystemCacheTest())
-		tests = append(tests, getHighlevelFileTransferTest())
-		tests = append(tests, getHighlevelTicketTest())
-	*/
+	tests = append(tests, getHighlevelFilesystemCacheTest())
+	tests = append(tests, getHighlevelFileTransferTest())
+	tests = append(tests, getHighlevelTicketTest())
 
 	for _, ver := range versions {
 		testMainForVersion(t, ver, tests)
