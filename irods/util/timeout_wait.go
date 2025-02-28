@@ -1,13 +1,15 @@
 package util
 
 import (
-	"sync/atomic"
+	"sync"
 	"time"
 )
 
 type TimeoutWaitGroup struct {
-	count int32
-	done  chan struct{}
+	wg      sync.WaitGroup
+	done    chan struct{}
+	mutex   sync.Mutex
+	counter int
 }
 
 func NewTimeoutWaitGroup() *TimeoutWaitGroup {
@@ -16,35 +18,54 @@ func NewTimeoutWaitGroup() *TimeoutWaitGroup {
 	}
 }
 
-func (wg *TimeoutWaitGroup) Add(i int32) {
-	select {
-	case <-wg.done:
-		panic("use of an already closed TimeoutWaitGroup")
-	default:
+func (wg *TimeoutWaitGroup) Add(i int) {
+	wg.mutex.Lock()
+	defer wg.mutex.Unlock()
+
+	if wg.counter == 0 && i > 0 {
+		wg.done = make(chan struct{})
 	}
 
-	atomic.AddInt32(&wg.count, i)
+	wg.counter += i
+	wg.wg.Add(i)
+
+	if wg.counter == 0 {
+		close(wg.done)
+	}
 }
 
 func (wg *TimeoutWaitGroup) Done() {
-	i := atomic.AddInt32(&wg.count, -1)
-	if i == 0 {
+	wg.mutex.Lock()
+	defer wg.mutex.Unlock()
+
+	wg.counter--
+	if wg.counter == 0 {
 		close(wg.done)
 	}
-	if i < 0 {
-		panic("too many Done() calls")
-	}
+
+	wg.wg.Done()
 }
 
-func (wg *TimeoutWaitGroup) C() <-chan struct{} {
-	return wg.done
+func (wg *TimeoutWaitGroup) Wait() {
+	wg.wg.Wait()
 }
 
 func (wg *TimeoutWaitGroup) WaitTimeout(timeout time.Duration) bool {
+	wg.mutex.Lock()
+	if wg.counter == 0 {
+		wg.mutex.Unlock()
+		return true
+	}
+	done := wg.done
+	wg.mutex.Unlock()
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
 	select {
-	case <-wg.done:
-		return true // done
-	case <-time.After(timeout):
-		return false // timed out
+	case <-done:
+		return true
+	case <-timer.C:
+		return false
 	}
 }
