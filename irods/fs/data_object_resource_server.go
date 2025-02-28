@@ -545,18 +545,22 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 					return xerrors.Errorf("failed to seek to offset %d for file %q, task %d, new offset %d: %w", curOffset, localPath, taskID, newOffset, err)
 				}
 
-				err = conn.SendFromReader(f, toPut)
-				atomic.AddInt64(&totalBytesUploaded, toPut)
+				putLen, err := conn.SendFromReader(f, toPut)
+				atomic.AddInt64(&totalBytesUploaded, putLen)
 				if callback != nil {
 					callback(totalBytesUploaded, -1)
 				}
 
-				toPut -= toPut
-				curOffset += toPut
+				if toPut != putLen {
+					err = xerrors.Errorf("failed to write data fully to %q, requested %d, wrote %d: %w", handle.Path, toPut, putLen, err)
+				}
 
 				if err != nil {
-					return xerrors.Errorf("failed to read data %q, task %d, offset %d: %w", localPath, taskID, transferHeader.Offset, err)
+					return xerrors.Errorf("failed to write data %q, task %d, offset %d: %w", localPath, taskID, transferHeader.Offset, err)
 				}
+
+				toPut -= putLen
+				curOffset += putLen
 			}
 		}
 	}

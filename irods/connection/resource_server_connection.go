@@ -298,13 +298,13 @@ func (conn *IRODSResourceServerConnection) SendWithTrackerCallBack(buffer []byte
 }
 
 // SendFromReader sends data from Reader
-func (conn *IRODSResourceServerConnection) SendFromReader(src io.Reader, size int64) error {
+func (conn *IRODSResourceServerConnection) SendFromReader(src io.Reader, size int64) (int64, error) {
 	if conn.socket == nil {
-		return xerrors.Errorf("failed to send data - socket closed")
+		return 0, xerrors.Errorf("failed to send data - socket closed")
 	}
 
 	if !conn.locked {
-		return xerrors.Errorf("connection must be locked before use")
+		return 0, xerrors.Errorf("connection must be locked before use")
 	}
 
 	if conn.controlConnection.requestTimeout > 0 {
@@ -312,10 +312,6 @@ func (conn *IRODSResourceServerConnection) SendFromReader(src io.Reader, size in
 	}
 
 	copyLen, err := io.CopyN(conn.socket, src, size)
-	if copyLen != size {
-		return xerrors.Errorf("failed to send data. failed to send data fully (requested %d vs sent %d)", size, copyLen)
-	}
-
 	if copyLen > 0 {
 		if conn.metrics != nil {
 			conn.metrics.IncreaseBytesSent(uint64(copyLen))
@@ -323,13 +319,17 @@ func (conn *IRODSResourceServerConnection) SendFromReader(src io.Reader, size in
 	}
 
 	if err != nil {
+		if err == io.EOF {
+			return copyLen, io.EOF
+		}
+
 		conn.socketFail()
-		return xerrors.Errorf("failed to send data: %w", err)
+		return copyLen, xerrors.Errorf("failed to send data (req: %d, sent: %d): %w", size, copyLen, err)
 	}
 
 	conn.lastSuccessfulAccess = time.Now()
 
-	return nil
+	return copyLen, nil
 }
 
 // Recv receives a message
