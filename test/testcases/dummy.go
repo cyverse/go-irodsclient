@@ -50,15 +50,20 @@ func CreateLocalTestFile(t *testing.T, name string, size int64) (string, error) 
 
 	defer f.Close()
 
-	totalWriteLen := int64(0)
-	for totalWriteLen < size {
-		writeLen, err := f.Write(dataBuf)
+	remaining := size
+	for remaining > 0 {
+		copyLen := int64(len(dataBuf))
+		if remaining < copyLen {
+			copyLen = remaining
+		}
+
+		writeLen, err := f.Write(dataBuf[:copyLen])
 		if err != nil {
 			os.Remove(tempPath)
 			return "", err
 		}
 
-		totalWriteLen += int64(writeLen)
+		remaining -= int64(writeLen)
 	}
 
 	return tempPath, nil
