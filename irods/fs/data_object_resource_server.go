@@ -275,9 +275,19 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 				encryptionHeader := message.NewIRODSMessageResourceServerTransferEncryptionHeader(encKeysize)
 
 				encryptionHeaderBuffer := make([]byte, encryptionHeader.SizeOf())
+				eof := false
 				readLen, err := conn.Recv(encryptionHeaderBuffer, encryptionHeader.SizeOf())
 				if err != nil {
-					return xerrors.Errorf("failed to read transfer encryption header from resource server: %w", err)
+					if err == io.EOF {
+						eof = true
+						cont = false
+					} else {
+						return xerrors.Errorf("failed to read transfer encryption header from resource server: %w", err)
+					}
+				}
+
+				if eof {
+					break
 				}
 
 				err = encryptionHeader.FromBytes(encryptionHeaderBuffer[:readLen])
@@ -327,12 +337,15 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 
 				if err != nil {
 					if err == io.EOF {
-						logger.Debugf("received EOF for downloading file chunk for %s, task %d, offset %d, length %d", handle.Path, taskID, transferHeader.Offset, transferHeader.Length)
+						eof = true
 						cont = false
-						break
+					} else {
+						return xerrors.Errorf("failed to read data %q, task %d, offset %d: %w", handle.Path, taskID, curOffset, err)
 					}
+				}
 
-					return xerrors.Errorf("failed to read data %q, task %d, offset %d: %w", handle.Path, taskID, curOffset, err)
+				if eof {
+					break
 				}
 			} else {
 				// normal
@@ -346,6 +359,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 					return xerrors.Errorf("failed to seek to offset %d for file %q, task %d, new offset %d: %w", curOffset, localPath, taskID, newOffset, err)
 				}
 
+				eof := false
 				readLen, err := conn.RecvToWriter(f, toGet)
 				if readLen > 0 {
 					atomic.AddInt64(&totalBytesDownloaded, readLen)
@@ -359,12 +373,15 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 
 				if err != nil {
 					if err == io.EOF {
-						logger.Debugf("received EOF for downloading file chunk for %s, task %d, offset %d, length %d", handle.Path, taskID, transferHeader.Offset, transferHeader.Length)
+						eof = true
 						cont = false
-						break
+					} else {
+						return xerrors.Errorf("failed to read data %q, task %d, offset %d: %w", handle.Path, taskID, curOffset, err)
 					}
+				}
 
-					return xerrors.Errorf("failed to read data %q, task %d, offset %d: %w", handle.Path, taskID, curOffset, err)
+				if eof {
+					break
 				}
 			}
 		}
@@ -482,6 +499,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 				}
 
 				// read data
+				eof := false
 				readLen, err := f.ReadAt(dataBuffer, curOffset)
 
 				//logger.Debugf("read offset %d, len %d", curOffset, readLen)
@@ -498,12 +516,11 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 
 				if err != nil {
 					if err == io.EOF {
-						logger.Debugf("received EOF for uploading file chunk for %s, task %d, offset %d, length %d", handle.Path, taskID, transferHeader.Offset, transferHeader.Length)
+						eof = true
 						cont = false
-						break
+					} else {
+						return xerrors.Errorf("failed to read data %q, task %d, offset %d: %w", localPath, taskID, curOffset, err)
 					}
-
-					return xerrors.Errorf("failed to read data %q, task %d, offset %d: %w", localPath, taskID, curOffset, err)
 				}
 
 				encryptionHeaderBuffer, err := encryptionHeader.GetBytes()
@@ -533,6 +550,10 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 
 				toPut -= int64(readLen)
 				curOffset += int64(readLen)
+
+				if eof {
+					break
+				}
 			} else {
 				// normal
 				// write data
@@ -545,22 +566,28 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 					return xerrors.Errorf("failed to seek to offset %d for file %q, task %d, new offset %d: %w", curOffset, localPath, taskID, newOffset, err)
 				}
 
+				eof := false
 				putLen, err := conn.SendFromReader(f, toPut)
 				atomic.AddInt64(&totalBytesUploaded, putLen)
 				if callback != nil {
 					callback(totalBytesUploaded, -1)
 				}
 
-				if toPut != putLen {
-					err = xerrors.Errorf("failed to write data fully to %q, requested %d, wrote %d: %w", handle.Path, toPut, putLen, err)
-				}
-
 				if err != nil {
-					return xerrors.Errorf("failed to write data %q, task %d, offset %d: %w", localPath, taskID, transferHeader.Offset, err)
+					if err == io.EOF {
+						eof = true
+						cont = false
+					} else {
+						return xerrors.Errorf("failed to write data %q, task %d, offset %d: %w", localPath, taskID, transferHeader.Offset, err)
+					}
 				}
 
 				toPut -= putLen
 				curOffset += putLen
+
+				if eof {
+					break
+				}
 			}
 		}
 	}

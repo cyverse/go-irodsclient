@@ -4,7 +4,7 @@ const (
 	// TransferTaskMinLength is a minimum data length of a task for parallel data transfer
 	TransferTaskMinLength int64 = 32 * 1024 * 1024 // 32MB
 	// TransferTaskMaxNum is a maximum number of tasks for parallel data transfer
-	TransferTaskMaxNum int = 4
+	TransferTaskMaxNum int = 16
 	// TransferBlockSize is a block size of a task
 	TransferBlockSize int64 = 1024 * 1024 // 1MB
 )
