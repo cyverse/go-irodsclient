@@ -585,7 +585,7 @@ func ChangeAccessInherit(conn *connection.IRODSConnection, path string, inherit 
 }
 
 // ChangeAccess changes access control on a data object or collection.
-func ChangeAccess(conn *connection.IRODSConnection, path string, access types.IRODSAccessLevelType, userName string, zoneName string, adminFlag bool) error {
+func ChangeAccess(conn *connection.IRODSConnection, path string, access types.IRODSAccessLevelType, userName string, zoneName string, recursive bool, adminFlag bool) error {
 	if conn == nil || !conn.IsConnected() {
 		return xerrors.Errorf("connection is nil or disconnected")
 	}
@@ -599,7 +599,7 @@ func ChangeAccess(conn *connection.IRODSConnection, path string, access types.IR
 	conn.Lock()
 	defer conn.Unlock()
 
-	request := message.NewIRODSMessageModifyAccessRequest(access.ChmodString(), userName, zoneName, path, false, adminFlag)
+	request := message.NewIRODSMessageModifyAccessRequest(access.ChmodString(), userName, zoneName, path, recursive, adminFlag)
 	response := message.IRODSMessageModifyAccessResponse{}
 	err := conn.RequestAndCheck(request, &response, nil)
 	if err != nil {
