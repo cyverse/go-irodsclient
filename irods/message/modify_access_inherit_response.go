@@ -6,14 +6,14 @@ import (
 	"golang.org/x/xerrors"
 )
 
-// IRODSMessageModifyAccessResponse stores alter modify access response
-type IRODSMessageModifyAccessResponse struct {
+// IRODSMessageModifyAccessInheritResponse stores alter modify access inheritance response
+type IRODSMessageModifyAccessInheritResponse struct {
 	// empty structure
 	Result int
 }
 
 // CheckError returns error if server returned an error
-func (msg *IRODSMessageModifyAccessResponse) CheckError() error {
+func (msg *IRODSMessageModifyAccessInheritResponse) CheckError() error {
 	if msg.Result < 0 {
 		return types.NewIRODSError(common.ErrorCode(msg.Result))
 	}
@@ -21,7 +21,7 @@ func (msg *IRODSMessageModifyAccessResponse) CheckError() error {
 }
 
 // FromMessage returns struct from IRODSMessage
-func (msg *IRODSMessageModifyAccessResponse) FromMessage(msgIn *IRODSMessage) error {
+func (msg *IRODSMessageModifyAccessInheritResponse) FromMessage(msgIn *IRODSMessage) error {
 	if msgIn.Body == nil {
 		return xerrors.Errorf("empty message body")
 	}
@@ -31,6 +31,6 @@ func (msg *IRODSMessageModifyAccessResponse) FromMessage(msgIn *IRODSMessage) er
 }
 
 // GetXMLCorrector returns XML corrector for this message
-func (msg *IRODSMessageModifyAccessResponse) GetXMLCorrector() XMLCorrector {
+func (msg *IRODSMessageModifyAccessInheritResponse) GetXMLCorrector() XMLCorrector {
 	return GetXMLCorrectorForResponse()
 }

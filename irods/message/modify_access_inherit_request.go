@@ -9,19 +9,17 @@ import (
 )
 
 // IRODSMessageModifyAccessRequest stores alter access control request
-type IRODSMessageModifyAccessRequest struct {
-	XMLName       xml.Name `xml:"modAccessControlInp_PI"`
-	RecursiveFlag int      `xml:"recursiveFlag"`
-	AccessLevel   string   `xml:"accessLevel"`
-	UserName      string   `xml:"userName"`
-	Zone          string   `xml:"zone"`
-	Path          string   `xml:"path"`
-}
+type IRODSMessageModifyAccessInheritRequest IRODSMessageModifyAccessRequest
 
-// NewIRODSMessageModifyAccessRequest creates a IRODSMessageModAccessRequest message for altering the access control list of a object or collection.
-func NewIRODSMessageModifyAccessRequest(accessLevel string, user string, zone string, path string, recursive bool, asAdmin bool) *IRODSMessageModifyAccessRequest {
+// NewIRODSMessageModifyAccessInheritRequest creates a IRODSMessageModifyAccessInheritRequest message for altering the access control list of a object or collection.
+func NewIRODSMessageModifyAccessInheritRequest(inherit bool, path string, recursive bool, asAdmin bool) *IRODSMessageModifyAccessInheritRequest {
+	inheritString := "inherit"
+	if !inherit {
+		inheritString = "noinherit"
+	}
+
 	if asAdmin {
-		accessLevel = fmt.Sprintf("admin:%s", accessLevel)
+		inheritString = fmt.Sprintf("admin:%s", inheritString)
 	}
 
 	recursiveFlag := 0
@@ -29,11 +27,11 @@ func NewIRODSMessageModifyAccessRequest(accessLevel string, user string, zone st
 		recursiveFlag = 1
 	}
 
-	request := &IRODSMessageModifyAccessRequest{
+	request := &IRODSMessageModifyAccessInheritRequest{
 		RecursiveFlag: recursiveFlag,
-		AccessLevel:   accessLevel,
-		UserName:      user,
-		Zone:          zone,
+		AccessLevel:   inheritString,
+		UserName:      "",
+		Zone:          "",
 		Path:          path,
 	}
 
@@ -41,7 +39,7 @@ func NewIRODSMessageModifyAccessRequest(accessLevel string, user string, zone st
 }
 
 // GetBytes returns byte array
-func (msg *IRODSMessageModifyAccessRequest) GetBytes() ([]byte, error) {
+func (msg *IRODSMessageModifyAccessInheritRequest) GetBytes() ([]byte, error) {
 	xmlBytes, err := xml.Marshal(msg)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to marshal irods message to xml: %w", err)
@@ -50,7 +48,7 @@ func (msg *IRODSMessageModifyAccessRequest) GetBytes() ([]byte, error) {
 }
 
 // FromBytes returns struct from bytes
-func (msg *IRODSMessageModifyAccessRequest) FromBytes(bytes []byte) error {
+func (msg *IRODSMessageModifyAccessInheritRequest) FromBytes(bytes []byte) error {
 	err := xml.Unmarshal(bytes, msg)
 	if err != nil {
 		return xerrors.Errorf("failed to unmarshal xml to irods message: %w", err)
@@ -59,7 +57,7 @@ func (msg *IRODSMessageModifyAccessRequest) FromBytes(bytes []byte) error {
 }
 
 // GetMessage builds a message
-func (msg *IRODSMessageModifyAccessRequest) GetMessage() (*IRODSMessage, error) {
+func (msg *IRODSMessageModifyAccessInheritRequest) GetMessage() (*IRODSMessage, error) {
 	bytes, err := msg.GetBytes()
 	if err != nil {
 		return nil, xerrors.Errorf("failed to get bytes from irods message: %w", err)
@@ -85,6 +83,6 @@ func (msg *IRODSMessageModifyAccessRequest) GetMessage() (*IRODSMessage, error) 
 }
 
 // GetXMLCorrector returns XML corrector for this message
-func (msg *IRODSMessageModifyAccessRequest) GetXMLCorrector() XMLCorrector {
+func (msg *IRODSMessageModifyAccessInheritRequest) GetXMLCorrector() XMLCorrector {
 	return GetXMLCorrectorForRequest()
 }
