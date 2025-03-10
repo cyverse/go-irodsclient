@@ -219,7 +219,7 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 }
 
 // ListDataObjectAccesses returns data object accesses for the path
-func ListDataObjectAccesses(conn *connection.IRODSConnection, collection *types.IRODSCollection, filename string) ([]*types.IRODSAccess, error) {
+func ListDataObjectAccesses(conn *connection.IRODSConnection, dataObjPath string) ([]*types.IRODSAccess, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
@@ -245,8 +245,8 @@ func ListDataObjectAccesses(conn *connection.IRODSConnection, collection *types.
 		query.AddSelect(common.ICAT_COLUMN_USER_ZONE, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
 
-		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, collection.Path)
-		query.AddEqualStringCondition(common.ICAT_COLUMN_DATA_NAME, filename)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, path.Dir(dataObjPath))
+		query.AddEqualStringCondition(common.ICAT_COLUMN_DATA_NAME, path.Base(dataObjPath))
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -255,7 +255,7 @@ func ListDataObjectAccesses(conn *connection.IRODSConnection, collection *types.
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collection.Path, types.NewFileNotFoundError(collection.Path))
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", dataObjPath, types.NewFileNotFoundError(dataObjPath))
 			}
 
 			return nil, xerrors.Errorf("failed to receive a data object access query result message: %w", err)
@@ -267,7 +267,7 @@ func ListDataObjectAccesses(conn *connection.IRODSConnection, collection *types.
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collection.Path, types.NewFileNotFoundError(collection.Path))
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", dataObjPath, types.NewFileNotFoundError(dataObjPath))
 			}
 
 			return nil, xerrors.Errorf("received data object access query error: %w", err)
@@ -295,7 +295,7 @@ func ListDataObjectAccesses(conn *connection.IRODSConnection, collection *types.
 				if pagenatedAccesses[row] == nil {
 					// create a new
 					pagenatedAccesses[row] = &types.IRODSAccess{
-						Path:        util.MakeIRODSPath(collection.Path, filename),
+						Path:        dataObjPath,
 						UserName:    "",
 						UserZone:    "",
 						AccessLevel: types.IRODSAccessLevelNull,
@@ -330,7 +330,7 @@ func ListDataObjectAccesses(conn *connection.IRODSConnection, collection *types.
 }
 
 // ListDataObjectAccessesWithoutCollection returns data object accesses for the path
-func ListDataObjectAccessesWithoutCollection(conn *connection.IRODSConnection, filepath string) ([]*types.IRODSAccess, error) {
+func ListDataObjectAccessesWithoutCollection(conn *connection.IRODSConnection, dataObjPath string) ([]*types.IRODSAccess, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
@@ -356,8 +356,8 @@ func ListDataObjectAccessesWithoutCollection(conn *connection.IRODSConnection, f
 		query.AddSelect(common.ICAT_COLUMN_USER_ZONE, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
 
-		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, path.Dir(filepath))
-		query.AddEqualStringCondition(common.ICAT_COLUMN_DATA_NAME, path.Base(filepath))
+		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, path.Dir(dataObjPath))
+		query.AddEqualStringCondition(common.ICAT_COLUMN_DATA_NAME, path.Base(dataObjPath))
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -366,7 +366,7 @@ func ListDataObjectAccessesWithoutCollection(conn *connection.IRODSConnection, f
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", filepath, types.NewFileNotFoundError(filepath))
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", dataObjPath, types.NewFileNotFoundError(dataObjPath))
 			}
 
 			return nil, xerrors.Errorf("failed to receive a data object access query result message: %w", err)
@@ -378,7 +378,7 @@ func ListDataObjectAccessesWithoutCollection(conn *connection.IRODSConnection, f
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", filepath, types.NewFileNotFoundError(filepath))
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", dataObjPath, types.NewFileNotFoundError(dataObjPath))
 			}
 
 			return nil, xerrors.Errorf("received data object access query error: %w", err)
@@ -406,7 +406,7 @@ func ListDataObjectAccessesWithoutCollection(conn *connection.IRODSConnection, f
 				if pagenatedAccesses[row] == nil {
 					// create a new
 					pagenatedAccesses[row] = &types.IRODSAccess{
-						Path:        util.GetCorrectIRODSPath(filepath),
+						Path:        util.GetCorrectIRODSPath(dataObjPath),
 						UserName:    "",
 						UserZone:    "",
 						AccessLevel: types.IRODSAccessLevelNull,
@@ -441,7 +441,7 @@ func ListDataObjectAccessesWithoutCollection(conn *connection.IRODSConnection, f
 }
 
 // ListAccessesForSubCollections returns collection accesses for subcollections in the given path
-func ListAccessesForSubCollections(conn *connection.IRODSConnection, path string) ([]*types.IRODSAccess, error) {
+func ListAccessesForSubCollections(conn *connection.IRODSConnection, collPath string) ([]*types.IRODSAccess, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
@@ -468,7 +468,7 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, path string
 		query.AddSelect(common.ICAT_COLUMN_USER_ZONE, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
 
-		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_PARENT_NAME, path)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_PARENT_NAME, collPath)
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -477,7 +477,7 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, path string
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection access for path %q: %w", path, types.NewFileNotFoundError(path))
+				return nil, xerrors.Errorf("failed to find the collection access for path %q: %w", collPath, types.NewFileNotFoundError(collPath))
 			}
 
 			return nil, xerrors.Errorf("failed to receive a collection access query result message: %w", err)
@@ -489,7 +489,7 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, path string
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collPath, types.NewFileNotFoundError(collPath))
 			}
 
 			return nil, xerrors.Errorf("received collection access query error: %w", err)
@@ -553,8 +553,8 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, path string
 	return accesses, nil
 }
 
-// ListAccessesForDataObjects returns data object accesses for data objects in the given path
-func ListAccessesForDataObjects(conn *connection.IRODSConnection, collection *types.IRODSCollection) ([]*types.IRODSAccess, error) {
+// ListAccessesForDataObjectsInCollection returns data object accesses for data objects in the given path
+func ListAccessesForDataObjectsInCollection(conn *connection.IRODSConnection, collPath string) ([]*types.IRODSAccess, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
@@ -581,7 +581,7 @@ func ListAccessesForDataObjects(conn *connection.IRODSConnection, collection *ty
 		query.AddSelect(common.ICAT_COLUMN_USER_ZONE, 1)
 		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
 
-		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, collection.Path)
+		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, collPath)
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil)
@@ -590,7 +590,7 @@ func ListAccessesForDataObjects(conn *connection.IRODSConnection, collection *ty
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collection.Path, types.NewFileNotFoundError(collection.Path))
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collPath, types.NewFileNotFoundError(collPath))
 			}
 
 			return nil, xerrors.Errorf("failed to receive a data object access query result message: %w", err)
@@ -602,7 +602,7 @@ func ListAccessesForDataObjects(conn *connection.IRODSConnection, collection *ty
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collection.Path, types.NewFileNotFoundError(collection.Path))
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collPath, types.NewFileNotFoundError(collPath))
 			}
 
 			return nil, xerrors.Errorf("received data object access query error: %w", err)
@@ -640,7 +640,120 @@ func ListAccessesForDataObjects(conn *connection.IRODSConnection, collection *ty
 
 				switch sqlResult.AttributeIndex {
 				case int(common.ICAT_COLUMN_DATA_NAME):
-					pagenatedAccesses[row].Path = util.MakeIRODSPath(collection.Path, value)
+					pagenatedAccesses[row].Path = util.MakeIRODSPath(collPath, value)
+				case int(common.ICAT_COLUMN_DATA_ACCESS_NAME):
+					pagenatedAccesses[row].AccessLevel = types.GetIRODSAccessLevelType(value)
+				case int(common.ICAT_COLUMN_USER_TYPE):
+					pagenatedAccesses[row].UserType = types.IRODSUserType(value)
+				case int(common.ICAT_COLUMN_USER_NAME):
+					pagenatedAccesses[row].UserName = value
+				case int(common.ICAT_COLUMN_USER_ZONE):
+					pagenatedAccesses[row].UserZone = value
+				default:
+					// ignore
+				}
+			}
+		}
+
+		accesses = append(accesses, pagenatedAccesses...)
+
+		continueIndex = queryResult.ContinueIndex
+		if continueIndex == 0 {
+			continueQuery = false
+		}
+	}
+
+	return accesses, nil
+}
+
+// ListAccessesForDataObjects returns data object accesses for data objects in the given path
+func ListAccessesForDataObjectsWithoutCollection(conn *connection.IRODSConnection, collPath string) ([]*types.IRODSAccess, error) {
+	if conn == nil || !conn.IsConnected() {
+		return nil, xerrors.Errorf("connection is nil or disconnected")
+	}
+
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForAccessList(1)
+	}
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	accesses := []*types.IRODSAccess{}
+
+	continueQuery := true
+	continueIndex := 0
+	for continueQuery {
+		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
+		query.AddSelect(common.ICAT_COLUMN_DATA_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_DATA_ACCESS_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_USER_NAME, 1)
+		query.AddSelect(common.ICAT_COLUMN_USER_ZONE, 1)
+		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
+
+		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, collPath)
+
+		queryResult := message.IRODSMessageQueryResponse{}
+		err := conn.Request(query, &queryResult, nil)
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collPath, types.NewFileNotFoundError(collPath))
+			}
+
+			return nil, xerrors.Errorf("failed to receive a data object access query result message: %w", err)
+		}
+
+		err = queryResult.CheckError()
+		if err != nil {
+			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
+				// empty
+				break
+			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
+				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collPath, types.NewFileNotFoundError(collPath))
+			}
+
+			return nil, xerrors.Errorf("received data object access query error: %w", err)
+		}
+
+		if queryResult.RowCount == 0 {
+			break
+		}
+
+		if queryResult.AttributeCount > len(queryResult.SQLResult) {
+			return nil, xerrors.Errorf("failed to receive data object access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+		}
+
+		pagenatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount)
+
+		for attr := 0; attr < queryResult.AttributeCount; attr++ {
+			sqlResult := queryResult.SQLResult[attr]
+			if len(sqlResult.Values) != queryResult.RowCount {
+				return nil, xerrors.Errorf("failed to receive data object access rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+			}
+
+			for row := 0; row < queryResult.RowCount; row++ {
+				value := sqlResult.Values[row]
+
+				if pagenatedAccesses[row] == nil {
+					// create a new
+					pagenatedAccesses[row] = &types.IRODSAccess{
+						Path:        "",
+						UserName:    "",
+						UserZone:    "",
+						AccessLevel: types.IRODSAccessLevelNull,
+						UserType:    types.IRODSUserRodsUser,
+					}
+				}
+
+				switch sqlResult.AttributeIndex {
+				case int(common.ICAT_COLUMN_DATA_NAME):
+					pagenatedAccesses[row].Path = util.MakeIRODSPath(collPath, value)
 				case int(common.ICAT_COLUMN_DATA_ACCESS_NAME):
 					pagenatedAccesses[row].AccessLevel = types.GetIRODSAccessLevelType(value)
 				case int(common.ICAT_COLUMN_USER_TYPE):

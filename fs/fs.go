@@ -155,28 +155,28 @@ func (fs *FileSystem) GetMetrics() *metrics.IRODSMetrics {
 }
 
 // Stat returns file status
-func (fs *FileSystem) Stat(p string) (*Entry, error) {
-	irodsPath := util.GetCorrectIRODSPath(p)
+func (fs *FileSystem) Stat(irodsPath string) (*Entry, error) {
+	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
 	// check if a negative cache for the given path exists
-	if fs.cache.HasNegativeEntryCache(irodsPath) {
+	if fs.cache.HasNegativeEntryCache(irodsCorrectPath) {
 		// has a negative cache - fail fast
-		return nil, xerrors.Errorf("failed to find the data object or the collection for path %q: %w", irodsPath, types.NewFileNotFoundError(irodsPath))
+		return nil, xerrors.Errorf("failed to find the data object or the collection for path %q: %w", irodsCorrectPath, types.NewFileNotFoundError(irodsCorrectPath))
 	}
 
 	// check if a cached Entry for the given path exists
-	cachedEntry := fs.cache.GetEntryCache(irodsPath)
+	cachedEntry := fs.cache.GetEntryCache(irodsCorrectPath)
 	if cachedEntry != nil {
 		return cachedEntry, nil
 	}
 
 	// check if a cached dir Entry for the given path exists
-	parentPath := path.Dir(irodsPath)
+	parentPath := path.Dir(irodsCorrectPath)
 	cachedDirEntryPaths := fs.cache.GetDirCache(parentPath)
 	dirEntryExist := false
 	if cachedDirEntryPaths != nil {
 		for _, cachedDirEntryPath := range cachedDirEntryPaths {
-			if cachedDirEntryPath == irodsPath {
+			if cachedDirEntryPath == irodsCorrectPath {
 				dirEntryExist = true
 				break
 			}
@@ -184,14 +184,14 @@ func (fs *FileSystem) Stat(p string) (*Entry, error) {
 
 		if !dirEntryExist {
 			// dir entry not exist - fail fast
-			fs.cache.AddNegativeEntryCache(irodsPath)
-			return nil, xerrors.Errorf("failed to find the data object or the collection for path %q: %w", irodsPath, types.NewFileNotFoundError(irodsPath))
+			fs.cache.AddNegativeEntryCache(irodsCorrectPath)
+			return nil, xerrors.Errorf("failed to find the data object or the collection for path %q: %w", irodsCorrectPath, types.NewFileNotFoundError(irodsCorrectPath))
 		}
 	}
 
 	// if cache does not exist,
 	// check dir first
-	dirStat, err := fs.getCollectionNoCache(irodsPath)
+	dirStat, err := fs.getCollectionNoCache(irodsCorrectPath)
 	if err != nil {
 		if !types.IsFileNotFoundError(err) {
 			return nil, err
@@ -201,7 +201,7 @@ func (fs *FileSystem) Stat(p string) (*Entry, error) {
 	}
 
 	// if it's not dir, check file
-	fileStat, err := fs.getDataObjectNoCache(irodsPath)
+	fileStat, err := fs.getDataObjectNoCache(irodsCorrectPath)
 	if err != nil {
 		if !types.IsFileNotFoundError(err) {
 			return nil, err
@@ -211,27 +211,27 @@ func (fs *FileSystem) Stat(p string) (*Entry, error) {
 	}
 
 	// not a collection, not a data object
-	fs.cache.AddNegativeEntryCache(irodsPath)
-	return nil, xerrors.Errorf("failed to find the data object or the collection for path %q: %w", irodsPath, types.NewFileNotFoundError(irodsPath))
+	fs.cache.AddNegativeEntryCache(irodsCorrectPath)
+	return nil, xerrors.Errorf("failed to find the data object or the collection for path %q: %w", irodsCorrectPath, types.NewFileNotFoundError(irodsCorrectPath))
 }
 
 // StatDir returns status of a directory
-func (fs *FileSystem) StatDir(path string) (*Entry, error) {
-	irodsPath := util.GetCorrectIRODSPath(path)
+func (fs *FileSystem) StatDir(irodsPath string) (*Entry, error) {
+	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
-	return fs.getCollection(irodsPath)
+	return fs.getCollection(irodsCorrectPath)
 }
 
 // StatFile returns status of a file
-func (fs *FileSystem) StatFile(path string) (*Entry, error) {
-	irodsPath := util.GetCorrectIRODSPath(path)
+func (fs *FileSystem) StatFile(irodsPath string) (*Entry, error) {
+	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
-	return fs.getDataObject(irodsPath)
+	return fs.getDataObject(irodsCorrectPath)
 }
 
 // Exists checks file/directory existence
-func (fs *FileSystem) Exists(path string) bool {
-	entry, err := fs.Stat(path)
+func (fs *FileSystem) Exists(irodsPath string) bool {
+	entry, err := fs.Stat(irodsPath)
 	if err != nil {
 		return false
 	}
@@ -239,8 +239,8 @@ func (fs *FileSystem) Exists(path string) bool {
 }
 
 // ExistsDir checks directory existence
-func (fs *FileSystem) ExistsDir(path string) bool {
-	entry, err := fs.StatDir(path)
+func (fs *FileSystem) ExistsDir(irodsPath string) bool {
+	entry, err := fs.StatDir(irodsPath)
 	if err != nil {
 		return false
 	}
@@ -248,8 +248,8 @@ func (fs *FileSystem) ExistsDir(path string) bool {
 }
 
 // ExistsFile checks file existence
-func (fs *FileSystem) ExistsFile(path string) bool {
-	entry, err := fs.StatFile(path)
+func (fs *FileSystem) ExistsFile(irodsPath string) bool {
+	entry, err := fs.StatFile(irodsPath)
 	if err != nil {
 		return false
 	}
@@ -257,17 +257,9 @@ func (fs *FileSystem) ExistsFile(path string) bool {
 }
 
 // List lists all file system entries under the given path
-func (fs *FileSystem) List(path string) ([]*Entry, error) {
-	irodsPath := util.GetCorrectIRODSPath(path)
-
-	collectionEntry, err := fs.getCollection(irodsPath)
-	if err != nil {
-		return nil, err
-	}
-
-	collection := fs.getCollectionFromEntry(collectionEntry)
-
-	return fs.listEntries(collection)
+func (fs *FileSystem) List(irodsPath string) ([]*Entry, error) {
+	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
+	return fs.listEntries(irodsCorrectPath)
 }
 
 func (fs *FileSystem) SearchUnixWildcard(pathUnixWildcard string) ([]*Entry, error) {
@@ -343,8 +335,8 @@ func (fs *FileSystem) SearchFileUnixWildcard(pathUnixWildcard string) ([]*Entry,
 }
 
 // RemoveDir deletes a directory
-func (fs *FileSystem) RemoveDir(path string, recurse bool, force bool) error {
-	irodsPath := util.GetCorrectIRODSPath(path)
+func (fs *FileSystem) RemoveDir(irodsPath string, recurse bool, force bool) error {
+	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
 	conn, err := fs.metadataSession.AcquireConnection()
 	if err != nil {
@@ -352,23 +344,23 @@ func (fs *FileSystem) RemoveDir(path string, recurse bool, force bool) error {
 	}
 	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
-	err = irods_fs.DeleteCollection(conn, irodsPath, recurse, force)
+	err = irods_fs.DeleteCollection(conn, irodsCorrectPath, recurse, force)
 	if err != nil {
 		if types.IsFileNotFoundError(err) {
-			fs.invalidateCacheForFileRemove(irodsPath)
-			fs.cachePropagation.PropagateFileRemove(irodsPath)
+			fs.invalidateCacheForFileRemove(irodsCorrectPath)
+			fs.cachePropagation.PropagateFileRemove(irodsCorrectPath)
 		}
 		return err
 	}
 
-	fs.invalidateCacheForDirRemove(irodsPath, recurse)
-	fs.cachePropagation.PropagateDirRemove(irodsPath)
+	fs.invalidateCacheForDirRemove(irodsCorrectPath, recurse)
+	fs.cachePropagation.PropagateDirRemove(irodsCorrectPath)
 	return nil
 }
 
 // RemoveFile deletes a file
-func (fs *FileSystem) RemoveFile(path string, force bool) error {
-	irodsPath := util.GetCorrectIRODSPath(path)
+func (fs *FileSystem) RemoveFile(irodsPath string, force bool) error {
+	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
 	conn, err := fs.metadataSession.AcquireConnection()
 	if err != nil {
@@ -380,7 +372,7 @@ func (fs *FileSystem) RemoveFile(path string, force bool) error {
 	wg := util.NewTimeoutWaitGroup()
 	wg.Add(1)
 
-	eventHandlerID := fs.fileHandleMap.AddCloseEventHandler(irodsPath, func(path, id string, empty bool) {
+	eventHandlerID := fs.fileHandleMap.AddCloseEventHandler(irodsCorrectPath, func(path, id string, empty bool) {
 		if empty {
 			wg.Done()
 		}
@@ -394,17 +386,17 @@ func (fs *FileSystem) RemoveFile(path string, force bool) error {
 	}
 
 	// wait done
-	err = irods_fs.DeleteDataObject(conn, irodsPath, force)
+	err = irods_fs.DeleteDataObject(conn, irodsCorrectPath, force)
 	if err != nil {
 		if types.IsFileNotFoundError(err) {
-			fs.invalidateCacheForFileRemove(irodsPath)
-			fs.cachePropagation.PropagateFileRemove(irodsPath)
+			fs.invalidateCacheForFileRemove(irodsCorrectPath)
+			fs.cachePropagation.PropagateFileRemove(irodsCorrectPath)
 		}
 		return err
 	}
 
-	fs.invalidateCacheForFileRemove(irodsPath)
-	fs.cachePropagation.PropagateFileRemove(irodsPath)
+	fs.invalidateCacheForFileRemove(irodsCorrectPath)
+	fs.cachePropagation.PropagateFileRemove(irodsCorrectPath)
 	return nil
 }
 
@@ -627,8 +619,8 @@ func (fs *FileSystem) postprocessRenameFileHandleForDir(handles []*FileHandle, c
 }
 
 // MakeDir creates a directory
-func (fs *FileSystem) MakeDir(path string, recurse bool) error {
-	irodsPath := util.GetCorrectIRODSPath(path)
+func (fs *FileSystem) MakeDir(irodsPath string, recurse bool) error {
+	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
 	conn, err := fs.metadataSession.AcquireConnection()
 	if err != nil {
@@ -636,25 +628,25 @@ func (fs *FileSystem) MakeDir(path string, recurse bool) error {
 	}
 	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
-	dirEntry, err := fs.StatDir(path)
+	dirEntry, err := fs.StatDir(irodsPath)
 	if err == nil {
 		if dirEntry.ID > 0 {
 			// already exists
 			if recurse {
 				return nil
 			}
-			return types.NewFileAlreadyExistError(path)
+			return types.NewFileAlreadyExistError(irodsPath)
 		}
 	}
 
-	err = irods_fs.CreateCollection(conn, irodsPath, recurse)
+	err = irods_fs.CreateCollection(conn, irodsCorrectPath, recurse)
 	if err != nil {
 		return err
 	}
 
-	fs.invalidateCacheForDirCreate(irodsPath)
-	fs.cachePropagation.PropagateDirCreate(irodsPath)
-	fs.cache.AddDirCache(irodsPath, []string{})
+	fs.invalidateCacheForDirCreate(irodsCorrectPath)
+	fs.cachePropagation.PropagateDirCreate(irodsCorrectPath)
+	fs.cache.AddDirCache(irodsCorrectPath, []string{})
 	return nil
 }
 
@@ -695,8 +687,8 @@ func (fs *FileSystem) CopyFileToFile(srcPath string, destPath string, force bool
 }
 
 // TruncateFile truncates a file
-func (fs *FileSystem) TruncateFile(path string, size int64) error {
-	irodsPath := util.GetCorrectIRODSPath(path)
+func (fs *FileSystem) TruncateFile(irodsPath string, size int64) error {
+	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
 	if size < 0 {
 		size = 0
@@ -708,19 +700,19 @@ func (fs *FileSystem) TruncateFile(path string, size int64) error {
 	}
 	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
-	err = irods_fs.TruncateDataObject(conn, irodsPath, size)
+	err = irods_fs.TruncateDataObject(conn, irodsCorrectPath, size)
 	if err != nil {
 		return err
 	}
 
-	fs.invalidateCacheForFileUpdate(irodsPath)
-	fs.cachePropagation.PropagateFileUpdate(irodsPath)
+	fs.invalidateCacheForFileUpdate(irodsCorrectPath)
+	fs.cachePropagation.PropagateFileUpdate(irodsCorrectPath)
 	return nil
 }
 
 // ReplicateFile replicates a file
-func (fs *FileSystem) ReplicateFile(path string, resource string, update bool) error {
-	irodsPath := util.GetCorrectIRODSPath(path)
+func (fs *FileSystem) ReplicateFile(irodsPath string, resource string, update bool) error {
+	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
 	conn, err := fs.metadataSession.AcquireConnection()
 	if err != nil {
@@ -728,19 +720,19 @@ func (fs *FileSystem) ReplicateFile(path string, resource string, update bool) e
 	}
 	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
-	err = irods_fs.ReplicateDataObject(conn, irodsPath, resource, update, false)
+	err = irods_fs.ReplicateDataObject(conn, irodsCorrectPath, resource, update, false)
 	if err != nil {
 		return err
 	}
 
-	fs.invalidateCacheForFileUpdate(irodsPath)
-	fs.cachePropagation.PropagateFileUpdate(irodsPath)
+	fs.invalidateCacheForFileUpdate(irodsCorrectPath)
+	fs.cachePropagation.PropagateFileUpdate(irodsCorrectPath)
 	return nil
 }
 
 // OpenFile opens an existing file for read/write
-func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*FileHandle, error) {
-	irodsPath := util.GetCorrectIRODSPath(path)
+func (fs *FileSystem) OpenFile(irodsPath string, resource string, mode string) (*FileHandle, error) {
+	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
 	conn, err := fs.ioSession.AcquireConnection()
 	if err != nil {
@@ -748,7 +740,7 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 	}
 
 	keywords := map[common.KeyWord]string{}
-	handle, offset, err := irods_fs.OpenDataObject(conn, irodsPath, resource, mode, keywords)
+	handle, offset, err := irods_fs.OpenDataObject(conn, irodsCorrectPath, resource, mode, keywords)
 	if err != nil {
 		fs.ioSession.ReturnConnection(conn) //nolint
 		return nil, err
@@ -759,7 +751,7 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 	if openMode.IsOpeningExisting() {
 		// file may exists
 		// we don't use cache to use fresh data object info
-		entryExisting, err := fs.getDataObjectWithConnectionNoCache(conn, irodsPath)
+		entryExisting, err := fs.getDataObjectWithConnectionNoCache(conn, irodsCorrectPath)
 		if err == nil {
 			entry = entryExisting
 		}
@@ -770,8 +762,8 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 		entry = &Entry{
 			ID:                0,
 			Type:              FileEntry,
-			Name:              util.GetIRODSPathFileName(irodsPath),
-			Path:              irodsPath,
+			Name:              util.GetIRODSPathFileName(irodsCorrectPath),
+			Path:              irodsCorrectPath,
 			Owner:             fs.account.ClientUser,
 			Size:              0,
 			CreateTime:        time.Now(),
@@ -797,8 +789,8 @@ func (fs *FileSystem) OpenFile(path string, resource string, mode string) (*File
 }
 
 // CreateFile opens a new file for write
-func (fs *FileSystem) CreateFile(path string, resource string, mode string) (*FileHandle, error) {
-	irodsPath := util.GetCorrectIRODSPath(path)
+func (fs *FileSystem) CreateFile(irodsPath string, resource string, mode string) (*FileHandle, error) {
+	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
 	conn, err := fs.ioSession.AcquireConnection()
 	if err != nil {
@@ -807,7 +799,7 @@ func (fs *FileSystem) CreateFile(path string, resource string, mode string) (*Fi
 
 	// create
 	keywords := map[common.KeyWord]string{}
-	handle, err := irods_fs.CreateDataObject(conn, irodsPath, resource, mode, true, keywords)
+	handle, err := irods_fs.CreateDataObject(conn, irodsCorrectPath, resource, mode, true, keywords)
 	if err != nil {
 		fs.ioSession.ReturnConnection(conn) //nolint
 		return nil, err
@@ -820,14 +812,14 @@ func (fs *FileSystem) CreateFile(path string, resource string, mode string) (*Fi
 		return nil, err
 	}
 
-	entry, err := fs.getDataObjectWithConnectionNoCache(conn, irodsPath)
+	entry, err := fs.getDataObjectWithConnectionNoCache(conn, irodsCorrectPath)
 	if err != nil {
 		fs.ioSession.ReturnConnection(conn) //nolint
 		return nil, err
 	}
 
 	// re-open
-	handle, offset, err := irods_fs.OpenDataObject(conn, irodsPath, resource, mode, keywords)
+	handle, offset, err := irods_fs.OpenDataObject(conn, irodsCorrectPath, resource, mode, keywords)
 	if err != nil {
 		fs.ioSession.ReturnConnection(conn) //nolint
 		return nil, err
@@ -845,14 +837,14 @@ func (fs *FileSystem) CreateFile(path string, resource string, mode string) (*Fi
 	}
 
 	fs.fileHandleMap.Add(fileHandle)
-	fs.invalidateCacheForFileCreate(irodsPath)
-	fs.cachePropagation.PropagateFileCreate(irodsPath)
+	fs.invalidateCacheForFileCreate(irodsCorrectPath)
+	fs.cachePropagation.PropagateFileCreate(irodsCorrectPath)
 
 	return fileHandle, nil
 }
 
 // getCollectionNoCache returns collection entry
-func (fs *FileSystem) getCollectionNoCache(path string) (*Entry, error) {
+func (fs *FileSystem) getCollectionNoCache(irodsPath string) (*Entry, error) {
 	// retrieve it and add it to cache
 	conn, err := fs.metadataSession.AcquireConnection()
 	if err != nil {
@@ -860,7 +852,7 @@ func (fs *FileSystem) getCollectionNoCache(path string) (*Entry, error) {
 	}
 	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
-	collection, err := irods_fs.GetCollection(conn, path)
+	collection, err := irods_fs.GetCollection(conn, irodsPath)
 	if err != nil {
 		return nil, err
 	}
@@ -869,28 +861,28 @@ func (fs *FileSystem) getCollectionNoCache(path string) (*Entry, error) {
 		entry := fs.getEntryFromCollection(collection)
 
 		// cache it
-		fs.cache.RemoveNegativeEntryCache(path)
+		fs.cache.RemoveNegativeEntryCache(irodsPath)
 		fs.cache.AddEntryCache(entry)
 		return entry, nil
 	}
 
-	return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+	return nil, xerrors.Errorf("failed to find the collection for path %q: %w", irodsPath, types.NewFileNotFoundError(irodsPath))
 }
 
 // getCollection returns collection entry
-func (fs *FileSystem) getCollection(path string) (*Entry, error) {
-	if fs.cache.HasNegativeEntryCache(path) {
-		return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+func (fs *FileSystem) getCollection(irodsPath string) (*Entry, error) {
+	if fs.cache.HasNegativeEntryCache(irodsPath) {
+		return nil, xerrors.Errorf("failed to find the collection for path %q: %w", irodsPath, types.NewFileNotFoundError(irodsPath))
 	}
 
 	// check cache first
-	cachedEntry := fs.cache.GetEntryCache(path)
+	cachedEntry := fs.cache.GetEntryCache(irodsPath)
 	if cachedEntry != nil && cachedEntry.Type == DirectoryEntry {
 		return cachedEntry, nil
 	}
 
 	// otherwise, retrieve it and add it to cache
-	return fs.getCollectionNoCache(path)
+	return fs.getCollectionNoCache(irodsPath)
 }
 
 // getCollectionFromEntry returns collection from entry
@@ -948,12 +940,12 @@ func (fs *FileSystem) getEntryFromDataObject(dataobject *types.IRODSDataObject) 
 }
 
 // listEntries lists entries in a collection
-func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*Entry, error) {
+func (fs *FileSystem) listEntries(collPath string) ([]*Entry, error) {
 	// check cache first
 	cachedEntries := []*Entry{}
 	useCached := false
 
-	cachedDirEntryPaths := fs.cache.GetDirCache(collection.Path)
+	cachedDirEntryPaths := fs.cache.GetDirCache(collPath)
 	if cachedDirEntryPaths != nil {
 		useCached = true
 		for _, cachedDirEntryPath := range cachedDirEntryPaths {
@@ -982,7 +974,7 @@ func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*Entry, 
 	}
 	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
-	collections, err := irods_fs.ListSubCollections(conn, collection.Path)
+	collections, err := irods_fs.ListSubCollections(conn, collPath)
 	if err != nil {
 		return nil, err
 	}
@@ -998,7 +990,7 @@ func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*Entry, 
 		fs.cache.AddEntryCache(entry)
 	}
 
-	dataobjects, err := irods_fs.ListDataObjectsMasterReplica(conn, collection)
+	dataobjects, err := irods_fs.ListDataObjectsMasterReplica(conn, collPath)
 	if err != nil {
 		return nil, err
 	}
@@ -1021,22 +1013,14 @@ func (fs *FileSystem) listEntries(collection *types.IRODSCollection) ([]*Entry, 
 	for _, entry := range entries {
 		dirEntryPaths = append(dirEntryPaths, entry.Path)
 	}
-	fs.cache.AddDirCache(collection.Path, dirEntryPaths)
+	fs.cache.AddDirCache(collPath, dirEntryPaths)
 
 	return entries, nil
 }
 
 // getDataObjectWithConnectionNoCache returns an entry for data object
-func (fs *FileSystem) getDataObjectWithConnectionNoCache(conn *connection.IRODSConnection, path string) (*Entry, error) {
-	// retrieve it and add it to cache
-	collectionEntry, err := fs.getCollection(util.GetIRODSPathDirname(path))
-	if err != nil {
-		return nil, err
-	}
-
-	collection := fs.getCollectionFromEntry(collectionEntry)
-
-	dataobject, err := irods_fs.GetDataObjectMasterReplica(conn, collection, util.GetIRODSPathFileName(path))
+func (fs *FileSystem) getDataObjectWithConnectionNoCache(conn *connection.IRODSConnection, irodsPath string) (*Entry, error) {
+	dataobject, err := irods_fs.GetDataObjectMasterReplica(conn, irodsPath)
 	if err != nil {
 		return nil, err
 	}
@@ -1045,32 +1029,32 @@ func (fs *FileSystem) getDataObjectWithConnectionNoCache(conn *connection.IRODSC
 		entry := fs.getEntryFromDataObject(dataobject)
 
 		// cache it
-		fs.cache.RemoveNegativeEntryCache(path)
+		fs.cache.RemoveNegativeEntryCache(irodsPath)
 		fs.cache.AddEntryCache(entry)
 		return entry, nil
 	}
 
-	return nil, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+	return nil, xerrors.Errorf("failed to find the data object for path %q: %w", irodsPath, types.NewFileNotFoundError(irodsPath))
 }
 
 // getDataObjectWithConnection returns an entry for data object
-func (fs *FileSystem) getDataObjectWithConnection(conn *connection.IRODSConnection, path string) (*Entry, error) {
-	if fs.cache.HasNegativeEntryCache(path) {
-		return nil, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+func (fs *FileSystem) getDataObjectWithConnection(conn *connection.IRODSConnection, irodsPath string) (*Entry, error) {
+	if fs.cache.HasNegativeEntryCache(irodsPath) {
+		return nil, xerrors.Errorf("failed to find the data object for path %q: %w", irodsPath, types.NewFileNotFoundError(irodsPath))
 	}
 
 	// check cache first
-	cachedEntry := fs.cache.GetEntryCache(path)
+	cachedEntry := fs.cache.GetEntryCache(irodsPath)
 	if cachedEntry != nil && cachedEntry.Type == FileEntry {
 		return cachedEntry, nil
 	}
 
 	// otherwise, retrieve it and add it to cache
-	return fs.getDataObjectWithConnectionNoCache(conn, path)
+	return fs.getDataObjectWithConnectionNoCache(conn, irodsPath)
 }
 
 // getDataObjectNoCache returns an entry for data object
-func (fs *FileSystem) getDataObjectNoCache(path string) (*Entry, error) {
+func (fs *FileSystem) getDataObjectNoCache(irodsPath string) (*Entry, error) {
 	// retrieve it and add it to cache
 	conn, err := fs.metadataSession.AcquireConnection()
 	if err != nil {
@@ -1078,7 +1062,7 @@ func (fs *FileSystem) getDataObjectNoCache(path string) (*Entry, error) {
 	}
 	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
-	dataobject, err := irods_fs.GetDataObjectMasterReplicaWithoutCollection(conn, path)
+	dataobject, err := irods_fs.GetDataObjectMasterReplica(conn, irodsPath)
 	if err != nil {
 		return nil, err
 	}
@@ -1087,26 +1071,26 @@ func (fs *FileSystem) getDataObjectNoCache(path string) (*Entry, error) {
 		entry := fs.getEntryFromDataObject(dataobject)
 
 		// cache it
-		fs.cache.RemoveNegativeEntryCache(path)
+		fs.cache.RemoveNegativeEntryCache(irodsPath)
 		fs.cache.AddEntryCache(entry)
 		return entry, nil
 	}
 
-	return nil, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+	return nil, xerrors.Errorf("failed to find the data object for path %q: %w", irodsPath, types.NewFileNotFoundError(irodsPath))
 }
 
 // getDataObject returns an entry for data object
-func (fs *FileSystem) getDataObject(path string) (*Entry, error) {
-	if fs.cache.HasNegativeEntryCache(path) {
-		return nil, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+func (fs *FileSystem) getDataObject(irodsPath string) (*Entry, error) {
+	if fs.cache.HasNegativeEntryCache(irodsPath) {
+		return nil, xerrors.Errorf("failed to find the data object for path %q: %w", irodsPath, types.NewFileNotFoundError(irodsPath))
 	}
 
 	// check cache first
-	cachedEntry := fs.cache.GetEntryCache(path)
+	cachedEntry := fs.cache.GetEntryCache(irodsPath)
 	if cachedEntry != nil && cachedEntry.Type == FileEntry {
 		return cachedEntry, nil
 	}
 
 	// otherwise, retrieve it and add it to cache
-	return fs.getDataObjectNoCache(path)
+	return fs.getDataObjectNoCache(irodsPath)
 }

@@ -60,10 +60,7 @@ func testUpload(t *testing.T) {
 	FailError(t, err)
 	assert.Greater(t, callbackCalled, 10) // at least called 10 times
 
-	coll, err := fs.GetCollection(conn, homeDir)
-	FailError(t, err)
-
-	obj, err := fs.GetDataObject(conn, coll, filename)
+	obj, err := fs.GetDataObject(conn, irodsPath)
 	FailError(t, err)
 
 	assert.NotEmpty(t, obj.ID)
@@ -118,10 +115,7 @@ func testParallelUploadAndDownload(t *testing.T) {
 	FailError(t, err)
 	assert.Greater(t, callbackCalled, 10) // at least called 10 times
 
-	coll, err := fs.GetCollection(conn, homeDir)
-	FailError(t, err)
-
-	obj, err := fs.GetDataObject(conn, coll, filename)
+	obj, err := fs.GetDataObject(conn, irodsPath)
 	FailError(t, err)
 
 	assert.NotEmpty(t, obj.ID)

@@ -29,14 +29,7 @@ func (fs *FileSystem) ListACLs(path string) ([]*types.IRODSAccess, error) {
 func (fs *FileSystem) ListACLsForEntries(path string) ([]*types.IRODSAccess, error) {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
-	collectionEntry, err := fs.getCollection(irodsPath)
-	if err != nil {
-		return nil, err
-	}
-
-	collection := fs.getCollectionFromEntry(collectionEntry)
-
-	return fs.listACLsForEntries(collection)
+	return fs.listACLsForEntries(irodsPath)
 }
 
 // ListACLsWithGroupUsers returns ACLs
@@ -176,14 +169,7 @@ func (fs *FileSystem) ListFileACLs(path string) ([]*types.IRODSAccess, error) {
 	}
 	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
-	collectionEntry, err := fs.getCollection(util.GetIRODSPathDirname(irodsPath))
-	if err != nil {
-		return nil, err
-	}
-
-	collection := fs.getCollectionFromEntry(collectionEntry)
-
-	accesses, err := irods_fs.ListDataObjectAccesses(conn, collection, util.GetIRODSPathFileName(irodsPath))
+	accesses, err := irods_fs.ListDataObjectAccesses(conn, irodsPath)
 	if err != nil {
 		return nil, err
 	}
@@ -238,12 +224,12 @@ func (fs *FileSystem) ListFileACLsWithGroupMembers(path string) ([]*types.IRODSA
 }
 
 // listACLsForEntries lists ACLs for entries in a collection
-func (fs *FileSystem) listACLsForEntries(collection *types.IRODSCollection) ([]*types.IRODSAccess, error) {
+func (fs *FileSystem) listACLsForEntries(collPath string) ([]*types.IRODSAccess, error) {
 	// check cache first
 	cachedAccesses := []*types.IRODSAccess{}
 	useCached := false
 
-	cachedDirEntryPaths := fs.cache.GetDirCache(collection.Path)
+	cachedDirEntryPaths := fs.cache.GetDirCache(collPath)
 	if cachedDirEntryPaths != nil {
 		useCached = true
 		for _, cachedDirEntryPath := range cachedDirEntryPaths {
@@ -276,7 +262,7 @@ func (fs *FileSystem) listACLsForEntries(collection *types.IRODSCollection) ([]*
 		dirEntryPathsToBeAdded = append(dirEntryPathsToBeAdded, cachedDirEntryPaths...)
 	} else {
 		// otherwise, retrieve it and add it to cache
-		collections, err := irods_fs.ListSubCollections(conn, collection.Path)
+		collections, err := irods_fs.ListSubCollections(conn, collPath)
 		if err != nil {
 			return nil, err
 		}
@@ -292,7 +278,7 @@ func (fs *FileSystem) listACLsForEntries(collection *types.IRODSCollection) ([]*
 			fs.cache.AddEntryCache(entry)
 		}
 
-		dataobjects, err := irods_fs.ListDataObjectsMasterReplica(conn, collection)
+		dataobjects, err := irods_fs.ListDataObjectsMasterReplica(conn, collPath)
 		if err != nil {
 			return nil, err
 		}
@@ -316,13 +302,13 @@ func (fs *FileSystem) listACLsForEntries(collection *types.IRODSCollection) ([]*
 			dirEntryPaths = append(dirEntryPaths, entry.Path)
 			dirEntryPathsToBeAdded = append(dirEntryPathsToBeAdded, entry.Path)
 		}
-		fs.cache.AddDirCache(collection.Path, dirEntryPaths)
+		fs.cache.AddDirCache(collPath, dirEntryPaths)
 	}
 
 	// list access
 	dirEntryPathsAdded := map[string]bool{}
 
-	collectionAccesses, err := irods_fs.ListAccessesForSubCollections(conn, collection.Path)
+	collectionAccesses, err := irods_fs.ListAccessesForSubCollections(conn, collPath)
 	if err != nil {
 		return nil, err
 	}
@@ -334,7 +320,7 @@ func (fs *FileSystem) listACLsForEntries(collection *types.IRODSCollection) ([]*
 	// cache it
 	fs.cache.AddAclCacheMulti(collectionAccesses)
 
-	dataobjectAccesses, err := irods_fs.ListAccessesForDataObjects(conn, collection)
+	dataobjectAccesses, err := irods_fs.ListAccessesForDataObjectsInCollection(conn, collPath)
 	if err != nil {
 		return nil, err
 	}

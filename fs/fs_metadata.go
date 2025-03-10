@@ -12,14 +12,14 @@ func (fs *FileSystem) SearchByMeta(metaname string, metavalue string) ([]*Entry,
 }
 
 // ListMetadata lists metadata for the given path
-func (fs *FileSystem) ListMetadata(path string) ([]*types.IRODSMeta, error) {
+func (fs *FileSystem) ListMetadata(irodsPath string) ([]*types.IRODSMeta, error) {
+	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
+
 	// check cache first
-	cachedEntry := fs.cache.GetMetadataCache(path)
+	cachedEntry := fs.cache.GetMetadataCache(irodsCorrectPath)
 	if cachedEntry != nil {
 		return cachedEntry, nil
 	}
-
-	irodsCorrectPath := util.GetCorrectIRODSPath(path)
 
 	// otherwise, retrieve it and add it to cache
 	conn, err := fs.metadataSession.AcquireConnection()
@@ -36,14 +36,7 @@ func (fs *FileSystem) ListMetadata(path string) ([]*types.IRODSMeta, error) {
 			return nil, err
 		}
 	} else {
-		collectionEntry, err := fs.getCollection(util.GetIRODSPathDirname(path))
-		if err != nil {
-			return nil, err
-		}
-
-		collection := fs.getCollectionFromEntry(collectionEntry)
-
-		metadataobjects, err = irods_fs.ListDataObjectMeta(conn, collection, util.GetIRODSPathFileName(irodsCorrectPath))
+		metadataobjects, err = irods_fs.ListDataObjectMeta(conn, irodsCorrectPath)
 		if err != nil {
 			return nil, err
 		}

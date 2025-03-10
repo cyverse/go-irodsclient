@@ -104,10 +104,7 @@ func testLockDataObject(t *testing.T) {
 
 	assert.ElementsMatch(t, taskOrder, []int{1, 2, 3, 4, 5, 6, 7, 8})
 
-	collection, err := fs.GetCollection(conn1, homeDir)
-	FailError(t, err)
-
-	obj, err := fs.GetDataObject(conn1, collection, newDataObjectFilename)
+	obj, err := fs.GetDataObject(conn1, newDataObjectPath)
 	FailError(t, err)
 	assert.NotEmpty(t, obj.ID)
 	assert.Equal(t, int64(len(writeData)), obj.Size)
@@ -116,7 +113,7 @@ func testLockDataObject(t *testing.T) {
 	err = fs.DeleteDataObject(conn1, newDataObjectPath, true)
 	FailError(t, err)
 
-	_, err = fs.GetDataObject(conn1, collection, newDataObjectFilename)
+	_, err = fs.GetDataObject(conn1, newDataObjectPath)
 	deleted := false
 	if err != nil {
 		if types.IsFileNotFoundError(err) {
