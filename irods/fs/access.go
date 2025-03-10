@@ -92,10 +92,8 @@ func GetCollectionAccessInheritance(conn *connection.IRODSConnection, path strin
 
 				switch sqlResult.AttributeIndex {
 				case int(common.ICAT_COLUMN_COLL_INHERITANCE):
-					inherit, err := strconv.ParseBool(value)
-					if err != nil {
-						return nil, xerrors.Errorf("failed to parse inheritance %q: %w", value, err)
-					}
+					inherit, _ := strconv.ParseBool(value)
+					// if error, assume false
 					pagenatedAccessInheritances[row].Inheritance = inherit
 				default:
 					// ignore
