@@ -412,49 +412,59 @@ func testSpecialCharInFilename(t *testing.T) {
 
 	homeDir := test.GetTestHomeDir()
 
-	filename := "test_special_char_&@#^%\\_.bin"
-	irodsPath := homeDir + "/" + filename
+	specialCharacters := []string{
+		"!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "-", "_",
+		"=", "+", "{", "}", "[", "]", "|", "\\", ":", ";", "\"", "'",
+		"<", ">", ",", "?", "`", "~",
+	}
 
+	filenamePattern := "test_special_char_%s.bin"
 	text := "HELLO WORLD"
 
-	// create
-	fileHandle, err := filesystem.CreateFile(irodsPath, "", "w")
-	FailError(t, err)
+	for _, char := range specialCharacters {
+		filename := fmt.Sprintf(filenamePattern, char)
+		irodsPath := homeDir + "/" + filename
 
-	// write
-	_, err = fileHandle.Write([]byte(text))
-	FailError(t, err)
+		// create
+		fileHandle, err := filesystem.CreateFile(irodsPath, "", "w")
+		FailError(t, err)
 
-	// close
-	err = fileHandle.Close()
-	FailError(t, err)
+		// write
+		_, err = fileHandle.Write([]byte(text))
+		FailError(t, err)
 
-	assert.True(t, filesystem.Exists(irodsPath))
+		// close
+		err = fileHandle.Close()
+		FailError(t, err)
 
-	// read
-	newFileHandle, err := filesystem.OpenFile(irodsPath, "", "r")
-	FailError(t, err)
+		assert.True(t, filesystem.Exists(irodsPath))
 
-	buffer := make([]byte, 1024)
-	readLen, err := newFileHandle.Read(buffer)
-	assert.Equal(t, io.EOF, err)
+		// read
+		newFileHandle, err := filesystem.OpenFile(irodsPath, "", "r")
+		FailError(t, err)
 
-	err = newFileHandle.Close()
-	FailError(t, err)
+		buffer := make([]byte, 1024)
+		readLen, err := newFileHandle.Read(buffer)
+		assert.Equal(t, io.EOF, err)
 
-	assert.Equal(t, text, string(buffer[:readLen]))
+		err = newFileHandle.Close()
+		FailError(t, err)
 
-	// stat
-	stat, err := filesystem.Stat(irodsPath)
-	FailError(t, err)
+		assert.Equal(t, text, string(buffer[:readLen]))
 
-	assert.Equal(t, int64(len(text)), stat.Size)
+		// stat
+		stat, err := filesystem.Stat(irodsPath)
+		FailError(t, err)
 
-	// delete
-	err = filesystem.RemoveFile(irodsPath, true)
-	FailError(t, err)
+		assert.Equal(t, filename, stat.Name)
+		assert.Equal(t, int64(len(text)), stat.Size)
 
-	assert.False(t, filesystem.Exists(irodsPath))
+		// delete
+		err = filesystem.RemoveFile(irodsPath, true)
+		FailError(t, err)
+
+		assert.False(t, filesystem.Exists(irodsPath))
+	}
 }
 
 func testWriteRename(t *testing.T) {

@@ -1,6 +1,7 @@
 package testcases
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -20,6 +21,7 @@ func getLowlevelUserTest() Test {
 
 func lowlevelUserTest(t *testing.T, test *Test) {
 	t.Run("CreateAndRemoveUser", testCreateAndRemoveUser)
+	t.Run("CreateUserWithSpecialCharacterPasswords", testCreateUserWithSpecialCharacterPasswords)
 	t.Run("ListUsersByType", testListUsersByType)
 	t.Run("AddAndRemoveGroupMembers", testAddAndRemoveGroupMembers)
 }
@@ -89,6 +91,79 @@ func testCreateAndRemoveUser(t *testing.T) {
 	err = userConn.Connect()
 	assert.Error(t, err)
 	userConn.Disconnect()
+}
+
+func testCreateUserWithSpecialCharacterPasswords(t *testing.T) {
+	test := GetCurrentTest()
+	server := test.GetServer()
+	session, err := server.GetSession()
+	FailError(t, err)
+	defer session.Release()
+
+	conn, err := session.AcquireConnection()
+	FailError(t, err)
+	defer session.ReturnConnection(conn)
+
+	account := server.GetAccountCopy()
+
+	// create
+	specialCharacters := []string{
+		"!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "-", "_",
+		"=", "+", "{", "}", "[", "]", "|", "\\", ":", ";", "\"", "'",
+		"<", ">", ",", "?", "`", "~",
+	}
+
+	testUserPattern := "testuser_%d"
+	testPasswordPattern := "testpassword_%s"
+
+	for idx, char := range specialCharacters {
+		testUsername := fmt.Sprintf(testUserPattern, idx)
+		testPassword := fmt.Sprintf(testPasswordPattern, char)
+
+		_, err = fs.GetUser(conn, testUsername, account.ClientZone)
+		if err == nil {
+			FailError(t, xerrors.Errorf("User %s already exists", testUsername))
+		}
+		if err != nil && !types.IsUserNotFoundError(err) {
+			FailError(t, err)
+		}
+
+		err = fs.CreateUser(conn, testUsername, account.ClientZone, types.IRODSUserRodsUser)
+		FailError(t, err)
+
+		err = fs.ChangeUserPassword(conn, testUsername, account.ClientZone, testPassword)
+		FailError(t, err)
+
+		myUser, err := fs.GetUser(conn, testUsername, account.ClientZone)
+		FailError(t, err)
+
+		assert.Equal(t, testUsername, myUser.Name)
+		assert.Equal(t, account.ClientZone, myUser.Zone)
+		assert.Equal(t, types.IRODSUserRodsUser, myUser.Type)
+
+		// login test
+		userAccount := server.GetAccountCopy()
+		userAccount.ClientUser = testUsername
+		userAccount.ProxyUser = testUsername
+		userAccount.Password = testPassword
+
+		userConn := connection.NewIRODSConnection(userAccount, 300*time.Second, server.GetApplicationName())
+		err = userConn.Connect()
+		FailError(t, err)
+		userConn.Disconnect()
+
+		// delete
+		err = fs.RemoveUser(conn, testUsername, account.ClientZone, types.IRODSUserRodsUser)
+		FailError(t, err)
+
+		_, err = fs.GetUser(conn, testUsername, account.ClientZone)
+		if err == nil {
+			FailError(t, xerrors.Errorf("User %s still exists", testUsername))
+		}
+		if err != nil && !types.IsUserNotFoundError(err) {
+			FailError(t, err)
+		}
+	}
 }
 
 func testAddAndRemoveGroupMembers(t *testing.T) {
