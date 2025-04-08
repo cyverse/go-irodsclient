@@ -622,6 +622,11 @@ func DownloadDataObjectFromResourceServer(session *session.IRODSSession, irodsPa
 		numTasks = util.GetNumTasksForParallelTransfer(fileLength)
 	}
 
+	if numTasks == 1 {
+		// single thread
+		return "", DownloadDataObject(session, irodsPath, resource, localPath, fileLength, keywords, callback)
+	}
+
 	conn, err := session.AcquireConnection()
 	if err != nil {
 		return "", xerrors.Errorf("failed to get connection: %w", err)
@@ -746,6 +751,11 @@ func UploadDataObjectToResourceServer(session *session.IRODSSession, localPath s
 	numTasks := taskNum
 	if numTasks <= 0 {
 		numTasks = util.GetNumTasksForParallelTransfer(fileLength)
+	}
+
+	if numTasks == 1 {
+		// single thread
+		return UploadDataObject(session, localPath, irodsPath, resource, replicate, keywords, callback)
 	}
 
 	conn, err := session.AcquireConnection()
