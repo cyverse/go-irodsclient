@@ -10,12 +10,13 @@ import (
 
 var (
 	// escapes from xml.Encode
-	escQuot = []byte("&#34;") // shorter than "&quot;", \"
-	escApos = []byte("&#39;") // shorter than "&apos;", \'
-	escTab  = []byte("&#x9;")
-	escNL   = []byte("&#xA;")
-	escCR   = []byte("&#xD;")
-	escFFFD = []byte("\uFFFD") // Unicode replacement character
+	escQuot     = []byte("&#34;") // shorter than "&quot;", \"
+	escApos     = []byte("&#39;") // shorter than "&apos;", \'
+	escTab      = []byte("&#x9;")
+	escNL       = []byte("&#xA;")
+	escCR       = []byte("&#xD;")
+	escBacktick = []byte("&#96;")
+	escFFFD     = []byte("\uFFFD") // Unicode replacement character
 
 	// escapes for irods
 	irodsEscQuot = []byte("&quot;")
@@ -122,6 +123,10 @@ func correctXMLRequest(in []byte, newXML bool) ([]byte, error) {
 				out.WriteByte('\'')
 			}
 			buf = buf[len(escApos):]
+		// turn ` into &apos;
+		case buf[0] == '`' && !newXML:
+			out.Write(irodsEscApos)
+			buf = buf[1:]
 		// irods does not decode encoded tabs
 		case bytes.HasPrefix(buf, escTab):
 			out.WriteByte('\t')
@@ -134,10 +139,6 @@ func correctXMLRequest(in []byte, newXML bool) ([]byte, error) {
 		case bytes.HasPrefix(buf, escNL):
 			out.WriteByte('\n')
 			buf = buf[len(escNL):]
-		// turn ` into &apos;
-		case buf[0] == '`' && !newXML:
-			out.Write(irodsEscApos)
-			buf = buf[1:]
 		// pass utf8 characters
 		default:
 			r, size := utf8.DecodeRune(buf)
@@ -203,12 +204,19 @@ func correctXMLResponse(in []byte, newXML bool) ([]byte, error) {
 
 	for len(buf) > 0 {
 		switch {
-		// turn &quot; into `
+		// turn &quot; into "
 		case bytes.HasPrefix(buf, irodsEscQuot) && !newXML:
-			out.WriteByte('`')
+			out.Write(escQuot)
 			buf = buf[len(irodsEscQuot):]
-		// turn ' into &apos;
-		case buf[0] == '\'' && !newXML:
+		// turn &apos; into ' or `
+		case bytes.HasPrefix(buf, irodsEscApos):
+			if newXML {
+				out.Write(escApos)
+			} else {
+				out.Write(escBacktick)
+			}
+			buf = buf[len(irodsEscApos):]
+		case buf[0] == '\'':
 			out.Write(escApos)
 			buf = buf[1:]
 		// check utf8 characters for validity
