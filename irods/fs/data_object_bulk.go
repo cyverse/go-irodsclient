@@ -1071,12 +1071,14 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 		// copy
 		buffer := make([]byte, common.ReadWriteBufferSize)
 		for taskRemain > 0 {
-			logger.Debugf("task %d, begin of loop - remaining %d", taskID, taskRemain)
+			logger.Debugf("task %d, begin of loop 1 - remaining %d", taskID, taskRemain)
 
 			bufferLen := common.ReadWriteBufferSize
 			if taskRemain < int64(bufferLen) {
 				bufferLen = int(taskRemain)
 			}
+
+			logger.Debugf("task %d, begin of loop 2 - remaining %d", taskID, taskRemain)
 
 			taskProgress[taskID] = 0
 
@@ -1086,6 +1088,7 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 			if bytesRead > 0 {
 				_, taskWriteErr := f.WriteAt(buffer[:bytesRead], taskOffset+(taskLength-taskRemain))
 				if taskWriteErr != nil {
+					logger.Debugf("task %d failed to write to - %s", taskID, taskWriteErr)
 					errChan <- taskWriteErr
 					return
 				}
@@ -1113,6 +1116,7 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 				if taskReadErr == io.EOF {
 					break
 				} else {
+					logger.Debugf("task %d failed to read from file %q - %s", taskID, irodsPath, taskReadErr)
 					errChan <- xerrors.Errorf("failed to read from file %q: %w", irodsPath, taskReadErr)
 					return
 				}
