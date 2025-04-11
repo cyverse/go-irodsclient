@@ -1070,8 +1070,9 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 
 		// copy
 		buffer := make([]byte, common.ReadWriteBufferSize)
-		var taskWriteErr error
 		for taskRemain > 0 {
+			logger.Debugf("task %d, begin of loop - remaining %d", taskID, taskRemain)
+
 			bufferLen := common.ReadWriteBufferSize
 			if taskRemain < int64(bufferLen) {
 				bufferLen = int(taskRemain)
@@ -1079,11 +1080,14 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 
 			taskProgress[taskID] = 0
 
+			logger.Debugf("task %d, downloading at %d offset", taskID, taskOffset+(taskLength-taskRemain))
+
 			bytesRead, taskReadErr := ReadDataObjectWithTrackerCallBack(taskConn, taskHandle, buffer[:bufferLen], blockReadCallback)
 			if bytesRead > 0 {
-				_, taskWriteErr = f.WriteAt(buffer[:bytesRead], taskOffset+(taskLength-taskRemain))
+				_, taskWriteErr := f.WriteAt(buffer[:bytesRead], taskOffset+(taskLength-taskRemain))
 				if taskWriteErr != nil {
-					break
+					errChan <- taskWriteErr
+					return
 				}
 
 				atomic.AddInt64(&totalBytesDownloaded, int64(bytesRead))
@@ -1101,20 +1105,23 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 				}
 
 				taskRemain -= int64(bytesRead)
+
+				logger.Debugf("task %d, downloaded %d bytes, remaining %d", taskID, (taskLength - taskRemain), taskRemain)
 			}
 
 			if taskReadErr != nil {
 				if taskReadErr == io.EOF {
 					break
 				} else {
-					taskWriteErr = xerrors.Errorf("failed to read from file %q: %w", irodsPath, taskReadErr)
+					errChan <- xerrors.Errorf("failed to read from file %q: %w", irodsPath, taskReadErr)
+					return
 				}
 			}
+
+			logger.Debugf("task %d, end of loop - remaining %d", taskID, taskRemain)
 		}
 
-		if taskWriteErr != nil {
-			errChan <- taskWriteErr
-		}
+		logger.Debugf("task %d, downloaded %d bytes, remaining %d -- done", taskID, (taskLength - taskRemain), taskRemain)
 	}
 
 	lengthPerThread := fileLength / int64(numTasks)
