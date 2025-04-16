@@ -1005,9 +1005,11 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 			return
 		}
 		defer func() {
-			errClose := CloseDataObject(taskConn, taskHandle)
-			if errClose != nil {
-				errChan <- errClose
+			if !taskConn.IsSocketFailed() && taskConn.IsConnected() {
+				errClose := CloseDataObject(taskConn, taskHandle)
+				if errClose != nil {
+					errChan <- errClose
+				}
 			}
 		}()
 

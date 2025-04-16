@@ -96,6 +96,16 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 	return &sess, nil
 }
 
+// GetConfig returns a configuration
+func (sess *IRODSSession) GetConfig() *IRODSSessionConfig {
+	return sess.config
+}
+
+// GetAccount returns an account
+func (sess *IRODSSession) GetAccount() *types.IRODSAccount {
+	return sess.account
+}
+
 // IsConnectionError returns if there is a failure
 func (sess *IRODSSession) GetLastConnectionError() (time.Time, error) {
 	sess.mutex.Lock()
@@ -129,16 +139,6 @@ func (sess *IRODSSession) IsPermanantFailure() bool {
 	defer sess.mutex.Unlock()
 
 	return types.IsPermanantFailure(sess.lastConnectionError)
-}
-
-// GetConfig returns a configuration
-func (sess *IRODSSession) GetConfig() *IRODSSessionConfig {
-	return sess.config
-}
-
-// GetAccount returns an account
-func (sess *IRODSSession) GetAccount() *types.IRODSAccount {
-	return sess.account
 }
 
 // SetTransactionFailureHandler sets transaction failure handler
@@ -435,7 +435,14 @@ func (sess *IRODSSession) ReturnConnection(conn *connection.IRODSConnection) err
 			delete(sess.sharedConnections, conn)
 
 			conn.Lock()
-			if conn.IsTransactionDirty() {
+
+			if conn.IsSocketFailed() {
+				conn.Unlock()
+
+				// discard, since we cannot reuse the connection
+				sess.connectionPool.Discard(conn)
+				return nil
+			} else if conn.IsTransactionDirty() {
 				err := sess.endTransaction(conn)
 				if err != nil {
 					conn.Unlock()
