@@ -1125,6 +1125,12 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 			}
 
 			logger.Debugf("task %d, end of loop - remaining %d", taskID, taskRemain)
+
+			if len(errChan) > 0 {
+				// other tasks failed
+				logger.Debugf("task %d, stop running as other tasks failed", taskID)
+				return
+			}
 		}
 
 		logger.Debugf("task %d, downloaded %d bytes, remaining %d -- done", taskID, (taskLength - taskRemain), taskRemain)

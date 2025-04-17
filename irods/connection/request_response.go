@@ -77,6 +77,7 @@ func (conn *IRODSConnection) RequestWithTrackerCallBack(request Request, respons
 		if conn.metrics != nil {
 			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
 		}
+
 		return xerrors.Errorf("failed to receive a response message: %w", err)
 	}
 
