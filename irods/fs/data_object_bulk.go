@@ -779,7 +779,7 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 	taskProgress := make([]int64, numTasks)
 
 	// get connections
-	connections, err := session.AcquireConnectionsMulti(numTasks)
+	connections, err := session.AcquireConnectionsMulti(numTasks, false)
 	if err != nil {
 		return xerrors.Errorf("failed to get connection: %w", err)
 	}
@@ -981,7 +981,7 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 	taskProgress := make([]int64, numTasks)
 
 	// get connections
-	connections, err := session.AcquireConnectionsMulti(numTasks)
+	connections, err := session.AcquireConnectionsMulti(numTasks, false)
 	if err != nil {
 		return xerrors.Errorf("failed to get connection: %w", err)
 	}
