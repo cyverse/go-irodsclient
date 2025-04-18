@@ -614,7 +614,13 @@ func DownloadDataObjectFromResourceServer(session *session.IRODSSession, irodsPa
 
 	if fileLength == 0 {
 		// empty file
-		return "", DownloadDataObject(session, irodsPath, resource, localPath, fileLength, keywords, callback)
+		// create an empty file
+		f, err := os.Create(localPath)
+		if err != nil {
+			return "", xerrors.Errorf("failed to create file %q: %w", localPath, err)
+		}
+		f.Close()
+		return "", nil
 	}
 
 	numTasks := taskNum
