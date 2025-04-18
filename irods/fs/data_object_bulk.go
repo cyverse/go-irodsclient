@@ -987,66 +987,39 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 	}
 
 	downloadTask := func(taskID int, taskOffset int64, taskLength int64) {
+		taskLogger := log.WithFields(log.Fields{
+			"package":  "fs",
+			"function": "DownloadDataObjectParallelResumable",
+			"task":     taskID,
+		})
+
 		taskProgress[taskID] = 0
 		taskConn := connections[taskID]
 
-		defer taskWaitGroup.Done()
+		defer func() {
+			taskWaitGroup.Done()
 
-		defer session.ReturnConnection(taskConn)
+			session.ReturnConnection(taskConn)
+		}()
 
 		if taskConn == nil || !taskConn.IsConnected() {
 			errChan <- xerrors.Errorf("connection is nil or disconnected")
 			return
 		}
 
-		taskHandle, _, taskErr := OpenDataObject(taskConn, irodsPath, resource, "r", keywords)
-		if taskErr != nil {
-			errChan <- taskErr
-			return
-		}
-		defer func() {
-			if !taskConn.IsSocketFailed() && taskConn.IsConnected() {
-				errClose := CloseDataObject(taskConn, taskHandle)
-				if errClose != nil {
-					errChan <- errClose
-				}
-			}
-		}()
-
-		f, taskErr := os.OpenFile(localPath, os.O_WRONLY, 0)
-		if taskErr != nil {
-			errChan <- xerrors.Errorf("failed to open file %q: %w", localPath, taskErr)
+		f, openErr := os.OpenFile(localPath, os.O_WRONLY, 0)
+		if openErr != nil {
+			errChan <- xerrors.Errorf("failed to open file %q: %w", localPath, openErr)
 			return
 		}
 		defer f.Close()
 
-		// seek to last failure point
+		// find last failure point
 		transferStatus := transferStatusLocal.GetStatus()
 		lastOffset := int64(taskOffset)
 		if transferStatus != nil {
 			if transferStatusEntry, ok := transferStatus.StatusMap[taskOffset]; ok {
 				lastOffset = transferStatusEntry.StartOffset + transferStatusEntry.CompletedLength
-			}
-		}
-
-		if lastOffset > 0 {
-			logger.Debugf("resuming downloading data object %q for task offset %d from offset %d", irodsPath, taskOffset, lastOffset)
-
-			newOffset, err := SeekDataObject(taskConn, taskHandle, lastOffset, types.SeekSet)
-			if err != nil {
-				errChan <- xerrors.Errorf("failed to seek data object %q to offset %d: %w", irodsPath, lastOffset, err)
-				return
-			}
-
-			taskNewOffset, taskErr := f.Seek(lastOffset, io.SeekStart)
-			if taskErr != nil {
-				errChan <- xerrors.Errorf("failed to seek file %q to offset %d: %w", localPath, lastOffset, err)
-				return
-			}
-
-			if newOffset != taskNewOffset {
-				errChan <- xerrors.Errorf("failed to seek file and data object to target offset %d", lastOffset)
-				return
 			}
 		}
 
@@ -1070,70 +1043,124 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 			}
 		}
 
-		// copy
 		buffer := make([]byte, common.ReadWriteBufferSize)
-		for taskRemain > 0 {
-			logger.Debugf("task %d, begin of loop 1 - remaining %d", taskID, taskRemain)
 
-			bufferLen := common.ReadWriteBufferSize
-			if taskRemain < int64(bufferLen) {
-				bufferLen = int(taskRemain)
+		trial := func() error {
+			// ensure connection
+
+			taskTrialHandle, _, openErr := OpenDataObject(taskConn, irodsPath, resource, "r", keywords)
+			if openErr != nil {
+				return openErr
 			}
 
-			logger.Debugf("task %d, begin of loop 2 - remaining %d", taskID, taskRemain)
+			defer func() {
+				if !taskConn.IsSocketFailed() && taskConn.IsConnected() {
+					CloseDataObject(taskConn, taskTrialHandle)
+				}
+			}()
 
-			taskProgress[taskID] = 0
+			// seek to last offset
+			if lastOffset > 0 {
+				taskLogger.Debugf("resuming downloading data object %q for task offset %d, last offset %d", irodsPath, taskOffset, lastOffset)
 
-			logger.Debugf("task %d, downloading at %d offset", taskID, taskOffset+(taskLength-taskRemain))
+				newOffset, seekErr := SeekDataObject(taskConn, taskTrialHandle, lastOffset, types.SeekSet)
+				if seekErr != nil {
+					return xerrors.Errorf("failed to seek data object %q to offset %d: %w", irodsPath, lastOffset, seekErr)
+				}
 
-			bytesRead, taskReadErr := ReadDataObjectWithTrackerCallBack(taskConn, taskHandle, buffer[:bufferLen], blockReadCallback)
-			if bytesRead > 0 {
-				_, taskWriteErr := f.WriteAt(buffer[:bytesRead], taskOffset+(taskLength-taskRemain))
-				if taskWriteErr != nil {
-					logger.Debugf("task %d failed to write to - %s", taskID, taskWriteErr)
-					errChan <- taskWriteErr
+				taskNewOffset, localSeekErr := f.Seek(lastOffset, io.SeekStart)
+				if localSeekErr != nil {
+					return xerrors.Errorf("failed to seek file %q to offset %d: %w", localPath, lastOffset, localSeekErr)
+				}
+
+				if newOffset != taskNewOffset {
+					return xerrors.Errorf("failed to seek file and data object to target offset %d", lastOffset)
+				}
+			}
+
+			// copy
+			for taskRemain > 0 {
+				bufferLen := common.ReadWriteBufferSize
+				if taskRemain < int64(bufferLen) {
+					bufferLen = int(taskRemain)
+				}
+
+				taskProgress[taskID] = 0
+
+				taskLogger.Debugf("downloading at %d offset", taskOffset+(taskLength-taskRemain))
+
+				bytesRead, readErr := ReadDataObjectWithTrackerCallBack(taskConn, taskTrialHandle, buffer[:bufferLen], blockReadCallback)
+				if bytesRead > 0 {
+					_, taskWriteErr := f.WriteAt(buffer[:bytesRead], taskOffset+(taskLength-taskRemain))
+					if taskWriteErr != nil {
+						return xerrors.Errorf("failed to write to file %q from task %d: %w", localPath, taskID, taskWriteErr)
+					}
+
+					atomic.AddInt64(&totalBytesDownloaded, int64(bytesRead))
+
+					// write status
+					transferStatusEntry := &DataObjectTransferStatusEntry{
+						StartOffset:     taskOffset,
+						Length:          taskLength,
+						CompletedLength: (taskLength - taskRemain) + int64(bytesRead),
+					}
+					transferStatusLocal.WriteStatus(transferStatusEntry) //nolint
+
+					if callback != nil {
+						callback(totalBytesDownloaded, fileLength)
+					}
+
+					taskRemain -= int64(bytesRead)
+
+					taskLogger.Debugf("downloaded %d bytes, remaining %d", (taskLength - taskRemain), taskRemain)
+				}
+
+				if readErr != nil {
+					if readErr == io.EOF {
+						taskLogger.Debugf("received EOF, remaining %d", taskRemain)
+						return nil
+					}
+
+					return xerrors.Errorf("failed to read from file %q: %w", irodsPath, readErr)
+				}
+
+				if len(errChan) > 0 {
+					// other tasks failed
+					return xerrors.Errorf("stop running as other tasks failed")
+				}
+			}
+
+			taskLogger.Debugf("downloaded %d bytes, remaining %d -- done", (taskLength - taskRemain), taskRemain)
+			return nil
+		}
+
+		for {
+			trialErr := trial()
+			if trialErr == nil {
+				// done downloading
+				return
+			}
+
+			if taskConn.IsSocketFailed() {
+				// retry
+				taskLogger.Debugf("socket failed, retrying...")
+				var connErr error
+				taskConn, connErr = session.AcquireConnection()
+				if connErr != nil {
+					errChan <- xerrors.Errorf("failed to get connection: %w", connErr)
 					return
 				}
 
-				atomic.AddInt64(&totalBytesDownloaded, int64(bytesRead))
-
-				// write status
-				transferStatusEntry := &DataObjectTransferStatusEntry{
-					StartOffset:     taskOffset,
-					Length:          taskLength,
-					CompletedLength: (taskLength - taskRemain) + int64(bytesRead),
-				}
-				transferStatusLocal.WriteStatus(transferStatusEntry) //nolint
-
-				if callback != nil {
-					callback(totalBytesDownloaded, fileLength)
-				}
-
-				taskRemain -= int64(bytesRead)
-
-				logger.Debugf("task %d, downloaded %d bytes, remaining %d", taskID, (taskLength - taskRemain), taskRemain)
-			}
-
-			if taskReadErr != nil {
-				if taskReadErr == io.EOF {
-					break
-				} else {
-					logger.Debugf("task %d failed to read from file %q - %s", taskID, irodsPath, taskReadErr)
-					errChan <- xerrors.Errorf("failed to read from file %q: %w", irodsPath, taskReadErr)
+				if taskConn == nil || !taskConn.IsConnected() {
+					errChan <- xerrors.Errorf("connection is nil or disconnected")
 					return
 				}
-			}
-
-			logger.Debugf("task %d, end of loop - remaining %d", taskID, taskRemain)
-
-			if len(errChan) > 0 {
-				// other tasks failed
-				logger.Debugf("task %d, stop running as other tasks failed", taskID)
+			} else {
+				// other errors
+				errChan <- trialErr
 				return
 			}
 		}
-
-		logger.Debugf("task %d, downloaded %d bytes, remaining %d -- done", taskID, (taskLength - taskRemain), taskRemain)
 	}
 
 	lengthPerThread := fileLength / int64(numTasks)
