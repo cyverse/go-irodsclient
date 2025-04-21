@@ -1069,6 +1069,8 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 			}
 		}
 
+		softPacing := int64(0)
+
 		// copy
 		buffer := make([]byte, common.ReadWriteBufferSize)
 		var taskWriteErr error
@@ -1102,6 +1104,7 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 				}
 
 				taskRemain -= int64(bytesRead)
+				softPacing += int64(bytesRead)
 			}
 
 			if taskReadErr != nil {
@@ -1112,8 +1115,11 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 				}
 			}
 
-			// soft pacing
-			time.Sleep(20 * time.Millisecond)
+			// soft pacing - 100MB
+			if softPacing >= 100*1024*1024 {
+				softPacing = 0
+				time.Sleep(3 * time.Second)
+			}
 		}
 
 		if taskWriteErr != nil {
