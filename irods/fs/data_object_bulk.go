@@ -6,6 +6,7 @@ import (
 	"os"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/connection"
@@ -1110,6 +1111,9 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 					taskWriteErr = xerrors.Errorf("failed to read from file %q: %w", irodsPath, taskReadErr)
 				}
 			}
+
+			// soft pacing
+			time.Sleep(5 * time.Millisecond)
 		}
 
 		if taskWriteErr != nil {
