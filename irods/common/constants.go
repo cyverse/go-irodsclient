@@ -7,10 +7,11 @@ const (
 	IRODSVersionAPI     string = "d"
 
 	// Magic Numbers
-	MaxQueryRows        int = 500
-	MaxPasswordLength   int = 50
-	MaxNameLength       int = 64
-	ReadWriteBufferSize int = 1024 * 1024 * 4 // 4MB
+	MaxQueryRows         int = 500
+	MaxPasswordLength    int = 50
+	MaxNameLength        int = 64
+	ReadWriteBufferSize  int = 1024 * 1024 * 4 // 4MB
+	TCPBufferSizeDefault int = 1 * 1024 * 1024 // 1MB
 
 	/*
 		MAX_SQL_ATTR               int = 50

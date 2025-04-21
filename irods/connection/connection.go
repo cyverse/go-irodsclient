@@ -26,10 +26,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const (
-	TCPBufferSizeDefault int = 1 * 1024 * 1024
-)
-
 // IRODSConnection connects to iRODS
 type IRODSConnection struct {
 	account         *types.IRODSAccount
@@ -57,7 +53,7 @@ func NewIRODSConnection(account *types.IRODSAccount, requestTimeout time.Duratio
 	return &IRODSConnection{
 		account:         account,
 		requestTimeout:  requestTimeout,
-		tcpBufferSize:   TCPBufferSizeDefault,
+		tcpBufferSize:   common.TCPBufferSizeDefault,
 		applicationName: applicationName,
 
 		creationTime:     time.Now(),
@@ -74,7 +70,7 @@ func NewIRODSConnectionWithMetrics(account *types.IRODSAccount, requestTimeout t
 	return &IRODSConnection{
 		account:         account,
 		requestTimeout:  requestTimeout,
-		tcpBufferSize:   TCPBufferSizeDefault,
+		tcpBufferSize:   common.TCPBufferSizeDefault,
 		applicationName: applicationName,
 
 		creationTime:     time.Now(),

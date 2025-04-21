@@ -1113,7 +1113,7 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 			}
 
 			// soft pacing
-			time.Sleep(5 * time.Millisecond)
+			time.Sleep(20 * time.Millisecond)
 		}
 
 		if taskWriteErr != nil {
