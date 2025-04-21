@@ -276,6 +276,10 @@ func (conn *IRODSResourceServerConnection) SendWithTrackerCallBack(buffer []byte
 		return xerrors.Errorf("connection must be locked before use")
 	}
 
+	if size == 0 {
+		return nil
+	}
+
 	if conn.controlConnection.requestTimeout > 0 {
 		conn.socket.SetWriteDeadline(time.Now().Add(conn.controlConnection.requestTimeout))
 	}
@@ -305,6 +309,10 @@ func (conn *IRODSResourceServerConnection) SendFromReader(src io.Reader, size in
 
 	if !conn.locked {
 		return 0, xerrors.Errorf("connection must be locked before use")
+	}
+
+	if size == 0 {
+		return 0, nil
 	}
 
 	if conn.controlConnection.requestTimeout > 0 {
@@ -347,6 +355,10 @@ func (conn *IRODSResourceServerConnection) RecvWithTrackerCallBack(buffer []byte
 		return 0, xerrors.Errorf("connection must be locked before use")
 	}
 
+	if size == 0 {
+		return 0, nil
+	}
+
 	if conn.controlConnection.requestTimeout > 0 {
 		conn.socket.SetReadDeadline(time.Now().Add(conn.controlConnection.requestTimeout))
 	}
@@ -382,6 +394,10 @@ func (conn *IRODSResourceServerConnection) RecvToWriter(writer io.Writer, size i
 
 	if !conn.locked {
 		return 0, xerrors.Errorf("connection must be locked before use")
+	}
+
+	if size == 0 {
+		return 0, nil
 	}
 
 	if conn.controlConnection.requestTimeout > 0 {

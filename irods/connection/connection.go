@@ -715,6 +715,10 @@ func (conn *IRODSConnection) SendWithTrackerCallBack(buffer []byte, size int, ca
 		return xerrors.Errorf("connection must be locked before use")
 	}
 
+	if size == 0 {
+		return nil
+	}
+
 	if conn.requestTimeout > 0 {
 		conn.socket.SetWriteDeadline(time.Now().Add(conn.requestTimeout))
 	}
@@ -744,6 +748,10 @@ func (conn *IRODSConnection) SendFromReader(src io.Reader, size int64) (int64, e
 
 	if !conn.locked {
 		return 0, xerrors.Errorf("connection must be locked before use")
+	}
+
+	if size == 0 {
+		return 0, nil
 	}
 
 	if conn.requestTimeout > 0 {
@@ -786,6 +794,10 @@ func (conn *IRODSConnection) RecvWithTrackerCallBack(buffer []byte, size int, ca
 		return 0, xerrors.Errorf("connection must be locked before use")
 	}
 
+	if size == 0 {
+		return 0, nil
+	}
+
 	if conn.requestTimeout > 0 {
 		conn.socket.SetReadDeadline(time.Now().Add(conn.requestTimeout))
 	}
@@ -821,6 +833,10 @@ func (conn *IRODSConnection) RecvToWriter(writer io.Writer, size int64) (int64, 
 
 	if !conn.locked {
 		return 0, xerrors.Errorf("connection must be locked before use")
+	}
+
+	if size == 0 {
+		return 0, nil
 	}
 
 	if conn.requestTimeout > 0 {
@@ -1011,12 +1027,14 @@ func (conn *IRODSConnection) ReadMessageWithTrackerCallBack(bsBuffer []byte, cal
 		return nil, xerrors.Errorf("failed to read body fully - %d requested but %d read", bodyLen, bodyReadLen)
 	}
 
-	bsReadLen, err := conn.RecvWithTrackerCallBack(bsBuffer, int(header.BsLen), callback)
-	if err != nil {
-		return nil, xerrors.Errorf("failed to read body (BS): %w", err)
-	}
-	if bsReadLen != int(header.BsLen) {
-		return nil, xerrors.Errorf("failed to read body (BS) fully - %d requested but %d read", int(header.BsLen), bsReadLen)
+	if header.BsLen > 0 {
+		bsReadLen, err := conn.RecvWithTrackerCallBack(bsBuffer, int(header.BsLen), callback)
+		if err != nil {
+			return nil, xerrors.Errorf("failed to read body (BS): %w", err)
+		}
+		if bsReadLen != int(header.BsLen) {
+			return nil, xerrors.Errorf("failed to read body (BS) fully - %d requested but %d read", int(header.BsLen), bsReadLen)
+		}
 	}
 
 	body := message.IRODSMessageBody{}

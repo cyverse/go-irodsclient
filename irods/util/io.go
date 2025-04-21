@@ -40,6 +40,10 @@ func ReadBytesWithTrackerCallBack(socket net.Conn, buffer []byte, size int, call
 		"func":    "ReadBytesWithTrackerCallBack",
 	})
 
+	if size == 0 {
+		return 0, nil
+	}
+
 	logger.Debugf("Reading %d bytes from socket", size)
 	defer logger.Debugf("Finished reading %d bytes from socket", size)
 
@@ -97,6 +101,10 @@ func WriteBytesWithTrackerCallBack(socket net.Conn, buffer []byte, size int, cal
 		"package": "util",
 		"func":    "WriteBytesWithTrackerCallBack",
 	})
+
+	if size == 0 {
+		return nil
+	}
 
 	totalSizeToSend := size
 	sizeLeft := size
