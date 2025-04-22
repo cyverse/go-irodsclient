@@ -579,6 +579,8 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 		}
 		defer f.Close()
 
+		lastOffset := int64(taskOffset)
+
 		blockReadCallback := func(processed int64, total int64) {
 			if processed > 0 {
 				delta := processed - taskProgress[taskID]
@@ -607,19 +609,21 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 			}()
 
 			// seek to task offset
-			if taskOffset > 0 {
-				newOffset, seekErr := SeekDataObject(taskTrialConn, taskTrialHandle, taskOffset, types.SeekSet)
+			if lastOffset > 0 {
+				taskLogger.Debugf("resuming downloading data object %q for task offset %d, last offset %d", irodsPath, taskOffset, lastOffset)
+
+				newOffset, seekErr := SeekDataObject(taskTrialConn, taskTrialHandle, lastOffset, types.SeekSet)
 				if seekErr != nil {
-					return xerrors.Errorf("failed to seek data object %q to offset %d: %w", irodsPath, taskOffset, seekErr)
+					return xerrors.Errorf("failed to seek data object %q to offset %d: %w", irodsPath, lastOffset, seekErr)
 				}
 
-				taskNewOffset, localSeekErr := f.Seek(taskOffset, io.SeekStart)
+				taskNewOffset, localSeekErr := f.Seek(lastOffset, io.SeekStart)
 				if localSeekErr != nil {
-					return xerrors.Errorf("failed to seek file %q to offset %d: %w", localPath, taskOffset, localSeekErr)
+					return xerrors.Errorf("failed to seek file %q to offset %d: %w", localPath, lastOffset, localSeekErr)
 				}
 
 				if newOffset != taskNewOffset {
-					return xerrors.Errorf("failed to seek file and data object to target offset %d", taskOffset)
+					return xerrors.Errorf("failed to seek file and data object to target offset %d", lastOffset)
 				}
 			}
 
@@ -646,6 +650,7 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 					}
 
 					taskRemain -= int64(bytesRead)
+					lastOffset += int64(bytesRead)
 				}
 
 				if readErr != nil {
@@ -925,6 +930,7 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 					}
 
 					taskRemain -= int64(bytesRead)
+					lastOffset += int64(bytesRead)
 				}
 
 				if readErr != nil {
