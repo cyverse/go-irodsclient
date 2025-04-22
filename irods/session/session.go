@@ -96,6 +96,16 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 	return &sess, nil
 }
 
+// GetConfig returns a configuration
+func (sess *IRODSSession) GetConfig() *IRODSSessionConfig {
+	return sess.config
+}
+
+// GetAccount returns an account
+func (sess *IRODSSession) GetAccount() *types.IRODSAccount {
+	return sess.account
+}
+
 // IsConnectionError returns if there is a failure
 func (sess *IRODSSession) GetLastConnectionError() (time.Time, error) {
 	sess.mutex.Lock()
@@ -129,16 +139,6 @@ func (sess *IRODSSession) IsPermanantFailure() bool {
 	defer sess.mutex.Unlock()
 
 	return types.IsPermanantFailure(sess.lastConnectionError)
-}
-
-// GetConfig returns a configuration
-func (sess *IRODSSession) GetConfig() *IRODSSessionConfig {
-	return sess.config
-}
-
-// GetAccount returns an account
-func (sess *IRODSSession) GetAccount() *types.IRODSAccount {
-	return sess.account
 }
 
 // SetTransactionFailureHandler sets transaction failure handler
@@ -295,7 +295,7 @@ func (sess *IRODSSession) AcquireConnection() (*connection.IRODSConnection, erro
 }
 
 // AcquireConnectionsMulti returns idle connections
-func (sess *IRODSSession) AcquireConnectionsMulti(number int) ([]*connection.IRODSConnection, error) {
+func (sess *IRODSSession) AcquireConnectionsMulti(number int, allowShared bool) ([]*connection.IRODSConnection, error) {
 	logger := log.WithFields(log.Fields{
 		"package":  "session",
 		"struct":   "IRODSSession",
@@ -322,6 +322,7 @@ func (sess *IRODSSession) AcquireConnectionsMulti(number int) ([]*connection.IRO
 				if types.IsConnectionPoolFullError(err) {
 					logger.WithError(err).Debug("failed to get a connection from the pool, the pool is full")
 					// fall below
+
 				} else {
 					// fail
 					sess.lastConnectionError = err
@@ -346,21 +347,23 @@ func (sess *IRODSSession) AcquireConnectionsMulti(number int) ([]*connection.IRO
 		}
 	}
 
-	connectionsInNeed := number - len(connections)
+	if allowShared {
+		// failed to get connection from pool
+		// find a connection from shared connection
+		connectionsInNeed := number - len(connections)
+		for connectionsInNeed > 0 {
+			logger.Debug("Share an in-use connection as it cannot create a new connection")
 
-	// failed to get connection from pool
-	// find a connection from shared connection
-	logger.Debug("Share an in-use connection as it cannot create a new connection")
-	for connectionsInNeed > 0 {
-		for sharedConn, shareCount := range sess.sharedConnections {
-			shareCount++
+			for sharedConn, shareCount := range sess.sharedConnections {
+				shareCount++
 
-			connections[sharedConn] = true
-			sess.sharedConnections[sharedConn] = shareCount
+				connections[sharedConn] = true
+				sess.sharedConnections[sharedConn] = shareCount
 
-			connectionsInNeed--
-			if connectionsInNeed <= 0 {
-				break
+				connectionsInNeed--
+				if connectionsInNeed <= 0 {
+					break
+				}
 			}
 		}
 	}
@@ -435,7 +438,14 @@ func (sess *IRODSSession) ReturnConnection(conn *connection.IRODSConnection) err
 			delete(sess.sharedConnections, conn)
 
 			conn.Lock()
-			if conn.IsTransactionDirty() {
+
+			if conn.IsSocketFailed() {
+				conn.Unlock()
+
+				// discard, since we cannot reuse the connection
+				sess.connectionPool.Discard(conn)
+				return nil
+			} else if conn.IsTransactionDirty() {
 				err := sess.endTransaction(conn)
 				if err != nil {
 					conn.Unlock()

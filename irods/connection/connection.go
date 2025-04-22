@@ -38,6 +38,7 @@ type IRODSConnection struct {
 	applicationName string
 
 	connected            bool
+	failed               bool
 	isSSLSocket          bool
 	socket               net.Conn
 	serverVersion        *types.IRODSVersion
@@ -140,6 +141,10 @@ func (conn *IRODSConnection) GetSSLSharedSecret() []byte {
 // IsConnected returns if the connection is live
 func (conn *IRODSConnection) IsConnected() bool {
 	return conn.connected
+}
+
+func (conn *IRODSConnection) IsSocketFailed() bool {
+	return conn.failed
 }
 
 // IsSSL returns if the connection is ssl
@@ -697,6 +702,8 @@ func (conn *IRODSConnection) socketFail() {
 		conn.metrics.IncreaseCounterForConnectionFailures(1)
 	}
 
+	conn.failed = true
+
 	conn.disconnectNow()
 }
 
@@ -1013,10 +1020,10 @@ func (conn *IRODSConnection) ReadMessageWithTrackerCallBack(bsBuffer []byte, cal
 
 	bsReadLen, err := conn.RecvWithTrackerCallBack(bsBuffer, int(header.BsLen), callback)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to read body (BS): %w", err)
+		return nil, xerrors.Errorf("failed to read body (BS), len %d: %w", int(header.BsLen), err)
 	}
 	if bsReadLen != int(header.BsLen) {
-		return nil, xerrors.Errorf("failed to read body (BS) fully - %d requested but %d read", int(header.BsLen), bsReadLen)
+		return nil, xerrors.Errorf("failed to read body (BS) fully - %d requested but read %d", int(header.BsLen), bsReadLen)
 	}
 
 	body := message.IRODSMessageBody{}
