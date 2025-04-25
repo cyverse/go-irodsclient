@@ -7,23 +7,23 @@ import (
 
 // IRODSReplica contains irods data object replication information
 type IRODSReplica struct {
-	Number int64
+	Number int64 `json:"number"`
 
 	// Owner has the owner's name
-	Owner string
+	Owner string `json:"owner"`
 
-	Checksum     *IRODSChecksum
-	Status       string
-	ResourceName string
+	Checksum     *IRODSChecksum `json:"checksum,omitempty"`
+	Status       string         `json:"status"`
+	ResourceName string         `json:"resource_name"`
 
 	// Path has an absolute path to the data object
-	Path              string
-	ResourceHierarchy string
+	Path              string `json:"path"`
+	ResourceHierarchy string `json:"resource_hierarchy"`
 
 	// CreateTime has creation time
-	CreateTime time.Time
+	CreateTime time.Time `json:"create_time"`
 	// ModifyTime has last modified time
-	ModifyTime time.Time
+	ModifyTime time.Time `json:"modify_time"`
 }
 
 // ToString stringifies the object

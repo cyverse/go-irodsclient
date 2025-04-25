@@ -18,10 +18,10 @@ const (
 
 // IRODSUser contains irods user information
 type IRODSUser struct {
-	ID   int64
-	Name string
-	Zone string
-	Type IRODSUserType
+	ID   int64         `json:"id"`
+	Name string        `json:"name"`
+	Zone string        `json:"zone"`
+	Type IRODSUserType `json:"type"`
 }
 
 // IsGroup returns true if type is IRODSUserRodsGroup

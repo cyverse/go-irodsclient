@@ -6,8 +6,8 @@ import (
 
 // IRODSQuota describes a resource quota
 type IRODSQuota struct {
-	RescName string
-	Limit    int64
+	RescName string `json:"resc_name"`
+	Limit    int64  `json:"limit"`
 }
 
 // ToString stringifies the object

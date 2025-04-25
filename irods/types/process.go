@@ -7,15 +7,15 @@ import (
 
 // IRODSProcess contains irods process information
 type IRODSProcess struct {
-	ID            int64
-	StartTime     time.Time
-	ProxyUser     string
-	ProxyZone     string
-	ClientUser    string
-	ClientZone    string
-	ClientAddress string
-	ServerAddress string
-	ClientProgram string
+	ID            int64     `json:"id"`
+	StartTime     time.Time `json:"start_time"`
+	ProxyUser     string    `json:"proxy_user"`
+	ProxyZone     string    `json:"proxy_zone"`
+	ClientUser    string    `json:"client_user"`
+	ClientZone    string    `json:"client_zone"`
+	ClientAddress string    `json:"client_address"`
+	ServerAddress string    `json:"server_address"`
+	ClientProgram string    `json:"client_program"`
 }
 
 // ToString stringifies the object

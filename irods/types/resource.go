@@ -7,23 +7,23 @@ import (
 
 // IRODSResource describes a resource host
 type IRODSResource struct {
-	RescID   int64
-	Name     string
-	Zone     string
-	Type     string
-	Class    string
-	Location string
+	RescID   int64  `json:"resc_id"`
+	Name     string `json:"name"`
+	Zone     string `json:"zone"`
+	Type     string `json:"type"`
+	Class    string `json:"class"`
+	Location string `json:"location"`
 
 	// Path has the path string of the resource
-	Path string
+	Path string `json:"path"`
 
 	// Context has the context string
-	Context string
+	Context string `json:"context"`
 
 	// CreateTime has creation time
-	CreateTime time.Time
+	CreateTime time.Time `json:"create_time"`
 	// ModifyTime has last modified time
-	ModifyTime time.Time
+	ModifyTime time.Time `json:"modify_time"`
 }
 
 // ToString stringifies the object

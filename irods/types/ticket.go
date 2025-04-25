@@ -17,33 +17,33 @@ const (
 
 // IRODSTicket contains irods ticket information
 type IRODSTicket struct {
-	ID int64
+	ID int64 `json:"id"`
 	// Name is ticket string
-	Name string
+	Name string `json:"name"`
 	// Type is access type
-	Type TicketType
+	Type TicketType `json:"type"`
 	// Owner has the owner's name
-	Owner string
+	Owner string `json:"owner"`
 	// OwnerZone has the owner's zone
-	OwnerZone string
+	OwnerZone string `json:"owner_zone"`
 	// ObjectType is type of object
-	ObjectType ObjectType
+	ObjectType ObjectType `json:"object_type"`
 	// Path is path to the object
-	Path string
+	Path string `json:"path"`
 	// ExpirationTime is time that the ticket expires
-	ExpirationTime time.Time
+	ExpirationTime time.Time `json:"expiration_time"`
 	// UsesLimit is an access limit
-	UsesLimit int64
+	UsesLimit int64 `json:"uses_limit"`
 	// UsesCount is an access count
-	UsesCount int64
+	UsesCount int64 `json:"uses_count"`
 	// WriteFileLimit is a write file limit
-	WriteFileLimit int64
+	WriteFileLimit int64 `json:"write_file_limit"`
 	// WriteFileCount is a write file count
-	WriteFileCount int64
+	WriteFileCount int64 `json:"write_file_count"`
 	// WriteByteLimit is a write byte limit
-	WriteByteLimit int64
+	WriteByteLimit int64 `json:"write_byte_limit"`
 	// WriteByteCount is a write byte count
-	WriteByteCount int64
+	WriteByteCount int64 `json:"write_byte_count"`
 }
 
 // IsReadWrite returns true if the ticket is TicketTypeWrite
@@ -58,15 +58,15 @@ func (ticket *IRODSTicket) ToString() string {
 
 // IRODSTicketForAnonymousAccess contains minimal irods ticket information for anonymous access
 type IRODSTicketForAnonymousAccess struct {
-	ID int64
+	ID int64 `json:"id"`
 	// Name is ticket string
-	Name string
+	Name string `json:"name"`
 	// Type is access type
-	Type TicketType
+	Type TicketType `json:"type"`
 	// Path is path to the object
-	Path string
+	Path string `json:"path"`
 	// ExpirationTime is time that the ticket expires
-	ExpirationTime time.Time
+	ExpirationTime time.Time `json:"expiration_time"`
 }
 
 // ToString stringifies the object

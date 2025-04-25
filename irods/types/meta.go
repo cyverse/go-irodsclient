@@ -37,14 +37,14 @@ func GetIRODSMetaItemType(data interface{}) (IRODSMetaItemType, error) {
 
 // IRODSMeta contains irods metadata
 type IRODSMeta struct {
-	AVUID int64 // is ignored on metadata operations (set, add, mod, rm)
-	Name  string
-	Value string
-	Units string
+	AVUID int64  `json:"avu_id"` // is ignored on metadata operations (set, add, mod, rm)
+	Name  string `json:"name"`
+	Value string `json:"value"`
+	Units string `json:"units"`
 	// CreateTime has creation time
-	CreateTime time.Time
+	CreateTime time.Time `json:"create_time"`
 	// ModifyTime has last modified time
-	ModifyTime time.Time
+	ModifyTime time.Time `json:"modify_time"`
 }
 
 // ToString stringifies the object

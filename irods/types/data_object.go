@@ -6,18 +6,18 @@ import (
 
 // IRODSDataObject contains irods data object information
 type IRODSDataObject struct {
-	ID           int64
-	CollectionID int64
+	ID           int64 `json:"id"`
+	CollectionID int64 `json:"collection_id"`
 	// Path has an absolute path to the data object
-	Path string
+	Path string `json:"path"`
 	// Name has only the name part of the path
-	Name string
+	Name string `json:"name"`
 	// Size has the file size
-	Size int64
+	Size int64 `json:"size"`
 	// DataType has the type of the file,
-	DataType string
+	DataType string `json:"data_type"`
 	// Replicas has replication information
-	Replicas []*IRODSReplica
+	Replicas []*IRODSReplica `json:"replicas,omitempty"`
 }
 
 // ToString stringifies the object

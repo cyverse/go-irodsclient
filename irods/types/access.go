@@ -108,11 +108,11 @@ func (accessType IRODSAccessLevelType) ChmodString() string {
 
 // IRODSAccess contains irods access information
 type IRODSAccess struct {
-	Path        string
-	UserName    string
-	UserZone    string
-	UserType    IRODSUserType
-	AccessLevel IRODSAccessLevelType
+	Path        string               `json:"path"`
+	UserName    string               `json:"user_name"`
+	UserZone    string               `json:"user_zone"`
+	UserType    IRODSUserType        `json:"user_type"`
+	AccessLevel IRODSAccessLevelType `json:"access_level"`
 }
 
 // ToString stringifies the object

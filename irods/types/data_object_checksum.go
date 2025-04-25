@@ -8,9 +8,9 @@ import (
 
 // IRODSChecksum contains data object hash information
 type IRODSChecksum struct {
-	IRODSChecksumString string
-	Algorithm           ChecksumAlgorithm
-	Checksum            []byte
+	IRODSChecksumString string            `json:"irods_checksum_string"`
+	Algorithm           ChecksumAlgorithm `json:"algorithm"`
+	Checksum            []byte            `json:"-"`
 }
 
 // CreateIRODSChecksum creates IRODSChecksum from checksum string
