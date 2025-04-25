@@ -14,6 +14,7 @@ type IRODSFileOpenRedirectionHandle struct {
 	Resource        string
 	Threads         int
 	CheckSum        string
+	Size            int64
 	RedirectionInfo *IRODSRedirectionInfo
 }
 
@@ -28,7 +29,7 @@ type IRODSRedirectionInfo struct {
 
 // ToString stringifies the object
 func (info *IRODSFileOpenRedirectionHandle) ToString() string {
-	return fmt.Sprintf("<IRODSFileOpenRedirectionHandle %d %s %s %d %s %s>", info.FileDescriptor, info.Path, info.Resource, info.Threads, info.CheckSum, info.RedirectionInfo.ToString())
+	return fmt.Sprintf("<IRODSFileOpenRedirectionHandle %d %s %s %d %s %d %s>", info.FileDescriptor, info.Path, info.Resource, info.Threads, info.CheckSum, info.Size, info.RedirectionInfo.ToString())
 }
 
 // ToString stringifies the object

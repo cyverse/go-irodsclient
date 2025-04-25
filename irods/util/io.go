@@ -4,7 +4,7 @@ import (
 	"io"
 	"net"
 
-	"github.com/cyverse/go-irodsclient/irods/common"
+	"github.com/cyverse/go-irodsclient/irods/types"
 	"golang.org/x/xerrors"
 )
 
@@ -31,10 +31,36 @@ func WriteBytes(socket net.Conn, buffer []byte, size int) error {
 }
 
 // ReadBytesWithTrackerCallBack reads data from socket in a particular size
-func ReadBytesWithTrackerCallBack(socket net.Conn, buffer []byte, size int, callback common.TrackerCallBack) (int, error) {
-	totalSizeToRead := size
+func ReadBytesWithTrackerCallBack(socket net.Conn, buffer []byte, size int, callback types.TrackerCallBack) (int, error) {
 	sizeLeft := size
 	actualRead := 0
+
+	taskInfo := types.TrackerTaskInfo{
+		TaskID:          0,
+		SubTaskID:       0,
+		TasksTotal:      1,
+		StartOffset:     0,
+		Length:          int64(size),
+		ProcessedLength: 0,
+		Terminated:      false,
+	}
+
+	fileInfo := types.TrackerFileInfo{
+		FileName:   "",
+		FileLength: int64(size),
+	}
+
+	if callback != nil {
+		callback(&taskInfo, &fileInfo)
+	}
+
+	defer func() {
+		if callback != nil {
+			taskInfo.Terminated = true
+
+			callback(&taskInfo, &fileInfo)
+		}
+	}()
 
 	for sizeLeft > 0 {
 		sizeRead, err := socket.Read(buffer[actualRead:size])
@@ -44,7 +70,9 @@ func ReadBytesWithTrackerCallBack(socket net.Conn, buffer []byte, size int, call
 			actualRead += sizeRead
 
 			if callback != nil {
-				callback(int64(actualRead), int64(totalSizeToRead))
+				taskInfo.ProcessedLength = int64(actualRead)
+
+				callback(&taskInfo, &fileInfo)
 			}
 		}
 
@@ -65,10 +93,36 @@ func ReadBytesWithTrackerCallBack(socket net.Conn, buffer []byte, size int, call
 }
 
 // WriteBytesWithTrackerCallBack writes data to socket
-func WriteBytesWithTrackerCallBack(socket net.Conn, buffer []byte, size int, callback common.TrackerCallBack) error {
-	totalSizeToSend := size
+func WriteBytesWithTrackerCallBack(socket net.Conn, buffer []byte, size int, callback types.TrackerCallBack) error {
 	sizeLeft := size
 	actualWrite := 0
+
+	taskInfo := types.TrackerTaskInfo{
+		TaskID:          0,
+		SubTaskID:       0,
+		TasksTotal:      1,
+		StartOffset:     0,
+		Length:          int64(size),
+		ProcessedLength: 0,
+		Terminated:      false,
+	}
+
+	fileInfo := types.TrackerFileInfo{
+		FileName:   "",
+		FileLength: int64(size),
+	}
+
+	if callback != nil {
+		callback(&taskInfo, &fileInfo)
+	}
+
+	defer func() {
+		if callback != nil {
+			taskInfo.Terminated = true
+
+			callback(&taskInfo, &fileInfo)
+		}
+	}()
 
 	for sizeLeft > 0 {
 		sizeWrite, err := socket.Write(buffer[actualWrite:size])
@@ -78,7 +132,9 @@ func WriteBytesWithTrackerCallBack(socket net.Conn, buffer []byte, size int, cal
 			actualWrite += sizeWrite
 
 			if callback != nil {
-				callback(int64(actualWrite), int64(totalSizeToSend))
+				taskInfo.ProcessedLength = int64(actualWrite)
+
+				callback(&taskInfo, &fileInfo)
 			}
 		}
 

@@ -6,7 +6,6 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
@@ -2126,127 +2125,6 @@ func WriteDataObjectWithTrackerCallBack(conn *connection.IRODSConnection, handle
 		return xerrors.Errorf("failed to write to data object: %w", err)
 	}
 	return nil
-}
-
-// WriteDataObjectAsyncWithTrackerCallBack writes data to a data object asynchronously
-func WriteDataObjectAsyncWithTrackerCallBack(conn *connection.IRODSConnection, handle *types.IRODSFileHandle, dataReader io.Reader, totalDataSize int64, callback common.TrackerCallBack) error {
-	if conn == nil || !conn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
-	}
-
-	// lock the connection
-	conn.Lock()
-	defer conn.Unlock()
-
-	requestRRChan := make(chan connection.RequestResponsePair, 100)
-	responseRRChan := conn.RequestAsyncWithTrackerCallBack(requestRRChan)
-
-	curProcessed := int64(0)
-
-	var returnErr error
-
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-
-	// check response
-	go func() {
-		defer wg.Done()
-
-		for {
-			rrPair, ok := <-responseRRChan
-			if !ok {
-				// output closed
-				// done
-				return
-			}
-
-			if rrPair.Error != nil {
-				// errored
-				returnErr = rrPair.Error
-				return
-			}
-
-			if res, ok := rrPair.Response.(connection.CheckErrorResponse); ok {
-				resErr := res.CheckError()
-				if resErr != nil {
-					if types.GetIRODSErrorCode(resErr) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(resErr) == common.CAT_UNKNOWN_FILE {
-						returnErr = xerrors.Errorf("failed to find the data object for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
-						return
-					} else if types.GetIRODSErrorCode(resErr) == common.CAT_UNKNOWN_COLLECTION {
-						returnErr = xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
-						return
-					}
-
-					returnErr = xerrors.Errorf("failed to write to data object: %w", resErr)
-					return
-				}
-			}
-
-			// if no error, drain
-		}
-	}()
-
-	bufPool := sync.Pool{
-		New: func() interface{} {
-			b := make([]byte, 640*1024) // 640KB
-			return &b
-		},
-	}
-
-	for {
-		if returnErr != nil {
-			break
-		}
-
-		//buffer := make([]byte, common.ReadWriteBufferSize)
-		bufferPtr := bufPool.Get().(*[]byte)
-		buffer := *bufferPtr
-
-		bytesRead, readErr := dataReader.Read(buffer)
-		if bytesRead > 0 {
-			metrics := conn.GetMetrics()
-			if metrics != nil {
-				metrics.IncreaseCounterForDataObjectWrite(1)
-			}
-
-			rrPair := connection.RequestResponsePair{
-				Request:  message.NewIRODSMessageWriteDataObjectRequest(handle.FileDescriptor, buffer[:bytesRead]),
-				Response: &message.IRODSMessageWriteDataObjectResponse{},
-				BsBuffer: nil,
-				RequestCallback: func(processed int64, total int64) {
-					// callback
-					if processed > 0 && processed == total {
-						// update
-						curProcessed += processed
-						if callback != nil {
-							callback(curProcessed, totalDataSize)
-						}
-					}
-				},
-			}
-
-			// input
-			requestRRChan <- rrPair
-		}
-		// return buffer
-		bufPool.Put(bufferPtr)
-
-		if readErr != nil {
-			if readErr == io.EOF {
-				break
-			} else {
-				returnErr = xerrors.Errorf("failed to read from Reader: %w", readErr)
-				break
-			}
-		}
-	}
-
-	close(requestRRChan)
-
-	// wait until write responses are drained
-	wg.Wait()
-
-	return returnErr
 }
 
 // TruncateDataObjectHandle truncates a data object to the given size

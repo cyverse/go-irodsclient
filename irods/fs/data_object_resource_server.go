@@ -70,6 +70,7 @@ func GetDataObjectRedirectionInfoForGet(conn *connection.IRODSConnection, path s
 		Resource:        resource,
 		Threads:         response.Threads,
 		CheckSum:        response.CheckSum,
+		Size:            fileLength,
 		RedirectionInfo: nil,
 	}
 
@@ -142,6 +143,7 @@ func GetDataObjectRedirectionInfoForPut(conn *connection.IRODSConnection, path s
 		Resource:        resource,
 		Threads:         response.Threads,
 		CheckSum:        response.CheckSum,
+		Size:            fileLength,
 		RedirectionInfo: nil,
 	}
 
@@ -195,7 +197,7 @@ func CompleteDataObjectRedirection(conn *connection.IRODSConnection, handle *typ
 	return nil
 }
 
-func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskID int, controlConnection *connection.IRODSConnection, handle *types.IRODSFileOpenRedirectionHandle, localPath string, callback common.TrackerCallBack) error {
+func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskID int, controlConnection *connection.IRODSConnection, handle *types.IRODSFileOpenRedirectionHandle, localPath string, callback types.TrackerCallBack) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "fs",
 		"function": "downloadDataObjectChunkFromResourceServer",
@@ -203,14 +205,45 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 
 	logger.Debugf("download data object %q, task %d", handle.Path, taskID)
 
+	fileInfo := types.TrackerFileInfo{
+		FileName:   handle.Path,
+		FileLength: handle.Size,
+	}
+
 	conn := sess.GetRedirectionConnection(controlConnection, handle.RedirectionInfo)
 	err := conn.Connect()
 	if err != nil {
+		if callback != nil {
+			taskInfo := types.TrackerTaskInfo{
+				TaskID:          taskID,
+				SubTaskID:       0,
+				TasksTotal:      0,
+				StartOffset:     0,
+				Length:          0,
+				ProcessedLength: 0,
+				Terminated:      true,
+			}
+			callback(&taskInfo, &fileInfo)
+		}
+
 		return xerrors.Errorf("failed to connect to resource server: %w", err)
 	}
 	defer conn.Disconnect()
 
 	if conn == nil || !conn.IsConnected() {
+		if callback != nil {
+			taskInfo := types.TrackerTaskInfo{
+				TaskID:          taskID,
+				SubTaskID:       0,
+				TasksTotal:      0,
+				StartOffset:     0,
+				Length:          0,
+				ProcessedLength: 0,
+				Terminated:      true,
+			}
+			callback(&taskInfo, &fileInfo)
+		}
+
 		return xerrors.Errorf("connection is nil or disconnected")
 	}
 
@@ -219,6 +252,19 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 
 	f, taskErr := os.OpenFile(localPath, os.O_WRONLY, 0)
 	if taskErr != nil {
+		if callback != nil {
+			taskInfo := types.TrackerTaskInfo{
+				TaskID:          taskID,
+				SubTaskID:       0,
+				TasksTotal:      0,
+				StartOffset:     0,
+				Length:          0,
+				ProcessedLength: 0,
+				Terminated:      true,
+			}
+			callback(&taskInfo, &fileInfo)
+		}
+
 		return xerrors.Errorf("failed to open file %q: %w", localPath, taskErr)
 	}
 	defer f.Close()
@@ -230,13 +276,6 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 	if controlConnection.IsSSL() {
 		encKeysize = encConfig.EncryptionKeySize
 	}
-
-	totalBytesDownloaded := int64(0)
-	if callback != nil {
-		callback(totalBytesDownloaded, -1)
-	}
-
-	cont := true
 
 	// transfer header
 	transferHeader := message.IRODSMessageResourceServerTransferHeader{}
@@ -245,146 +284,180 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 	var dataBuffer []byte
 	var encryptedDataBuffer []byte
 
-	for cont {
-		// read transfer header
-		readLen, err := conn.Recv(headerBuffer, transferHeader.SizeOf())
-		if err != nil {
-			return xerrors.Errorf("failed to read transfer header from resource server: %w", err)
-		}
+	subTaskID := 0
 
-		err = transferHeader.FromBytes(headerBuffer[:readLen])
-		if err != nil {
-			return xerrors.Errorf("failed to read transfer header from resource server: %w", err)
-		}
+	for {
+		transferTask := func(subTaskID int) (bool, error) {
+			// set task info
+			taskInfo := types.TrackerTaskInfo{
+				TaskID:          taskID,
+				SubTaskID:       subTaskID,
+				TasksTotal:      handle.Threads,
+				StartOffset:     0,
+				Length:          0,
+				ProcessedLength: 0,
+				Terminated:      false,
+			}
 
-		if transferHeader.OperationType == int(common.OPER_TYPE_DONE) {
-			// break
-			logger.Debugf("done downloading file chunk for %s, task %d, offset %d, length %d", handle.Path, taskID, transferHeader.Offset, transferHeader.Length)
-			break
-		} else if transferHeader.OperationType != int(common.OPER_TYPE_GET_DATA_OBJ) {
-			return xerrors.Errorf("invalid operation type %d received for transfer", transferHeader.OperationType)
-		}
+			defer func() {
+				if callback != nil {
+					taskInfo.Terminated = true
 
-		logger.Debugf("downloading file chunk for %s, task %d, offset %d, length %d", handle.Path, taskID, transferHeader.Offset, transferHeader.Length)
+					callback(&taskInfo, &fileInfo)
+				}
+			}()
 
-		toGet := transferHeader.Length
-		curOffset := transferHeader.Offset
-		for toGet > 0 {
-			// read encryption header
-			if controlConnection.IsSSL() {
-				encryptionHeader := message.NewIRODSMessageResourceServerTransferEncryptionHeader(encKeysize)
-
-				encryptionHeaderBuffer := make([]byte, encryptionHeader.SizeOf())
-				eof := false
-				readLen, err := conn.Recv(encryptionHeaderBuffer, encryptionHeader.SizeOf())
-				if err != nil {
-					if err == io.EOF {
-						eof = true
-						cont = false
-					} else {
-						return xerrors.Errorf("failed to read transfer encryption header from resource server: %w", err)
-					}
+			// read transfer header
+			readLen, err := conn.Recv(headerBuffer, transferHeader.SizeOf())
+			if err != nil {
+				if err == io.EOF {
+					return false, nil
 				}
 
-				if eof {
-					break
-				}
+				return false, xerrors.Errorf("failed to read transfer header from resource server: %w", err)
+			}
 
-				err = encryptionHeader.FromBytes(encryptionHeaderBuffer[:readLen])
-				if err != nil {
-					return xerrors.Errorf("failed to read transfer encryption header from bytes: %w", err)
-				}
+			err = transferHeader.FromBytes(headerBuffer[:readLen])
+			if err != nil {
+				return false, xerrors.Errorf("failed to read transfer header from resource server: %w", err)
+			}
 
-				// done reading encryption header
-				//logger.Debugf("encryption header's content len %d, block len %d, key len %d", encryptionHeader.Length, encBlocksize, encKeysize)
+			if transferHeader.OperationType == int(common.OPER_TYPE_DONE) {
+				logger.Debugf("done downloading file chunk for %s, task %d, offset %d, length %d", handle.Path, taskID, transferHeader.Offset, transferHeader.Length)
+				return false, nil // break
+			} else if transferHeader.OperationType != int(common.OPER_TYPE_GET_DATA_OBJ) {
+				return false, xerrors.Errorf("invalid operation type %d received for transfer", transferHeader.OperationType)
+			}
 
-				// size is different as data is encrypted
-				encryptedDataLen := encryptionHeader.Length - encKeysize
-				if len(encryptedDataBuffer) < encryptedDataLen {
-					encryptedDataBuffer = make([]byte, encryptedDataLen)
-				}
+			logger.Debugf("downloading file chunk for %s, task %d, offset %d, length %d", handle.Path, taskID, transferHeader.Offset, transferHeader.Length)
 
-				if len(dataBuffer) < encryptedDataLen {
-					dataBuffer = make([]byte, encryptedDataLen)
-				}
+			// update task info
+			taskInfo.StartOffset = transferHeader.Offset
+			taskInfo.Length = transferHeader.Length
 
-				//logger.Debugf("encrypted data len %d", encryptedDataLen)
+			toGet := transferHeader.Length
+			curOffset := transferHeader.Offset
+			downloadedBytes := int64(0)
 
-				// read data
-				readLen, err = conn.Recv(encryptedDataBuffer, encryptedDataLen)
-				if readLen > 0 {
-					// decrypt
-					decryptedDataLen, decErr := conn.Decrypt(encryptionHeader.IV, encryptedDataBuffer[:readLen], dataBuffer)
-					if decErr != nil {
-						return xerrors.Errorf("failed to decrypt data: %w", decErr)
-					}
+			if callback != nil {
+				callback(&taskInfo, &fileInfo)
+			}
 
-					//logger.Debugf("decrypted data len %d", decryptedDataLen)
+			for toGet > 0 {
+				// read encryption header
+				if controlConnection.IsSSL() {
+					encryptionHeader := message.NewIRODSMessageResourceServerTransferEncryptionHeader(encKeysize)
 
-					atomic.AddInt64(&totalBytesDownloaded, int64(decryptedDataLen))
-					if callback != nil {
-						callback(totalBytesDownloaded, -1)
+					encryptionHeaderBuffer := make([]byte, encryptionHeader.SizeOf())
+					readLen, err := conn.Recv(encryptionHeaderBuffer, encryptionHeader.SizeOf())
+					if err != nil {
+						if err == io.EOF {
+							return false, nil
+						}
+						return false, xerrors.Errorf("failed to read transfer encryption header from resource server: %w", err)
 					}
 
-					_, writeErr := f.WriteAt(dataBuffer[:decryptedDataLen], curOffset)
-					if writeErr != nil {
-						return xerrors.Errorf("failed to write data to %q, task %d, offset %d: %w", localPath, taskID, curOffset, writeErr)
+					err = encryptionHeader.FromBytes(encryptionHeaderBuffer[:readLen])
+					if err != nil {
+						return false, xerrors.Errorf("failed to read transfer encryption header from bytes: %w", err)
 					}
 
-					toGet -= int64(decryptedDataLen)
-					curOffset += int64(decryptedDataLen)
-				}
+					// done reading encryption header
+					//logger.Debugf("encryption header's content len %d, block len %d, key len %d", encryptionHeader.Length, encBlocksize, encKeysize)
 
-				if err != nil {
-					if err == io.EOF {
-						eof = true
-						cont = false
-					} else {
-						return xerrors.Errorf("failed to read data %q, task %d, offset %d: %w", handle.Path, taskID, curOffset, err)
-					}
-				}
-
-				if eof {
-					break
-				}
-			} else {
-				// normal
-				// read data
-				newOffset, err := f.Seek(curOffset, io.SeekStart)
-				if err != nil {
-					return xerrors.Errorf("failed to seek to offset %d for file %q, task %d: %w", curOffset, localPath, taskID, err)
-				}
-
-				if newOffset != curOffset {
-					return xerrors.Errorf("failed to seek to offset %d for file %q, task %d, new offset %d: %w", curOffset, localPath, taskID, newOffset, err)
-				}
-
-				eof := false
-				readLen, err := conn.RecvToWriter(f, toGet)
-				if readLen > 0 {
-					atomic.AddInt64(&totalBytesDownloaded, readLen)
-					if callback != nil {
-						callback(totalBytesDownloaded, -1)
+					// size is different as data is encrypted
+					encryptedDataLen := encryptionHeader.Length - encKeysize
+					if len(encryptedDataBuffer) < encryptedDataLen {
+						encryptedDataBuffer = make([]byte, encryptedDataLen)
 					}
 
-					toGet -= int64(readLen)
-					curOffset += int64(readLen)
-				}
-
-				if err != nil {
-					if err == io.EOF {
-						eof = true
-						cont = false
-					} else {
-						return xerrors.Errorf("failed to read data %q, task %d, offset %d: %w", handle.Path, taskID, curOffset, err)
+					if len(dataBuffer) < encryptedDataLen {
+						dataBuffer = make([]byte, encryptedDataLen)
 					}
-				}
 
-				if eof {
-					break
+					//logger.Debugf("encrypted data len %d", encryptedDataLen)
+
+					// read data
+					readLen, err = conn.Recv(encryptedDataBuffer, encryptedDataLen)
+					if readLen > 0 {
+						// decrypt
+						decryptedDataLen, decErr := conn.Decrypt(encryptionHeader.IV, encryptedDataBuffer[:readLen], dataBuffer)
+						if decErr != nil {
+							return false, xerrors.Errorf("failed to decrypt data: %w", decErr)
+						}
+
+						_, writeErr := f.WriteAt(dataBuffer[:decryptedDataLen], curOffset)
+						if writeErr != nil {
+							return false, xerrors.Errorf("failed to write data to %q, task %d, offset %d: %w", localPath, taskID, curOffset, writeErr)
+						}
+
+						//logger.Debugf("decrypted data len %d", decryptedDataLen)
+						downloadedBytes += int64(decryptedDataLen)
+
+						if callback != nil {
+							taskInfo.ProcessedLength = downloadedBytes
+
+							callback(&taskInfo, &fileInfo)
+						}
+
+						toGet -= int64(decryptedDataLen)
+						curOffset += int64(decryptedDataLen)
+					}
+
+					if err != nil {
+						if err == io.EOF {
+							return false, nil
+						}
+						return false, xerrors.Errorf("failed to read data %q, task %d, offset %d: %w", handle.Path, taskID, curOffset, err)
+					}
+				} else {
+					// normal
+					// read data
+					newOffset, err := f.Seek(curOffset, io.SeekStart)
+					if err != nil {
+						return false, xerrors.Errorf("failed to seek to offset %d for file %q, task %d: %w", curOffset, localPath, taskID, err)
+					}
+
+					if newOffset != curOffset {
+						return false, xerrors.Errorf("failed to seek to offset %d for file %q, task %d, new offset %d: %w", curOffset, localPath, taskID, newOffset, err)
+					}
+
+					readLen, err := conn.RecvToWriter(f, toGet)
+					if readLen > 0 {
+						downloadedBytes += int64(readLen)
+
+						if callback != nil {
+							taskInfo.ProcessedLength = downloadedBytes
+
+							callback(&taskInfo, &fileInfo)
+						}
+
+						toGet -= int64(readLen)
+						curOffset += int64(readLen)
+					}
+
+					if err != nil {
+						if err == io.EOF {
+							return false, nil
+						}
+						return false, xerrors.Errorf("failed to read data %q, task %d, offset %d: %w", handle.Path, taskID, curOffset, err)
+					}
 				}
 			}
+
+			return true, nil // continue
 		}
+
+		cont, transferTaskErr := transferTask(subTaskID)
+		if transferTaskErr != nil {
+			return transferTaskErr
+		}
+
+		if !cont {
+			break
+		}
+
+		subTaskID++
 	}
 
 	logger.Debugf("downloaded data object %q, task %d", handle.Path, taskID)
@@ -392,7 +465,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 	return nil
 }
 
-func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID int, controlConnection *connection.IRODSConnection, handle *types.IRODSFileOpenRedirectionHandle, localPath string, callback common.TrackerCallBack) error {
+func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID int, controlConnection *connection.IRODSConnection, handle *types.IRODSFileOpenRedirectionHandle, localPath string, callback types.TrackerCallBack) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "fs",
 		"function": "uploadDataObjectChunkToResourceServer",
@@ -400,14 +473,45 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 
 	logger.Debugf("upload data object %q, task %d", handle.Path, taskID)
 
+	fileInfo := types.TrackerFileInfo{
+		FileName:   handle.Path,
+		FileLength: handle.Size,
+	}
+
 	conn := sess.GetRedirectionConnection(controlConnection, handle.RedirectionInfo)
 	err := conn.Connect()
 	if err != nil {
+		if callback != nil {
+			taskInfo := types.TrackerTaskInfo{
+				TaskID:          taskID,
+				SubTaskID:       0,
+				TasksTotal:      0,
+				StartOffset:     0,
+				Length:          0,
+				ProcessedLength: 0,
+				Terminated:      true,
+			}
+			callback(&taskInfo, &fileInfo)
+		}
+
 		return xerrors.Errorf("failed to connect to resource server: %w", err)
 	}
 	defer conn.Disconnect()
 
 	if conn == nil || !conn.IsConnected() {
+		if callback != nil {
+			taskInfo := types.TrackerTaskInfo{
+				TaskID:          taskID,
+				SubTaskID:       0,
+				TasksTotal:      0,
+				StartOffset:     0,
+				Length:          0,
+				ProcessedLength: 0,
+				Terminated:      true,
+			}
+			callback(&taskInfo, &fileInfo)
+		}
+
 		return xerrors.Errorf("connection is nil or disconnected")
 	}
 
@@ -416,6 +520,19 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 
 	f, taskErr := os.OpenFile(localPath, os.O_RDONLY, 0)
 	if taskErr != nil {
+		if callback != nil {
+			taskInfo := types.TrackerTaskInfo{
+				TaskID:          taskID,
+				SubTaskID:       0,
+				TasksTotal:      0,
+				StartOffset:     0,
+				Length:          0,
+				ProcessedLength: 0,
+				Terminated:      true,
+			}
+			callback(&taskInfo, &fileInfo)
+		}
+
 		return xerrors.Errorf("failed to open file %q: %w", localPath, taskErr)
 	}
 	defer f.Close()
@@ -425,16 +542,8 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 	encKeysize := 0
 
 	if controlConnection.IsSSL() {
-		// set iv
 		encKeysize = encConfig.EncryptionKeySize
 	}
-
-	totalBytesUploaded := int64(0)
-	if callback != nil {
-		callback(totalBytesUploaded, -1)
-	}
-
-	cont := true
 
 	// transfer header
 	transferHeader := message.IRODSMessageResourceServerTransferHeader{}
@@ -444,152 +553,191 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 	var encryptedDataBuffer []byte
 	dataBufferSize := sess.GetConfig().TCPBufferSize
 
-	for cont {
-		// read transfer header
-		readLen, err := conn.Recv(headerBuffer, transferHeader.SizeOf())
-		if err != nil {
-			if err == io.EOF {
-				break
+	subTaskID := 0
+
+	for {
+		transferTask := func(subTaskID int) (bool, error) {
+			// set task info
+			taskInfo := types.TrackerTaskInfo{
+				TaskID:          taskID,
+				SubTaskID:       subTaskID,
+				TasksTotal:      handle.Threads,
+				StartOffset:     0,
+				Length:          0,
+				ProcessedLength: 0,
+				Terminated:      false,
 			}
 
-			return xerrors.Errorf("failed to read transfer header from resource server: %w", err)
+			defer func() {
+				if callback != nil {
+					taskInfo.Terminated = true
+
+					callback(&taskInfo, &fileInfo)
+				}
+			}()
+
+			// read transfer header
+			readLen, err := conn.Recv(headerBuffer, transferHeader.SizeOf())
+			if err != nil {
+				if err == io.EOF {
+					return false, nil
+				}
+
+				return false, xerrors.Errorf("failed to read transfer header from resource server: %w", err)
+			}
+
+			err = transferHeader.FromBytes(headerBuffer[:readLen])
+			if err != nil {
+				return false, xerrors.Errorf("failed to read transfer header from resource server: %w", err)
+			}
+
+			if transferHeader.OperationType == int(common.OPER_TYPE_DONE) {
+				// break
+				logger.Debugf("done uploading file chunk for %s, task %d, offset %d, length %d", handle.Path, taskID, transferHeader.Offset, transferHeader.Length)
+				return false, nil
+			} else if transferHeader.OperationType != int(common.OPER_TYPE_PUT_DATA_OBJ) {
+				return false, xerrors.Errorf("invalid operation type %d received for transfer", transferHeader.OperationType)
+			}
+
+			logger.Debugf("uploading file chunk for %s, task %d, offset %d, length %d", handle.Path, taskID, transferHeader.Offset, transferHeader.Length)
+
+			// update task info
+			taskInfo.StartOffset = transferHeader.Offset
+			taskInfo.Length = transferHeader.Length
+
+			toPut := transferHeader.Length
+			curOffset := transferHeader.Offset
+			uploadedBytes := int64(0)
+
+			if callback != nil {
+				callback(&taskInfo, &fileInfo)
+			}
+
+			for toPut > 0 {
+				// read encryption header
+				if controlConnection.IsSSL() {
+					// init iv
+					encAlg := types.GetEncryptionAlgorithm(encConfig.EncryptionAlgorithm)
+					encIV, err := util.GetEncryptionIV(encAlg)
+					if err != nil {
+						return false, xerrors.Errorf("failed to get encryption iv: %w", err)
+					}
+
+					iv := make([]byte, encKeysize)
+					copy(iv, encIV)
+
+					encryptionHeader := message.NewIRODSMessageResourceServerTransferEncryptionHeader(encKeysize)
+					encryptionHeader.IV = iv
+
+					if len(dataBuffer) < dataBufferSize {
+						// resize
+						dataBuffer = make([]byte, dataBufferSize)
+					}
+
+					// size is different as data is encrypted
+					if len(encryptedDataBuffer) < dataBufferSize*2 {
+						encryptedDataBuffer = make([]byte, dataBufferSize*2)
+					}
+
+					// read data
+					readLen, err := f.ReadAt(dataBuffer, curOffset)
+
+					//logger.Debugf("read offset %d, len %d", curOffset, readLen)
+					if readLen > 0 {
+						// encrypt
+						encLen, encErr := conn.Encrypt(iv, dataBuffer[:readLen], encryptedDataBuffer)
+						if encErr != nil {
+							return false, xerrors.Errorf("failed to encrypt data: %w", encErr)
+						}
+
+						//logger.Debugf("read offset %d, original len %d, encrypted len %d", curOffset, readLen, encLen)
+						encryptionHeader.Length = encLen + encKeysize
+
+						encryptionHeaderBuffer, getBytesErr := encryptionHeader.GetBytes()
+						if getBytesErr != nil {
+							return false, xerrors.Errorf("failed to get bytes from transfer encryption header: %w", getBytesErr)
+						}
+
+						//logger.Debugf("sending encryption header, header len %d, content len %d", len(encryptionHeaderBuffer), encryptionHeader.Length)
+						sendErr := conn.Send(encryptionHeaderBuffer, len(encryptionHeaderBuffer))
+						if sendErr != nil {
+							return false, xerrors.Errorf("failed to write transfer encryption header to resource server: %w", sendErr)
+						}
+
+						//logger.Debugf("sending encrypted data")
+						encryptedDataLen := encryptionHeader.Length - encKeysize
+						writeErr := conn.Send(encryptedDataBuffer, encryptedDataLen)
+						if writeErr != nil {
+							return false, xerrors.Errorf("failed to write data to %q, task %d, offset %d: %w", handle.Path, taskID, curOffset, writeErr)
+						}
+
+						//logger.Debugf("sent encrypted data")
+						uploadedBytes += int64(readLen)
+
+						if callback != nil {
+							taskInfo.ProcessedLength = uploadedBytes
+
+							callback(&taskInfo, &fileInfo)
+						}
+
+						toPut -= int64(readLen)
+						curOffset += int64(readLen)
+					}
+
+					if err != nil {
+						if err == io.EOF {
+							return false, nil
+						}
+						return false, xerrors.Errorf("failed to read data %q, task %d, offset %d: %w", localPath, taskID, curOffset, err)
+					}
+				} else {
+					// normal
+					// write data
+					newOffset, err := f.Seek(curOffset, io.SeekStart)
+					if err != nil {
+						return false, xerrors.Errorf("failed to seek to offset %d for file %q, task %d: %w", curOffset, localPath, taskID, err)
+					}
+
+					if newOffset != curOffset {
+						return false, xerrors.Errorf("failed to seek to offset %d for file %q, task %d, new offset %d: %w", curOffset, localPath, taskID, newOffset, err)
+					}
+
+					putLen, err := conn.SendFromReader(f, toPut)
+					if putLen > 0 {
+						uploadedBytes += int64(putLen)
+
+						if callback != nil {
+							taskInfo.ProcessedLength = uploadedBytes
+
+							callback(&taskInfo, &fileInfo)
+						}
+
+						toPut -= putLen
+						curOffset += putLen
+					}
+
+					if err != nil {
+						if err == io.EOF {
+							return false, nil
+						}
+						return false, xerrors.Errorf("failed to write data %q, task %d, offset %d: %w", localPath, taskID, transferHeader.Offset, err)
+					}
+				}
+			}
+
+			return true, nil // continue
 		}
 
-		err = transferHeader.FromBytes(headerBuffer[:readLen])
-		if err != nil {
-			return xerrors.Errorf("failed to read transfer header from resource server: %w", err)
+		cont, transferTaskErr := transferTask(subTaskID)
+		if transferTaskErr != nil {
+			return transferTaskErr
 		}
 
-		if transferHeader.OperationType == int(common.OPER_TYPE_DONE) {
-			// break
-			logger.Debugf("done uploading file chunk for %s, task %d, offset %d, length %d", handle.Path, taskID, transferHeader.Offset, transferHeader.Length)
+		if !cont {
 			break
-		} else if transferHeader.OperationType != int(common.OPER_TYPE_PUT_DATA_OBJ) {
-			return xerrors.Errorf("invalid operation type %d received for transfer", transferHeader.OperationType)
 		}
 
-		logger.Debugf("uploading file chunk for %s, task %d, offset %d, length %d", handle.Path, taskID, transferHeader.Offset, transferHeader.Length)
-
-		toPut := transferHeader.Length
-		curOffset := transferHeader.Offset
-		for toPut > 0 {
-			// read encryption header
-			if controlConnection.IsSSL() {
-				// init iv
-				encAlg := types.GetEncryptionAlgorithm(encConfig.EncryptionAlgorithm)
-				encIV, err := util.GetEncryptionIV(encAlg)
-				if err != nil {
-					return xerrors.Errorf("failed to get encryption iv: %w", err)
-				}
-
-				iv := make([]byte, encKeysize)
-				copy(iv, encIV)
-
-				encryptionHeader := message.NewIRODSMessageResourceServerTransferEncryptionHeader(encKeysize)
-				encryptionHeader.IV = iv
-
-				if len(dataBuffer) < dataBufferSize {
-					// resize
-					dataBuffer = make([]byte, dataBufferSize)
-				}
-
-				// size is different as data is encrypted
-				if len(encryptedDataBuffer) < dataBufferSize*2 {
-					encryptedDataBuffer = make([]byte, dataBufferSize*2)
-				}
-
-				// read data
-				eof := false
-				readLen, err := f.ReadAt(dataBuffer, curOffset)
-
-				//logger.Debugf("read offset %d, len %d", curOffset, readLen)
-				if readLen > 0 {
-					// encrypt
-					encLen, encErr := conn.Encrypt(iv, dataBuffer[:readLen], encryptedDataBuffer)
-					if encErr != nil {
-						return xerrors.Errorf("failed to encrypt data: %w", encErr)
-					}
-
-					//logger.Debugf("read offset %d, original len %d, encrypted len %d", curOffset, readLen, encLen)
-					encryptionHeader.Length = encLen + encKeysize
-				}
-
-				if err != nil {
-					if err == io.EOF {
-						eof = true
-						cont = false
-					} else {
-						return xerrors.Errorf("failed to read data %q, task %d, offset %d: %w", localPath, taskID, curOffset, err)
-					}
-				}
-
-				encryptionHeaderBuffer, err := encryptionHeader.GetBytes()
-				if err != nil {
-					return xerrors.Errorf("failed to get bytes from transfer encryption header: %w", err)
-				}
-
-				//logger.Debugf("sending encryption header, header len %d, content len %d", len(encryptionHeaderBuffer), encryptionHeader.Length)
-				err = conn.Send(encryptionHeaderBuffer, len(encryptionHeaderBuffer))
-				if err != nil {
-					return xerrors.Errorf("failed to write transfer encryption header to resource server: %w", err)
-				}
-
-				//logger.Debugf("sending encrypted data")
-				encryptedDataLen := encryptionHeader.Length - encKeysize
-				writeErr := conn.Send(encryptedDataBuffer, encryptedDataLen)
-				if writeErr != nil {
-					return xerrors.Errorf("failed to write data to %q, task %d, offset %d: %w", handle.Path, taskID, curOffset, writeErr)
-				}
-
-				//logger.Debugf("sent encrypted data")
-
-				atomic.AddInt64(&totalBytesUploaded, int64(readLen))
-				if callback != nil {
-					callback(totalBytesUploaded, -1)
-				}
-
-				toPut -= int64(readLen)
-				curOffset += int64(readLen)
-
-				if eof {
-					break
-				}
-			} else {
-				// normal
-				// write data
-				newOffset, err := f.Seek(curOffset, io.SeekStart)
-				if err != nil {
-					return xerrors.Errorf("failed to seek to offset %d for file %q, task %d: %w", curOffset, localPath, taskID, err)
-				}
-
-				if newOffset != curOffset {
-					return xerrors.Errorf("failed to seek to offset %d for file %q, task %d, new offset %d: %w", curOffset, localPath, taskID, newOffset, err)
-				}
-
-				eof := false
-				putLen, err := conn.SendFromReader(f, toPut)
-				atomic.AddInt64(&totalBytesUploaded, putLen)
-				if callback != nil {
-					callback(totalBytesUploaded, -1)
-				}
-
-				if err != nil {
-					if err == io.EOF {
-						eof = true
-						cont = false
-					} else {
-						return xerrors.Errorf("failed to write data %q, task %d, offset %d: %w", localPath, taskID, transferHeader.Offset, err)
-					}
-				}
-
-				toPut -= putLen
-				curOffset += putLen
-
-				if eof {
-					break
-				}
-			}
-		}
+		subTaskID++
 	}
 
 	logger.Debugf("uploaded data object %q, task %d", handle.Path, taskID)
@@ -598,7 +746,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 }
 
 // DownloadDataObjectFromResourceServer downloads a data object at the iRODS path to the local path
-func DownloadDataObjectFromResourceServer(session *session.IRODSSession, irodsPath string, resource string, localPath string, fileLength int64, taskNum int, keywords map[common.KeyWord]string, callback common.TrackerCallBack) (string, error) {
+func DownloadDataObjectFromResourceServer(session *session.IRODSSession, irodsPath string, resource string, localPath string, fileLength int64, taskNum int, keywords map[common.KeyWord]string, callback types.TrackerCallBack) (string, error) {
 	logger := log.WithFields(log.Fields{
 		"package":  "fs",
 		"function": "DownloadDataObjectFromResourceServer",
@@ -612,14 +760,37 @@ func DownloadDataObjectFromResourceServer(session *session.IRODSSession, irodsPa
 		resource = account.DefaultResource
 	}
 
+	fileInfo := types.TrackerFileInfo{
+		FileName:   irodsPath,
+		FileLength: fileLength,
+	}
+
 	if fileLength == 0 {
 		// empty file
 		// create an empty file
+		taskInfo := types.TrackerTaskInfo{
+			TaskID:          0,
+			SubTaskID:       0,
+			TasksTotal:      0,
+			StartOffset:     0,
+			Length:          0,
+			ProcessedLength: 0,
+			Terminated:      true,
+		}
+
 		f, err := os.Create(localPath)
 		if err != nil {
+			if callback != nil {
+				callback(&taskInfo, &fileInfo)
+			}
+
 			return "", xerrors.Errorf("failed to create file %q: %w", localPath, err)
 		}
 		f.Close()
+
+		if callback != nil {
+			callback(&taskInfo, &fileInfo)
+		}
 		return "", nil
 	}
 
@@ -635,11 +806,38 @@ func DownloadDataObjectFromResourceServer(session *session.IRODSSession, irodsPa
 
 	conn, err := session.AcquireConnection()
 	if err != nil {
+		if callback != nil {
+			taskInfo := types.TrackerTaskInfo{
+				TaskID:          0,
+				SubTaskID:       0,
+				TasksTotal:      0,
+				StartOffset:     0,
+				Length:          fileLength,
+				ProcessedLength: 0,
+				Terminated:      true,
+			}
+			callback(&taskInfo, &fileInfo)
+		}
+
 		return "", xerrors.Errorf("failed to get connection: %w", err)
 	}
 
 	if conn == nil || !conn.IsConnected() {
 		session.ReturnConnection(conn)
+
+		if callback != nil {
+			taskInfo := types.TrackerTaskInfo{
+				TaskID:          0,
+				SubTaskID:       0,
+				TasksTotal:      0,
+				StartOffset:     0,
+				Length:          fileLength,
+				ProcessedLength: 0,
+				Terminated:      true,
+			}
+			callback(&taskInfo, &fileInfo)
+		}
+
 		return "", xerrors.Errorf("connection is nil or disconnected")
 	}
 
@@ -648,6 +846,20 @@ func DownloadDataObjectFromResourceServer(session *session.IRODSSession, irodsPa
 		logger.WithError(err).Debugf("failed to get redirection info for data object %q, switch to DownloadDataObjectParallel", irodsPath)
 
 		session.ReturnConnection(conn)
+
+		if callback != nil {
+			taskInfo := types.TrackerTaskInfo{
+				TaskID:          0,
+				SubTaskID:       0,
+				TasksTotal:      0,
+				StartOffset:     0,
+				Length:          fileLength,
+				ProcessedLength: 0,
+				Terminated:      true,
+			}
+			callback(&taskInfo, &fileInfo)
+		}
+
 		return "", DownloadDataObjectParallel(session, irodsPath, resource, localPath, fileLength, 0, keywords, callback)
 	}
 
@@ -670,17 +882,25 @@ func DownloadDataObjectFromResourceServer(session *session.IRODSSession, irodsPa
 		// create an empty file
 		f, err := os.Create(localPath)
 		if err != nil {
+			if callback != nil {
+				taskInfo := types.TrackerTaskInfo{
+					TaskID:          0,
+					SubTaskID:       0,
+					TasksTotal:      0,
+					StartOffset:     0,
+					Length:          fileLength,
+					ProcessedLength: 0,
+					Terminated:      true,
+				}
+				callback(&taskInfo, &fileInfo)
+			}
+
 			return "", xerrors.Errorf("failed to create file %q: %w", localPath, err)
 		}
 		f.Close()
 
 		errChan := make(chan error, handle.Threads)
 		taskWaitGroup := sync.WaitGroup{}
-
-		totalBytesDownloaded := int64(0)
-		if callback != nil {
-			callback(totalBytesDownloaded, fileLength)
-		}
 
 		// task progress
 		taskProgress := make([]int64, handle.Threads)
@@ -690,20 +910,7 @@ func DownloadDataObjectFromResourceServer(session *session.IRODSSession, irodsPa
 
 			defer taskWaitGroup.Done()
 
-			blockReadCallback := func(processed int64, total int64) {
-				if processed > 0 {
-					delta := processed - taskProgress[taskID]
-					taskProgress[taskID] = processed
-
-					atomic.AddInt64(&totalBytesDownloaded, int64(delta))
-
-					if callback != nil {
-						callback(totalBytesDownloaded, fileLength)
-					}
-				}
-			}
-
-			err = downloadDataObjectChunkFromResourceServer(session, taskID, conn, handle, localPath, blockReadCallback)
+			err = downloadDataObjectChunkFromResourceServer(session, taskID, conn, handle, localPath, callback)
 			if err != nil {
 				dnErr := xerrors.Errorf("failed to download data object chunk %q from resource server: %w", irodsPath, err)
 				errChan <- dnErr
