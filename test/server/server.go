@@ -170,5 +170,5 @@ func (server *IRODSTestServer) GetFileSystem() (*irods_fs.FileSystem, error) {
 
 func (server *IRODSTestServer) GetHomeDir() string {
 	account := server.GetAccountCopy()
-	return fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
+	return account.GetHomeDirPath()
 }

@@ -143,6 +143,11 @@ func (fs *FileSystem) GetServerVersion() (*types.IRODSVersion, error) {
 	return conn.GetVersion(), nil
 }
 
+// GetHomeDirPath returns the home directory path
+func (fs *FileSystem) GetHomeDirPath() string {
+	return fs.account.GetHomeDirPath()
+}
+
 // SupportParallelUpload returns if the server supports parallel upload
 func (fs *FileSystem) SupportParallelUpload() bool {
 	return fs.metadataSession.SupportParallelUpload()

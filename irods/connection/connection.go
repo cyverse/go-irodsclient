@@ -1072,7 +1072,7 @@ func (conn *IRODSConnection) PoorMansRollback() error {
 		return xerrors.Errorf("connection must be locked before use")
 	}
 
-	dummyCol := fmt.Sprintf("/%s/home/%s", conn.account.ProxyZone, conn.account.ProxyUser)
+	dummyCol := conn.account.GetHomeDirPath()
 
 	return conn.poorMansEndTransaction(dummyCol, false)
 }

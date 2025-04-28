@@ -1,6 +1,7 @@
 package types
 
 import (
+	"fmt"
 	"regexp"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
@@ -137,6 +138,11 @@ func (account *IRODSAccount) UseProxyAccess() bool {
 // UseTicket returns whether it uses ticket for access control
 func (account *IRODSAccount) UseTicket() bool {
 	return len(account.Ticket) > 0
+}
+
+// GetHomeDirPath returns user's home directory path
+func (account *IRODSAccount) GetHomeDirPath() string {
+	return fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
 }
 
 // Validate validates iRODS account
