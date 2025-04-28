@@ -141,6 +141,39 @@ func (fs *FileSystem) DeleteMetadataByName(irodsPath string, attName string) err
 	return nil
 }
 
+// DeleteMetadataByAVU deletes a metadata for the path by AVU
+func (fs *FileSystem) DeleteMetadataByAVU(irodsPath string, attName string, attValue string, attUnits string) error {
+	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
+
+	metadata := &types.IRODSMeta{
+		AVUID: 0,
+		Name:  attName,
+		Value: attValue,
+		Units: attUnits,
+	}
+
+	conn, err := fs.metadataSession.AcquireConnection()
+	if err != nil {
+		return err
+	}
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
+
+	if fs.ExistsDir(irodsCorrectPath) {
+		err = irods_fs.DeleteCollectionMeta(conn, irodsCorrectPath, metadata)
+		if err != nil {
+			return err
+		}
+	} else {
+		err = irods_fs.DeleteDataObjectMeta(conn, irodsCorrectPath, metadata)
+		if err != nil {
+			return err
+		}
+	}
+
+	fs.cache.RemoveMetadataCache(irodsCorrectPath)
+	return nil
+}
+
 // AddUserMetadata adds a user metadata
 func (fs *FileSystem) AddUserMetadata(username string, zoneName string, attName string, attValue string, attUnits string) error {
 	metadata := &types.IRODSMeta{
@@ -204,6 +237,29 @@ func (fs *FileSystem) DeleteUserMetadataByName(username string, zoneName string,
 	return nil
 }
 
+// DeleteUserMetadataByAVU deletes a user metadata by AVU
+func (fs *FileSystem) DeleteUserMetadataByAVU(username string, zoneName string, attName string, attValue string, attUnits string) error {
+	metadata := &types.IRODSMeta{
+		AVUID: 0,
+		Name:  attName,
+		Value: attValue,
+		Units: attUnits,
+	}
+
+	conn, err := fs.metadataSession.AcquireConnection()
+	if err != nil {
+		return err
+	}
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
+
+	err = irods_fs.DeleteUserMeta(conn, username, zoneName, metadata)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // ListUserMetadata lists all user metadata
 func (fs *FileSystem) ListUserMetadata(username string, zoneName string) ([]*types.IRODSMeta, error) {
 	conn, err := fs.metadataSession.AcquireConnection()
@@ -221,7 +277,7 @@ func (fs *FileSystem) ListUserMetadata(username string, zoneName string) ([]*typ
 }
 
 // AddResourceMetadata adds a resource metadata
-func (fs *FileSystem) AddResourceMetadata(resource string, attName, attValue, attUnits string) error {
+func (fs *FileSystem) AddResourceMetadata(resource string, attName string, attValue string, attUnits string) error {
 	metadata := &types.IRODSMeta{
 		Name:  attName,
 		Value: attValue,
@@ -267,6 +323,29 @@ func (fs *FileSystem) DeleteResourceMetadataByName(resource string, attName stri
 	metadata := &types.IRODSMeta{
 		AVUID: 0,
 		Name:  attName,
+	}
+
+	conn, err := fs.metadataSession.AcquireConnection()
+	if err != nil {
+		return err
+	}
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
+
+	err = irods_fs.DeleteResourceMeta(conn, resource, metadata)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DeleteResourceMetadataByAVU deletes a resource metadata by AVU
+func (fs *FileSystem) DeleteResourceMetadataByAVU(resource string, attName string, attValue string, attUnits string) error {
+	metadata := &types.IRODSMeta{
+		AVUID: 0,
+		Name:  attName,
+		Value: attValue,
+		Units: attUnits,
 	}
 
 	conn, err := fs.metadataSession.AcquireConnection()
