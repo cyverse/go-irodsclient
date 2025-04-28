@@ -140,8 +140,16 @@ func (account *IRODSAccount) UseTicket() bool {
 	return len(account.Ticket) > 0
 }
 
+func (account *IRODSAccount) IsAnonymousUser() bool {
+	return account.ClientUser == "anonymous"
+}
+
 // GetHomeDirPath returns user's home directory path
 func (account *IRODSAccount) GetHomeDirPath() string {
+	if account.IsAnonymousUser() {
+		return fmt.Sprintf("/%s/home", account.ClientZone)
+	}
+
 	return fmt.Sprintf("/%s/home/%s", account.ClientZone, account.ClientUser)
 }
 

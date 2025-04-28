@@ -88,7 +88,7 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 
 	// set transaction config
 	// when the user is anonymous, we cannot use transaction since we don't have access to home dir
-	if sess.account.ClientUser == "anonymous" {
+	if sess.account.IsAnonymousUser() {
 		sess.commitFail = true
 		sess.poormansRollbackFail = true
 	}
