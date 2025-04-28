@@ -97,6 +97,16 @@ func (fs *FileSystem) GetID() string {
 	return fs.id
 }
 
+// GetAccount returns IRODS account
+func (fs *FileSystem) GetAccount() *types.IRODSAccount {
+	return fs.account
+}
+
+// GetConfig returns file system config
+func (fs *FileSystem) GetConfig() *FileSystemConfig {
+	return fs.config
+}
+
 // GetIOConnection returns irods connection for IO
 func (fs *FileSystem) GetIOConnection() (*connection.IRODSConnection, error) {
 	return fs.ioSession.AcquireConnection()
