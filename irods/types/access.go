@@ -122,8 +122,8 @@ func (access *IRODSAccess) ToString() string {
 
 // IRODSAccessInheritance contains irods access inheritance information
 type IRODSAccessInheritance struct {
-	Path        string
-	Inheritance bool
+	Path        string `json:"path"`
+	Inheritance bool   `json:"inheritance"`
 }
 
 // ToString stringifies the object
