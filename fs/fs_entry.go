@@ -19,17 +19,17 @@ const (
 
 // Entry is a struct for filesystem entry
 type Entry struct {
-	ID                int64
-	Type              EntryType
-	Name              string
-	Path              string
-	Owner             string
-	Size              int64
-	DataType          string
-	CreateTime        time.Time
-	ModifyTime        time.Time
-	CheckSumAlgorithm types.ChecksumAlgorithm
-	CheckSum          []byte
+	ID                int64                   `json:"id"`
+	Type              EntryType               `json:"type"`
+	Name              string                  `json:"name"`
+	Path              string                  `json:"path"`
+	Owner             string                  `json:"owner"`
+	Size              int64                   `json:"size"`
+	DataType          string                  `json:"data_type"`
+	CreateTime        time.Time               `json:"create_time"`
+	ModifyTime        time.Time               `json:"modify_time"`
+	CheckSumAlgorithm types.ChecksumAlgorithm `json:"checksum_algorithm"`
+	CheckSum          []byte                  `json:"checksum"`
 }
 
 // ToString stringifies the object

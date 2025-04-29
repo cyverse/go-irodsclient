@@ -7,11 +7,11 @@ import (
 // IRODSTicketRestrictions contains irods ticket restriction information
 type IRODSTicketRestrictions struct {
 	// AllowedHosts is a list of allowed hosts
-	AllowedHosts []string
+	AllowedHosts []string `json:"allowed_hosts"`
 	// AllowedUserName is a list of allowed user names
-	AllowedUserNames []string
+	AllowedUserNames []string `json:"allowed_user_names"`
 	// AllowedGroupNames is a list of allowed group names
-	AllowedGroupNames []string
+	AllowedGroupNames []string `json:"allowed_group_names"`
 }
 
 // ToString stringifies the object

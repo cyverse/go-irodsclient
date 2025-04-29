@@ -19,16 +19,16 @@ const (
 
 // FileTransferResult a file transfer result
 type FileTransferResult struct {
-	IRODSCheckSumAlgorithm types.ChecksumAlgorithm
-	IRODSPath              string
-	IRODSCheckSum          []byte
-	IRODSSize              int64
-	LocalCheckSumAlgorithm types.ChecksumAlgorithm
-	LocalPath              string
-	LocalCheckSum          []byte
-	LocalSize              int64
-	StartTime              time.Time
-	EndTime                time.Time
+	IRODSCheckSumAlgorithm types.ChecksumAlgorithm `json:"irods_checksum_algorithm"`
+	IRODSPath              string                  `json:"irods_path"`
+	IRODSCheckSum          []byte                  `json:"irods_checksum"`
+	IRODSSize              int64                   `json:"irods_size"`
+	LocalCheckSumAlgorithm types.ChecksumAlgorithm `json:"local_checksum_algorithm"`
+	LocalPath              string                  `json:"local_path"`
+	LocalCheckSum          []byte                  `json:"local_checksum"`
+	LocalSize              int64                   `json:"local_size"`
+	StartTime              time.Time               `json:"start_time"`
+	EndTime                time.Time               `json:"end_time"`
 }
 
 // DownloadFile downloads a file to local
