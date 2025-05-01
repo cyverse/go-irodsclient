@@ -951,7 +951,7 @@ func (fs *FileSystem) listEntries(collPath string) ([]*Entry, error) {
 		fs.cache.AddEntryCache(entry)
 	}
 
-	dataobjects, err := irods_fs.ListDataObjectsMasterReplica(conn, collPath)
+	dataobjects, err := irods_fs.ListDataObjects(conn, collPath)
 	if err != nil {
 		return nil, err
 	}
