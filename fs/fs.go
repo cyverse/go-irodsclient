@@ -292,7 +292,7 @@ func (fs *FileSystem) SearchUnixWildcard(pathUnixWildcard string) ([]*Entry, err
 	}
 
 	for _, entry := range collEntries {
-		results = append(results, fs.getEntryFromCollection(entry))
+		results = append(results, NewEntryFromCollection(entry))
 	}
 
 	objectEntries, err := irods_fs.SearchDataObjectsMasterReplicaUnixWildcard(conn, pathUnixWildcard)
@@ -301,7 +301,7 @@ func (fs *FileSystem) SearchUnixWildcard(pathUnixWildcard string) ([]*Entry, err
 	}
 
 	for _, entry := range objectEntries {
-		results = append(results, fs.getEntryFromDataObject(entry))
+		results = append(results, NewEntryFromDataObject(entry))
 	}
 
 	return results, nil
@@ -322,7 +322,7 @@ func (fs *FileSystem) SearchDirUnixWildcard(pathUnixWildcard string) ([]*Entry, 
 	}
 
 	for _, entry := range collEntries {
-		results = append(results, fs.getEntryFromCollection(entry))
+		results = append(results, NewEntryFromCollection(entry))
 	}
 
 	return results, nil
@@ -343,7 +343,7 @@ func (fs *FileSystem) SearchFileUnixWildcard(pathUnixWildcard string) ([]*Entry,
 	}
 
 	for _, entry := range objectEntries {
-		results = append(results, fs.getEntryFromDataObject(entry))
+		results = append(results, NewEntryFromDataObject(entry))
 	}
 
 	return results, nil
@@ -873,7 +873,7 @@ func (fs *FileSystem) getCollectionNoCache(irodsPath string) (*Entry, error) {
 	}
 
 	if collection.ID > 0 {
-		entry := fs.getEntryFromCollection(collection)
+		entry := NewEntryFromCollection(collection)
 
 		// cache it
 		fs.cache.RemoveNegativeEntryCache(irodsPath)
@@ -898,60 +898,6 @@ func (fs *FileSystem) getCollection(irodsPath string) (*Entry, error) {
 
 	// otherwise, retrieve it and add it to cache
 	return fs.getCollectionNoCache(irodsPath)
-}
-
-// getCollectionFromEntry returns collection from entry
-func (fs *FileSystem) getCollectionFromEntry(entry *Entry) *types.IRODSCollection {
-	return &types.IRODSCollection{
-		ID:         entry.ID,
-		Path:       entry.Path,
-		Name:       entry.Name,
-		Owner:      entry.Owner,
-		CreateTime: entry.CreateTime,
-		ModifyTime: entry.ModifyTime,
-	}
-}
-
-func (fs *FileSystem) getEntryFromCollection(collection *types.IRODSCollection) *Entry {
-	return &Entry{
-		ID:                collection.ID,
-		Type:              DirectoryEntry,
-		Name:              collection.Name,
-		Path:              collection.Path,
-		Owner:             collection.Owner,
-		Size:              0,
-		DataType:          "",
-		CreateTime:        collection.CreateTime,
-		ModifyTime:        collection.ModifyTime,
-		CheckSumAlgorithm: types.ChecksumAlgorithmUnknown,
-		CheckSum:          nil,
-	}
-}
-
-func (fs *FileSystem) getEntryFromDataObject(dataobject *types.IRODSDataObject) *Entry {
-	checksum := dataobject.Replicas[0].Checksum
-
-	checksumAlgorithm := types.ChecksumAlgorithmUnknown
-	var checksumString []byte
-
-	if checksum != nil && len(checksum.Checksum) > 0 {
-		checksumAlgorithm = checksum.Algorithm
-		checksumString = checksum.Checksum
-	}
-
-	return &Entry{
-		ID:                dataobject.ID,
-		Type:              FileEntry,
-		Name:              dataobject.Name,
-		Path:              dataobject.Path,
-		Owner:             dataobject.Replicas[0].Owner,
-		Size:              dataobject.Size,
-		DataType:          dataobject.DataType,
-		CreateTime:        dataobject.Replicas[0].CreateTime,
-		ModifyTime:        dataobject.Replicas[0].ModifyTime,
-		CheckSumAlgorithm: checksumAlgorithm,
-		CheckSum:          checksumString,
-	}
 }
 
 // listEntries lists entries in a collection
@@ -997,7 +943,7 @@ func (fs *FileSystem) listEntries(collPath string) ([]*Entry, error) {
 	entries := []*Entry{}
 
 	for _, coll := range collections {
-		entry := fs.getEntryFromCollection(coll)
+		entry := NewEntryFromCollection(coll)
 		entries = append(entries, entry)
 
 		// cache it
@@ -1015,7 +961,7 @@ func (fs *FileSystem) listEntries(collPath string) ([]*Entry, error) {
 			continue
 		}
 
-		entry := fs.getEntryFromDataObject(dataobject)
+		entry := NewEntryFromDataObject(dataobject)
 		entries = append(entries, entry)
 
 		// cache it
@@ -1041,7 +987,7 @@ func (fs *FileSystem) getDataObjectWithConnectionNoCache(conn *connection.IRODSC
 	}
 
 	if dataobject.ID > 0 {
-		entry := fs.getEntryFromDataObject(dataobject)
+		entry := NewEntryFromDataObject(dataobject)
 
 		// cache it
 		fs.cache.RemoveNegativeEntryCache(irodsPath)
@@ -1083,7 +1029,7 @@ func (fs *FileSystem) getDataObjectNoCache(irodsPath string) (*Entry, error) {
 	}
 
 	if dataobject.ID > 0 {
-		entry := fs.getEntryFromDataObject(dataobject)
+		entry := NewEntryFromDataObject(dataobject)
 
 		// cache it
 		fs.cache.RemoveNegativeEntryCache(irodsPath)

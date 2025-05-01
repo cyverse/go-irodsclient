@@ -394,7 +394,7 @@ func (fs *FileSystem) searchEntriesByMeta(metaName string, metaValue string) ([]
 	entries := []*Entry{}
 
 	for _, coll := range collections {
-		entry := fs.getEntryFromCollection(coll)
+		entry := NewEntryFromCollection(coll)
 		entries = append(entries, entry)
 
 		// cache it
@@ -412,7 +412,7 @@ func (fs *FileSystem) searchEntriesByMeta(metaName string, metaValue string) ([]
 			continue
 		}
 
-		entry := fs.getEntryFromDataObject(dataobject)
+		entry := NewEntryFromDataObject(dataobject)
 		entries = append(entries, entry)
 
 		// cache it

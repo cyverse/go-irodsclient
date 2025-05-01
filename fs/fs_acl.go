@@ -270,7 +270,7 @@ func (fs *FileSystem) listACLsForEntries(collPath string) ([]*types.IRODSAccess,
 		entries := []*Entry{}
 
 		for _, coll := range collections {
-			entry := fs.getEntryFromCollection(coll)
+			entry := NewEntryFromCollection(coll)
 			entries = append(entries, entry)
 
 			// cache it
@@ -288,7 +288,7 @@ func (fs *FileSystem) listACLsForEntries(collPath string) ([]*types.IRODSAccess,
 				continue
 			}
 
-			entry := fs.getEntryFromDataObject(dataobject)
+			entry := NewEntryFromDataObject(dataobject)
 			entries = append(entries, entry)
 
 			// cache it
