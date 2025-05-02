@@ -295,7 +295,7 @@ func (fs *FileSystem) SearchUnixWildcard(pathUnixWildcard string) ([]*Entry, err
 		results = append(results, NewEntryFromCollection(entry))
 	}
 
-	objectEntries, err := irods_fs.SearchDataObjectsMasterReplicaUnixWildcard(conn, pathUnixWildcard)
+	objectEntries, err := irods_fs.SearchDataObjectsUnixWildcard(conn, pathUnixWildcard)
 	if err != nil {
 		return nil, err
 	}
