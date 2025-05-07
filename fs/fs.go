@@ -337,7 +337,7 @@ func (fs *FileSystem) SearchFileUnixWildcard(pathUnixWildcard string) ([]*Entry,
 
 	results := []*Entry{}
 
-	objectEntries, err := irods_fs.SearchDataObjectsMasterReplicaUnixWildcard(conn, pathUnixWildcard)
+	objectEntries, err := irods_fs.SearchDataObjectsUnixWildcard(conn, pathUnixWildcard)
 	if err != nil {
 		return nil, err
 	}
@@ -981,7 +981,7 @@ func (fs *FileSystem) listEntries(collPath string) ([]*Entry, error) {
 
 // getDataObjectWithConnectionNoCache returns an entry for data object
 func (fs *FileSystem) getDataObjectWithConnectionNoCache(conn *connection.IRODSConnection, irodsPath string) (*Entry, error) {
-	dataobject, err := irods_fs.GetDataObjectMasterReplica(conn, irodsPath)
+	dataobject, err := irods_fs.GetDataObject(conn, irodsPath)
 	if err != nil {
 		return nil, err
 	}
@@ -1023,7 +1023,7 @@ func (fs *FileSystem) getDataObjectNoCache(irodsPath string) (*Entry, error) {
 	}
 	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
-	dataobject, err := irods_fs.GetDataObjectMasterReplica(conn, irodsPath)
+	dataobject, err := irods_fs.GetDataObject(conn, irodsPath)
 	if err != nil {
 		return nil, err
 	}
