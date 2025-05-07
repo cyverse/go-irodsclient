@@ -223,6 +223,38 @@ func (fs *FileSystem) ListFileACLsWithGroupMembers(path string) ([]*types.IRODSA
 	return newAccesses, nil
 }
 
+// ChangeACLs changes ACLs of a file or directory
+func (fs *FileSystem) ChangeACLs(path string, access types.IRODSAccessLevelType, userName string, zoneName string, recursive bool, adminFlag bool) error {
+	conn, err := fs.metadataSession.AcquireConnection()
+	if err != nil {
+		return err
+	}
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
+
+	err = irods_fs.ChangeAccess(conn, path, access, userName, zoneName, recursive, adminFlag)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ChangeDirACLInheritance changes ACL inheritance of a directory
+func (fs *FileSystem) ChangeDirACLInheritance(path string, inherit bool, recursive bool, adminFlag bool) error {
+	conn, err := fs.metadataSession.AcquireConnection()
+	if err != nil {
+		return err
+	}
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
+
+	err = irods_fs.ChangeAccessInherit(conn, path, inherit, recursive, adminFlag)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // listACLsForEntries lists ACLs for entries in a collection
 func (fs *FileSystem) listACLsForEntries(collPath string) ([]*types.IRODSAccess, error) {
 	// check cache first
