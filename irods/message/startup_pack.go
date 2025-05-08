@@ -40,7 +40,7 @@ func NewIRODSMessageStartupPack(account *types.IRODSAccount, option string, requ
 	}
 
 	return &IRODSMessageStartupPack{
-		Protocol:        1,
+		Protocol:        1, // XML protocol
 		ReleaseVersion:  fmt.Sprintf("rods%s", common.IRODSVersionRelease),
 		APIVersion:      common.IRODSVersionAPI,
 		ConnectionCount: 0,

@@ -681,7 +681,7 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 
 			if taskConn.IsSocketFailed() {
 				// retry
-				taskLogger.Debugf("socket failed, retrying...")
+				taskLogger.WithError(trialErr).Errorf("socket failed, retrying...")
 
 				// return old connection
 				session.ReturnConnection(taskConn)
@@ -961,7 +961,7 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 
 			if taskConn.IsSocketFailed() {
 				// retry
-				taskLogger.Debugf("socket failed, retrying...")
+				taskLogger.WithError(trialErr).Errorf("socket failed, retrying...")
 
 				// return old connection
 				session.ReturnConnection(taskConn)
