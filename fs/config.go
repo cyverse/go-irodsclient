@@ -103,38 +103,36 @@ func NewFileSystemConfig(applicationName string) *FileSystemConfig {
 
 // ToMetadataSessionConfig creates a IRODSSessionConfig from FileSystemConfig
 func (config *FileSystemConfig) ToMetadataSessionConfig() *session.IRODSSessionConfig {
-	sessionConfig := session.NewIRODSSessionConfig(config.ApplicationName)
+	return &session.IRODSSessionConfig{
+		ApplicationName: config.ApplicationName,
 
-	sessionConfig.ConnectionCreationTimeout = time.Duration(config.MetadataConnection.CreationTimeout)
-	sessionConfig.ConnectionInitNumber = config.MetadataConnection.InitNumber
-	sessionConfig.ConnectionLifespan = time.Duration(config.MetadataConnection.Lifespan)
-	sessionConfig.OperationTimeout = time.Duration(config.MetadataConnection.OperationTimeout)
-	sessionConfig.ConnectionIdleTimeout = time.Duration(config.MetadataConnection.IdleTimeout)
-	sessionConfig.ConnectionMaxNumber = config.MetadataConnection.MaxNumber
-	sessionConfig.ConnectionMaxIdleNumber = config.MetadataConnection.MaxIdleNumber
-	sessionConfig.TCPBufferSize = config.MetadataConnection.TCPBufferSize
-	sessionConfig.StartNewTransaction = config.Cache.StartNewTransaction
+		ConnectionCreationTimeout: time.Duration(config.MetadataConnection.CreationTimeout),
+		ConnectionInitNumber:      config.MetadataConnection.InitNumber,
+		ConnectionLifespan:        time.Duration(config.MetadataConnection.Lifespan),
+		ConnectionIdleTimeout:     time.Duration(config.MetadataConnection.IdleTimeout),
+		ConnectionMaxNumber:       config.MetadataConnection.MaxNumber,
+		ConnectionMaxIdleNumber:   config.MetadataConnection.MaxIdleNumber,
+		TcpBufferSize:             config.MetadataConnection.TCPBufferSize,
+		StartNewTransaction:       config.Cache.StartNewTransaction,
 
-	sessionConfig.AddressResolver = config.AddressResolver
-
-	return sessionConfig
+		AddressResolver: config.AddressResolver,
+	}
 }
 
 // ToIOSessionConfig creates a IRODSSessionConfig from FileSystemConfig
 func (config *FileSystemConfig) ToIOSessionConfig() *session.IRODSSessionConfig {
-	sessionConfig := session.NewIRODSSessionConfig(config.ApplicationName)
+	return &session.IRODSSessionConfig{
+		ApplicationName: config.ApplicationName,
 
-	sessionConfig.ConnectionCreationTimeout = time.Duration(config.IOConnection.CreationTimeout)
-	sessionConfig.ConnectionInitNumber = config.IOConnection.InitNumber
-	sessionConfig.ConnectionLifespan = time.Duration(config.IOConnection.Lifespan)
-	sessionConfig.OperationTimeout = time.Duration(config.IOConnection.OperationTimeout)
-	sessionConfig.ConnectionIdleTimeout = time.Duration(config.IOConnection.IdleTimeout)
-	sessionConfig.ConnectionMaxNumber = config.IOConnection.MaxNumber
-	sessionConfig.ConnectionMaxIdleNumber = config.IOConnection.MaxIdleNumber
-	sessionConfig.TCPBufferSize = config.IOConnection.TCPBufferSize
-	sessionConfig.StartNewTransaction = config.Cache.StartNewTransaction
+		ConnectionCreationTimeout: time.Duration(config.IOConnection.CreationTimeout),
+		ConnectionInitNumber:      config.IOConnection.InitNumber,
+		ConnectionLifespan:        time.Duration(config.IOConnection.Lifespan),
+		ConnectionIdleTimeout:     time.Duration(config.IOConnection.IdleTimeout),
+		ConnectionMaxNumber:       config.IOConnection.MaxNumber,
+		ConnectionMaxIdleNumber:   config.IOConnection.MaxIdleNumber,
+		TcpBufferSize:             config.IOConnection.TCPBufferSize,
+		StartNewTransaction:       config.Cache.StartNewTransaction,
 
-	sessionConfig.AddressResolver = config.AddressResolver
-
-	return sessionConfig
+		AddressResolver: config.AddressResolver,
+	}
 }

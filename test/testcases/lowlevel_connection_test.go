@@ -1,9 +1,7 @@
 package testcases
 
 import (
-	"fmt"
 	"testing"
-	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/types"
@@ -30,8 +28,10 @@ func testConnection(t *testing.T) {
 	account := server.GetAccountCopy()
 	account.CSNegotiationPolicy = types.CSNegotiationPolicyRequestDontCare
 
-	conn := connection.NewIRODSConnection(account, 300*time.Second, server.GetApplicationName())
-	err := conn.Connect()
+	conn, err := connection.NewIRODSConnection(account, server.GetConnectionConfig())
+	FailError(t, err)
+
+	err = conn.Connect()
 	FailError(t, err)
 	defer conn.Disconnect()
 
@@ -50,11 +50,9 @@ func testInvalidUsername(t *testing.T) {
 	account.ProxyUser = "test$def"
 	account.ClientUser = ""
 
-	conn := connection.NewIRODSConnection(account, 300*time.Second, server.GetApplicationName())
-	err := conn.Connect()
+	conn, err := connection.NewIRODSConnection(account, server.GetConnectionConfig())
 	assert.Error(t, err)
-	fmt.Println(err.Error())
-	defer conn.Disconnect()
+	assert.Nil(t, conn)
 }
 
 func testNegotiation(t *testing.T) {
@@ -65,8 +63,10 @@ func testNegotiation(t *testing.T) {
 	account.ClientServerNegotiation = true
 	account.CSNegotiationPolicy = types.CSNegotiationPolicyRequestTCP
 
-	conn := connection.NewIRODSConnection(account, 300*time.Second, server.GetApplicationName())
-	err := conn.Connect()
+	conn, err := connection.NewIRODSConnection(account, server.GetConnectionConfig())
+	FailError(t, err)
+
+	err = conn.Connect()
 	FailError(t, err)
 	defer conn.Disconnect()
 

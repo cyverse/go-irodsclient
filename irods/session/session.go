@@ -37,6 +37,27 @@ type IRODSSession struct {
 
 // NewIRODSSession create a IRODSSession
 func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*IRODSSession, error) {
+	if account == nil {
+		return nil, xerrors.Errorf("account is not set: %w", types.NewConnectionConfigError(nil))
+	}
+
+	// use default config if not set
+	if config == nil {
+		config = &IRODSSessionConfig{}
+	}
+
+	account.FixAuthConfiguration()
+	err := account.Validate()
+	if err != nil {
+		return nil, err
+	}
+
+	config.fillDefaults()
+	err = config.Validate()
+	if err != nil {
+		return nil, err
+	}
+
 	sess := IRODSSession{
 		account:           account,
 		config:            config,
@@ -66,18 +87,18 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 	}
 
 	poolConfig := ConnectionPoolConfig{
-		Account:          &poolAccount,
-		ApplicationName:  config.ApplicationName,
-		InitialCap:       config.ConnectionInitNumber,
-		MaxIdle:          config.ConnectionMaxIdleNumber,
-		MaxCap:           config.ConnectionMaxNumber,
-		Lifespan:         config.ConnectionLifespan,
-		IdleTimeout:      config.ConnectionIdleTimeout,
-		OperationTimeout: config.OperationTimeout,
-		TcpBufferSize:    config.TCPBufferSize,
+		ApplicationName: config.ApplicationName,
+		InitialCap:      config.ConnectionInitNumber,
+		MaxIdle:         config.ConnectionMaxIdleNumber,
+		MaxCap:          config.ConnectionMaxNumber,
+		Lifespan:        config.ConnectionLifespan,
+		IdleTimeout:     config.ConnectionIdleTimeout,
+		ConnectTimeout:  config.ConnectionCreationTimeout,
+		TcpBufferSize:   config.TcpBufferSize,
+		Metrics:         &sess.metrics,
 	}
 
-	pool, err := NewConnectionPool(&poolConfig, &sess.metrics)
+	pool, err := NewConnectionPool(&poolAccount, &poolConfig)
 	if err != nil {
 		sess.lastConnectionError = err
 		sess.lastConnectionErrorTime = time.Now()
@@ -401,8 +422,28 @@ func (sess *IRODSSession) AcquireUnmanagedConnection() (*connection.IRODSConnect
 	}
 
 	// create a new one
-	newConn := connection.NewIRODSConnection(sess.account, sess.config.OperationTimeout, sess.config.ApplicationName)
-	err := newConn.Connect()
+	// resolve host address
+	poolAccount := *sess.account
+	if sess.config.AddressResolver != nil {
+		poolAccount.Host = sess.config.AddressResolver(poolAccount.Host)
+	}
+
+	connConfig := &connection.IRODSConnectionConfig{
+		ConnectTimeout:  sess.config.ConnectionCreationTimeout,
+		ApplicationName: sess.config.ApplicationName,
+		TcpBufferSize:   sess.config.TcpBufferSize,
+		Metrics:         &sess.metrics,
+	}
+
+	newConn, err := connection.NewIRODSConnection(&poolAccount, connConfig)
+	if err != nil {
+		sess.lastConnectionError = err
+		sess.lastConnectionErrorTime = time.Now()
+
+		return nil, xerrors.Errorf("failed to connect to irods server: %w", err)
+	}
+
+	err = newConn.Connect()
 	if err != nil {
 		sess.lastConnectionError = err
 		sess.lastConnectionErrorTime = time.Now()
@@ -573,11 +614,18 @@ func (sess *IRODSSession) GetMetrics() *metrics.IRODSMetrics {
 }
 
 // GetRedirectionConnection returns redirection connection to resource server
-func (sess *IRODSSession) GetRedirectionConnection(controlConnection *connection.IRODSConnection, redirectionInfo *types.IRODSRedirectionInfo) *connection.IRODSResourceServerConnection {
+func (sess *IRODSSession) GetRedirectionConnection(controlConnection *connection.IRODSConnection, redirectionInfo *types.IRODSRedirectionInfo) (*connection.IRODSResourceServerConnection, error) {
+	// make a copy of redirectionInfo
 	resourceServerInfo := *redirectionInfo
 	if sess.config.AddressResolver != nil {
 		resourceServerInfo.Host = sess.config.AddressResolver(resourceServerInfo.Host)
 	}
 
-	return connection.NewIRODSResourceServerConnectionWithMetrics(controlConnection, &resourceServerInfo, &sess.metrics)
+	connConfig := &connection.IRODSResourceServerConnectionConfig{
+		ConnectTimeout: sess.config.ConnectionCreationTimeout,
+		TcpBufferSize:  sess.config.TcpBufferSize,
+		Metrics:        &sess.metrics,
+	}
+
+	return connection.NewIRODSResourceServerConnection(controlConnection, &resourceServerInfo, connConfig)
 }

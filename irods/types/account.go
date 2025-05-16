@@ -156,15 +156,15 @@ func (account *IRODSAccount) GetHomeDirPath() string {
 // Validate validates iRODS account
 func (account *IRODSAccount) Validate() error {
 	if len(account.Host) == 0 {
-		return xerrors.Errorf("empty host")
+		return xerrors.Errorf("empty host: %w", NewConnectionConfigError(account))
 	}
 
 	if account.Port <= 0 {
-		return xerrors.Errorf("empty port")
+		return xerrors.Errorf("empty port: %w", NewConnectionConfigError(account))
 	}
 
 	if len(account.ProxyUser) == 0 {
-		return xerrors.Errorf("empty user")
+		return xerrors.Errorf("empty user: %w", NewConnectionConfigError(account))
 	}
 
 	err := account.validateUsername(account.ProxyUser)
@@ -180,29 +180,29 @@ func (account *IRODSAccount) Validate() error {
 	}
 
 	if len(account.ProxyZone) == 0 {
-		return xerrors.Errorf("empty zone")
+		return xerrors.Errorf("empty zone: %w", NewConnectionConfigError(account))
 	}
 
 	if account.AuthenticationScheme == AuthSchemeUnknown {
-		return xerrors.Errorf("unknown authentication scheme")
+		return xerrors.Errorf("unknown authentication scheme: %w", NewConnectionConfigError(account))
 	}
 
 	if account.AuthenticationScheme != AuthSchemeNative && account.CSNegotiationPolicy != CSNegotiationPolicyRequestSSL {
-		return xerrors.Errorf("SSL is required for non-native authentication scheme")
+		return xerrors.Errorf("SSL is required for non-native authentication scheme: %w", NewConnectionConfigError(account))
 	}
 
 	if account.CSNegotiationPolicy == CSNegotiationPolicyRequestSSL && !account.ClientServerNegotiation {
-		return xerrors.Errorf("client-server negotiation is required for SSL")
+		return xerrors.Errorf("client-server negotiation is required for SSL: %w", NewConnectionConfigError(account))
 	}
 
 	if account.CSNegotiationPolicy == CSNegotiationPolicyRequestSSL && account.SSLConfiguration == nil {
-		return xerrors.Errorf("SSL configuration is empty")
+		return xerrors.Errorf("SSL configuration is empty: %w", NewConnectionConfigError(account))
 	}
 
 	if account.SSLConfiguration != nil {
 		err = account.SSLConfiguration.Validate()
 		if err != nil {
-			return xerrors.Errorf("failed to validate SSL configuration: %w", err)
+			return xerrors.Errorf("failed to validate SSL configuration (%s): %w", err.Error(), NewConnectionConfigError(account))
 		}
 	}
 
@@ -211,20 +211,20 @@ func (account *IRODSAccount) Validate() error {
 
 func (account *IRODSAccount) validateUsername(username string) error {
 	if len(username) >= common.MaxNameLength {
-		return xerrors.Errorf("username too long")
+		return xerrors.Errorf("username too long: %w", NewConnectionConfigError(account))
 	}
 
 	if username == "." || username == ".." {
-		return xerrors.Errorf("invalid username")
+		return xerrors.Errorf("invalid username: %w", NewConnectionConfigError(account))
 	}
 
 	usernameRegEx, err := regexp.Compile(UsernameRegexString)
 	if err != nil {
-		return xerrors.Errorf("failed to compile regex: %w", err)
+		return xerrors.Errorf("failed to compile regex (err %s): %w", err.Error(), NewConnectionConfigError(account))
 	}
 
 	if !usernameRegEx.Match([]byte(username)) {
-		return xerrors.Errorf("invalid username, containing invalid chars")
+		return xerrors.Errorf("invalid username, containing invalid chars: %w", NewConnectionConfigError(account))
 	}
 	return nil
 }

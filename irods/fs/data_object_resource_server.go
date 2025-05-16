@@ -203,8 +203,12 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 
 	logger.Debugf("download data object %q, task %d", handle.Path, taskID)
 
-	conn := sess.GetRedirectionConnection(controlConnection, handle.RedirectionInfo)
-	err := conn.Connect()
+	conn, err := sess.GetRedirectionConnection(controlConnection, handle.RedirectionInfo)
+	if err != nil {
+		return xerrors.Errorf("failed to get connection to resource server: %w", err)
+	}
+
+	err = conn.Connect()
 	if err != nil {
 		return xerrors.Errorf("failed to connect to resource server: %w", err)
 	}
@@ -400,8 +404,12 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 
 	logger.Debugf("upload data object %q, task %d", handle.Path, taskID)
 
-	conn := sess.GetRedirectionConnection(controlConnection, handle.RedirectionInfo)
-	err := conn.Connect()
+	conn, err := sess.GetRedirectionConnection(controlConnection, handle.RedirectionInfo)
+	if err != nil {
+		return xerrors.Errorf("failed to get connection to resource server: %w", err)
+	}
+
+	err = conn.Connect()
 	if err != nil {
 		return xerrors.Errorf("failed to connect to resource server: %w", err)
 	}
@@ -442,7 +450,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 
 	var dataBuffer []byte
 	var encryptedDataBuffer []byte
-	dataBufferSize := sess.GetConfig().TCPBufferSize
+	dataBufferSize := sess.GetConfig().TcpBufferSize
 
 	for cont {
 		// read transfer header

@@ -56,16 +56,16 @@ func (conn *IRODSConnection) RequestWithTrackerCallBack(request Request, respons
 
 	requestMessage, err := conn.getRequestMessage(request)
 	if err != nil {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		if conn.config.Metrics != nil {
+			conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 		}
 		return err
 	}
 
 	err = conn.SendMessageWithTrackerCallBack(requestMessage, reqCallback)
 	if err != nil {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		if conn.config.Metrics != nil {
+			conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 		}
 		return xerrors.Errorf("failed to send a request message: %w", err)
 	}
@@ -74,8 +74,8 @@ func (conn *IRODSConnection) RequestWithTrackerCallBack(request Request, respons
 	// external bs buffer
 	responseMessage, err := conn.ReadMessageWithTrackerCallBack(bsBuffer, resCallback)
 	if err != nil {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		if conn.config.Metrics != nil {
+			conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 		}
 
 		return xerrors.Errorf("failed to receive a response message: %w", err)
@@ -87,8 +87,8 @@ func (conn *IRODSConnection) RequestWithTrackerCallBack(request Request, respons
 
 	err = conn.getResponse(responseMessage, response)
 	if err != nil {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		if conn.config.Metrics != nil {
+			conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 		}
 		return xerrors.Errorf("failed to parse response message: %w", err)
 	}
@@ -122,8 +122,8 @@ func (conn *IRODSConnection) RequestAsyncWithTrackerCallBack(rrChan chan Request
 
 			requestMessage, err := conn.getRequestMessage(pair.Request)
 			if err != nil {
-				if conn.metrics != nil {
-					conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+				if conn.config.Metrics != nil {
+					conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 				}
 
 				lastErr = err
@@ -134,8 +134,8 @@ func (conn *IRODSConnection) RequestAsyncWithTrackerCallBack(rrChan chan Request
 
 			err = conn.SendMessageWithTrackerCallBack(requestMessage, pair.RequestCallback)
 			if err != nil {
-				if conn.metrics != nil {
-					conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+				if conn.config.Metrics != nil {
+					conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 				}
 
 				lastErr = xerrors.Errorf("failed to send a request message: %w", err)
@@ -171,8 +171,8 @@ func (conn *IRODSConnection) RequestAsyncWithTrackerCallBack(rrChan chan Request
 			// external bs buffer
 			responseMessage, err := conn.ReadMessageWithTrackerCallBack(pair.BsBuffer, pair.ResponseCallback)
 			if err != nil {
-				if conn.metrics != nil {
-					conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+				if conn.config.Metrics != nil {
+					conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 				}
 
 				lastErr = xerrors.Errorf("failed to receive a response message: %w", err)
@@ -183,8 +183,8 @@ func (conn *IRODSConnection) RequestAsyncWithTrackerCallBack(rrChan chan Request
 
 			err = conn.getResponse(responseMessage, pair.Response)
 			if err != nil {
-				if conn.metrics != nil {
-					conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+				if conn.config.Metrics != nil {
+					conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 				}
 
 				lastErr = xerrors.Errorf("failed to parse response message: %w", err)
@@ -204,16 +204,16 @@ func (conn *IRODSConnection) RequestAsyncWithTrackerCallBack(rrChan chan Request
 func (conn *IRODSConnection) RequestWithoutResponse(request Request) error {
 	requestMessage, err := conn.getRequestMessage(request)
 	if err != nil {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		if conn.config.Metrics != nil {
+			conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 		}
 		return err
 	}
 
 	err = conn.SendMessage(requestMessage)
 	if err != nil {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		if conn.config.Metrics != nil {
+			conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 		}
 		return xerrors.Errorf("failed to send a request message: %w", err)
 	}

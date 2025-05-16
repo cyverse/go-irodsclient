@@ -3,7 +3,6 @@ package testcases
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/fs"
@@ -70,10 +69,12 @@ func testCreateAndRemoveUser(t *testing.T) {
 	userAccount.ProxyUser = testUsername
 	userAccount.Password = testPassword
 
-	userConn := connection.NewIRODSConnection(userAccount, 300*time.Second, server.GetApplicationName())
-	err = userConn.Connect()
+	conn, err = connection.NewIRODSConnection(account, server.GetConnectionConfig())
 	FailError(t, err)
-	userConn.Disconnect()
+
+	err = conn.Connect()
+	FailError(t, err)
+	defer conn.Disconnect()
 
 	// delete
 	err = fs.RemoveUser(conn, testUsername, account.ClientZone, types.IRODSUserRodsUser)
@@ -87,7 +88,9 @@ func testCreateAndRemoveUser(t *testing.T) {
 		FailError(t, err)
 	}
 
-	userConn = connection.NewIRODSConnection(userAccount, 300*time.Second, server.GetApplicationName())
+	userConn, err := connection.NewIRODSConnection(userAccount, server.GetConnectionConfig())
+	FailError(t, err)
+
 	err = userConn.Connect()
 	assert.Error(t, err)
 	userConn.Disconnect()
@@ -147,7 +150,9 @@ func testCreateUserWithSpecialCharacterPasswords(t *testing.T) {
 		userAccount.ProxyUser = testUsername
 		userAccount.Password = testPassword
 
-		userConn := connection.NewIRODSConnection(userAccount, 300*time.Second, server.GetApplicationName())
+		userConn, err := connection.NewIRODSConnection(userAccount, server.GetConnectionConfig())
+		FailError(t, err)
+
 		err = userConn.Connect()
 		FailError(t, err)
 		userConn.Disconnect()

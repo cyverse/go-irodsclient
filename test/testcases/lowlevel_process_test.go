@@ -2,7 +2,6 @@ package testcases
 
 import (
 	"testing"
-	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/fs"
@@ -26,8 +25,10 @@ func testProcessStat(t *testing.T) {
 
 	account := server.GetAccountCopy()
 
-	conn := connection.NewIRODSConnection(account, 300*time.Second, server.GetApplicationName())
-	err := conn.Connect()
+	conn, err := connection.NewIRODSConnection(account, server.GetConnectionConfig())
+	FailError(t, err)
+
+	err = conn.Connect()
 	FailError(t, err)
 	defer conn.Disconnect()
 

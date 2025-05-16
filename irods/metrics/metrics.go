@@ -871,6 +871,10 @@ func (metrics *IRODSMetrics) GetAndClearCounterForConnectionPoolFailures() uint6
 }
 
 func (metrics *IRODSMetrics) Sum(other *IRODSMetrics) {
+	if other == nil {
+		return
+	}
+
 	metrics.stat += other.stat
 	metrics.list += other.list
 	metrics.search += other.search

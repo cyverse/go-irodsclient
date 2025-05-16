@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"time"
 
 	"github.com/cyverse/go-irodsclient/config"
 	"github.com/cyverse/go-irodsclient/irods/connection"
@@ -35,7 +34,16 @@ func main() {
 	// Create a file system
 	appName := "version"
 
-	conn := connection.NewIRODSConnection(account, 5*time.Minute, appName)
+	connConfig := &connection.IRODSConnectionConfig{
+		ApplicationName: appName,
+	}
+
+	conn, err := connection.NewIRODSConnection(account, connConfig)
+	if err != nil {
+		logger.Error(err)
+		panic(err)
+	}
+
 	err = conn.Connect()
 	if err != nil {
 		logger.Error(err)

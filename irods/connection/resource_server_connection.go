@@ -22,7 +22,7 @@ import (
 type IRODSResourceServerConnection struct {
 	controlConnection *IRODSConnection
 	serverInfo        *types.IRODSRedirectionInfo
-	tcpBufferSize     int
+	config            *IRODSResourceServerConnectionConfig
 
 	connected            bool
 	socket               net.Conn
@@ -30,46 +30,41 @@ type IRODSResourceServerConnection struct {
 	lastSuccessfulAccess time.Time
 	mutex                sync.Mutex
 	locked               bool // true if mutex is locked
-
-	metrics *metrics.IRODSMetrics
 }
 
 // NewIRODSResourceServerConnection create a IRODSResourceServerConnection
-func NewIRODSResourceServerConnection(rootConnection *IRODSConnection, redirectionInfo *types.IRODSRedirectionInfo) *IRODSResourceServerConnection {
-	tcpBufferSize := redirectionInfo.WindowSize
-	if redirectionInfo.WindowSize <= 0 {
-		tcpBufferSize = rootConnection.tcpBufferSize
+func NewIRODSResourceServerConnection(controlConnection *IRODSConnection, redirectionInfo *types.IRODSRedirectionInfo, config *IRODSResourceServerConnectionConfig) (*IRODSResourceServerConnection, error) {
+	if controlConnection == nil {
+		return nil, xerrors.Errorf("control connection is not set: %w", types.NewResourceServerConnectionConfigError(nil))
 	}
 
-	return &IRODSResourceServerConnection{
-		controlConnection: rootConnection,
-		serverInfo:        redirectionInfo,
-		tcpBufferSize:     tcpBufferSize,
-
-		creationTime: time.Now(),
-		mutex:        sync.Mutex{},
-
-		metrics: &metrics.IRODSMetrics{},
+	if redirectionInfo == nil {
+		return nil, xerrors.Errorf("redirection info is not set: %w", types.NewResourceServerConnectionConfigError(nil))
 	}
-}
 
-// NewIRODSResourceServerConnectionWithMetrics create a IRODSResourceServerConnection
-func NewIRODSResourceServerConnectionWithMetrics(controlConnection *IRODSConnection, redirectionInfo *types.IRODSRedirectionInfo, metrics *metrics.IRODSMetrics) *IRODSResourceServerConnection {
-	tcpBufferSize := redirectionInfo.WindowSize
-	if redirectionInfo.WindowSize <= 0 {
-		tcpBufferSize = controlConnection.tcpBufferSize
+	if config == nil {
+		config = &IRODSResourceServerConnectionConfig{}
+	}
+
+	err := redirectionInfo.Validate()
+	if err != nil {
+		return nil, err
+	}
+
+	config.fillDefaults()
+	err = config.Validate()
+	if err != nil {
+		return nil, err
 	}
 
 	return &IRODSResourceServerConnection{
 		controlConnection: controlConnection,
 		serverInfo:        redirectionInfo,
-		tcpBufferSize:     tcpBufferSize,
+		config:            config,
 
 		creationTime: time.Now(),
 		mutex:        sync.Mutex{},
-
-		metrics: metrics,
-	}
+	}, nil
 }
 
 // Lock locks connection
@@ -87,6 +82,24 @@ func (conn *IRODSResourceServerConnection) Unlock() {
 // GetAccount returns iRODSAccount
 func (conn *IRODSResourceServerConnection) GetServerInfo() *types.IRODSRedirectionInfo {
 	return conn.serverInfo
+}
+
+// SetWriteTimeout sets write timeout
+func (conn *IRODSResourceServerConnection) SetWriteTimeout(timeout time.Duration) error {
+	if conn.socket != nil {
+		conn.socket.SetWriteDeadline(time.Now().Add(timeout))
+	}
+
+	return nil
+}
+
+// SetReadTimeout sets read timeout
+func (conn *IRODSResourceServerConnection) SetReadTimeout(timeout time.Duration) error {
+	if conn.socket != nil {
+		conn.socket.SetReadDeadline(time.Now().Add(timeout))
+	}
+
+	return nil
 }
 
 // IsConnected returns if the connection is live
@@ -147,11 +160,6 @@ func (conn *IRODSResourceServerConnection) Connect() error {
 
 	conn.connected = false
 
-	err := conn.serverInfo.Validate()
-	if err != nil {
-		return xerrors.Errorf("invalid resource server info (%s): %w", err.Error(), types.NewResourceServerConnectionConfigError(conn.serverInfo))
-	}
-
 	// lock the connection
 	conn.Lock()
 	defer conn.Unlock()
@@ -159,25 +167,25 @@ func (conn *IRODSResourceServerConnection) Connect() error {
 	server := fmt.Sprintf("%s:%d", conn.serverInfo.Host, conn.serverInfo.Port)
 	logger.Debugf("Connecting to %s", server)
 
-	// must connect to the server in 10 sec
+	// must connect to the server within ConnectTimeout
 	var dialer net.Dialer
-	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancelFunc := context.WithTimeout(context.Background(), conn.config.ConnectTimeout)
 	defer cancelFunc()
 
 	socket, err := dialer.DialContext(ctx, "tcp", server)
 	if err != nil {
 		connErr := xerrors.Errorf("failed to connect to specified host %q and port %d (%s): %w", conn.serverInfo.Host, conn.serverInfo.Port, err.Error(), types.NewConnectionError())
 
-		if conn.metrics != nil {
-			conn.metrics.IncreaseCounterForConnectionFailures(1)
+		if conn.config.Metrics != nil {
+			conn.config.Metrics.IncreaseCounterForConnectionFailures(1)
 		}
 		return connErr
 	}
 
-	conn.setSocketOpt(socket, conn.tcpBufferSize)
+	conn.setSocketOpt(socket, conn.config.TcpBufferSize)
 
-	if conn.metrics != nil {
-		conn.metrics.IncreaseConnectionsOpened(1)
+	if conn.config.Metrics != nil {
+		conn.config.Metrics.IncreaseConnectionsOpened(1)
 	}
 
 	conn.socket = socket
@@ -187,8 +195,8 @@ func (conn *IRODSResourceServerConnection) Connect() error {
 	if err != nil {
 		connErr := xerrors.Errorf("failed to make authentication request (%s): %w", err.Error(), types.NewConnectionError())
 		_ = conn.disconnectNow()
-		if conn.metrics != nil {
-			conn.metrics.IncreaseCounterForConnectionFailures(1)
+		if conn.config.Metrics != nil {
+			conn.config.Metrics.IncreaseCounterForConnectionFailures(1)
 		}
 		return connErr
 	}
@@ -197,8 +205,8 @@ func (conn *IRODSResourceServerConnection) Connect() error {
 	if err != nil {
 		authErr := xerrors.Errorf("failed to send authentication request to server %q and port %d: %w", conn.serverInfo.Host, conn.serverInfo.Port, err)
 		_ = conn.disconnectNow()
-		if conn.metrics != nil {
-			conn.metrics.IncreaseCounterForConnectionFailures(1)
+		if conn.config.Metrics != nil {
+			conn.config.Metrics.IncreaseCounterForConnectionFailures(1)
 		}
 		return authErr
 	}
@@ -218,8 +226,8 @@ func (conn *IRODSResourceServerConnection) disconnectNow() error {
 		conn.socket = nil
 	}
 
-	if conn.metrics != nil {
-		conn.metrics.DecreaseConnectionsOpened(1)
+	if conn.config.Metrics != nil {
+		conn.config.Metrics.DecreaseConnectionsOpened(1)
 	}
 
 	if err == nil {
@@ -254,8 +262,8 @@ func (conn *IRODSResourceServerConnection) Disconnect() error {
 }
 
 func (conn *IRODSResourceServerConnection) socketFail() {
-	if conn.metrics != nil {
-		conn.metrics.IncreaseCounterForConnectionFailures(1)
+	if conn.config.Metrics != nil {
+		conn.config.Metrics.IncreaseCounterForConnectionFailures(1)
 	}
 
 	conn.disconnectNow()
@@ -276,10 +284,6 @@ func (conn *IRODSResourceServerConnection) SendWithTrackerCallBack(buffer []byte
 		return xerrors.Errorf("connection must be locked before use")
 	}
 
-	if conn.controlConnection.requestTimeout > 0 {
-		conn.socket.SetWriteDeadline(time.Now().Add(conn.controlConnection.requestTimeout))
-	}
-
 	err := util.WriteBytesWithTrackerCallBack(conn.socket, buffer, size, callback)
 	if err != nil {
 		conn.socketFail()
@@ -287,8 +291,8 @@ func (conn *IRODSResourceServerConnection) SendWithTrackerCallBack(buffer []byte
 	}
 
 	if size > 0 {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseBytesSent(uint64(size))
+		if conn.config.Metrics != nil {
+			conn.config.Metrics.IncreaseBytesSent(uint64(size))
 		}
 	}
 
@@ -307,14 +311,10 @@ func (conn *IRODSResourceServerConnection) SendFromReader(src io.Reader, size in
 		return 0, xerrors.Errorf("connection must be locked before use")
 	}
 
-	if conn.controlConnection.requestTimeout > 0 {
-		conn.socket.SetWriteDeadline(time.Now().Add(conn.controlConnection.requestTimeout))
-	}
-
 	copyLen, err := io.CopyN(conn.socket, src, size)
 	if copyLen > 0 {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseBytesSent(uint64(copyLen))
+		if conn.config.Metrics != nil {
+			conn.config.Metrics.IncreaseBytesSent(uint64(copyLen))
 		}
 	}
 
@@ -347,14 +347,10 @@ func (conn *IRODSResourceServerConnection) RecvWithTrackerCallBack(buffer []byte
 		return 0, xerrors.Errorf("connection must be locked before use")
 	}
 
-	if conn.controlConnection.requestTimeout > 0 {
-		conn.socket.SetReadDeadline(time.Now().Add(conn.controlConnection.requestTimeout))
-	}
-
 	readLen, err := util.ReadBytesWithTrackerCallBack(conn.socket, buffer, size, callback)
 	if readLen > 0 {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseBytesReceived(uint64(readLen))
+		if conn.config.Metrics != nil {
+			conn.config.Metrics.IncreaseBytesReceived(uint64(readLen))
 		}
 	}
 
@@ -384,14 +380,10 @@ func (conn *IRODSResourceServerConnection) RecvToWriter(writer io.Writer, size i
 		return 0, xerrors.Errorf("connection must be locked before use")
 	}
 
-	if conn.controlConnection.requestTimeout > 0 {
-		conn.socket.SetReadDeadline(time.Now().Add(conn.controlConnection.requestTimeout))
-	}
-
 	copyLen, err := io.CopyN(writer, conn.socket, size)
 	if copyLen > 0 {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseBytesReceived(uint64(copyLen))
+		if conn.config.Metrics != nil {
+			conn.config.Metrics.IncreaseBytesReceived(uint64(copyLen))
 		}
 	}
 
@@ -447,5 +439,5 @@ func (conn *IRODSResourceServerConnection) Encrypt(iv []byte, source []byte, des
 
 // GetMetrics returns metrics
 func (conn *IRODSResourceServerConnection) GetMetrics() *metrics.IRODSMetrics {
-	return conn.metrics
+	return conn.config.Metrics
 }
