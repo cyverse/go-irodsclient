@@ -37,7 +37,7 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 	query.AddEqualStringCondition(common.ICAT_COLUMN_R_RESC_NAME, name)
 
 	queryResult := message.IRODSMessageQueryResponse{}
-	err := conn.Request(query, &queryResult, nil)
+	err := conn.Request(query, &queryResult, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return nil, xerrors.Errorf("failed to find the resource for name %q: %w", name, types.NewResourceNotFoundError(name))
@@ -146,7 +146,7 @@ func ListResources(conn *connection.IRODSConnection) ([]*types.IRODSResource, er
 		query.AddSelect(common.ICAT_COLUMN_R_MODIFY_TIME, 1)
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
@@ -268,7 +268,7 @@ func AddResourceMeta(conn *connection.IRODSConnection, name string, metadata *ty
 
 	request := message.NewIRODSMessageAddMetadataRequest(types.IRODSResourceMetaItemType, name, metadata)
 	response := message.IRODSMessageModifyMetadataResponse{}
-	err := conn.RequestAndCheck(request, &response, nil)
+	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the resource for name %q: %w", name, types.NewResourceNotFoundError(name))
@@ -303,7 +303,7 @@ func DeleteResourceMeta(conn *connection.IRODSConnection, name string, metadata 
 	}
 
 	response := message.IRODSMessageModifyMetadataResponse{}
-	err := conn.RequestAndCheck(request, &response, nil)
+	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the resource for name %q: %w", name, types.NewResourceNotFoundError(name))
@@ -342,7 +342,7 @@ func ListResourceMeta(conn *connection.IRODSConnection, name string) ([]*types.I
 		query.AddEqualStringCondition(common.ICAT_COLUMN_R_RESC_NAME, name)
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
@@ -447,7 +447,7 @@ func AddChildToResource(conn *connection.IRODSConnection, parent string, child s
 
 	req := message.NewIRODSMessageAdminRequest("add", "childtoresc", parent, child, options)
 
-	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil, conn.GetOperationTimeout())
 	if err != nil {
 		return xerrors.Errorf("received add child to resc error: %w", err)
 	}

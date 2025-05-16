@@ -65,7 +65,7 @@ func GetCollection(conn *connection.IRODSConnection, path string) (*types.IRODSC
 	query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, path)
 
 	queryResult := message.IRODSMessageQueryResponse{}
-	err := conn.Request(query, &queryResult, nil)
+	err := conn.Request(query, &queryResult, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
@@ -183,7 +183,7 @@ func ListCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types
 		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, path)
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
@@ -311,7 +311,7 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_PARENT_NAME, path)
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetLongResponseOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
@@ -440,7 +440,7 @@ func SearchCollectionsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 		query.AddLikeStringCondition(common.ICAT_COLUMN_COLL_NAME, pathSqlWildcard)
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetLongResponseOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
@@ -559,7 +559,7 @@ func CreateCollection(conn *connection.IRODSConnection, path string, recurse boo
 
 	request := message.NewIRODSMessageMakeCollectionRequest(path, recurse)
 	response := message.IRODSMessageMakeCollectionResponse{}
-	err := conn.RequestAndCheck(request, &response, nil)
+	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		return xerrors.Errorf("received create collection error: %w", err)
 	}
@@ -583,7 +583,13 @@ func DeleteCollection(conn *connection.IRODSConnection, path string, recurse boo
 
 	request := message.NewIRODSMessageRemoveCollectionRequest(path, recurse, force)
 	response := message.IRODSMessageRemoveCollectionResponse{}
-	err := conn.RequestAndCheck(request, &response, nil)
+	timeout := conn.GetOperationTimeout()
+	if recurse {
+		// recursive collection deletion requires long response operation timeout
+		timeout = conn.GetLongResponseOperationTimeout()
+	}
+
+	err := conn.RequestAndCheck(request, &response, nil, timeout)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
@@ -601,12 +607,12 @@ func DeleteCollection(conn *connection.IRODSConnection, path string, recurse boo
 		replyBuffer := make([]byte, 4)
 		binary.BigEndian.PutUint32(replyBuffer, uint32(common.SYS_CLI_TO_SVR_COLL_STAT_REPLY))
 
-		err = conn.Send(replyBuffer, 4)
+		err = conn.Send(replyBuffer, 4, nil)
 		if err != nil {
 			return xerrors.Errorf("failed to reply to a collection deletion response message: %w", err)
 		}
 
-		responseMessageReply, err := conn.ReadMessage(nil)
+		responseMessageReply, err := conn.ReadMessage(nil, timeout.ResponseTimeout)
 		if err != nil {
 			return xerrors.Errorf("failed to receive a collection deletion response message: %w", err)
 		}
@@ -634,7 +640,7 @@ func MoveCollection(conn *connection.IRODSConnection, srcPath string, destPath s
 
 	request := message.NewIRODSMessageMoveCollectionRequest(srcPath, destPath)
 	response := message.IRODSMessageMoveCollectionResponse{}
-	err := conn.RequestAndCheck(request, &response, nil)
+	err := conn.RequestAndCheck(request, &response, nil, conn.GetLongResponseOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the collection for path %q: %w", srcPath, types.NewFileNotFoundError(srcPath))
@@ -665,7 +671,7 @@ func AddCollectionMeta(conn *connection.IRODSConnection, path string, metadata *
 
 	request := message.NewIRODSMessageAddMetadataRequest(types.IRODSCollectionMetaItemType, path, metadata)
 	response := message.IRODSMessageModifyMetadataResponse{}
-	err := conn.RequestAndCheck(request, &response, nil)
+	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
@@ -705,7 +711,7 @@ func DeleteCollectionMeta(conn *connection.IRODSConnection, path string, metadat
 	}
 
 	response := message.IRODSMessageModifyMetadataResponse{}
-	err := conn.RequestAndCheck(request, &response, nil)
+	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
@@ -750,7 +756,7 @@ func SearchCollectionsByMeta(conn *connection.IRODSConnection, metaName string, 
 		query.AddEqualStringCondition(common.ICAT_COLUMN_META_COLL_ATTR_VALUE, metaValue)
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetLongResponseOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
@@ -874,7 +880,7 @@ func SearchCollectionsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 		query.AddLikeStringCondition(common.ICAT_COLUMN_META_COLL_ATTR_VALUE, metaValue)
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetLongResponseOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty

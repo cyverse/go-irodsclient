@@ -36,7 +36,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticketName st
 	query.AddEqualStringCondition(common.ICAT_COLUMN_TICKET_STRING, ticketName)
 
 	queryResult := message.IRODSMessageQueryResponse{}
-	err := conn.Request(query, &queryResult, nil)
+	err := conn.Request(query, &queryResult, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
@@ -173,7 +173,7 @@ func GetTicketForDataObjects(conn *connection.IRODSConnection, ticketName string
 	query.AddEqualStringCondition(common.ICAT_COLUMN_TICKET_STRING, ticketName)
 
 	queryResult := message.IRODSMessageQueryResponse{}
-	err := conn.Request(query, &queryResult, nil)
+	err := conn.Request(query, &queryResult, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
@@ -344,7 +344,7 @@ func GetTicketForCollections(conn *connection.IRODSConnection, ticketName string
 	query.AddEqualStringCondition(common.ICAT_COLUMN_TICKET_STRING, ticketName)
 
 	queryResult := message.IRODSMessageQueryResponse{}
-	err := conn.Request(query, &queryResult, nil)
+	err := conn.Request(query, &queryResult, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
@@ -538,7 +538,7 @@ func ListTicketsForDataObjects(conn *connection.IRODSConnection) ([]*types.IRODS
 		query.AddSelect(common.ICAT_COLUMN_TICKET_OWNER_ZONE, 1)
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetLongResponseOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
@@ -723,7 +723,7 @@ func ListTicketsForCollections(conn *connection.IRODSConnection) ([]*types.IRODS
 		query.AddSelect(common.ICAT_COLUMN_TICKET_OWNER_ZONE, 1)
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetLongResponseOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
@@ -893,7 +893,7 @@ func ListTicketsBasic(conn *connection.IRODSConnection) ([]*types.IRODSTicket, e
 		query.AddSelect(common.ICAT_COLUMN_TICKET_OWNER_ZONE, 1)
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetLongResponseOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
@@ -1051,7 +1051,7 @@ func ListTicketAllowedHosts(conn *connection.IRODSConnection, ticketID int64) ([
 		query.AddEqualIDCondition(common.ICAT_COLUMN_TICKET_ALLOWED_HOST_TICKET_ID, ticketID)
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
@@ -1131,7 +1131,7 @@ func ListTicketAllowedUserNames(conn *connection.IRODSConnection, ticketID int64
 		query.AddEqualIDCondition(common.ICAT_COLUMN_TICKET_ALLOWED_USER_TICKET_ID, ticketID)
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
@@ -1211,7 +1211,7 @@ func ListTicketAllowedGroupNames(conn *connection.IRODSConnection, ticketID int6
 		query.AddEqualIDCondition(common.ICAT_COLUMN_TICKET_ALLOWED_GROUP_TICKET_ID, ticketID)
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
@@ -1283,7 +1283,7 @@ func CreateTicket(conn *connection.IRODSConnection, ticketName string, ticketTyp
 
 	req := message.NewIRODSMessageTicketAdminRequest("create", ticketName, string(ticketType), path, ticketName)
 
-	err := conn.RequestAndCheck(req, &message.IRODSMessageTicketAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageTicketAdminResponse{}, nil, conn.GetOperationTimeout())
 	if err != nil {
 		return xerrors.Errorf("received create ticket error: %w", err)
 	}
@@ -1298,7 +1298,7 @@ func DeleteTicket(conn *connection.IRODSConnection, ticketName string) error {
 
 	req := message.NewIRODSMessageTicketAdminRequest("delete", ticketName)
 
-	err := conn.RequestAndCheck(req, &message.IRODSMessageTicketAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageTicketAdminResponse{}, nil, conn.GetOperationTimeout())
 	if err != nil {
 		return xerrors.Errorf("received delete ticket error: %w", err)
 	}
@@ -1313,7 +1313,7 @@ func ModifyTicket(conn *connection.IRODSConnection, ticketName string, args ...s
 
 	req := message.NewIRODSMessageTicketAdminRequest("mod", ticketName, args...)
 
-	err := conn.RequestAndCheck(req, &message.IRODSMessageTicketAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageTicketAdminResponse{}, nil, conn.GetOperationTimeout())
 	if err != nil {
 		return xerrors.Errorf("received mod ticket error: %w", err)
 	}
@@ -1399,7 +1399,7 @@ func SupplyTicket(conn *connection.IRODSConnection, ticketName string) error {
 	defer conn.Unlock()
 
 	req := message.NewIRODSMessageTicketAdminRequest("session", ticketName)
-	err := conn.RequestAndCheck(req, &message.IRODSMessageTicketAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageTicketAdminResponse{}, nil, conn.GetOperationTimeout())
 	if err != nil {
 		return xerrors.Errorf("received supply ticket error: %w", err)
 	}

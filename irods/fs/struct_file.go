@@ -33,7 +33,7 @@ func ExtractStructFile(conn *connection.IRODSConnection, path string, target str
 
 	request := message.NewIRODSMessageExtractStructFileRequest(path, target, resource, dataType, force, bulkReg)
 	response := message.IRODSMessageExtractStructFileResponse{}
-	err := conn.RequestAndCheck(request, &response, nil)
+	err := conn.RequestAndCheck(request, &response, nil, conn.GetLongResponseOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 			return xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))

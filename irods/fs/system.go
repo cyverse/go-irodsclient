@@ -21,7 +21,7 @@ func StatProcess(conn *connection.IRODSConnection, address string, zoneName stri
 	req := message.NewIRODSMessageGetProcessstatRequest(address, zoneName)
 
 	queryResult := message.IRODSMessageQueryResponse{}
-	err := conn.Request(req, &queryResult, nil)
+	err := conn.Request(req, &queryResult, nil, conn.GetLongResponseOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			// empty

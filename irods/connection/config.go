@@ -12,12 +12,17 @@ const (
 	ApplicationNameDefault string        = "go-irodsclient"
 	ConnectTimeoutDefault  time.Duration = 30 * time.Second // 30 seconds
 	TcpBufferSizeDefault   int           = 4 * 1024 * 1024
+
+	OperationTimeoutDefault     = 1 * time.Minute
+	LongOperationTimeoutDefault = 5 * time.Minute
 )
 
 type IRODSConnectionConfig struct {
-	ConnectTimeout  time.Duration
-	ApplicationName string
-	TcpBufferSize   int
+	ConnectTimeout       time.Duration
+	OperationTimeout     time.Duration
+	LongOperationTimeout time.Duration
+	ApplicationName      string
+	TcpBufferSize        int
 
 	Metrics *metrics.IRODSMetrics // can be null
 }
@@ -32,6 +37,14 @@ type IRODSResourceServerConnectionConfig struct {
 func (connConfig *IRODSConnectionConfig) fillDefaults() {
 	if connConfig.ConnectTimeout <= 0 {
 		connConfig.ConnectTimeout = ConnectTimeoutDefault
+	}
+
+	if connConfig.OperationTimeout <= 0 {
+		connConfig.OperationTimeout = OperationTimeoutDefault
+	}
+
+	if connConfig.LongOperationTimeout <= 0 {
+		connConfig.LongOperationTimeout = LongOperationTimeoutDefault
 	}
 
 	if len(connConfig.ApplicationName) == 0 {

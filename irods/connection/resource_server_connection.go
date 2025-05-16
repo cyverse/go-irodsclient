@@ -85,21 +85,29 @@ func (conn *IRODSResourceServerConnection) GetServerInfo() *types.IRODSRedirecti
 }
 
 // SetWriteTimeout sets write timeout
-func (conn *IRODSResourceServerConnection) SetWriteTimeout(timeout time.Duration) error {
-	if conn.socket != nil {
-		conn.socket.SetWriteDeadline(time.Now().Add(timeout))
+func (conn *IRODSResourceServerConnection) SetWriteTimeout(timeout time.Duration) {
+	if conn.socket == nil {
+		return
 	}
 
-	return nil
+	if !conn.locked {
+		return
+	}
+
+	conn.socket.SetWriteDeadline(time.Now().Add(timeout))
 }
 
 // SetReadTimeout sets read timeout
-func (conn *IRODSResourceServerConnection) SetReadTimeout(timeout time.Duration) error {
-	if conn.socket != nil {
-		conn.socket.SetReadDeadline(time.Now().Add(timeout))
+func (conn *IRODSResourceServerConnection) SetReadTimeout(timeout time.Duration) {
+	if conn.socket == nil {
+		return
 	}
 
-	return nil
+	if !conn.locked {
+		return
+	}
+
+	conn.socket.SetReadDeadline(time.Now().Add(timeout))
 }
 
 // IsConnected returns if the connection is live
@@ -201,7 +209,9 @@ func (conn *IRODSResourceServerConnection) Connect() error {
 		return connErr
 	}
 
-	err = conn.Send(authBytes, len(authBytes))
+	timeout := conn.controlConnection.GetOperationTimeout()
+
+	err = conn.Send(authBytes, len(authBytes), &timeout.RequestTimeout)
 	if err != nil {
 		authErr := xerrors.Errorf("failed to send authentication request to server %q and port %d: %w", conn.serverInfo.Host, conn.serverInfo.Port, err)
 		_ = conn.disconnectNow()
@@ -270,18 +280,22 @@ func (conn *IRODSResourceServerConnection) socketFail() {
 }
 
 // Send sends data
-func (conn *IRODSResourceServerConnection) Send(buffer []byte, size int) error {
-	return conn.SendWithTrackerCallBack(buffer, size, nil)
+func (conn *IRODSResourceServerConnection) Send(buffer []byte, size int, timeout *time.Duration) error {
+	return conn.SendWithTrackerCallBack(buffer, size, timeout, nil)
 }
 
 // SendWithTrackerCallBack sends data
-func (conn *IRODSResourceServerConnection) SendWithTrackerCallBack(buffer []byte, size int, callback common.TrackerCallBack) error {
+func (conn *IRODSResourceServerConnection) SendWithTrackerCallBack(buffer []byte, size int, timeout *time.Duration, callback common.TrackerCallBack) error {
 	if conn.socket == nil {
 		return xerrors.Errorf("failed to send data - socket closed")
 	}
 
 	if !conn.locked {
 		return xerrors.Errorf("connection must be locked before use")
+	}
+
+	if timeout != nil {
+		conn.SetWriteTimeout(*timeout)
 	}
 
 	err := util.WriteBytesWithTrackerCallBack(conn.socket, buffer, size, callback)
@@ -302,13 +316,17 @@ func (conn *IRODSResourceServerConnection) SendWithTrackerCallBack(buffer []byte
 }
 
 // SendFromReader sends data from Reader
-func (conn *IRODSResourceServerConnection) SendFromReader(src io.Reader, size int64) (int64, error) {
+func (conn *IRODSResourceServerConnection) SendFromReader(src io.Reader, size int64, timeout *time.Duration) (int64, error) {
 	if conn.socket == nil {
 		return 0, xerrors.Errorf("failed to send data - socket closed")
 	}
 
 	if !conn.locked {
 		return 0, xerrors.Errorf("connection must be locked before use")
+	}
+
+	if timeout != nil {
+		conn.SetWriteTimeout(*timeout)
 	}
 
 	copyLen, err := io.CopyN(conn.socket, src, size)
@@ -333,18 +351,22 @@ func (conn *IRODSResourceServerConnection) SendFromReader(src io.Reader, size in
 }
 
 // Recv receives a message
-func (conn *IRODSResourceServerConnection) Recv(buffer []byte, size int) (int, error) {
-	return conn.RecvWithTrackerCallBack(buffer, size, nil)
+func (conn *IRODSResourceServerConnection) Recv(buffer []byte, size int, timeout *time.Duration) (int, error) {
+	return conn.RecvWithTrackerCallBack(buffer, size, timeout, nil)
 }
 
 // RecvWithTrackerCallBack receives a message
-func (conn *IRODSResourceServerConnection) RecvWithTrackerCallBack(buffer []byte, size int, callback common.TrackerCallBack) (int, error) {
+func (conn *IRODSResourceServerConnection) RecvWithTrackerCallBack(buffer []byte, size int, timeout *time.Duration, callback common.TrackerCallBack) (int, error) {
 	if conn.socket == nil {
 		return 0, xerrors.Errorf("failed to receive data - socket closed")
 	}
 
 	if !conn.locked {
 		return 0, xerrors.Errorf("connection must be locked before use")
+	}
+
+	if timeout != nil {
+		conn.SetReadTimeout(*timeout)
 	}
 
 	readLen, err := util.ReadBytesWithTrackerCallBack(conn.socket, buffer, size, callback)
@@ -371,13 +393,17 @@ func (conn *IRODSResourceServerConnection) RecvWithTrackerCallBack(buffer []byte
 }
 
 // RecvToWriter receives a message to Writer
-func (conn *IRODSResourceServerConnection) RecvToWriter(writer io.Writer, size int64) (int64, error) {
+func (conn *IRODSResourceServerConnection) RecvToWriter(writer io.Writer, size int64, timeout *time.Duration) (int64, error) {
 	if conn.socket == nil {
 		return 0, xerrors.Errorf("failed to receive data - socket closed")
 	}
 
 	if !conn.locked {
 		return 0, xerrors.Errorf("connection must be locked before use")
+	}
+
+	if timeout != nil {
+		conn.SetReadTimeout(*timeout)
 	}
 
 	copyLen, err := io.CopyN(writer, conn.socket, size)
