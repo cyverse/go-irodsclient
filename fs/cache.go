@@ -34,8 +34,8 @@ type CacheConfig struct {
 // NewDefaultCacheConfig creates a new default CacheConfig
 func NewDefaultCacheConfig() CacheConfig {
 	return CacheConfig{
-		Timeout:                               types.Duration(FileSystemTimeoutDefault),
-		CleanupTime:                           types.Duration(FileSystemTimeoutDefault),
+		Timeout:                               types.Duration(FileSystemCacheTimeout),
+		CleanupTime:                           types.Duration(FileSystemCacheTimeout),
 		MetadataTimeoutSettings:               []MetadataCacheTimeoutSetting{},
 		InvalidateParentEntryCacheImmediately: true,
 		StartNewTransaction:                   true,
@@ -61,6 +61,11 @@ type FileSystemCache struct {
 
 // NewFileSystemCache creates a new FileSystemCache
 func NewFileSystemCache(config *CacheConfig) *FileSystemCache {
+	if config == nil {
+		cacheConfig := NewDefaultCacheConfig()
+		config = &cacheConfig
+	}
+
 	timeout := time.Duration(config.Timeout)
 	cleanupTime := time.Duration(config.CleanupTime)
 

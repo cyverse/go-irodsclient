@@ -30,13 +30,23 @@ type FileSystem struct {
 
 // NewFileSystem creates a new FileSystem
 func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*FileSystem, error) {
-	ioSessionConfig := config.ToIOSessionConfig()
+	// config can be nil
+	var ioSessionConfig *session.IRODSSessionConfig
+	if config != nil {
+		ioSessionConfig = config.ToIOSessionConfig()
+	}
+
 	ioSession, err := session.NewIRODSSession(account, ioSessionConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	metadataSessionConfig := config.ToMetadataSessionConfig()
+	// config can be nil
+	var metadataSessionConfig *session.IRODSSessionConfig
+	if config != nil {
+		metadataSessionConfig = config.ToMetadataSessionConfig()
+	}
+
 	metaSession, err := session.NewIRODSSession(account, metadataSessionConfig)
 	if err != nil {
 		return nil, err

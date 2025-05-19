@@ -13,8 +13,8 @@ const (
 	ConnectTimeoutDefault  time.Duration = 30 * time.Second // 30 seconds
 	TcpBufferSizeDefault   int           = 4 * 1024 * 1024
 
-	OperationTimeoutDefault     = 1 * time.Minute
-	LongOperationTimeoutDefault = 5 * time.Minute
+	OperationTimeoutDefault     time.Duration = 1 * time.Minute
+	LongOperationTimeoutDefault time.Duration = 5 * time.Minute
 )
 
 type IRODSConnectionConfig struct {
@@ -61,6 +61,18 @@ func (connConfig *IRODSConnectionConfig) Validate() error {
 		return xerrors.Errorf("application name is empty: %w", types.NewConnectionConfigError(nil))
 	}
 
+	if connConfig.ConnectTimeout <= 0 {
+		return xerrors.Errorf("connect timeout is invalid: %w", types.NewConnectionConfigError(nil))
+	}
+
+	if connConfig.OperationTimeout <= 0 {
+		return xerrors.Errorf("operation timeout is invalid: %w", types.NewConnectionConfigError(nil))
+	}
+
+	if connConfig.LongOperationTimeout <= 0 {
+		return xerrors.Errorf("long operation timeout is invalid: %w", types.NewConnectionConfigError(nil))
+	}
+
 	if connConfig.TcpBufferSize < 0 {
 		return xerrors.Errorf("tcp buffer size is invalid: %w", types.NewConnectionConfigError(nil))
 	}
@@ -79,6 +91,10 @@ func (connConfig *IRODSResourceServerConnectionConfig) fillDefaults() {
 }
 
 func (connConfig *IRODSResourceServerConnectionConfig) Validate() error {
+	if connConfig.ConnectTimeout <= 0 {
+		return xerrors.Errorf("connect timeout is invalid: %w", types.NewConnectionConfigError(nil))
+	}
+
 	if connConfig.TcpBufferSize < 0 {
 		return xerrors.Errorf("tcp buffer size is invalid: %w", types.NewConnectionConfigError(nil))
 	}

@@ -86,19 +86,10 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 		poolAccount.Host = config.AddressResolver(poolAccount.Host)
 	}
 
-	poolConfig := ConnectionPoolConfig{
-		ApplicationName: config.ApplicationName,
-		InitialCap:      config.ConnectionInitNumber,
-		MaxIdle:         config.ConnectionMaxIdleNumber,
-		MaxCap:          config.ConnectionMaxNumber,
-		Lifespan:        config.ConnectionLifespan,
-		IdleTimeout:     config.ConnectionIdleTimeout,
-		ConnectTimeout:  config.ConnectionCreationTimeout,
-		TcpBufferSize:   config.TcpBufferSize,
-		Metrics:         &sess.metrics,
-	}
+	poolConfig := config.ToConnectionPoolConfig()
+	poolConfig.Metrics = &sess.metrics
 
-	pool, err := NewConnectionPool(&poolAccount, &poolConfig)
+	pool, err := NewConnectionPool(&poolAccount, poolConfig)
 	if err != nil {
 		sess.lastConnectionError = err
 		sess.lastConnectionErrorTime = time.Now()

@@ -148,12 +148,7 @@ func (pool *ConnectionPool) init() error {
 	defer pool.mutex.Unlock()
 
 	// create connections
-	connConfig := &connection.IRODSConnectionConfig{
-		ConnectTimeout:  pool.config.ConnectTimeout,
-		ApplicationName: pool.config.ApplicationName,
-		TcpBufferSize:   pool.config.TcpBufferSize,
-		Metrics:         pool.config.Metrics,
-	}
+	connConfig := pool.config.ToConnectionConfig()
 
 	for i := 0; i < pool.config.InitialCap; i++ {
 		newConn, err := connection.NewIRODSConnection(pool.account, connConfig)
@@ -220,12 +215,7 @@ func (pool *ConnectionPool) Get() (*connection.IRODSConnection, bool, error) {
 	}
 
 	// create a new if not exists
-	connConfig := &connection.IRODSConnectionConfig{
-		ConnectTimeout:  pool.config.ConnectTimeout,
-		ApplicationName: pool.config.ApplicationName,
-		TcpBufferSize:   pool.config.TcpBufferSize,
-		Metrics:         pool.config.Metrics,
-	}
+	connConfig := pool.config.ToConnectionConfig()
 
 	newConn, err := connection.NewIRODSConnection(pool.account, connConfig)
 	if err != nil {
@@ -285,12 +275,7 @@ func (pool *ConnectionPool) GetNew() (*connection.IRODSConnection, error) {
 	// create a new one
 	if len(pool.occupiedConnections)+pool.idleConnections.Len() < pool.config.MaxCap {
 		// create a new one
-		connConfig := &connection.IRODSConnectionConfig{
-			ConnectTimeout:  pool.config.ConnectTimeout,
-			ApplicationName: pool.config.ApplicationName,
-			TcpBufferSize:   pool.config.TcpBufferSize,
-			Metrics:         pool.config.Metrics,
-		}
+		connConfig := pool.config.ToConnectionConfig()
 
 		newConn, err := connection.NewIRODSConnection(pool.account, connConfig)
 		if err != nil {
