@@ -9,19 +9,27 @@ import (
 
 // ConnectionConfigError contains connection config error information
 type ConnectionConfigError struct {
-	Config *IRODSAccount
+	Account *IRODSAccount
 }
 
 // NewConnectionConfigError creates a connection config error
-func NewConnectionConfigError(config *IRODSAccount) error {
+func NewConnectionConfigError(account *IRODSAccount) error {
+	if account == nil {
+		return &ConnectionConfigError{}
+	}
+
 	return &ConnectionConfigError{
-		Config: config.GetRedacted(),
+		Account: account.GetRedacted(),
 	}
 }
 
 // Error returns error message
 func (err *ConnectionConfigError) Error() string {
-	return fmt.Sprintf("connection configuration error (iRODS server: '%s:%d')", err.Config.Host, err.Config.Port)
+	if err.Account == nil {
+		return "connection configuration error"
+	}
+
+	return fmt.Sprintf("connection configuration error (iRODS server: '%s:%d')", err.Account.Host, err.Account.Port)
 }
 
 // Is tests type of error
@@ -42,19 +50,27 @@ func IsConnectionConfigError(err error) bool {
 
 // ResourceServerConnectionConfigError contains resource server connection config error information
 type ResourceServerConnectionConfigError struct {
-	Config *IRODSRedirectionInfo
+	RedirectionInfo *IRODSRedirectionInfo
 }
 
 // NewResourceServerConnectionConfigError creates a resource server connection config error
-func NewResourceServerConnectionConfigError(config *IRODSRedirectionInfo) error {
+func NewResourceServerConnectionConfigError(redirectionInfo *IRODSRedirectionInfo) error {
+	if redirectionInfo == nil {
+		return &ResourceServerConnectionConfigError{}
+	}
+
 	return &ResourceServerConnectionConfigError{
-		Config: config,
+		RedirectionInfo: redirectionInfo,
 	}
 }
 
 // Error returns error message
 func (err *ResourceServerConnectionConfigError) Error() string {
-	return fmt.Sprintf("resource server connection configuration error (iRODS server: '%s:%d')", err.Config.Host, err.Config.Port)
+	if err.RedirectionInfo == nil {
+		return "resource server connection configuration error"
+	}
+
+	return fmt.Sprintf("resource server connection configuration error (iRODS server: '%s:%d')", err.RedirectionInfo.Host, err.RedirectionInfo.Port)
 }
 
 // Is tests type of error

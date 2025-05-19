@@ -6,50 +6,57 @@ import (
 	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/connection"
-	"github.com/cyverse/go-irodsclient/irods/metrics"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"golang.org/x/xerrors"
 
 	log "github.com/sirupsen/logrus"
 )
 
-// ConnectionPoolConfig is for connection pool configuration
-type ConnectionPoolConfig struct {
-	Account          *types.IRODSAccount
-	ApplicationName  string
-	InitialCap       int
-	MaxIdle          int
-	MaxCap           int           // output warning if total connections exceeds maxcap number
-	Lifespan         time.Duration // if a connection exceeds its lifespan, the connection will die
-	IdleTimeout      time.Duration // if there's no activity on a connection for the timeout time, the connection will die
-	OperationTimeout time.Duration // if there's no response for the timeout time, the request will fail
-	TcpBufferSize    int
-}
-
 // ConnectionPool is a struct for connection pool
 type ConnectionPool struct {
+	account             *types.IRODSAccount
 	config              *ConnectionPoolConfig
 	idleConnections     *list.List // list of *connection.IRODSConnection
 	occupiedConnections map[*connection.IRODSConnection]bool
-	metrics             *metrics.IRODSMetrics
 	mutex               sync.Mutex
 	terminateChan       chan bool
 	terminated          bool
 }
 
 // NewConnectionPool creates a new ConnectionPool
-func NewConnectionPool(config *ConnectionPoolConfig, metrics *metrics.IRODSMetrics) (*ConnectionPool, error) {
+func NewConnectionPool(account *types.IRODSAccount, config *ConnectionPoolConfig) (*ConnectionPool, error) {
+	if account == nil {
+		return nil, xerrors.Errorf("account is not set: %w", types.NewConnectionConfigError(nil))
+	}
+
+	// use default config if not set
+	if config == nil {
+		config = &ConnectionPoolConfig{}
+	}
+
+	account.FixAuthConfiguration()
+	err := account.Validate()
+	if err != nil {
+		return nil, err
+	}
+
+	config.fillDefaults()
+	err = config.Validate()
+	if err != nil {
+		return nil, err
+	}
+
 	pool := &ConnectionPool{
+		account:             account,
 		config:              config,
 		idleConnections:     list.New(),
 		occupiedConnections: map[*connection.IRODSConnection]bool{},
-		metrics:             metrics,
 		mutex:               sync.Mutex{},
 		terminateChan:       make(chan bool),
 		terminated:          false,
 	}
 
-	err := pool.init()
+	err = pool.init()
 	if err != nil {
 		return nil, xerrors.Errorf("failed to init connection pool: %w", err)
 	}
@@ -131,7 +138,9 @@ func (pool *ConnectionPool) Release() {
 	// clear
 	pool.occupiedConnections = map[*connection.IRODSConnection]bool{}
 
-	pool.metrics.ClearConnections()
+	if pool.config.Metrics != nil {
+		pool.config.Metrics.ClearConnections()
+	}
 }
 
 func (pool *ConnectionPool) init() error {
@@ -139,12 +148,22 @@ func (pool *ConnectionPool) init() error {
 	defer pool.mutex.Unlock()
 
 	// create connections
+	connConfig := pool.config.ToConnectionConfig()
+
 	for i := 0; i < pool.config.InitialCap; i++ {
-		newConn := connection.NewIRODSConnectionWithMetrics(pool.config.Account, pool.config.OperationTimeout, pool.config.ApplicationName, pool.metrics)
-		newConn.SetTCPBufferSize(pool.config.TcpBufferSize)
-		err := newConn.Connect()
+		newConn, err := connection.NewIRODSConnection(pool.account, connConfig)
 		if err != nil {
-			pool.metrics.IncreaseCounterForConnectionPoolFailures(1)
+			if pool.config.Metrics != nil {
+				pool.config.Metrics.IncreaseCounterForConnectionPoolFailures(1)
+			}
+			return xerrors.Errorf("failed to connect to irods server: %w", err)
+		}
+
+		err = newConn.Connect()
+		if err != nil {
+			if pool.config.Metrics != nil {
+				pool.config.Metrics.IncreaseCounterForConnectionPoolFailures(1)
+			}
 			return xerrors.Errorf("failed to connect to irods server: %w", err)
 		}
 
@@ -184,7 +203,9 @@ func (pool *ConnectionPool) Get() (*connection.IRODSConnection, bool, error) {
 					pool.occupiedConnections[idleConn] = true
 					logger.Debug("Reuse an idle connection")
 
-					pool.metrics.IncreaseConnectionsOccupied(1)
+					if pool.config.Metrics != nil {
+						pool.config.Metrics.IncreaseConnectionsOccupied(1)
+					}
 					return idleConn, false, nil
 				}
 
@@ -194,17 +215,30 @@ func (pool *ConnectionPool) Get() (*connection.IRODSConnection, bool, error) {
 	}
 
 	// create a new if not exists
-	newConn := connection.NewIRODSConnectionWithMetrics(pool.config.Account, pool.config.OperationTimeout, pool.config.ApplicationName, pool.metrics)
-	newConn.SetTCPBufferSize(pool.config.TcpBufferSize)
+	connConfig := pool.config.ToConnectionConfig()
+
+	newConn, err := connection.NewIRODSConnection(pool.account, connConfig)
+	if err != nil {
+		if pool.config.Metrics != nil {
+			pool.config.Metrics.IncreaseCounterForConnectionPoolFailures(1)
+		}
+		return nil, false, xerrors.Errorf("failed to connect to irods server: %w", err)
+	}
+
 	err = newConn.Connect()
 	if err != nil {
-		pool.metrics.IncreaseCounterForConnectionPoolFailures(1)
+		if pool.config.Metrics != nil {
+			pool.config.Metrics.IncreaseCounterForConnectionPoolFailures(1)
+		}
 		return nil, false, xerrors.Errorf("failed to connect to irods server: %w", err)
 	}
 
 	pool.occupiedConnections[newConn] = true
 	logger.Debug("Created a new connection")
-	pool.metrics.IncreaseConnectionsOccupied(1)
+
+	if pool.config.Metrics != nil {
+		pool.config.Metrics.IncreaseConnectionsOccupied(1)
+	}
 
 	return newConn, true, nil
 }
@@ -241,17 +275,30 @@ func (pool *ConnectionPool) GetNew() (*connection.IRODSConnection, error) {
 	// create a new one
 	if len(pool.occupiedConnections)+pool.idleConnections.Len() < pool.config.MaxCap {
 		// create a new one
-		newConn := connection.NewIRODSConnection(pool.config.Account, pool.config.OperationTimeout, pool.config.ApplicationName)
-		newConn.SetTCPBufferSize(pool.config.TcpBufferSize)
-		err := newConn.Connect()
+		connConfig := pool.config.ToConnectionConfig()
+
+		newConn, err := connection.NewIRODSConnection(pool.account, connConfig)
 		if err != nil {
-			pool.metrics.IncreaseCounterForConnectionPoolFailures(1)
+			if pool.config.Metrics != nil {
+				pool.config.Metrics.IncreaseCounterForConnectionPoolFailures(1)
+			}
+			return nil, xerrors.Errorf("failed to connect to irods server: %w", err)
+		}
+
+		err = newConn.Connect()
+		if err != nil {
+			if pool.config.Metrics != nil {
+				pool.config.Metrics.IncreaseCounterForConnectionPoolFailures(1)
+			}
 			return nil, xerrors.Errorf("failed to connect to irods server: %w", err)
 		}
 
 		pool.occupiedConnections[newConn] = true
 		logger.Debug("Created a new connection")
-		pool.metrics.IncreaseConnectionsOccupied(1)
+
+		if pool.config.Metrics != nil {
+			pool.config.Metrics.IncreaseConnectionsOccupied(1)
+		}
 
 		return newConn, nil
 	}
@@ -274,7 +321,10 @@ func (pool *ConnectionPool) Return(conn *connection.IRODSConnection) error {
 	if _, ok := pool.occupiedConnections[conn]; ok {
 		// delete
 		delete(pool.occupiedConnections, conn)
-		pool.metrics.DecreaseConnectionsOccupied(1)
+
+		if pool.config.Metrics != nil {
+			pool.config.Metrics.DecreaseConnectionsOccupied(1)
+		}
 	} else {
 		// cannot find it from occupied map
 		return xerrors.Errorf("failed to find the connection from occupied connection list")
@@ -320,7 +370,9 @@ func (pool *ConnectionPool) Discard(conn *connection.IRODSConnection) {
 	// find it from occupied map
 	delete(pool.occupiedConnections, conn)
 
-	pool.metrics.DecreaseConnectionsOccupied(1)
+	if pool.config.Metrics != nil {
+		pool.config.Metrics.DecreaseConnectionsOccupied(1)
+	}
 
 	if conn.IsConnected() {
 		conn.Disconnect()

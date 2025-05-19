@@ -26,7 +26,7 @@ func Touch(conn *connection.IRODSConnection, path string, resource string, noCre
 
 	request := message.NewIRODSMessageTouchRequest(path, noCreate, resource)
 	response := message.IRODSMessageTouchResponse{}
-	err := conn.RequestAndCheck(request, &response, nil)
+	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 			return xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))

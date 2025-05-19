@@ -39,7 +39,7 @@ func GetCollectionAccessInheritance(conn *connection.IRODSConnection, path strin
 		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, path)
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
@@ -136,7 +136,7 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetLongResponseOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
@@ -247,7 +247,7 @@ func ListDataObjectAccesses(conn *connection.IRODSConnection, dataObjPath string
 		query.AddEqualStringCondition(common.ICAT_COLUMN_DATA_NAME, path.Base(dataObjPath))
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetLongResponseOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
@@ -358,7 +358,7 @@ func ListDataObjectAccessesWithoutCollection(conn *connection.IRODSConnection, d
 		query.AddEqualStringCondition(common.ICAT_COLUMN_DATA_NAME, path.Base(dataObjPath))
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetLongResponseOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
@@ -469,7 +469,7 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, collPath st
 		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_PARENT_NAME, collPath)
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetLongResponseOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
@@ -582,7 +582,7 @@ func ListAccessesForDataObjectsInCollection(conn *connection.IRODSConnection, co
 		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, collPath)
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetLongResponseOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
@@ -695,7 +695,7 @@ func ListAccessesForDataObjectsWithoutCollection(conn *connection.IRODSConnectio
 		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, collPath)
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetLongResponseOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
@@ -794,7 +794,7 @@ func ChangeAccessInherit(conn *connection.IRODSConnection, path string, inherit 
 
 	request := message.NewIRODSMessageModifyAccessInheritRequest(inherit, path, recursive, adminFlag)
 	response := message.IRODSMessageModifyAccessInheritResponse{}
-	err := conn.RequestAndCheck(request, &response, nil)
+	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
@@ -824,7 +824,7 @@ func ChangeAccess(conn *connection.IRODSConnection, path string, access types.IR
 
 	request := message.NewIRODSMessageModifyAccessRequest(access.ChmodString(), userName, zoneName, path, recursive, adminFlag)
 	response := message.IRODSMessageModifyAccessResponse{}
-	err := conn.RequestAndCheck(request, &response, nil)
+	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 			return xerrors.Errorf("failed to find the data-object/collection for path %q: %w", path, types.NewFileNotFoundError(path))

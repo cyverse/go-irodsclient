@@ -26,16 +26,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const (
-	TCPBufferSizeDefault int = 1 * 1024 * 1024
-)
-
 // IRODSConnection connects to iRODS
 type IRODSConnection struct {
-	account         *types.IRODSAccount
-	requestTimeout  time.Duration
-	tcpBufferSize   int
-	applicationName string
+	account *types.IRODSAccount
+	config  *IRODSConnectionConfig
 
 	connected            bool
 	failed               bool
@@ -49,42 +43,40 @@ type IRODSConnection struct {
 	dirtyTransaction     bool
 	mutex                sync.Mutex
 	locked               bool // true if mutex is locked
-
-	metrics *metrics.IRODSMetrics
 }
 
 // NewIRODSConnection create a IRODSConnection
-func NewIRODSConnection(account *types.IRODSAccount, requestTimeout time.Duration, applicationName string) *IRODSConnection {
+func NewIRODSConnection(account *types.IRODSAccount, config *IRODSConnectionConfig) (*IRODSConnection, error) {
+	if account == nil {
+		return nil, xerrors.Errorf("account is not set: %w", types.NewConnectionConfigError(nil))
+	}
+
+	// use default config if not set
+	if config == nil {
+		config = &IRODSConnectionConfig{}
+	}
+
+	account.FixAuthConfiguration()
+	err := account.Validate()
+	if err != nil {
+		return nil, err
+	}
+
+	config.fillDefaults()
+	err = config.Validate()
+	if err != nil {
+		return nil, err
+	}
+
 	return &IRODSConnection{
-		account:         account,
-		requestTimeout:  requestTimeout,
-		tcpBufferSize:   TCPBufferSizeDefault,
-		applicationName: applicationName,
+		account: account,
+		config:  config,
 
 		creationTime:     time.Now(),
 		clientSignature:  "",
 		dirtyTransaction: false,
 		mutex:            sync.Mutex{},
-
-		metrics: &metrics.IRODSMetrics{},
-	}
-}
-
-// NewIRODSConnectionWithMetrics create a IRODSConnection
-func NewIRODSConnectionWithMetrics(account *types.IRODSAccount, requestTimeout time.Duration, applicationName string, metrics *metrics.IRODSMetrics) *IRODSConnection {
-	return &IRODSConnection{
-		account:         account,
-		requestTimeout:  requestTimeout,
-		tcpBufferSize:   TCPBufferSizeDefault,
-		applicationName: applicationName,
-
-		creationTime:     time.Now(),
-		clientSignature:  "",
-		dirtyTransaction: false,
-		mutex:            sync.Mutex{},
-
-		metrics: metrics,
-	}
+	}, nil
 }
 
 // Lock locks connection
@@ -109,9 +101,30 @@ func (conn *IRODSConnection) GetVersion() *types.IRODSVersion {
 	return conn.serverVersion
 }
 
-// SetTCPBufferSize sets TCP Buffer Size
-func (conn *IRODSConnection) SetTCPBufferSize(bufferSize int) {
-	conn.tcpBufferSize = bufferSize
+// SetWriteTimeout sets write timeout
+func (conn *IRODSConnection) SetWriteTimeout(timeout time.Duration) {
+	if conn.socket == nil {
+		return
+	}
+
+	if !conn.locked {
+		return
+	}
+
+	conn.socket.SetWriteDeadline(time.Now().Add(timeout))
+}
+
+// SetReadTimeout sets read timeout
+func (conn *IRODSConnection) SetReadTimeout(timeout time.Duration) {
+	if conn.socket == nil {
+		return
+	}
+
+	if !conn.locked {
+		return
+	}
+
+	conn.socket.SetReadDeadline(time.Now().Add(timeout))
 }
 
 // SupportParallelUpload checks if the server supports parallel upload
@@ -220,25 +233,25 @@ func (conn *IRODSConnection) connectTCP() error {
 	server := fmt.Sprintf("%s:%d", conn.account.Host, conn.account.Port)
 	logger.Debugf("Connecting to %s", server)
 
-	// must connect to the server in 10 sec
+	// must connect to the server within ConnectTimeout
 	var dialer net.Dialer
-	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancelFunc := context.WithTimeout(context.Background(), conn.config.ConnectTimeout)
 	defer cancelFunc()
 
 	socket, err := dialer.DialContext(ctx, "tcp", server)
 	if err != nil {
 		connErr := xerrors.Errorf("failed to connect to specified host %q and port %d (%s): %w", conn.account.Host, conn.account.Port, err.Error(), types.NewConnectionError())
 
-		if conn.metrics != nil {
-			conn.metrics.IncreaseCounterForConnectionFailures(1)
+		if conn.config.Metrics != nil {
+			conn.config.Metrics.IncreaseCounterForConnectionFailures(1)
 		}
 		return connErr
 	}
 
-	conn.setSocketOpt(socket, conn.tcpBufferSize)
+	conn.setSocketOpt(socket, conn.config.TcpBufferSize)
 
-	if conn.metrics != nil {
-		conn.metrics.IncreaseConnectionsOpened(1)
+	if conn.config.Metrics != nil {
+		conn.config.Metrics.IncreaseConnectionsOpened(1)
 	}
 
 	conn.socket = socket
@@ -247,21 +260,16 @@ func (conn *IRODSConnection) connectTCP() error {
 
 // Connect connects to iRODS
 func (conn *IRODSConnection) Connect() error {
-	conn.account.FixAuthConfiguration()
-
-	err := conn.account.Validate()
-	if err != nil {
-		return xerrors.Errorf("invalid account (%q): %w", err.Error(), types.NewConnectionConfigError(conn.account))
-	}
-
 	conn.connected = false
+
+	timeout := conn.GetOperationTimeout()
 
 	// lock the connection
 	conn.Lock()
 	defer conn.Unlock()
 
 	// connect TCP
-	err = conn.connectTCP()
+	err := conn.connectTCP()
 	if err != nil {
 		return err
 	}
@@ -270,8 +278,8 @@ func (conn *IRODSConnection) Connect() error {
 	if err != nil {
 		connErr := xerrors.Errorf("failed to startup an iRODS connection to server %q and port %d: %w", conn.account.Host, conn.account.Port, err)
 		_ = conn.disconnectNow()
-		if conn.metrics != nil {
-			conn.metrics.IncreaseCounterForConnectionFailures(1)
+		if conn.config.Metrics != nil {
+			conn.config.Metrics.IncreaseCounterForConnectionFailures(1)
 		}
 		return connErr
 	}
@@ -307,8 +315,8 @@ func (conn *IRODSConnection) Connect() error {
 				connErr := xerrors.Errorf("failed to startup an iRODS connection to server %q and port %d (%s): %w", conn.account.Host, conn.account.Port, err.Error(), types.NewConnectionError())
 				_ = conn.logout()
 				_ = conn.disconnectNow()
-				if conn.metrics != nil {
-					conn.metrics.IncreaseCounterForConnectionFailures(1)
+				if conn.config.Metrics != nil {
+					conn.config.Metrics.IncreaseCounterForConnectionFailures(1)
 				}
 				return connErr
 			}
@@ -328,7 +336,7 @@ func (conn *IRODSConnection) Connect() error {
 
 	if conn.account.UseTicket() {
 		req := message.NewIRODSMessageTicketAdminRequest("session", conn.account.Ticket)
-		err := conn.RequestAndCheck(req, &message.IRODSMessageTicketAdminResponse{}, nil)
+		err := conn.RequestAndCheck(req, &message.IRODSMessageTicketAdminResponse{}, nil, timeout)
 		if err != nil {
 			_ = conn.logout()
 			_ = conn.disconnectNow()
@@ -358,18 +366,20 @@ func (conn *IRODSConnection) startup() (*types.IRODSVersion, error) {
 
 	logger.Debug("Start up an iRODS connection")
 
+	timeout := conn.GetOperationTimeout()
+
 	// Send a startup message
-	startup := message.NewIRODSMessageStartupPack(conn.account, conn.applicationName, conn.requiresCSNegotiation())
+	startup := message.NewIRODSMessageStartupPack(conn.account, conn.config.ApplicationName, conn.requiresCSNegotiation())
 
 	if conn.requiresCSNegotiation() {
-		err := conn.RequestWithoutResponse(startup)
+		err := conn.RequestWithoutResponse(startup, timeout)
 		if err != nil {
 			return nil, xerrors.Errorf("failed to send startup (%s): %w", err.Error(), types.NewConnectionError())
 		}
 	} else {
 		// no cs negotiation
 		version := message.IRODSMessageVersion{}
-		err := conn.Request(startup, &version, nil)
+		err := conn.Request(startup, &version, nil, timeout)
 		if err != nil {
 			return nil, xerrors.Errorf("failed to receive version message (%s): %w", err.Error(), types.NewConnectionError())
 		}
@@ -378,7 +388,7 @@ func (conn *IRODSConnection) startup() (*types.IRODSVersion, error) {
 	}
 
 	// cs negotiation response
-	negotiationMessage, err := conn.ReadMessage(nil)
+	negotiationMessage, err := conn.ReadMessage(nil, timeout.ResponseTimeout)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to receive negotiation message (%s): %w", err.Error(), types.NewConnectionError())
 	}
@@ -425,7 +435,7 @@ func (conn *IRODSConnection) startup() (*types.IRODSVersion, error) {
 		// Send negotiation result to server
 		negotiationResult := message.NewIRODSMessageCSNegotiation(policyResult)
 		version := message.IRODSMessageVersion{}
-		err = conn.Request(negotiationResult, &version, nil)
+		err = conn.Request(negotiationResult, &version, nil, timeout)
 		if err != nil {
 			return nil, xerrors.Errorf("failed to receive version message (%s): %w", err.Error(), types.NewConnectionError())
 		}
@@ -452,6 +462,8 @@ func (conn *IRODSConnection) sslStartup() error {
 	})
 
 	logger.Debug("Start up SSL")
+
+	timeout := conn.GetOperationTimeout()
 
 	irodsSSLConfig := conn.account.SSLConfiguration
 	if irodsSSLConfig == nil {
@@ -484,14 +496,14 @@ func (conn *IRODSConnection) sslStartup() error {
 
 	// Send a ssl setting
 	sslSetting := message.NewIRODSMessageSSLSettings(irodsSSLConfig.EncryptionAlgorithm, irodsSSLConfig.EncryptionKeySize, irodsSSLConfig.EncryptionSaltSize, irodsSSLConfig.EncryptionNumHashRounds)
-	err = conn.RequestWithoutResponse(sslSetting)
+	err = conn.RequestWithoutResponse(sslSetting, timeout)
 	if err != nil {
 		return xerrors.Errorf("failed to send ssl setting message (%s): %w", err.Error(), types.NewConnectionError())
 	}
 
 	// Send a shared secret
 	sslSharedSecret := message.NewIRODSMessageSSLSharedSecret(encryptionKey)
-	err = conn.RequestWithoutResponse(sslSharedSecret)
+	err = conn.RequestWithoutResponse(sslSharedSecret, timeout)
 	if err != nil {
 		return xerrors.Errorf("failed to send ssl shared secret message (%s): %w", err.Error(), types.NewConnectionError())
 	}
@@ -503,9 +515,11 @@ func (conn *IRODSConnection) sslStartup() error {
 
 func (conn *IRODSConnection) login(password string) error {
 	// authenticate
+	timeout := conn.GetOperationTimeout()
+
 	authRequest := message.NewIRODSMessageAuthRequest()
 	authChallenge := message.IRODSMessageAuthChallengeResponse{}
-	err := conn.RequestAndCheck(authRequest, &authChallenge, nil)
+	err := conn.RequestAndCheck(authRequest, &authChallenge, nil, timeout)
 	if err != nil {
 		return xerrors.Errorf("failed to receive authentication challenge message body (%s): %w", err.Error(), types.NewAuthError(conn.account))
 	}
@@ -522,7 +536,7 @@ func (conn *IRODSConnection) login(password string) error {
 
 	authResponse := message.NewIRODSMessageAuthResponse(encodedPassword, conn.account.ProxyUser, conn.account.ProxyZone)
 	authResult := message.IRODSMessageAuthResult{}
-	err = conn.RequestAndCheck(authResponse, &authResult, nil)
+	err = conn.RequestAndCheck(authResponse, &authResult, nil, timeout)
 	if err != nil {
 		return xerrors.Errorf("received irods authentication error (%s): %w", err.Error(), types.NewAuthError(conn.account))
 	}
@@ -559,6 +573,8 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 
 	logger.Debug("Logging in using pam authentication method")
 
+	timeout := conn.GetOperationTimeout()
+
 	// Check whether ssl has already started, if not, start ssl.
 	if _, ok := conn.socket.(*tls.Conn); !ok {
 		return xerrors.Errorf("connection should be using SSL: %w", types.NewConnectionError())
@@ -590,7 +606,7 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 
 		pamAuthRequest := message.NewIRODSMessagePamAuthRequest(conn.account.ProxyUser, conn.account.Password, ttl)
 		pamAuthResponse := message.IRODSMessagePamAuthResponse{}
-		err := conn.RequestAndCheck(pamAuthRequest, &pamAuthResponse, nil)
+		err := conn.RequestAndCheck(pamAuthRequest, &pamAuthResponse, nil, timeout)
 		if err != nil {
 			return xerrors.Errorf("failed to receive a PAM token (%s): %w", err.Error(), types.NewAuthError(conn.account))
 		}
@@ -601,7 +617,7 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 
 		pamAuthRequest := message.NewIRODSMessageAuthPluginRequest(string(types.AuthSchemePAM), authContext)
 		pamAuthResponse := message.IRODSMessageAuthPluginResponse{}
-		err := conn.RequestAndCheck(pamAuthRequest, &pamAuthResponse, nil)
+		err := conn.RequestAndCheck(pamAuthRequest, &pamAuthResponse, nil, timeout)
 		if err != nil {
 			return xerrors.Errorf("failed to receive a PAM token (%s): %w", err.Error(), types.NewAuthError(conn.account))
 		}
@@ -637,8 +653,10 @@ func (conn *IRODSConnection) loginPAMWithToken() error {
 
 // logout sends logout
 func (conn *IRODSConnection) logout() error {
+	timeout := conn.GetOperationTimeout()
+
 	disconnect := message.NewIRODSMessageDisconnect()
-	err := conn.RequestWithoutResponse(disconnect)
+	err := conn.RequestWithoutResponse(disconnect, timeout)
 
 	conn.lastSuccessfulAccess = time.Now()
 
@@ -658,8 +676,8 @@ func (conn *IRODSConnection) disconnectNow() error {
 		conn.socket = nil
 	}
 
-	if conn.metrics != nil {
-		conn.metrics.DecreaseConnectionsOpened(1)
+	if conn.config.Metrics != nil {
+		conn.config.Metrics.DecreaseConnectionsOpened(1)
 	}
 
 	if err == nil {
@@ -698,8 +716,8 @@ func (conn *IRODSConnection) Disconnect() error {
 }
 
 func (conn *IRODSConnection) socketFail() {
-	if conn.metrics != nil {
-		conn.metrics.IncreaseCounterForConnectionFailures(1)
+	if conn.config.Metrics != nil {
+		conn.config.Metrics.IncreaseCounterForConnectionFailures(1)
 	}
 
 	conn.failed = true
@@ -708,12 +726,12 @@ func (conn *IRODSConnection) socketFail() {
 }
 
 // Send sends data
-func (conn *IRODSConnection) Send(buffer []byte, size int) error {
-	return conn.SendWithTrackerCallBack(buffer, size, nil)
+func (conn *IRODSConnection) Send(buffer []byte, size int, timeout *time.Duration) error {
+	return conn.SendWithTrackerCallBack(buffer, size, timeout, nil)
 }
 
 // SendWithTrackerCallBack sends data
-func (conn *IRODSConnection) SendWithTrackerCallBack(buffer []byte, size int, callback common.TrackerCallBack) error {
+func (conn *IRODSConnection) SendWithTrackerCallBack(buffer []byte, size int, timeout *time.Duration, callback common.TrackerCallBack) error {
 	if conn.socket == nil {
 		return xerrors.Errorf("failed to send data - socket closed")
 	}
@@ -722,8 +740,8 @@ func (conn *IRODSConnection) SendWithTrackerCallBack(buffer []byte, size int, ca
 		return xerrors.Errorf("connection must be locked before use")
 	}
 
-	if conn.requestTimeout > 0 {
-		conn.socket.SetWriteDeadline(time.Now().Add(conn.requestTimeout))
+	if timeout != nil {
+		conn.SetWriteTimeout(*timeout)
 	}
 
 	err := util.WriteBytesWithTrackerCallBack(conn.socket, buffer, size, callback)
@@ -733,8 +751,8 @@ func (conn *IRODSConnection) SendWithTrackerCallBack(buffer []byte, size int, ca
 	}
 
 	if size > 0 {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseBytesSent(uint64(size))
+		if conn.config.Metrics != nil {
+			conn.config.Metrics.IncreaseBytesSent(uint64(size))
 		}
 	}
 
@@ -744,7 +762,7 @@ func (conn *IRODSConnection) SendWithTrackerCallBack(buffer []byte, size int, ca
 }
 
 // SendFromReader sends data from Reader
-func (conn *IRODSConnection) SendFromReader(src io.Reader, size int64) (int64, error) {
+func (conn *IRODSConnection) SendFromReader(src io.Reader, size int64, timeout *time.Duration) (int64, error) {
 	if conn.socket == nil {
 		return 0, xerrors.Errorf("failed to send data - socket closed")
 	}
@@ -753,14 +771,14 @@ func (conn *IRODSConnection) SendFromReader(src io.Reader, size int64) (int64, e
 		return 0, xerrors.Errorf("connection must be locked before use")
 	}
 
-	if conn.requestTimeout > 0 {
-		conn.socket.SetWriteDeadline(time.Now().Add(conn.requestTimeout))
+	if timeout != nil {
+		conn.SetWriteTimeout(*timeout)
 	}
 
 	copyLen, err := io.CopyN(conn.socket, src, size)
 	if copyLen > 0 {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseBytesSent(uint64(copyLen))
+		if conn.config.Metrics != nil {
+			conn.config.Metrics.IncreaseBytesSent(uint64(copyLen))
 		}
 	}
 
@@ -779,12 +797,12 @@ func (conn *IRODSConnection) SendFromReader(src io.Reader, size int64) (int64, e
 }
 
 // Recv receives a message
-func (conn *IRODSConnection) Recv(buffer []byte, size int) (int, error) {
-	return conn.RecvWithTrackerCallBack(buffer, size, nil)
+func (conn *IRODSConnection) Recv(buffer []byte, size int, timeout *time.Duration) (int, error) {
+	return conn.RecvWithTrackerCallBack(buffer, size, timeout, nil)
 }
 
 // Recv receives a message
-func (conn *IRODSConnection) RecvWithTrackerCallBack(buffer []byte, size int, callback common.TrackerCallBack) (int, error) {
+func (conn *IRODSConnection) RecvWithTrackerCallBack(buffer []byte, size int, timeout *time.Duration, callback common.TrackerCallBack) (int, error) {
 	if conn.socket == nil {
 		return 0, xerrors.Errorf("failed to receive data - socket closed")
 	}
@@ -793,14 +811,14 @@ func (conn *IRODSConnection) RecvWithTrackerCallBack(buffer []byte, size int, ca
 		return 0, xerrors.Errorf("connection must be locked before use")
 	}
 
-	if conn.requestTimeout > 0 {
-		conn.socket.SetReadDeadline(time.Now().Add(conn.requestTimeout))
+	if timeout != nil {
+		conn.SetReadTimeout(*timeout)
 	}
 
 	readLen, err := util.ReadBytesWithTrackerCallBack(conn.socket, buffer, size, callback)
 	if readLen > 0 {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseBytesReceived(uint64(readLen))
+		if conn.config.Metrics != nil {
+			conn.config.Metrics.IncreaseBytesReceived(uint64(readLen))
 		}
 	}
 
@@ -821,7 +839,7 @@ func (conn *IRODSConnection) RecvWithTrackerCallBack(buffer []byte, size int, ca
 }
 
 // RecvToWriter receives a message to Writer
-func (conn *IRODSConnection) RecvToWriter(writer io.Writer, size int64) (int64, error) {
+func (conn *IRODSConnection) RecvToWriter(writer io.Writer, size int64, timeout *time.Duration) (int64, error) {
 	if conn.socket == nil {
 		return 0, xerrors.Errorf("failed to receive data - socket closed")
 	}
@@ -830,14 +848,14 @@ func (conn *IRODSConnection) RecvToWriter(writer io.Writer, size int64) (int64, 
 		return 0, xerrors.Errorf("connection must be locked before use")
 	}
 
-	if conn.requestTimeout > 0 {
-		conn.socket.SetReadDeadline(time.Now().Add(conn.requestTimeout))
+	if timeout != nil {
+		conn.SetReadTimeout(*timeout)
 	}
 
 	copyLen, err := io.CopyN(writer, conn.socket, size)
 	if copyLen > 0 {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseBytesReceived(uint64(copyLen))
+		if conn.config.Metrics != nil {
+			conn.config.Metrics.IncreaseBytesReceived(uint64(copyLen))
 		}
 	}
 
@@ -858,12 +876,12 @@ func (conn *IRODSConnection) RecvToWriter(writer io.Writer, size int64) (int64, 
 }
 
 // SendMessage makes the message into bytes
-func (conn *IRODSConnection) SendMessage(msg *message.IRODSMessage) error {
-	return conn.SendMessageWithTrackerCallBack(msg, nil)
+func (conn *IRODSConnection) SendMessage(msg *message.IRODSMessage, timeout time.Duration) error {
+	return conn.SendMessageWithTrackerCallBack(msg, timeout, nil)
 }
 
 // SendMessageWithTrackerCallBack makes the message into bytes
-func (conn *IRODSConnection) SendMessageWithTrackerCallBack(msg *message.IRODSMessage, callback common.TrackerCallBack) error {
+func (conn *IRODSConnection) SendMessageWithTrackerCallBack(msg *message.IRODSMessage, timeout time.Duration, callback common.TrackerCallBack) error {
 	if !conn.locked {
 		return xerrors.Errorf("connection must be locked before use")
 	}
@@ -929,8 +947,10 @@ func (conn *IRODSConnection) SendMessageWithTrackerCallBack(msg *message.IRODSMe
 	}
 
 	// send
+	conn.SetWriteTimeout(timeout)
+
 	bytes := messageBuffer.Bytes()
-	err = conn.Send(bytes, len(bytes))
+	err = conn.Send(bytes, len(bytes), nil)
 	if err != nil {
 		return xerrors.Errorf("failed to send message: %w", err)
 	}
@@ -938,7 +958,7 @@ func (conn *IRODSConnection) SendMessageWithTrackerCallBack(msg *message.IRODSMe
 	// send body-bs
 	if msg.Body != nil {
 		if msg.Body.Bs != nil {
-			err = conn.SendWithTrackerCallBack(msg.Body.Bs, len(msg.Body.Bs), callback)
+			err = conn.SendWithTrackerCallBack(msg.Body.Bs, len(msg.Body.Bs), nil, callback)
 			if err != nil {
 				return xerrors.Errorf("failed to send message: %w", err)
 			}
@@ -951,7 +971,7 @@ func (conn *IRODSConnection) SendMessageWithTrackerCallBack(msg *message.IRODSMe
 func (conn *IRODSConnection) readMessageHeader() (*message.IRODSMessageHeader, error) {
 	// read header size
 	headerLenBuffer := make([]byte, 4)
-	readLen, err := conn.Recv(headerLenBuffer, 4)
+	readLen, err := conn.Recv(headerLenBuffer, 4, nil)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to read header size: %w", err)
 	}
@@ -967,7 +987,7 @@ func (conn *IRODSConnection) readMessageHeader() (*message.IRODSMessageHeader, e
 
 	// read header
 	headerBuffer := make([]byte, headerSize)
-	readLen, err = conn.Recv(headerBuffer, int(headerSize))
+	readLen, err = conn.Recv(headerBuffer, int(headerSize), nil)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to read header: %w", err)
 	}
@@ -987,14 +1007,16 @@ func (conn *IRODSConnection) readMessageHeader() (*message.IRODSMessageHeader, e
 // ReadMessage reads data from the given socket and returns IRODSMessage
 // if bsBuffer is given, bs data will be written directly to the bsBuffer
 // if not given, a new buffer will be allocated.
-func (conn *IRODSConnection) ReadMessage(bsBuffer []byte) (*message.IRODSMessage, error) {
-	return conn.ReadMessageWithTrackerCallBack(bsBuffer, nil)
+func (conn *IRODSConnection) ReadMessage(bsBuffer []byte, timeout time.Duration) (*message.IRODSMessage, error) {
+	return conn.ReadMessageWithTrackerCallBack(bsBuffer, timeout, nil)
 }
 
-func (conn *IRODSConnection) ReadMessageWithTrackerCallBack(bsBuffer []byte, callback common.TrackerCallBack) (*message.IRODSMessage, error) {
+func (conn *IRODSConnection) ReadMessageWithTrackerCallBack(bsBuffer []byte, timeout time.Duration, callback common.TrackerCallBack) (*message.IRODSMessage, error) {
 	if !conn.locked {
 		return nil, xerrors.Errorf("connection must be locked before use")
 	}
+
+	conn.SetReadTimeout(timeout)
 
 	header, err := conn.readMessageHeader()
 	if err != nil {
@@ -1010,7 +1032,7 @@ func (conn *IRODSConnection) ReadMessageWithTrackerCallBack(bsBuffer []byte, cal
 		return nil, xerrors.Errorf("provided bs buffer is too short, %d size is given, but %d size is required", len(bsBuffer), int(header.BsLen))
 	}
 
-	bodyReadLen, err := conn.Recv(bodyBuffer, int(bodyLen))
+	bodyReadLen, err := conn.Recv(bodyBuffer, int(bodyLen), nil)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to read body: %w", err)
 	}
@@ -1018,7 +1040,7 @@ func (conn *IRODSConnection) ReadMessageWithTrackerCallBack(bsBuffer []byte, cal
 		return nil, xerrors.Errorf("failed to read body fully - %d requested but %d read", bodyLen, bodyReadLen)
 	}
 
-	bsReadLen, err := conn.RecvWithTrackerCallBack(bsBuffer, int(header.BsLen), callback)
+	bsReadLen, err := conn.RecvWithTrackerCallBack(bsBuffer, int(header.BsLen), nil, callback)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to read body (BS), len %d: %w", int(header.BsLen), err)
 	}
@@ -1078,19 +1100,23 @@ func (conn *IRODSConnection) PoorMansRollback() error {
 }
 
 func (conn *IRODSConnection) endTransaction(commit bool) error {
+	timeout := conn.GetOperationTimeout()
+
 	request := message.NewIRODSMessageEndTransactionRequest(commit)
 	response := message.IRODSMessageEndTransactionResponse{}
-	return conn.RequestAndCheck(request, &response, nil)
+	return conn.RequestAndCheck(request, &response, nil, timeout)
 }
 
 func (conn *IRODSConnection) poorMansEndTransaction(dummyCol string, commit bool) error {
+	timeout := conn.GetOperationTimeout()
+
 	request := message.NewIRODSMessageModifyCollectionRequest(dummyCol)
 	if commit {
 		request.AddKeyVal(common.COLLECTION_TYPE_KW, "NULL_SPECIAL_VALUE")
 	}
 
 	response := message.IRODSMessageModifyCollectionResponse{}
-	err := conn.Request(request, &response, nil)
+	err := conn.Request(request, &response, nil, timeout)
 	if err != nil {
 		return xerrors.Errorf("failed to make a poor mans end transaction")
 	}
@@ -1121,7 +1147,7 @@ func (conn *IRODSConnection) RawBind(socket net.Conn) {
 
 // GetMetrics returns metrics
 func (conn *IRODSConnection) GetMetrics() *metrics.IRODSMetrics {
-	return conn.metrics
+	return conn.config.Metrics
 }
 
 // createClientSignature creates a client signature from auth challenge

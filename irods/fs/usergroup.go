@@ -33,7 +33,7 @@ func GetUser(conn *connection.IRODSConnection, username string, zoneName string)
 	query.AddEqualStringCondition(common.ICAT_COLUMN_USER_ZONE, zoneName)
 
 	queryResult := message.IRODSMessageQueryResponse{}
-	err := conn.Request(query, &queryResult, nil)
+	err := conn.Request(query, &queryResult, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return nil, xerrors.Errorf("failed to find the user for name %q: %w", username, types.NewUserNotFoundError(username))
@@ -126,7 +126,7 @@ func ListUsers(conn *connection.IRODSConnection, zoneName string) ([]*types.IROD
 		query.AddEqualStringCondition(common.ICAT_COLUMN_USER_ZONE, zoneName)
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetLongResponseOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
@@ -230,7 +230,7 @@ func ListUsersByType(conn *connection.IRODSConnection, userType types.IRODSUserT
 		query.AddEqualStringCondition(common.ICAT_COLUMN_USER_ZONE, zoneName)
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetLongResponseOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
@@ -334,7 +334,7 @@ func ListGroupMembers(conn *connection.IRODSConnection, groupName string, zoneNa
 		query.AddEqualStringCondition(common.ICAT_COLUMN_USER_ZONE, zoneName)
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetLongResponseOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
@@ -435,7 +435,7 @@ func ListUserGroupNames(conn *connection.IRODSConnection, username string, zoneN
 		query.AddEqualStringCondition(common.ICAT_COLUMN_USER_ZONE, zoneName)
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 				// empty
@@ -500,7 +500,7 @@ func CreateUser(conn *connection.IRODSConnection, username string, zoneName stri
 
 	req := message.NewIRODSMessageAdminCreateUserRequest(username, zoneName, userType)
 
-	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil, conn.GetOperationTimeout())
 	if err != nil {
 		return xerrors.Errorf("received create user error for user %q, zone %q, type %q: %w", username, zoneName, userType, err)
 	}
@@ -525,7 +525,7 @@ func ChangeUserPassword(conn *connection.IRODSConnection, username string, zoneN
 
 	req := message.NewIRODSMessageAdminChangePasswordRequest(username, zoneName, scrambledPassword)
 
-	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the user for user %q: %w", username, types.NewUserNotFoundError(username))
@@ -545,7 +545,7 @@ func ChangeUserType(conn *connection.IRODSConnection, username string, zoneName 
 
 	req := message.NewIRODSMessageAdminChangeUserTypeRequest(username, zoneName, newType)
 
-	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the user for name %q: %w", username, types.NewUserNotFoundError(username))
@@ -565,7 +565,7 @@ func RemoveUser(conn *connection.IRODSConnection, username string, zoneName stri
 
 	req := message.NewIRODSMessageAdminRemoveUserRequest(username, zoneName, userType)
 
-	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the user for name %q: %w", username, types.NewUserNotFoundError(username))
@@ -585,7 +585,7 @@ func AddGroupMember(conn *connection.IRODSConnection, groupName string, username
 
 	req := message.NewIRODSMessageAdminAddGroupMemberRequest(groupName, username, zoneName)
 
-	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the group %q or user %q: %w", groupName, username, types.NewUserNotFoundError(username))
@@ -604,7 +604,7 @@ func RemoveGroupMember(conn *connection.IRODSConnection, groupName string, usern
 
 	req := message.NewIRODSMessageAdminRemoveGroupMemberRequest(groupName, username, zoneName)
 
-	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the group for name %q: %w", groupName, types.NewUserNotFoundError(username))
@@ -638,7 +638,7 @@ func ListUserResourceQuota(conn *connection.IRODSConnection, username string, zo
 		query.AddEqualStringCondition(common.ICAT_COLUMN_QUOTA_USER_ZONE, zoneName)
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetOperationTimeout())
 		if err != nil {
 			return nil, xerrors.Errorf("failed to receive a quota query result message: %w", err)
 		}
@@ -728,7 +728,7 @@ func GetUserGlobalQuota(conn *connection.IRODSConnection, username string, zoneN
 		query.AddEqualStringCondition(common.ICAT_COLUMN_QUOTA_RESC_ID, "0")
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetOperationTimeout())
 		if err != nil {
 			return nil, xerrors.Errorf("failed to receive a quota query result message: %w", err)
 		}
@@ -803,7 +803,7 @@ func AddUserMeta(conn *connection.IRODSConnection, username string, zoneName str
 
 	request := message.NewIRODSMessageAddMetadataRequest(types.IRODSUserMetaItemType, zonename, metadata)
 	response := message.IRODSMessageModifyMetadataResponse{}
-	return conn.RequestAndCheck(request, &response, nil)
+	return conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 }
 
 // DeleteUserMeta removes the metadata of a user object.
@@ -830,7 +830,7 @@ func DeleteUserMeta(conn *connection.IRODSConnection, username string, zoneName 
 	}
 
 	response := message.IRODSMessageModifyMetadataResponse{}
-	return conn.RequestAndCheck(request, &response, nil)
+	return conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 }
 
 // ListUserMeta returns all metadata for the user
@@ -860,7 +860,7 @@ func ListUserMeta(conn *connection.IRODSConnection, username string, zoneName st
 		query.AddEqualStringCondition(common.ICAT_COLUMN_USER_ZONE, zoneName)
 
 		queryResult := message.IRODSMessageQueryResponse{}
-		err := conn.Request(query, &queryResult, nil)
+		err := conn.Request(query, &queryResult, nil, conn.GetOperationTimeout())
 		if err != nil {
 			return nil, xerrors.Errorf("failed to receive a user metadata query result message: %w", err)
 		}
@@ -955,7 +955,7 @@ func SetUserResourceQuota(conn *connection.IRODSConnection, username string, zon
 
 	req := message.NewIRODSMessageAdminSetUserResourceQuotaRequest(username, zoneName, resource, value)
 
-	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil, conn.GetOperationTimeout())
 	if err != nil {
 		return xerrors.Errorf("received set user quota error: %w", err)
 	}
@@ -970,7 +970,7 @@ func SetGroupResourceQuota(conn *connection.IRODSConnection, groupName string, z
 
 	req := message.NewIRODSMessageAdminSetGroupResourceQuotaRequest(groupName, zoneName, resource, value)
 
-	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil)
+	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil, conn.GetOperationTimeout())
 	if err != nil {
 		return xerrors.Errorf("received set group quota error: %w", err)
 	}

@@ -1,6 +1,8 @@
 package connection
 
 import (
+	"time"
+
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/message"
 	"golang.org/x/xerrors"
@@ -28,10 +30,17 @@ type CheckErrorResponse interface {
 type RequestResponsePair struct {
 	Request          Request
 	Response         Response
-	BsBuffer         []byte                 // can be null
+	BsBuffer         []byte // can be null
+	Timeout          *RequestResponseTimeout
 	RequestCallback  common.TrackerCallBack // can be null
 	ResponseCallback common.TrackerCallBack // can be null
 	Error            error
+}
+
+// RequestResponseTimeout is a structure that contains timeout values for iRODS RPC calls.
+type RequestResponseTimeout struct {
+	RequestTimeout  time.Duration
+	ResponseTimeout time.Duration
 }
 
 func (conn *IRODSConnection) useNewXML() bool {
@@ -44,38 +53,45 @@ func (conn *IRODSConnection) useNewXML() bool {
 
 // Request sends a request and expects a response.
 // bsBuffer is optional
-func (conn *IRODSConnection) Request(request Request, response Response, bsBuffer []byte) error {
-	return conn.RequestWithTrackerCallBack(request, response, bsBuffer, nil, nil)
+func (conn *IRODSConnection) Request(request Request, response Response, bsBuffer []byte, timeout *RequestResponseTimeout) error {
+	return conn.RequestWithTrackerCallBack(request, response, bsBuffer, timeout, nil, nil)
 }
 
 // RequestWithTrackerCallBack sends a request and expects a response.
 // bsBuffer is optional
-func (conn *IRODSConnection) RequestWithTrackerCallBack(request Request, response Response, bsBuffer []byte, reqCallback common.TrackerCallBack, resCallback common.TrackerCallBack) error {
+func (conn *IRODSConnection) RequestWithTrackerCallBack(request Request, response Response, bsBuffer []byte, timeout *RequestResponseTimeout, reqCallback common.TrackerCallBack, resCallback common.TrackerCallBack) error {
 	// set transaction dirty
 	conn.SetTransactionDirty(true)
 
 	requestMessage, err := conn.getRequestMessage(request)
 	if err != nil {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		if conn.config.Metrics != nil {
+			conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 		}
 		return err
 	}
 
-	err = conn.SendMessageWithTrackerCallBack(requestMessage, reqCallback)
+	requestTimeout := time.Duration(0)
+	responseTimeout := time.Duration(0)
+	if timeout != nil {
+		requestTimeout = timeout.RequestTimeout
+		responseTimeout = timeout.ResponseTimeout
+	}
+
+	err = conn.SendMessageWithTrackerCallBack(requestMessage, requestTimeout, reqCallback)
 	if err != nil {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		if conn.config.Metrics != nil {
+			conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 		}
 		return xerrors.Errorf("failed to send a request message: %w", err)
 	}
 
 	// Server responds with results
 	// external bs buffer
-	responseMessage, err := conn.ReadMessageWithTrackerCallBack(bsBuffer, resCallback)
+	responseMessage, err := conn.ReadMessageWithTrackerCallBack(bsBuffer, responseTimeout, resCallback)
 	if err != nil {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		if conn.config.Metrics != nil {
+			conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 		}
 
 		return xerrors.Errorf("failed to receive a response message: %w", err)
@@ -87,8 +103,8 @@ func (conn *IRODSConnection) RequestWithTrackerCallBack(request Request, respons
 
 	err = conn.getResponse(responseMessage, response)
 	if err != nil {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		if conn.config.Metrics != nil {
+			conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 		}
 		return xerrors.Errorf("failed to parse response message: %w", err)
 	}
@@ -122,8 +138,8 @@ func (conn *IRODSConnection) RequestAsyncWithTrackerCallBack(rrChan chan Request
 
 			requestMessage, err := conn.getRequestMessage(pair.Request)
 			if err != nil {
-				if conn.metrics != nil {
-					conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+				if conn.config.Metrics != nil {
+					conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 				}
 
 				lastErr = err
@@ -132,10 +148,15 @@ func (conn *IRODSConnection) RequestAsyncWithTrackerCallBack(rrChan chan Request
 				continue
 			}
 
-			err = conn.SendMessageWithTrackerCallBack(requestMessage, pair.RequestCallback)
+			requestTimeout := time.Duration(0)
+			if pair.Timeout != nil {
+				requestTimeout = pair.Timeout.RequestTimeout
+			}
+
+			err = conn.SendMessageWithTrackerCallBack(requestMessage, requestTimeout, pair.RequestCallback)
 			if err != nil {
-				if conn.metrics != nil {
-					conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+				if conn.config.Metrics != nil {
+					conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 				}
 
 				lastErr = xerrors.Errorf("failed to send a request message: %w", err)
@@ -169,10 +190,15 @@ func (conn *IRODSConnection) RequestAsyncWithTrackerCallBack(rrChan chan Request
 
 			// Server responds with results
 			// external bs buffer
-			responseMessage, err := conn.ReadMessageWithTrackerCallBack(pair.BsBuffer, pair.ResponseCallback)
+			responseTimeout := time.Duration(0)
+			if pair.Timeout != nil {
+				responseTimeout = pair.Timeout.ResponseTimeout
+			}
+
+			responseMessage, err := conn.ReadMessageWithTrackerCallBack(pair.BsBuffer, responseTimeout, pair.ResponseCallback)
 			if err != nil {
-				if conn.metrics != nil {
-					conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+				if conn.config.Metrics != nil {
+					conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 				}
 
 				lastErr = xerrors.Errorf("failed to receive a response message: %w", err)
@@ -183,8 +209,8 @@ func (conn *IRODSConnection) RequestAsyncWithTrackerCallBack(rrChan chan Request
 
 			err = conn.getResponse(responseMessage, pair.Response)
 			if err != nil {
-				if conn.metrics != nil {
-					conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+				if conn.config.Metrics != nil {
+					conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 				}
 
 				lastErr = xerrors.Errorf("failed to parse response message: %w", err)
@@ -201,19 +227,24 @@ func (conn *IRODSConnection) RequestAsyncWithTrackerCallBack(rrChan chan Request
 }
 
 // RequestWithoutResponse sends a request but does not wait for a response.
-func (conn *IRODSConnection) RequestWithoutResponse(request Request) error {
+func (conn *IRODSConnection) RequestWithoutResponse(request Request, timeout *RequestResponseTimeout) error {
 	requestMessage, err := conn.getRequestMessage(request)
 	if err != nil {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		if conn.config.Metrics != nil {
+			conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 		}
 		return err
 	}
 
-	err = conn.SendMessage(requestMessage)
+	requestTimeout := time.Duration(0)
+	if timeout != nil {
+		requestTimeout = timeout.RequestTimeout
+	}
+
+	err = conn.SendMessage(requestMessage, requestTimeout)
 	if err != nil {
-		if conn.metrics != nil {
-			conn.metrics.IncreaseCounterForRequestResponseFailures(1)
+		if conn.config.Metrics != nil {
+			conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 		}
 		return xerrors.Errorf("failed to send a request message: %w", err)
 	}
@@ -222,13 +253,13 @@ func (conn *IRODSConnection) RequestWithoutResponse(request Request) error {
 }
 
 // RequestAndCheck sends a request and expects a CheckErrorResponse, on which the error is already checked.
-func (conn *IRODSConnection) RequestAndCheck(request Request, response CheckErrorResponse, bsBuffer []byte) error {
-	return conn.RequestAndCheckWithTrackerCallBack(request, response, bsBuffer, nil, nil)
+func (conn *IRODSConnection) RequestAndCheck(request Request, response CheckErrorResponse, bsBuffer []byte, timeout *RequestResponseTimeout) error {
+	return conn.RequestAndCheckWithTrackerCallBack(request, response, bsBuffer, timeout, nil, nil)
 }
 
 // RequestAndCheckWithCallBack sends a request and expects a CheckErrorResponse, on which the error is already checked.
-func (conn *IRODSConnection) RequestAndCheckWithTrackerCallBack(request Request, response CheckErrorResponse, bsBuffer []byte, reqCallback common.TrackerCallBack, resCallback common.TrackerCallBack) error {
-	if err := conn.RequestWithTrackerCallBack(request, response, bsBuffer, reqCallback, resCallback); err != nil {
+func (conn *IRODSConnection) RequestAndCheckWithTrackerCallBack(request Request, response CheckErrorResponse, bsBuffer []byte, timeout *RequestResponseTimeout, reqCallback common.TrackerCallBack, resCallback common.TrackerCallBack) error {
+	if err := conn.RequestWithTrackerCallBack(request, response, bsBuffer, timeout, reqCallback, resCallback); err != nil {
 		return err
 	}
 
@@ -267,4 +298,18 @@ func (conn *IRODSConnection) getResponse(responseMessage *message.IRODSMessage, 
 	}
 
 	return nil
+}
+
+func (conn *IRODSConnection) GetOperationTimeout() *RequestResponseTimeout {
+	return &RequestResponseTimeout{
+		RequestTimeout:  conn.config.OperationTimeout,
+		ResponseTimeout: conn.config.OperationTimeout,
+	}
+}
+
+func (conn *IRODSConnection) GetLongResponseOperationTimeout() *RequestResponseTimeout {
+	return &RequestResponseTimeout{
+		RequestTimeout:  conn.config.OperationTimeout,
+		ResponseTimeout: conn.config.LongOperationTimeout,
+	}
 }

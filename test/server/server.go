@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	irods_fs "github.com/cyverse/go-irodsclient/fs"
+	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/session"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/docker/compose/v2/pkg/api"
@@ -142,6 +143,12 @@ func (server *IRODSTestServer) GetAccountCopy() *types.IRODSAccount {
 
 func (server *IRODSTestServer) GetApplicationName() string {
 	return "go-irodsclient-test"
+}
+
+func (server *IRODSTestServer) GetConnectionConfig() *connection.IRODSConnectionConfig {
+	return &connection.IRODSConnectionConfig{
+		ApplicationName: server.GetApplicationName(),
+	}
 }
 
 func (server *IRODSTestServer) GetFileSystemConfig() *irods_fs.FileSystemConfig {

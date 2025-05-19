@@ -49,7 +49,7 @@ func GetDataObjectRedirectionInfoForGet(conn *connection.IRODSConnection, path s
 		request.AddKeyVal(k, v)
 	}
 
-	err := conn.RequestAndCheck(request, &response, nil)
+	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 			return nil, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
@@ -121,7 +121,7 @@ func GetDataObjectRedirectionInfoForPut(conn *connection.IRODSConnection, path s
 		request.AddKeyVal(k, v)
 	}
 
-	err := conn.RequestAndCheck(request, &response, nil)
+	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 			return nil, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
@@ -181,7 +181,7 @@ func CompleteDataObjectRedirection(conn *connection.IRODSConnection, handle *typ
 
 	request := message.NewIRODSMessageGetDataObjectCompleteRequest(handle.FileDescriptor)
 	response := message.IRODSMessageGetDataObjectCompleteResponse{}
-	err := conn.RequestAndCheck(request, &response, nil)
+	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 			return xerrors.Errorf("failed to complete data object redirection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
@@ -203,8 +203,12 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 
 	logger.Debugf("download data object %q, task %d", handle.Path, taskID)
 
-	conn := sess.GetRedirectionConnection(controlConnection, handle.RedirectionInfo)
-	err := conn.Connect()
+	conn, err := sess.GetRedirectionConnection(controlConnection, handle.RedirectionInfo)
+	if err != nil {
+		return xerrors.Errorf("failed to get connection to resource server: %w", err)
+	}
+
+	err = conn.Connect()
 	if err != nil {
 		return xerrors.Errorf("failed to connect to resource server: %w", err)
 	}
@@ -245,9 +249,11 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 	var dataBuffer []byte
 	var encryptedDataBuffer []byte
 
+	timeout := controlConnection.GetOperationTimeout()
+
 	for cont {
 		// read transfer header
-		readLen, err := conn.Recv(headerBuffer, transferHeader.SizeOf())
+		readLen, err := conn.Recv(headerBuffer, transferHeader.SizeOf(), &timeout.ResponseTimeout)
 		if err != nil {
 			return xerrors.Errorf("failed to read transfer header from resource server: %w", err)
 		}
@@ -269,14 +275,18 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 
 		toGet := transferHeader.Length
 		curOffset := transferHeader.Offset
+
 		for toGet > 0 {
+			// set timeout
+			conn.SetReadTimeout(timeout.ResponseTimeout)
+
 			// read encryption header
 			if controlConnection.IsSSL() {
 				encryptionHeader := message.NewIRODSMessageResourceServerTransferEncryptionHeader(encKeysize)
 
 				encryptionHeaderBuffer := make([]byte, encryptionHeader.SizeOf())
 				eof := false
-				readLen, err := conn.Recv(encryptionHeaderBuffer, encryptionHeader.SizeOf())
+				readLen, err := conn.Recv(encryptionHeaderBuffer, encryptionHeader.SizeOf(), nil)
 				if err != nil {
 					if err == io.EOF {
 						eof = true
@@ -311,7 +321,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 				//logger.Debugf("encrypted data len %d", encryptedDataLen)
 
 				// read data
-				readLen, err = conn.Recv(encryptedDataBuffer, encryptedDataLen)
+				readLen, err = conn.Recv(encryptedDataBuffer, encryptedDataLen, nil)
 				if readLen > 0 {
 					// decrypt
 					decryptedDataLen, decErr := conn.Decrypt(encryptionHeader.IV, encryptedDataBuffer[:readLen], dataBuffer)
@@ -360,7 +370,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 				}
 
 				eof := false
-				readLen, err := conn.RecvToWriter(f, toGet)
+				readLen, err := conn.RecvToWriter(f, toGet, nil)
 				if readLen > 0 {
 					atomic.AddInt64(&totalBytesDownloaded, readLen)
 					if callback != nil {
@@ -400,8 +410,12 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 
 	logger.Debugf("upload data object %q, task %d", handle.Path, taskID)
 
-	conn := sess.GetRedirectionConnection(controlConnection, handle.RedirectionInfo)
-	err := conn.Connect()
+	conn, err := sess.GetRedirectionConnection(controlConnection, handle.RedirectionInfo)
+	if err != nil {
+		return xerrors.Errorf("failed to get connection to resource server: %w", err)
+	}
+
+	err = conn.Connect()
 	if err != nil {
 		return xerrors.Errorf("failed to connect to resource server: %w", err)
 	}
@@ -442,11 +456,13 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 
 	var dataBuffer []byte
 	var encryptedDataBuffer []byte
-	dataBufferSize := sess.GetConfig().TCPBufferSize
+	dataBufferSize := sess.GetConfig().TcpBufferSize
+
+	timeout := controlConnection.GetOperationTimeout()
 
 	for cont {
 		// read transfer header
-		readLen, err := conn.Recv(headerBuffer, transferHeader.SizeOf())
+		readLen, err := conn.Recv(headerBuffer, transferHeader.SizeOf(), &timeout.ResponseTimeout)
 		if err != nil {
 			if err == io.EOF {
 				break
@@ -473,6 +489,9 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 		toPut := transferHeader.Length
 		curOffset := transferHeader.Offset
 		for toPut > 0 {
+			// set timeout
+			conn.SetWriteTimeout(timeout.RequestTimeout)
+
 			// read encryption header
 			if controlConnection.IsSSL() {
 				// init iv
@@ -529,14 +548,14 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 				}
 
 				//logger.Debugf("sending encryption header, header len %d, content len %d", len(encryptionHeaderBuffer), encryptionHeader.Length)
-				err = conn.Send(encryptionHeaderBuffer, len(encryptionHeaderBuffer))
+				err = conn.Send(encryptionHeaderBuffer, len(encryptionHeaderBuffer), nil)
 				if err != nil {
 					return xerrors.Errorf("failed to write transfer encryption header to resource server: %w", err)
 				}
 
 				//logger.Debugf("sending encrypted data")
 				encryptedDataLen := encryptionHeader.Length - encKeysize
-				writeErr := conn.Send(encryptedDataBuffer, encryptedDataLen)
+				writeErr := conn.Send(encryptedDataBuffer, encryptedDataLen, nil)
 				if writeErr != nil {
 					return xerrors.Errorf("failed to write data to %q, task %d, offset %d: %w", handle.Path, taskID, curOffset, writeErr)
 				}
@@ -567,7 +586,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 				}
 
 				eof := false
-				putLen, err := conn.SendFromReader(f, toPut)
+				putLen, err := conn.SendFromReader(f, toPut, nil)
 				atomic.AddInt64(&totalBytesUploaded, putLen)
 				if callback != nil {
 					callback(totalBytesUploaded, -1)

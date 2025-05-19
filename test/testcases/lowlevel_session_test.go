@@ -89,8 +89,10 @@ func testConnectionMetrics(t *testing.T) {
 	sessionConfig := sess.GetConfig()
 
 	metrics := sess.GetMetrics()
-	assert.Equal(t, uint64(sess.GetConfig().ConnectionInitNumber), metrics.GetConnectionsOpened())
-	assert.Equal(t, uint64(0), metrics.GetConnectionsOccupied())
+	if metrics != nil {
+		assert.Equal(t, uint64(sess.GetConfig().ConnectionInitNumber), metrics.GetConnectionsOpened())
+		assert.Equal(t, uint64(0), metrics.GetConnectionsOccupied())
+	}
 
 	homeDir := test.GetTestHomeDir()
 

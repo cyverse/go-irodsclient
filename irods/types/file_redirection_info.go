@@ -39,19 +39,19 @@ func (info *IRODSRedirectionInfo) ToString() string {
 // Validate validates redirection info
 func (info *IRODSRedirectionInfo) Validate() error {
 	if len(info.Host) == 0 {
-		return xerrors.Errorf("empty host")
+		return xerrors.Errorf("empty host: %w", NewResourceServerConnectionConfigError(info))
 	}
 
 	if info.Port <= 0 {
-		return xerrors.Errorf("empty port")
+		return xerrors.Errorf("empty port: %w", NewResourceServerConnectionConfigError(info))
 	}
 
 	if info.Cookie <= 0 {
-		return xerrors.Errorf("empty cookie")
+		return xerrors.Errorf("empty cookie: %w", NewResourceServerConnectionConfigError(info))
 	}
 
 	if info.ServerSocket <= 0 {
-		return xerrors.Errorf("empty server socket")
+		return xerrors.Errorf("empty server socket: %w", NewResourceServerConnectionConfigError(info))
 	}
 
 	return nil
