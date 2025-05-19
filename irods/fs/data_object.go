@@ -92,6 +92,10 @@ func GetDataObject(conn *connection.IRODSConnection, dataObjPath string) (*types
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
+		if conn.GetVersion().HasHigherVersionThan(5, 0, 0) {
+			query.AddSelect(common.ICAT_COLUMN_D_ACCESS_TIME, 1)
+		}
+
 		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, path.Dir(dataObjPath))
 		query.AddEqualStringCondition(common.ICAT_COLUMN_DATA_NAME, path.Base(dataObjPath))
 
@@ -149,6 +153,7 @@ func GetDataObject(conn *connection.IRODSConnection, dataObjPath string) (*types
 						ResourceHierarchy: "",
 						CreateTime:        time.Time{},
 						ModifyTime:        time.Time{},
+						AccessTime:        time.Time{},
 					}
 
 					pagenatedDataObjects[row] = &types.IRODSDataObject{
@@ -213,6 +218,17 @@ func GetDataObject(conn *connection.IRODSConnection, dataObjPath string) (*types
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
+
+					if pagenatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
+						// if access time is not set, set it to modify time
+						pagenatedDataObjects[row].Replicas[0].AccessTime = mT
+					}
+				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
+					aT, err := util.GetIRODSDateTime(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
 					// ignore
 				}
@@ -291,6 +307,10 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, dataObjPath st
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
+		if conn.GetVersion().HasHigherVersionThan(5, 0, 0) {
+			query.AddSelect(common.ICAT_COLUMN_D_ACCESS_TIME, 1)
+		}
+
 		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, path.Dir(dataObjPath))
 		query.AddEqualStringCondition(common.ICAT_COLUMN_DATA_NAME, path.Base(dataObjPath))
 		query.AddEqualStringCondition(common.ICAT_COLUMN_D_REPL_STATUS, "1")
@@ -349,6 +369,7 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, dataObjPath st
 						ResourceHierarchy: "",
 						CreateTime:        time.Time{},
 						ModifyTime:        time.Time{},
+						AccessTime:        time.Time{},
 					}
 
 					pagenatedDataObjects[row] = &types.IRODSDataObject{
@@ -413,6 +434,17 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, dataObjPath st
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
+
+					if pagenatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
+						// if access time is not set, set it to modify time
+						pagenatedDataObjects[row].Replicas[0].AccessTime = mT
+					}
+				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
+					aT, err := util.GetIRODSDateTime(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
 					// ignore
 				}
@@ -499,6 +531,10 @@ func ListDataObjects(conn *connection.IRODSConnection, collPath string) ([]*type
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
+		if conn.GetVersion().HasHigherVersionThan(5, 0, 0) {
+			query.AddSelect(common.ICAT_COLUMN_D_ACCESS_TIME, 1)
+		}
+
 		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, collPath)
 
 		queryResult := message.IRODSMessageQueryResponse{}
@@ -557,6 +593,7 @@ func ListDataObjects(conn *connection.IRODSConnection, collPath string) ([]*type
 						ResourceHierarchy: "",
 						CreateTime:        time.Time{},
 						ModifyTime:        time.Time{},
+						AccessTime:        time.Time{},
 					}
 
 					pagenatedDataObjects[row] = &types.IRODSDataObject{
@@ -622,6 +659,17 @@ func ListDataObjects(conn *connection.IRODSConnection, collPath string) ([]*type
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
+
+					if pagenatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
+						// if access time is not set, set it to modify time
+						pagenatedDataObjects[row].Replicas[0].AccessTime = mT
+					}
+				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
+					aT, err := util.GetIRODSDateTime(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
 					// ignore
 				}
@@ -697,6 +745,10 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collPath str
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
+		if conn.GetVersion().HasHigherVersionThan(5, 0, 0) {
+			query.AddSelect(common.ICAT_COLUMN_D_ACCESS_TIME, 1)
+		}
+
 		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_NAME, collPath)
 		query.AddEqualStringCondition(common.ICAT_COLUMN_D_REPL_STATUS, "1")
 
@@ -756,6 +808,7 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collPath str
 						ResourceHierarchy: "",
 						CreateTime:        time.Time{},
 						ModifyTime:        time.Time{},
+						AccessTime:        time.Time{},
 					}
 
 					pagenatedDataObjects[row] = &types.IRODSDataObject{
@@ -821,6 +874,17 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collPath str
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
+
+					if pagenatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
+						// if access time is not set, set it to modify time
+						pagenatedDataObjects[row].Replicas[0].AccessTime = mT
+					}
+				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
+					aT, err := util.GetIRODSDateTime(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
 					// ignore
 				}
@@ -912,6 +976,10 @@ func SearchDataObjectsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
+		if conn.GetVersion().HasHigherVersionThan(5, 0, 0) {
+			query.AddSelect(common.ICAT_COLUMN_D_ACCESS_TIME, 1)
+		}
+
 		query.AddLikeStringCondition(common.ICAT_COLUMN_COLL_NAME, dirnameSqlWildcard)
 		query.AddLikeStringCondition(common.ICAT_COLUMN_DATA_NAME, basenameSqlWildcard)
 
@@ -972,6 +1040,7 @@ func SearchDataObjectsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 						ResourceHierarchy: "",
 						CreateTime:        time.Time{},
 						ModifyTime:        time.Time{},
+						AccessTime:        time.Time{},
 					}
 
 					pagenatedDataObjects[row] = &types.IRODSDataObject{
@@ -1050,6 +1119,17 @@ func SearchDataObjectsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
+
+					if pagenatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
+						// if access time is not set, set it to modify time
+						pagenatedDataObjects[row].Replicas[0].AccessTime = mT
+					}
+				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
+					aT, err := util.GetIRODSDateTime(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
 					// ignore
 				}
@@ -1138,6 +1218,10 @@ func SearchDataObjectsMasterReplicaUnixWildcard(conn *connection.IRODSConnection
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
+		if conn.GetVersion().HasHigherVersionThan(5, 0, 0) {
+			query.AddSelect(common.ICAT_COLUMN_D_ACCESS_TIME, 1)
+		}
+
 		query.AddLikeStringCondition(common.ICAT_COLUMN_COLL_NAME, dirnameSqlWildcard)
 		query.AddLikeStringCondition(common.ICAT_COLUMN_DATA_NAME, basenameSqlWildcard)
 		query.AddEqualStringCondition(common.ICAT_COLUMN_D_REPL_STATUS, "1")
@@ -1199,6 +1283,7 @@ func SearchDataObjectsMasterReplicaUnixWildcard(conn *connection.IRODSConnection
 						ResourceHierarchy: "",
 						CreateTime:        time.Time{},
 						ModifyTime:        time.Time{},
+						AccessTime:        time.Time{},
 					}
 
 					pagenatedDataObjects[row] = &types.IRODSDataObject{
@@ -1277,6 +1362,17 @@ func SearchDataObjectsMasterReplicaUnixWildcard(conn *connection.IRODSConnection
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
+
+					if pagenatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
+						// if access time is not set, set it to modify time
+						pagenatedDataObjects[row].Replicas[0].AccessTime = mT
+					}
+				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
+					aT, err := util.GetIRODSDateTime(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
 					// ignore
 				}
@@ -2605,6 +2701,10 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
+		if conn.GetVersion().HasHigherVersionThan(5, 0, 0) {
+			query.AddSelect(common.ICAT_COLUMN_D_ACCESS_TIME, 1)
+		}
+
 		query.AddEqualStringCondition(common.ICAT_COLUMN_META_DATA_ATTR_NAME, metaName)
 		query.AddEqualStringCondition(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, metaValue)
 
@@ -2741,6 +2841,17 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
+
+					if pagenatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
+						// if access time is not set, set it to modify time
+						pagenatedDataObjects[row].Replicas[0].AccessTime = mT
+					}
+				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
+					aT, err := util.GetIRODSDateTime(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
 					// ignore
 				}
@@ -2817,6 +2928,10 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 		query.AddSelect(common.ICAT_COLUMN_D_RESC_HIER, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
+
+		if conn.GetVersion().HasHigherVersionThan(5, 0, 0) {
+			query.AddSelect(common.ICAT_COLUMN_D_ACCESS_TIME, 1)
+		}
 
 		query.AddEqualStringCondition(common.ICAT_COLUMN_META_DATA_ATTR_NAME, metaName)
 		query.AddEqualStringCondition(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, metaValue)
@@ -2955,6 +3070,17 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
+
+					if pagenatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
+						// if access time is not set, set it to modify time
+						pagenatedDataObjects[row].Replicas[0].AccessTime = mT
+					}
+				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
+					aT, err := util.GetIRODSDateTime(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
 					// ignore
 				}
@@ -3041,6 +3167,10 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
 
+		if conn.GetVersion().HasHigherVersionThan(5, 0, 0) {
+			query.AddSelect(common.ICAT_COLUMN_D_ACCESS_TIME, 1)
+		}
+
 		query.AddEqualStringCondition(common.ICAT_COLUMN_META_DATA_ATTR_NAME, metaName)
 		query.AddLikeStringCondition(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, metaValue)
 
@@ -3177,6 +3307,17 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
+
+					if pagenatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
+						// if access time is not set, set it to modify time
+						pagenatedDataObjects[row].Replicas[0].AccessTime = mT
+					}
+				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
+					aT, err := util.GetIRODSDateTime(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
 					// ignore
 				}
@@ -3254,6 +3395,10 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 		query.AddSelect(common.ICAT_COLUMN_D_RESC_HIER, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_CREATE_TIME, 1)
 		query.AddSelect(common.ICAT_COLUMN_D_MODIFY_TIME, 1)
+
+		if conn.GetVersion().HasHigherVersionThan(5, 0, 0) {
+			query.AddSelect(common.ICAT_COLUMN_D_ACCESS_TIME, 1)
+		}
 
 		query.AddEqualStringCondition(common.ICAT_COLUMN_META_DATA_ATTR_NAME, metaName)
 		query.AddLikeStringCondition(common.ICAT_COLUMN_META_DATA_ATTR_VALUE, metaValue)
@@ -3392,6 +3537,17 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
+
+					if pagenatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
+						// if access time is not set, set it to modify time
+						pagenatedDataObjects[row].Replicas[0].AccessTime = mT
+					}
+				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
+					aT, err := util.GetIRODSDateTime(value)
+					if err != nil {
+						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
+					}
+					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
 					// ignore
 				}

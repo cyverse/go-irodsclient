@@ -31,6 +31,7 @@ type Entry struct {
 	DataType          string                  `json:"data_type"`
 	CreateTime        time.Time               `json:"create_time"`
 	ModifyTime        time.Time               `json:"modify_time"`
+	AccessTime        time.Time               `json:"access_time"`
 	CheckSumAlgorithm types.ChecksumAlgorithm `json:"checksum_algorithm"`
 	CheckSum          []byte                  `json:"checksum"`
 	IRODSReplicas     []types.IRODSReplica    `json:"replicas,omitempty"`
@@ -47,6 +48,7 @@ func NewEntryFromCollection(collection *types.IRODSCollection) *Entry {
 		DataType:          "",
 		CreateTime:        collection.CreateTime,
 		ModifyTime:        collection.ModifyTime,
+		AccessTime:        collection.ModifyTime, // default to modify time
 		CheckSumAlgorithm: types.ChecksumAlgorithmUnknown,
 		CheckSum:          nil,
 		IRODSReplicas:     nil,
@@ -79,6 +81,7 @@ func NewEntryFromDataObject(dataobject *types.IRODSDataObject) *Entry {
 		DataType:          dataobject.DataType,
 		CreateTime:        dataobject.Replicas[0].CreateTime,
 		ModifyTime:        dataobject.Replicas[0].ModifyTime,
+		AccessTime:        dataobject.Replicas[0].AccessTime,
 		CheckSumAlgorithm: checksumAlgorithm,
 		CheckSum:          checksumString,
 		IRODSReplicas:     replicas,
@@ -87,7 +90,7 @@ func NewEntryFromDataObject(dataobject *types.IRODSDataObject) *Entry {
 
 // ToString stringifies the object
 func (entry *Entry) ToString() string {
-	return fmt.Sprintf("<Entry %d %s %s %s %d %s %s %s>", entry.ID, entry.Type, entry.Path, entry.Owner, entry.Size, entry.DataType, entry.CreateTime, entry.ModifyTime)
+	return fmt.Sprintf("<Entry %d %s %s %s %d %s %s %s %s>", entry.ID, entry.Type, entry.Path, entry.Owner, entry.Size, entry.DataType, entry.CreateTime, entry.ModifyTime, entry.AccessTime)
 }
 
 // IsDir returns if the entry is for directory
