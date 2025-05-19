@@ -37,6 +37,7 @@ const (
 	ICAT_COLUMN_D_MODIFY_TIME   ICATColumnNumber = 420
 	ICAT_COLUMN_D_RESC_HIER     ICATColumnNumber = 422
 	ICAT_COLUMN_D_RESC_ID       ICATColumnNumber = 423
+	ICAT_COLUMN_D_ACCESS_TIME   ICATColumnNumber = 424
 
 	// Collection
 	ICAT_COLUMN_COLL_ID          ICATColumnNumber = 500

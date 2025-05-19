@@ -24,9 +24,11 @@ type IRODSReplica struct {
 	CreateTime time.Time `json:"create_time"`
 	// ModifyTime has last modified time
 	ModifyTime time.Time `json:"modify_time"`
+	// AccessTime has last access time
+	AccessTime time.Time `json:"access_time"` // iRODS 5+
 }
 
 // ToString stringifies the object
 func (obj *IRODSReplica) ToString() string {
-	return fmt.Sprintf("<IRODSReplica %d %s %s %s %s>", obj.Number, obj.Status, obj.ResourceName, obj.CreateTime, obj.ModifyTime)
+	return fmt.Sprintf("<IRODSReplica %d %s %s %s %s %s>", obj.Number, obj.Status, obj.ResourceName, obj.CreateTime, obj.ModifyTime, obj.AccessTime)
 }
