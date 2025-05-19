@@ -566,7 +566,7 @@ func ListTicketsForDataObjects(conn *connection.IRODSConnection) ([]*types.IRODS
 			return nil, xerrors.Errorf("failed to receive ticket attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedTickets := make([]*types.IRODSTicket, queryResult.RowCount)
+		paginatedTickets := make([]*types.IRODSTicket, queryResult.RowCount)
 		tempValues := make([]map[string]string, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
@@ -578,9 +578,9 @@ func ListTicketsForDataObjects(conn *connection.IRODSConnection) ([]*types.IRODS
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedTickets[row] == nil {
+				if paginatedTickets[row] == nil {
 					// create a new
-					pagenatedTickets[row] = &types.IRODSTicket{
+					paginatedTickets[row] = &types.IRODSTicket{
 						ID:             -1,
 						Name:           "",
 						Type:           types.TicketTypeRead,
@@ -609,78 +609,78 @@ func ListTicketsForDataObjects(conn *connection.IRODSConnection) ([]*types.IRODS
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse ticket id %q: %w", value, err)
 					}
-					pagenatedTickets[row].ID = tID
+					paginatedTickets[row].ID = tID
 				case int(common.ICAT_COLUMN_TICKET_STRING):
-					pagenatedTickets[row].Name = value
+					paginatedTickets[row].Name = value
 				case int(common.ICAT_COLUMN_TICKET_TYPE):
-					pagenatedTickets[row].Type = types.TicketType(value)
+					paginatedTickets[row].Type = types.TicketType(value)
 				case int(common.ICAT_COLUMN_TICKET_OBJECT_TYPE):
-					pagenatedTickets[row].ObjectType = types.ObjectType(value)
+					paginatedTickets[row].ObjectType = types.ObjectType(value)
 				case int(common.ICAT_COLUMN_TICKET_USES_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse uses limit %q: %w", value, err)
 					}
-					pagenatedTickets[row].UsesLimit = limit
+					paginatedTickets[row].UsesLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_USES_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse uses count %q: %w", value, err)
 					}
-					pagenatedTickets[row].UsesCount = count
+					paginatedTickets[row].UsesCount = count
 				case int(common.ICAT_COLUMN_TICKET_EXPIRY_TS):
 					if len(strings.TrimSpace(value)) > 0 {
 						mT, err := util.GetIRODSDateTime(value)
 						if err != nil {
 							return nil, xerrors.Errorf("failed to parse expiry time %q: %w", value, err)
 						}
-						pagenatedTickets[row].ExpirationTime = mT
+						paginatedTickets[row].ExpirationTime = mT
 					}
 				case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse write file limit %q: %w", value, err)
 					}
-					pagenatedTickets[row].WriteFileLimit = limit
+					paginatedTickets[row].WriteFileLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse write file count %q: %w", value, err)
 					}
-					pagenatedTickets[row].WriteFileCount = count
+					paginatedTickets[row].WriteFileCount = count
 				case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse write byte limit %q: %w", value, err)
 					}
-					pagenatedTickets[row].WriteByteLimit = limit
+					paginatedTickets[row].WriteByteLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse write byte count %q: %w", value, err)
 					}
-					pagenatedTickets[row].WriteByteCount = count
+					paginatedTickets[row].WriteByteCount = count
 				case int(common.ICAT_COLUMN_TICKET_DATA_NAME):
 					tempValues[row]["data_name"] = value
 					if dataCollName, ok := tempValues[row]["data_coll_name"]; ok {
-						pagenatedTickets[row].Path = util.MakeIRODSPath(dataCollName, value)
+						paginatedTickets[row].Path = util.MakeIRODSPath(dataCollName, value)
 					}
 				case int(common.ICAT_COLUMN_TICKET_DATA_COLL_NAME):
 					tempValues[row]["data_coll_name"] = value
 					if dataName, ok := tempValues[row]["data_name"]; ok {
-						pagenatedTickets[row].Path = util.MakeIRODSPath(value, dataName)
+						paginatedTickets[row].Path = util.MakeIRODSPath(value, dataName)
 					}
 				case int(common.ICAT_COLUMN_TICKET_OWNER_NAME):
-					pagenatedTickets[row].Owner = value
+					paginatedTickets[row].Owner = value
 				case int(common.ICAT_COLUMN_TICKET_OWNER_ZONE):
-					pagenatedTickets[row].OwnerZone = value
+					paginatedTickets[row].OwnerZone = value
 				default:
 					// ignore
 				}
 			}
 		}
 
-		tickets = append(tickets, pagenatedTickets...)
+		tickets = append(tickets, paginatedTickets...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -751,7 +751,7 @@ func ListTicketsForCollections(conn *connection.IRODSConnection) ([]*types.IRODS
 			return nil, xerrors.Errorf("failed to receive ticket attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedTickets := make([]*types.IRODSTicket, queryResult.RowCount)
+		paginatedTickets := make([]*types.IRODSTicket, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -762,9 +762,9 @@ func ListTicketsForCollections(conn *connection.IRODSConnection) ([]*types.IRODS
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedTickets[row] == nil {
+				if paginatedTickets[row] == nil {
 					// create a new
-					pagenatedTickets[row] = &types.IRODSTicket{
+					paginatedTickets[row] = &types.IRODSTicket{
 						ID:             -1,
 						Name:           "",
 						Type:           types.TicketTypeRead,
@@ -788,70 +788,70 @@ func ListTicketsForCollections(conn *connection.IRODSConnection) ([]*types.IRODS
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse ticket id %q: %w", value, err)
 					}
-					pagenatedTickets[row].ID = tID
+					paginatedTickets[row].ID = tID
 				case int(common.ICAT_COLUMN_TICKET_STRING):
-					pagenatedTickets[row].Name = value
+					paginatedTickets[row].Name = value
 				case int(common.ICAT_COLUMN_TICKET_TYPE):
-					pagenatedTickets[row].Type = types.TicketType(value)
+					paginatedTickets[row].Type = types.TicketType(value)
 				case int(common.ICAT_COLUMN_TICKET_OBJECT_TYPE):
-					pagenatedTickets[row].ObjectType = types.ObjectType(value)
+					paginatedTickets[row].ObjectType = types.ObjectType(value)
 				case int(common.ICAT_COLUMN_TICKET_USES_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse uses limit %q: %w", value, err)
 					}
-					pagenatedTickets[row].UsesLimit = limit
+					paginatedTickets[row].UsesLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_USES_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse uses count %q: %w", value, err)
 					}
-					pagenatedTickets[row].UsesCount = count
+					paginatedTickets[row].UsesCount = count
 				case int(common.ICAT_COLUMN_TICKET_EXPIRY_TS):
 					if len(strings.TrimSpace(value)) > 0 {
 						mT, err := util.GetIRODSDateTime(value)
 						if err != nil {
 							return nil, xerrors.Errorf("failed to parse expiry time %q: %w", value, err)
 						}
-						pagenatedTickets[row].ExpirationTime = mT
+						paginatedTickets[row].ExpirationTime = mT
 					}
 				case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse write file limit %q: %w", value, err)
 					}
-					pagenatedTickets[row].WriteFileLimit = limit
+					paginatedTickets[row].WriteFileLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse write file count %q: %w", value, err)
 					}
-					pagenatedTickets[row].WriteFileCount = count
+					paginatedTickets[row].WriteFileCount = count
 				case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse write byte limit %q: %w", value, err)
 					}
-					pagenatedTickets[row].WriteByteLimit = limit
+					paginatedTickets[row].WriteByteLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse write byte count %q: %w", value, err)
 					}
-					pagenatedTickets[row].WriteByteCount = count
+					paginatedTickets[row].WriteByteCount = count
 				case int(common.ICAT_COLUMN_TICKET_COLL_NAME):
-					pagenatedTickets[row].Path = value
+					paginatedTickets[row].Path = value
 				case int(common.ICAT_COLUMN_TICKET_OWNER_NAME):
-					pagenatedTickets[row].Owner = value
+					paginatedTickets[row].Owner = value
 				case int(common.ICAT_COLUMN_TICKET_OWNER_ZONE):
-					pagenatedTickets[row].OwnerZone = value
+					paginatedTickets[row].OwnerZone = value
 				default:
 					// ignore
 				}
 			}
 		}
 
-		tickets = append(tickets, pagenatedTickets...)
+		tickets = append(tickets, paginatedTickets...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -921,7 +921,7 @@ func ListTicketsBasic(conn *connection.IRODSConnection) ([]*types.IRODSTicket, e
 			return nil, xerrors.Errorf("failed to receive ticket attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedTickets := make([]*types.IRODSTicket, queryResult.RowCount)
+		paginatedTickets := make([]*types.IRODSTicket, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -932,9 +932,9 @@ func ListTicketsBasic(conn *connection.IRODSConnection) ([]*types.IRODSTicket, e
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedTickets[row] == nil {
+				if paginatedTickets[row] == nil {
 					// create a new
-					pagenatedTickets[row] = &types.IRODSTicket{
+					paginatedTickets[row] = &types.IRODSTicket{
 						ID:             -1,
 						Name:           "",
 						Type:           types.TicketTypeRead,
@@ -958,68 +958,68 @@ func ListTicketsBasic(conn *connection.IRODSConnection) ([]*types.IRODSTicket, e
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse ticket id %q: %w", value, err)
 					}
-					pagenatedTickets[row].ID = tID
+					paginatedTickets[row].ID = tID
 				case int(common.ICAT_COLUMN_TICKET_STRING):
-					pagenatedTickets[row].Name = value
+					paginatedTickets[row].Name = value
 				case int(common.ICAT_COLUMN_TICKET_TYPE):
-					pagenatedTickets[row].Type = types.TicketType(value)
+					paginatedTickets[row].Type = types.TicketType(value)
 				case int(common.ICAT_COLUMN_TICKET_OBJECT_TYPE):
-					pagenatedTickets[row].ObjectType = types.ObjectType(value)
+					paginatedTickets[row].ObjectType = types.ObjectType(value)
 				case int(common.ICAT_COLUMN_TICKET_USES_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse uses limit %q: %w", value, err)
 					}
-					pagenatedTickets[row].UsesLimit = limit
+					paginatedTickets[row].UsesLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_USES_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse uses count %q: %w", value, err)
 					}
-					pagenatedTickets[row].UsesCount = count
+					paginatedTickets[row].UsesCount = count
 				case int(common.ICAT_COLUMN_TICKET_EXPIRY_TS):
 					if len(strings.TrimSpace(value)) > 0 {
 						mT, err := util.GetIRODSDateTime(value)
 						if err != nil {
 							return nil, xerrors.Errorf("failed to parse expiry time %q: %w", value, err)
 						}
-						pagenatedTickets[row].ExpirationTime = mT
+						paginatedTickets[row].ExpirationTime = mT
 					}
 				case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse write file limit %q: %w", value, err)
 					}
-					pagenatedTickets[row].WriteFileLimit = limit
+					paginatedTickets[row].WriteFileLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse write file count %q: %w", value, err)
 					}
-					pagenatedTickets[row].WriteFileCount = count
+					paginatedTickets[row].WriteFileCount = count
 				case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse write byte limit %q: %w", value, err)
 					}
-					pagenatedTickets[row].WriteByteLimit = limit
+					paginatedTickets[row].WriteByteLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse write byte count %q: %w", value, err)
 					}
-					pagenatedTickets[row].WriteByteCount = count
+					paginatedTickets[row].WriteByteCount = count
 				case int(common.ICAT_COLUMN_TICKET_OWNER_NAME):
-					pagenatedTickets[row].Owner = value
+					paginatedTickets[row].Owner = value
 				case int(common.ICAT_COLUMN_TICKET_OWNER_ZONE):
-					pagenatedTickets[row].OwnerZone = value
+					paginatedTickets[row].OwnerZone = value
 				default:
 					// ignore
 				}
 			}
 		}
 
-		tickets = append(tickets, pagenatedTickets...)
+		tickets = append(tickets, paginatedTickets...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -1079,7 +1079,7 @@ func ListTicketAllowedHosts(conn *connection.IRODSConnection, ticketID int64) ([
 			return nil, xerrors.Errorf("failed to receive ticket restriction attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedHosts := make([]string, queryResult.RowCount)
+		paginatedHosts := make([]string, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -1092,14 +1092,14 @@ func ListTicketAllowedHosts(conn *connection.IRODSConnection, ticketID int64) ([
 
 				switch sqlResult.AttributeIndex {
 				case int(common.ICAT_COLUMN_TICKET_ALLOWED_HOST):
-					pagenatedHosts[row] = value
+					paginatedHosts[row] = value
 				default:
 					// ignore
 				}
 			}
 		}
 
-		hosts = append(hosts, pagenatedHosts...)
+		hosts = append(hosts, paginatedHosts...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -1159,7 +1159,7 @@ func ListTicketAllowedUserNames(conn *connection.IRODSConnection, ticketID int64
 			return nil, xerrors.Errorf("failed to receive ticket restriction attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedUsernames := make([]string, queryResult.RowCount)
+		paginatedUsernames := make([]string, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -1172,14 +1172,14 @@ func ListTicketAllowedUserNames(conn *connection.IRODSConnection, ticketID int64
 
 				switch sqlResult.AttributeIndex {
 				case int(common.ICAT_COLUMN_TICKET_ALLOWED_USER_NAME):
-					pagenatedUsernames[row] = value
+					paginatedUsernames[row] = value
 				default:
 					// ignore
 				}
 			}
 		}
 
-		usernames = append(usernames, pagenatedUsernames...)
+		usernames = append(usernames, paginatedUsernames...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -1239,7 +1239,7 @@ func ListTicketAllowedGroupNames(conn *connection.IRODSConnection, ticketID int6
 			return nil, xerrors.Errorf("failed to receive ticket restriction attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedGroupnames := make([]string, queryResult.RowCount)
+		paginatedGroupnames := make([]string, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -1252,14 +1252,14 @@ func ListTicketAllowedGroupNames(conn *connection.IRODSConnection, ticketID int6
 
 				switch sqlResult.AttributeIndex {
 				case int(common.ICAT_COLUMN_TICKET_ALLOWED_GROUP_NAME):
-					pagenatedGroupnames[row] = value
+					paginatedGroupnames[row] = value
 				default:
 					// ignore
 				}
 			}
 		}
 
-		groupnames = append(groupnames, pagenatedGroupnames...)
+		groupnames = append(groupnames, paginatedGroupnames...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {

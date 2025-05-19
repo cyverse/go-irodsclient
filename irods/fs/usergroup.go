@@ -154,7 +154,7 @@ func ListUsers(conn *connection.IRODSConnection, zoneName string) ([]*types.IROD
 			return nil, xerrors.Errorf("failed to receive user attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedUsers := make([]*types.IRODSUser, queryResult.RowCount)
+		paginatedUsers := make([]*types.IRODSUser, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -165,9 +165,9 @@ func ListUsers(conn *connection.IRODSConnection, zoneName string) ([]*types.IROD
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedUsers[row] == nil {
+				if paginatedUsers[row] == nil {
 					// create a new
-					pagenatedUsers[row] = &types.IRODSUser{
+					paginatedUsers[row] = &types.IRODSUser{
 						ID:   -1,
 						Zone: "",
 						Name: "",
@@ -181,20 +181,20 @@ func ListUsers(conn *connection.IRODSConnection, zoneName string) ([]*types.IROD
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse user id %q: %w", value, err)
 					}
-					pagenatedUsers[row].ID = userID
+					paginatedUsers[row].ID = userID
 				case int(common.ICAT_COLUMN_USER_ZONE):
-					pagenatedUsers[row].Zone = value
+					paginatedUsers[row].Zone = value
 				case int(common.ICAT_COLUMN_USER_NAME):
-					pagenatedUsers[row].Name = value
+					paginatedUsers[row].Name = value
 				case int(common.ICAT_COLUMN_USER_TYPE):
-					pagenatedUsers[row].Type = types.IRODSUserType(value)
+					paginatedUsers[row].Type = types.IRODSUserType(value)
 				default:
 					// ignore
 				}
 			}
 		}
 
-		users = append(users, pagenatedUsers...)
+		users = append(users, paginatedUsers...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -258,7 +258,7 @@ func ListUsersByType(conn *connection.IRODSConnection, userType types.IRODSUserT
 			return nil, xerrors.Errorf("failed to receive user attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedUsers := make([]*types.IRODSUser, queryResult.RowCount)
+		paginatedUsers := make([]*types.IRODSUser, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -269,9 +269,9 @@ func ListUsersByType(conn *connection.IRODSConnection, userType types.IRODSUserT
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedUsers[row] == nil {
+				if paginatedUsers[row] == nil {
 					// create a new
-					pagenatedUsers[row] = &types.IRODSUser{
+					paginatedUsers[row] = &types.IRODSUser{
 						ID:   -1,
 						Zone: "",
 						Name: "",
@@ -285,20 +285,20 @@ func ListUsersByType(conn *connection.IRODSConnection, userType types.IRODSUserT
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse user id %q: %w", value, err)
 					}
-					pagenatedUsers[row].ID = userID
+					paginatedUsers[row].ID = userID
 				case int(common.ICAT_COLUMN_USER_ZONE):
-					pagenatedUsers[row].Zone = value
+					paginatedUsers[row].Zone = value
 				case int(common.ICAT_COLUMN_USER_NAME):
-					pagenatedUsers[row].Name = value
+					paginatedUsers[row].Name = value
 				case int(common.ICAT_COLUMN_USER_TYPE):
-					pagenatedUsers[row].Type = types.IRODSUserType(value)
+					paginatedUsers[row].Type = types.IRODSUserType(value)
 				default:
 					// ignore
 				}
 			}
 		}
 
-		users = append(users, pagenatedUsers...)
+		users = append(users, paginatedUsers...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -362,7 +362,7 @@ func ListGroupMembers(conn *connection.IRODSConnection, groupName string, zoneNa
 			return nil, xerrors.Errorf("failed to receive group member attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedUsers := make([]*types.IRODSUser, queryResult.RowCount)
+		paginatedUsers := make([]*types.IRODSUser, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -373,9 +373,9 @@ func ListGroupMembers(conn *connection.IRODSConnection, groupName string, zoneNa
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedUsers[row] == nil {
+				if paginatedUsers[row] == nil {
 					// create a new
-					pagenatedUsers[row] = &types.IRODSUser{
+					paginatedUsers[row] = &types.IRODSUser{
 						ID:   -1,
 						Zone: "",
 						Name: "",
@@ -389,20 +389,20 @@ func ListGroupMembers(conn *connection.IRODSConnection, groupName string, zoneNa
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse user id %q: %w", value, err)
 					}
-					pagenatedUsers[row].ID = userID
+					paginatedUsers[row].ID = userID
 				case int(common.ICAT_COLUMN_USER_ZONE):
-					pagenatedUsers[row].Zone = value
+					paginatedUsers[row].Zone = value
 				case int(common.ICAT_COLUMN_USER_NAME):
-					pagenatedUsers[row].Name = value
+					paginatedUsers[row].Name = value
 				case int(common.ICAT_COLUMN_USER_TYPE):
-					pagenatedUsers[row].Type = types.IRODSUserType(value)
+					paginatedUsers[row].Type = types.IRODSUserType(value)
 				default:
 					// ignore
 				}
 			}
 		}
 
-		users = append(users, pagenatedUsers...)
+		users = append(users, paginatedUsers...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -660,7 +660,7 @@ func ListUserResourceQuota(conn *connection.IRODSConnection, username string, zo
 			return nil, xerrors.Errorf("failed to receive quota attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedQuota := make([]*types.IRODSQuota, queryResult.RowCount)
+		paginatedQuota := make([]*types.IRODSQuota, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -671,9 +671,9 @@ func ListUserResourceQuota(conn *connection.IRODSConnection, username string, zo
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedQuota[row] == nil {
+				if paginatedQuota[row] == nil {
 					// create a new
-					pagenatedQuota[row] = &types.IRODSQuota{
+					paginatedQuota[row] = &types.IRODSQuota{
 						RescName: "",
 						Limit:    -1,
 					}
@@ -681,20 +681,20 @@ func ListUserResourceQuota(conn *connection.IRODSConnection, username string, zo
 
 				switch sqlResult.AttributeIndex {
 				case int(common.ICAT_COLUMN_QUOTA_RESC_NAME):
-					pagenatedQuota[row].RescName = value
+					paginatedQuota[row].RescName = value
 				case int(common.ICAT_COLUMN_QUOTA_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse quota limit %q: %w", value, err)
 					}
-					pagenatedQuota[row].Limit = limit
+					paginatedQuota[row].Limit = limit
 				default:
 					// ignore
 				}
 			}
 		}
 
-		quota = append(quota, pagenatedQuota...)
+		quota = append(quota, paginatedQuota...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -746,7 +746,7 @@ func GetUserGlobalQuota(conn *connection.IRODSConnection, username string, zoneN
 			return nil, xerrors.Errorf("failed to receive quota attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedQuota := make([]*types.IRODSQuota, queryResult.RowCount)
+		paginatedQuota := make([]*types.IRODSQuota, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -757,9 +757,9 @@ func GetUserGlobalQuota(conn *connection.IRODSConnection, username string, zoneN
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedQuota[row] == nil {
+				if paginatedQuota[row] == nil {
 					// create a new
-					pagenatedQuota[row] = &types.IRODSQuota{
+					paginatedQuota[row] = &types.IRODSQuota{
 						RescName: "global",
 						Limit:    -1,
 					}
@@ -771,14 +771,14 @@ func GetUserGlobalQuota(conn *connection.IRODSConnection, username string, zoneN
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse quota limit %q: %w", value, err)
 					}
-					pagenatedQuota[row].Limit = limit
+					paginatedQuota[row].Limit = limit
 				default:
 					// ignore
 				}
 			}
 		}
 
-		quota = append(quota, pagenatedQuota...)
+		quota = append(quota, paginatedQuota...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -882,7 +882,7 @@ func ListUserMeta(conn *connection.IRODSConnection, username string, zoneName st
 			return nil, xerrors.Errorf("failed to receive user metadata attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedMetas := make([]*types.IRODSMeta, queryResult.RowCount)
+		paginatedMetas := make([]*types.IRODSMeta, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -893,9 +893,9 @@ func ListUserMeta(conn *connection.IRODSConnection, username string, zoneName st
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedMetas[row] == nil {
+				if paginatedMetas[row] == nil {
 					// create a new
-					pagenatedMetas[row] = &types.IRODSMeta{
+					paginatedMetas[row] = &types.IRODSMeta{
 						AVUID:      -1,
 						Name:       "",
 						Value:      "",
@@ -911,32 +911,32 @@ func ListUserMeta(conn *connection.IRODSConnection, username string, zoneName st
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse user metadata id %q: %w", value, err)
 					}
-					pagenatedMetas[row].AVUID = avuID
+					paginatedMetas[row].AVUID = avuID
 				case int(common.ICAT_COLUMN_META_USER_ATTR_NAME):
-					pagenatedMetas[row].Name = value
+					paginatedMetas[row].Name = value
 				case int(common.ICAT_COLUMN_META_USER_ATTR_VALUE):
-					pagenatedMetas[row].Value = value
+					paginatedMetas[row].Value = value
 				case int(common.ICAT_COLUMN_META_USER_ATTR_UNITS):
-					pagenatedMetas[row].Units = value
+					paginatedMetas[row].Units = value
 				case int(common.ICAT_COLUMN_META_USER_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 					}
-					pagenatedMetas[row].CreateTime = cT
+					paginatedMetas[row].CreateTime = cT
 				case int(common.ICAT_COLUMN_META_USER_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
-					pagenatedMetas[row].ModifyTime = mT
+					paginatedMetas[row].ModifyTime = mT
 				default:
 					// ignore
 				}
 			}
 		}
 
-		metas = append(metas, pagenatedMetas...)
+		metas = append(metas, paginatedMetas...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {

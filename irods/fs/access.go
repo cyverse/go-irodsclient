@@ -71,7 +71,7 @@ func GetCollectionAccessInheritance(conn *connection.IRODSConnection, path strin
 			return nil, xerrors.Errorf("failed to receive collection access inheritance attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedAccessInheritances := make([]*types.IRODSAccessInheritance, queryResult.RowCount)
+		paginatedAccessInheritances := make([]*types.IRODSAccessInheritance, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -82,9 +82,9 @@ func GetCollectionAccessInheritance(conn *connection.IRODSConnection, path strin
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedAccessInheritances[row] == nil {
+				if paginatedAccessInheritances[row] == nil {
 					// create a new
-					pagenatedAccessInheritances[row] = &types.IRODSAccessInheritance{
+					paginatedAccessInheritances[row] = &types.IRODSAccessInheritance{
 						Path:        path,
 						Inheritance: false,
 					}
@@ -94,14 +94,14 @@ func GetCollectionAccessInheritance(conn *connection.IRODSConnection, path strin
 				case int(common.ICAT_COLUMN_COLL_INHERITANCE):
 					inherit, _ := strconv.ParseBool(value)
 					// if error, assume false
-					pagenatedAccessInheritances[row].Inheritance = inherit
+					paginatedAccessInheritances[row].Inheritance = inherit
 				default:
 					// ignore
 				}
 			}
 		}
 
-		inheritances = append(inheritances, pagenatedAccessInheritances...)
+		inheritances = append(inheritances, paginatedAccessInheritances...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -168,7 +168,7 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 			return nil, xerrors.Errorf("failed to receive collection access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount)
+		paginatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -179,9 +179,9 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedAccesses[row] == nil {
+				if paginatedAccesses[row] == nil {
 					// create a new
-					pagenatedAccesses[row] = &types.IRODSAccess{
+					paginatedAccesses[row] = &types.IRODSAccess{
 						Path:        path,
 						UserName:    "",
 						UserZone:    "",
@@ -192,20 +192,20 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 
 				switch attr {
 				case 0:
-					pagenatedAccesses[row].UserName = value
+					paginatedAccesses[row].UserName = value
 				case 1:
-					pagenatedAccesses[row].UserZone = value
+					paginatedAccesses[row].UserZone = value
 				case 2:
-					pagenatedAccesses[row].AccessLevel = types.GetIRODSAccessLevelType(value)
+					paginatedAccesses[row].AccessLevel = types.GetIRODSAccessLevelType(value)
 				case 3:
-					pagenatedAccesses[row].UserType = types.IRODSUserType(value)
+					paginatedAccesses[row].UserType = types.IRODSUserType(value)
 				default:
 					// ignore
 				}
 			}
 		}
 
-		accesses = append(accesses, pagenatedAccesses...)
+		accesses = append(accesses, paginatedAccesses...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -279,7 +279,7 @@ func ListDataObjectAccesses(conn *connection.IRODSConnection, dataObjPath string
 			return nil, xerrors.Errorf("failed to receive data object access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount)
+		paginatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -290,9 +290,9 @@ func ListDataObjectAccesses(conn *connection.IRODSConnection, dataObjPath string
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedAccesses[row] == nil {
+				if paginatedAccesses[row] == nil {
 					// create a new
-					pagenatedAccesses[row] = &types.IRODSAccess{
+					paginatedAccesses[row] = &types.IRODSAccess{
 						Path:        dataObjPath,
 						UserName:    "",
 						UserZone:    "",
@@ -303,20 +303,20 @@ func ListDataObjectAccesses(conn *connection.IRODSConnection, dataObjPath string
 
 				switch sqlResult.AttributeIndex {
 				case int(common.ICAT_COLUMN_DATA_ACCESS_NAME):
-					pagenatedAccesses[row].AccessLevel = types.GetIRODSAccessLevelType(value)
+					paginatedAccesses[row].AccessLevel = types.GetIRODSAccessLevelType(value)
 				case int(common.ICAT_COLUMN_USER_TYPE):
-					pagenatedAccesses[row].UserType = types.IRODSUserType(value)
+					paginatedAccesses[row].UserType = types.IRODSUserType(value)
 				case int(common.ICAT_COLUMN_USER_NAME):
-					pagenatedAccesses[row].UserName = value
+					paginatedAccesses[row].UserName = value
 				case int(common.ICAT_COLUMN_USER_ZONE):
-					pagenatedAccesses[row].UserZone = value
+					paginatedAccesses[row].UserZone = value
 				default:
 					// ignore
 				}
 			}
 		}
 
-		accesses = append(accesses, pagenatedAccesses...)
+		accesses = append(accesses, paginatedAccesses...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -390,7 +390,7 @@ func ListDataObjectAccessesWithoutCollection(conn *connection.IRODSConnection, d
 			return nil, xerrors.Errorf("failed to receive data object access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount)
+		paginatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -401,9 +401,9 @@ func ListDataObjectAccessesWithoutCollection(conn *connection.IRODSConnection, d
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedAccesses[row] == nil {
+				if paginatedAccesses[row] == nil {
 					// create a new
-					pagenatedAccesses[row] = &types.IRODSAccess{
+					paginatedAccesses[row] = &types.IRODSAccess{
 						Path:        util.GetCorrectIRODSPath(dataObjPath),
 						UserName:    "",
 						UserZone:    "",
@@ -414,20 +414,20 @@ func ListDataObjectAccessesWithoutCollection(conn *connection.IRODSConnection, d
 
 				switch sqlResult.AttributeIndex {
 				case int(common.ICAT_COLUMN_DATA_ACCESS_NAME):
-					pagenatedAccesses[row].AccessLevel = types.GetIRODSAccessLevelType(value)
+					paginatedAccesses[row].AccessLevel = types.GetIRODSAccessLevelType(value)
 				case int(common.ICAT_COLUMN_USER_TYPE):
-					pagenatedAccesses[row].UserType = types.IRODSUserType(value)
+					paginatedAccesses[row].UserType = types.IRODSUserType(value)
 				case int(common.ICAT_COLUMN_USER_NAME):
-					pagenatedAccesses[row].UserName = value
+					paginatedAccesses[row].UserName = value
 				case int(common.ICAT_COLUMN_USER_ZONE):
-					pagenatedAccesses[row].UserZone = value
+					paginatedAccesses[row].UserZone = value
 				default:
 					// ignore
 				}
 			}
 		}
 
-		accesses = append(accesses, pagenatedAccesses...)
+		accesses = append(accesses, paginatedAccesses...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -501,7 +501,7 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, collPath st
 			return nil, xerrors.Errorf("failed to receive collection access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount)
+		paginatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -512,9 +512,9 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, collPath st
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedAccesses[row] == nil {
+				if paginatedAccesses[row] == nil {
 					// create a new
-					pagenatedAccesses[row] = &types.IRODSAccess{
+					paginatedAccesses[row] = &types.IRODSAccess{
 						Path:        "",
 						UserName:    "",
 						UserZone:    "",
@@ -525,22 +525,22 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, collPath st
 
 				switch sqlResult.AttributeIndex {
 				case int(common.ICAT_COLUMN_COLL_NAME):
-					pagenatedAccesses[row].Path = value
+					paginatedAccesses[row].Path = value
 				case int(common.ICAT_COLUMN_COLL_ACCESS_NAME):
-					pagenatedAccesses[row].AccessLevel = types.GetIRODSAccessLevelType(value)
+					paginatedAccesses[row].AccessLevel = types.GetIRODSAccessLevelType(value)
 				case int(common.ICAT_COLUMN_USER_TYPE):
-					pagenatedAccesses[row].UserType = types.IRODSUserType(value)
+					paginatedAccesses[row].UserType = types.IRODSUserType(value)
 				case int(common.ICAT_COLUMN_USER_NAME):
-					pagenatedAccesses[row].UserName = value
+					paginatedAccesses[row].UserName = value
 				case int(common.ICAT_COLUMN_USER_ZONE):
-					pagenatedAccesses[row].UserZone = value
+					paginatedAccesses[row].UserZone = value
 				default:
 					// ignore
 				}
 			}
 		}
 
-		accesses = append(accesses, pagenatedAccesses...)
+		accesses = append(accesses, paginatedAccesses...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -614,7 +614,7 @@ func ListAccessesForDataObjectsInCollection(conn *connection.IRODSConnection, co
 			return nil, xerrors.Errorf("failed to receive data object access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount)
+		paginatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -625,9 +625,9 @@ func ListAccessesForDataObjectsInCollection(conn *connection.IRODSConnection, co
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedAccesses[row] == nil {
+				if paginatedAccesses[row] == nil {
 					// create a new
-					pagenatedAccesses[row] = &types.IRODSAccess{
+					paginatedAccesses[row] = &types.IRODSAccess{
 						Path:        "",
 						UserName:    "",
 						UserZone:    "",
@@ -638,22 +638,22 @@ func ListAccessesForDataObjectsInCollection(conn *connection.IRODSConnection, co
 
 				switch sqlResult.AttributeIndex {
 				case int(common.ICAT_COLUMN_DATA_NAME):
-					pagenatedAccesses[row].Path = util.MakeIRODSPath(collPath, value)
+					paginatedAccesses[row].Path = util.MakeIRODSPath(collPath, value)
 				case int(common.ICAT_COLUMN_DATA_ACCESS_NAME):
-					pagenatedAccesses[row].AccessLevel = types.GetIRODSAccessLevelType(value)
+					paginatedAccesses[row].AccessLevel = types.GetIRODSAccessLevelType(value)
 				case int(common.ICAT_COLUMN_USER_TYPE):
-					pagenatedAccesses[row].UserType = types.IRODSUserType(value)
+					paginatedAccesses[row].UserType = types.IRODSUserType(value)
 				case int(common.ICAT_COLUMN_USER_NAME):
-					pagenatedAccesses[row].UserName = value
+					paginatedAccesses[row].UserName = value
 				case int(common.ICAT_COLUMN_USER_ZONE):
-					pagenatedAccesses[row].UserZone = value
+					paginatedAccesses[row].UserZone = value
 				default:
 					// ignore
 				}
 			}
 		}
 
-		accesses = append(accesses, pagenatedAccesses...)
+		accesses = append(accesses, paginatedAccesses...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -727,7 +727,7 @@ func ListAccessesForDataObjectsWithoutCollection(conn *connection.IRODSConnectio
 			return nil, xerrors.Errorf("failed to receive data object access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount)
+		paginatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -738,9 +738,9 @@ func ListAccessesForDataObjectsWithoutCollection(conn *connection.IRODSConnectio
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedAccesses[row] == nil {
+				if paginatedAccesses[row] == nil {
 					// create a new
-					pagenatedAccesses[row] = &types.IRODSAccess{
+					paginatedAccesses[row] = &types.IRODSAccess{
 						Path:        "",
 						UserName:    "",
 						UserZone:    "",
@@ -751,22 +751,22 @@ func ListAccessesForDataObjectsWithoutCollection(conn *connection.IRODSConnectio
 
 				switch sqlResult.AttributeIndex {
 				case int(common.ICAT_COLUMN_DATA_NAME):
-					pagenatedAccesses[row].Path = util.MakeIRODSPath(collPath, value)
+					paginatedAccesses[row].Path = util.MakeIRODSPath(collPath, value)
 				case int(common.ICAT_COLUMN_DATA_ACCESS_NAME):
-					pagenatedAccesses[row].AccessLevel = types.GetIRODSAccessLevelType(value)
+					paginatedAccesses[row].AccessLevel = types.GetIRODSAccessLevelType(value)
 				case int(common.ICAT_COLUMN_USER_TYPE):
-					pagenatedAccesses[row].UserType = types.IRODSUserType(value)
+					paginatedAccesses[row].UserType = types.IRODSUserType(value)
 				case int(common.ICAT_COLUMN_USER_NAME):
-					pagenatedAccesses[row].UserName = value
+					paginatedAccesses[row].UserName = value
 				case int(common.ICAT_COLUMN_USER_ZONE):
-					pagenatedAccesses[row].UserZone = value
+					paginatedAccesses[row].UserZone = value
 				default:
 					// ignore
 				}
 			}
 		}
 
-		accesses = append(accesses, pagenatedAccesses...)
+		accesses = append(accesses, paginatedAccesses...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {

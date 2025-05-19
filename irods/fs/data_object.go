@@ -130,7 +130,7 @@ func GetDataObject(conn *connection.IRODSConnection, dataObjPath string) (*types
 			return nil, xerrors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
+		paginatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -141,7 +141,7 @@ func GetDataObject(conn *connection.IRODSConnection, dataObjPath string) (*types
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedDataObjects[row] == nil {
+				if paginatedDataObjects[row] == nil {
 					// create a new
 					replica := &types.IRODSReplica{
 						Number:            -1,
@@ -156,7 +156,7 @@ func GetDataObject(conn *connection.IRODSConnection, dataObjPath string) (*types
 						AccessTime:        time.Time{},
 					}
 
-					pagenatedDataObjects[row] = &types.IRODSDataObject{
+					paginatedDataObjects[row] = &types.IRODSDataObject{
 						ID:       -1,
 						Path:     "",
 						Name:     "",
@@ -172,70 +172,70 @@ func GetDataObject(conn *connection.IRODSConnection, dataObjPath string) (*types
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object id %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].ID = objID
+					paginatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_DATA_NAME):
-					pagenatedDataObjects[row].Path = util.MakeIRODSPath(path.Dir(dataObjPath), value)
-					pagenatedDataObjects[row].Name = value
+					paginatedDataObjects[row].Path = util.MakeIRODSPath(path.Dir(dataObjPath), value)
+					paginatedDataObjects[row].Name = value
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object size %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Size = objSize
+					paginatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
-					pagenatedDataObjects[row].DataType = value
+					paginatedDataObjects[row].DataType = value
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object replica number %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].Number = repNum
+					paginatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
-					pagenatedDataObjects[row].Replicas[0].Owner = value
+					paginatedDataObjects[row].Replicas[0].Owner = value
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
 					checksum, err := types.CreateIRODSChecksum(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object checksum %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
+					paginatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
-					pagenatedDataObjects[row].Replicas[0].Status = value
+					paginatedDataObjects[row].Replicas[0].Status = value
 				case int(common.ICAT_COLUMN_D_RESC_NAME):
-					pagenatedDataObjects[row].Replicas[0].ResourceName = value
+					paginatedDataObjects[row].Replicas[0].ResourceName = value
 				case int(common.ICAT_COLUMN_D_DATA_PATH):
-					pagenatedDataObjects[row].Replicas[0].Path = value
+					paginatedDataObjects[row].Replicas[0].Path = value
 				case int(common.ICAT_COLUMN_D_RESC_HIER):
-					pagenatedDataObjects[row].Replicas[0].ResourceHierarchy = value
+					paginatedDataObjects[row].Replicas[0].ResourceHierarchy = value
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
+					paginatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
+					paginatedDataObjects[row].Replicas[0].ModifyTime = mT
 
-					if pagenatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
+					if paginatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
 						// if access time is not set, set it to modify time
-						pagenatedDataObjects[row].Replicas[0].AccessTime = mT
+						paginatedDataObjects[row].Replicas[0].AccessTime = mT
 					}
 				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
 					aT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
+					paginatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
 					// ignore
 				}
 			}
 		}
 
-		dataObjects = append(dataObjects, pagenatedDataObjects...)
+		dataObjects = append(dataObjects, paginatedDataObjects...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -346,7 +346,7 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, dataObjPath st
 			return nil, xerrors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
+		paginatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -357,7 +357,7 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, dataObjPath st
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedDataObjects[row] == nil {
+				if paginatedDataObjects[row] == nil {
 					// create a new
 					replica := &types.IRODSReplica{
 						Number:            -1,
@@ -372,7 +372,7 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, dataObjPath st
 						AccessTime:        time.Time{},
 					}
 
-					pagenatedDataObjects[row] = &types.IRODSDataObject{
+					paginatedDataObjects[row] = &types.IRODSDataObject{
 						ID:       -1,
 						Path:     "",
 						Name:     "",
@@ -388,70 +388,70 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, dataObjPath st
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object id %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].ID = objID
+					paginatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_DATA_NAME):
-					pagenatedDataObjects[row].Path = util.MakeIRODSPath(path.Dir(dataObjPath), value)
-					pagenatedDataObjects[row].Name = value
+					paginatedDataObjects[row].Path = util.MakeIRODSPath(path.Dir(dataObjPath), value)
+					paginatedDataObjects[row].Name = value
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object size %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Size = objSize
+					paginatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
-					pagenatedDataObjects[row].DataType = value
+					paginatedDataObjects[row].DataType = value
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object replica number %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].Number = repNum
+					paginatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
-					pagenatedDataObjects[row].Replicas[0].Owner = value
+					paginatedDataObjects[row].Replicas[0].Owner = value
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
 					checksum, err := types.CreateIRODSChecksum(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object checksum %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
+					paginatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
-					pagenatedDataObjects[row].Replicas[0].Status = value
+					paginatedDataObjects[row].Replicas[0].Status = value
 				case int(common.ICAT_COLUMN_D_RESC_NAME):
-					pagenatedDataObjects[row].Replicas[0].ResourceName = value
+					paginatedDataObjects[row].Replicas[0].ResourceName = value
 				case int(common.ICAT_COLUMN_D_DATA_PATH):
-					pagenatedDataObjects[row].Replicas[0].Path = value
+					paginatedDataObjects[row].Replicas[0].Path = value
 				case int(common.ICAT_COLUMN_D_RESC_HIER):
-					pagenatedDataObjects[row].Replicas[0].ResourceHierarchy = value
+					paginatedDataObjects[row].Replicas[0].ResourceHierarchy = value
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
+					paginatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
+					paginatedDataObjects[row].Replicas[0].ModifyTime = mT
 
-					if pagenatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
+					if paginatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
 						// if access time is not set, set it to modify time
-						pagenatedDataObjects[row].Replicas[0].AccessTime = mT
+						paginatedDataObjects[row].Replicas[0].AccessTime = mT
 					}
 				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
 					aT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
+					paginatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
 					// ignore
 				}
 			}
 		}
 
-		dataObjects = append(dataObjects, pagenatedDataObjects...)
+		dataObjects = append(dataObjects, paginatedDataObjects...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -570,7 +570,7 @@ func ListDataObjects(conn *connection.IRODSConnection, collPath string) ([]*type
 			return nil, xerrors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
+		paginatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -581,7 +581,7 @@ func ListDataObjects(conn *connection.IRODSConnection, collPath string) ([]*type
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedDataObjects[row] == nil {
+				if paginatedDataObjects[row] == nil {
 					// create a new
 					replica := &types.IRODSReplica{
 						Number:            -1,
@@ -596,7 +596,7 @@ func ListDataObjects(conn *connection.IRODSConnection, collPath string) ([]*type
 						AccessTime:        time.Time{},
 					}
 
-					pagenatedDataObjects[row] = &types.IRODSDataObject{
+					paginatedDataObjects[row] = &types.IRODSDataObject{
 						ID:           -1,
 						CollectionID: -1,
 						Path:         "",
@@ -613,70 +613,70 @@ func ListDataObjects(conn *connection.IRODSConnection, collPath string) ([]*type
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object id %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].ID = objID
+					paginatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_DATA_NAME):
-					pagenatedDataObjects[row].Path = util.MakeIRODSPath(collPath, value)
-					pagenatedDataObjects[row].Name = value
+					paginatedDataObjects[row].Path = util.MakeIRODSPath(collPath, value)
+					paginatedDataObjects[row].Name = value
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object size %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Size = objSize
+					paginatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
-					pagenatedDataObjects[row].DataType = value
+					paginatedDataObjects[row].DataType = value
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object replica number %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].Number = repNum
+					paginatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
-					pagenatedDataObjects[row].Replicas[0].Owner = value
+					paginatedDataObjects[row].Replicas[0].Owner = value
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
 					checksum, err := types.CreateIRODSChecksum(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object checksum %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
+					paginatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
-					pagenatedDataObjects[row].Replicas[0].Status = value
+					paginatedDataObjects[row].Replicas[0].Status = value
 				case int(common.ICAT_COLUMN_D_RESC_NAME):
-					pagenatedDataObjects[row].Replicas[0].ResourceName = value
+					paginatedDataObjects[row].Replicas[0].ResourceName = value
 				case int(common.ICAT_COLUMN_D_DATA_PATH):
-					pagenatedDataObjects[row].Replicas[0].Path = value
+					paginatedDataObjects[row].Replicas[0].Path = value
 				case int(common.ICAT_COLUMN_D_RESC_HIER):
-					pagenatedDataObjects[row].Replicas[0].ResourceHierarchy = value
+					paginatedDataObjects[row].Replicas[0].ResourceHierarchy = value
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
+					paginatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
+					paginatedDataObjects[row].Replicas[0].ModifyTime = mT
 
-					if pagenatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
+					if paginatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
 						// if access time is not set, set it to modify time
-						pagenatedDataObjects[row].Replicas[0].AccessTime = mT
+						paginatedDataObjects[row].Replicas[0].AccessTime = mT
 					}
 				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
 					aT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
+					paginatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
 					// ignore
 				}
 			}
 		}
 
-		dataObjects = append(dataObjects, pagenatedDataObjects...)
+		dataObjects = append(dataObjects, paginatedDataObjects...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -785,7 +785,7 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collPath str
 			return nil, xerrors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
+		paginatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -796,7 +796,7 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collPath str
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedDataObjects[row] == nil {
+				if paginatedDataObjects[row] == nil {
 					// create a new
 					replica := &types.IRODSReplica{
 						Number:            -1,
@@ -811,7 +811,7 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collPath str
 						AccessTime:        time.Time{},
 					}
 
-					pagenatedDataObjects[row] = &types.IRODSDataObject{
+					paginatedDataObjects[row] = &types.IRODSDataObject{
 						ID:           -1,
 						CollectionID: -1,
 						Path:         "",
@@ -828,70 +828,70 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collPath str
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object id %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].ID = objID
+					paginatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_DATA_NAME):
-					pagenatedDataObjects[row].Path = util.MakeIRODSPath(collPath, value)
-					pagenatedDataObjects[row].Name = value
+					paginatedDataObjects[row].Path = util.MakeIRODSPath(collPath, value)
+					paginatedDataObjects[row].Name = value
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object size %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Size = objSize
+					paginatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
-					pagenatedDataObjects[row].DataType = value
+					paginatedDataObjects[row].DataType = value
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object replica number %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].Number = repNum
+					paginatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
-					pagenatedDataObjects[row].Replicas[0].Owner = value
+					paginatedDataObjects[row].Replicas[0].Owner = value
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
 					checksum, err := types.CreateIRODSChecksum(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object checksum %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
+					paginatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
-					pagenatedDataObjects[row].Replicas[0].Status = value
+					paginatedDataObjects[row].Replicas[0].Status = value
 				case int(common.ICAT_COLUMN_D_RESC_NAME):
-					pagenatedDataObjects[row].Replicas[0].ResourceName = value
+					paginatedDataObjects[row].Replicas[0].ResourceName = value
 				case int(common.ICAT_COLUMN_D_DATA_PATH):
-					pagenatedDataObjects[row].Replicas[0].Path = value
+					paginatedDataObjects[row].Replicas[0].Path = value
 				case int(common.ICAT_COLUMN_D_RESC_HIER):
-					pagenatedDataObjects[row].Replicas[0].ResourceHierarchy = value
+					paginatedDataObjects[row].Replicas[0].ResourceHierarchy = value
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
+					paginatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
+					paginatedDataObjects[row].Replicas[0].ModifyTime = mT
 
-					if pagenatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
+					if paginatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
 						// if access time is not set, set it to modify time
-						pagenatedDataObjects[row].Replicas[0].AccessTime = mT
+						paginatedDataObjects[row].Replicas[0].AccessTime = mT
 					}
 				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
 					aT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
+					paginatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
 					// ignore
 				}
 			}
 		}
 
-		dataObjects = append(dataObjects, pagenatedDataObjects...)
+		dataObjects = append(dataObjects, paginatedDataObjects...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -1016,8 +1016,8 @@ func SearchDataObjectsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 			return nil, xerrors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
-		pagenatedDataObjectCollectionNames := make([]string, queryResult.RowCount)
+		paginatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
+		paginatedDataObjectCollectionNames := make([]string, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -1028,7 +1028,7 @@ func SearchDataObjectsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedDataObjects[row] == nil {
+				if paginatedDataObjects[row] == nil {
 					// create a new
 					replica := &types.IRODSReplica{
 						Number:            -1,
@@ -1043,7 +1043,7 @@ func SearchDataObjectsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 						AccessTime:        time.Time{},
 					}
 
-					pagenatedDataObjects[row] = &types.IRODSDataObject{
+					paginatedDataObjects[row] = &types.IRODSDataObject{
 						ID:           -1,
 						CollectionID: -1,
 						Path:         "",
@@ -1060,76 +1060,76 @@ func SearchDataObjectsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object id %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].ID = objID
+					paginatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_D_COLL_ID):
 					colID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse collection id %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].CollectionID = colID
+					paginatedDataObjects[row].CollectionID = colID
 				case int(common.ICAT_COLUMN_DATA_NAME):
-					pagenatedDataObjects[row].Name = value
-					if len(pagenatedDataObjectCollectionNames[row]) > 0 {
-						pagenatedDataObjects[row].Path = util.MakeIRODSPath(pagenatedDataObjectCollectionNames[row], value)
+					paginatedDataObjects[row].Name = value
+					if len(paginatedDataObjectCollectionNames[row]) > 0 {
+						paginatedDataObjects[row].Path = util.MakeIRODSPath(paginatedDataObjectCollectionNames[row], value)
 					}
 				case int(common.ICAT_COLUMN_COLL_NAME):
-					pagenatedDataObjectCollectionNames[row] = value
-					if len(pagenatedDataObjects[row].Name) > 0 {
-						pagenatedDataObjects[row].Path = util.MakeIRODSPath(value, pagenatedDataObjects[row].Name)
+					paginatedDataObjectCollectionNames[row] = value
+					if len(paginatedDataObjects[row].Name) > 0 {
+						paginatedDataObjects[row].Path = util.MakeIRODSPath(value, paginatedDataObjects[row].Name)
 					}
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object size %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Size = objSize
+					paginatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
-					pagenatedDataObjects[row].DataType = value
+					paginatedDataObjects[row].DataType = value
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object replica number %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].Number = repNum
+					paginatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
-					pagenatedDataObjects[row].Replicas[0].Owner = value
+					paginatedDataObjects[row].Replicas[0].Owner = value
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
 					checksum, err := types.CreateIRODSChecksum(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object checksum %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
+					paginatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
-					pagenatedDataObjects[row].Replicas[0].Status = value
+					paginatedDataObjects[row].Replicas[0].Status = value
 				case int(common.ICAT_COLUMN_D_RESC_NAME):
-					pagenatedDataObjects[row].Replicas[0].ResourceName = value
+					paginatedDataObjects[row].Replicas[0].ResourceName = value
 				case int(common.ICAT_COLUMN_D_DATA_PATH):
-					pagenatedDataObjects[row].Replicas[0].Path = value
+					paginatedDataObjects[row].Replicas[0].Path = value
 				case int(common.ICAT_COLUMN_D_RESC_HIER):
-					pagenatedDataObjects[row].Replicas[0].ResourceHierarchy = value
+					paginatedDataObjects[row].Replicas[0].ResourceHierarchy = value
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
+					paginatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
+					paginatedDataObjects[row].Replicas[0].ModifyTime = mT
 
-					if pagenatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
+					if paginatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
 						// if access time is not set, set it to modify time
-						pagenatedDataObjects[row].Replicas[0].AccessTime = mT
+						paginatedDataObjects[row].Replicas[0].AccessTime = mT
 					}
 				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
 					aT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
+					paginatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
 					// ignore
 				}
@@ -1138,9 +1138,9 @@ func SearchDataObjectsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 
 		// Filter results by original unix wildcard, since the SQL wildcards
 		// are less strict (e.g. a unix wildcard range is converted to a generic wildcards in SQL).
-		for _, pagenatedDataObject := range pagenatedDataObjects {
-			if fnmatch.Match(pathUnixWildcard, pagenatedDataObject.Path, fnmatch.FNM_PATHNAME) {
-				dataObjects = append(dataObjects, pagenatedDataObject)
+		for _, paginatedDataObject := range paginatedDataObjects {
+			if fnmatch.Match(pathUnixWildcard, paginatedDataObject.Path, fnmatch.FNM_PATHNAME) {
+				dataObjects = append(dataObjects, paginatedDataObject)
 			}
 		}
 
@@ -1259,8 +1259,8 @@ func SearchDataObjectsMasterReplicaUnixWildcard(conn *connection.IRODSConnection
 			return nil, xerrors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
-		pagenatedDataObjectCollectionNames := make([]string, queryResult.RowCount)
+		paginatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
+		paginatedDataObjectCollectionNames := make([]string, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -1271,7 +1271,7 @@ func SearchDataObjectsMasterReplicaUnixWildcard(conn *connection.IRODSConnection
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedDataObjects[row] == nil {
+				if paginatedDataObjects[row] == nil {
 					// create a new
 					replica := &types.IRODSReplica{
 						Number:            -1,
@@ -1286,7 +1286,7 @@ func SearchDataObjectsMasterReplicaUnixWildcard(conn *connection.IRODSConnection
 						AccessTime:        time.Time{},
 					}
 
-					pagenatedDataObjects[row] = &types.IRODSDataObject{
+					paginatedDataObjects[row] = &types.IRODSDataObject{
 						ID:           -1,
 						CollectionID: -1,
 						Path:         "",
@@ -1303,76 +1303,76 @@ func SearchDataObjectsMasterReplicaUnixWildcard(conn *connection.IRODSConnection
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object id %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].ID = objID
+					paginatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_D_COLL_ID):
 					colID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse collection id %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].CollectionID = colID
+					paginatedDataObjects[row].CollectionID = colID
 				case int(common.ICAT_COLUMN_DATA_NAME):
-					pagenatedDataObjects[row].Name = value
-					if len(pagenatedDataObjectCollectionNames[row]) > 0 {
-						pagenatedDataObjects[row].Path = util.MakeIRODSPath(pagenatedDataObjectCollectionNames[row], value)
+					paginatedDataObjects[row].Name = value
+					if len(paginatedDataObjectCollectionNames[row]) > 0 {
+						paginatedDataObjects[row].Path = util.MakeIRODSPath(paginatedDataObjectCollectionNames[row], value)
 					}
 				case int(common.ICAT_COLUMN_COLL_NAME):
-					pagenatedDataObjectCollectionNames[row] = value
-					if len(pagenatedDataObjects[row].Name) > 0 {
-						pagenatedDataObjects[row].Path = util.MakeIRODSPath(value, pagenatedDataObjects[row].Name)
+					paginatedDataObjectCollectionNames[row] = value
+					if len(paginatedDataObjects[row].Name) > 0 {
+						paginatedDataObjects[row].Path = util.MakeIRODSPath(value, paginatedDataObjects[row].Name)
 					}
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object size %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Size = objSize
+					paginatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
-					pagenatedDataObjects[row].DataType = value
+					paginatedDataObjects[row].DataType = value
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object replica number %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].Number = repNum
+					paginatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
-					pagenatedDataObjects[row].Replicas[0].Owner = value
+					paginatedDataObjects[row].Replicas[0].Owner = value
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
 					checksum, err := types.CreateIRODSChecksum(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object checksum %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
+					paginatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
-					pagenatedDataObjects[row].Replicas[0].Status = value
+					paginatedDataObjects[row].Replicas[0].Status = value
 				case int(common.ICAT_COLUMN_D_RESC_NAME):
-					pagenatedDataObjects[row].Replicas[0].ResourceName = value
+					paginatedDataObjects[row].Replicas[0].ResourceName = value
 				case int(common.ICAT_COLUMN_D_DATA_PATH):
-					pagenatedDataObjects[row].Replicas[0].Path = value
+					paginatedDataObjects[row].Replicas[0].Path = value
 				case int(common.ICAT_COLUMN_D_RESC_HIER):
-					pagenatedDataObjects[row].Replicas[0].ResourceHierarchy = value
+					paginatedDataObjects[row].Replicas[0].ResourceHierarchy = value
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
+					paginatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
+					paginatedDataObjects[row].Replicas[0].ModifyTime = mT
 
-					if pagenatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
+					if paginatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
 						// if access time is not set, set it to modify time
-						pagenatedDataObjects[row].Replicas[0].AccessTime = mT
+						paginatedDataObjects[row].Replicas[0].AccessTime = mT
 					}
 				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
 					aT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
+					paginatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
 					// ignore
 				}
@@ -1381,9 +1381,9 @@ func SearchDataObjectsMasterReplicaUnixWildcard(conn *connection.IRODSConnection
 
 		// Filter results by original unix wildcard, since the SQL wildcards
 		// are less strict (e.g. a unix wildcard range is converted to a generic wildcards in SQL).
-		for _, pagenatedDataObject := range pagenatedDataObjects {
-			if fnmatch.Match(pathUnixWildcard, pagenatedDataObject.Path, fnmatch.FNM_PATHNAME) {
-				dataObjects = append(dataObjects, pagenatedDataObject)
+		for _, paginatedDataObject := range paginatedDataObjects {
+			if fnmatch.Match(pathUnixWildcard, paginatedDataObject.Path, fnmatch.FNM_PATHNAME) {
+				dataObjects = append(dataObjects, paginatedDataObject)
 			}
 		}
 
@@ -1489,7 +1489,7 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, dataObjPath string) ([
 			return nil, xerrors.Errorf("failed to receive data object metadata attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedMetas := make([]*types.IRODSMeta, queryResult.RowCount)
+		paginatedMetas := make([]*types.IRODSMeta, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -1500,9 +1500,9 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, dataObjPath string) ([
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedMetas[row] == nil {
+				if paginatedMetas[row] == nil {
 					// create a new
-					pagenatedMetas[row] = &types.IRODSMeta{
+					paginatedMetas[row] = &types.IRODSMeta{
 						AVUID:      -1,
 						Name:       "",
 						Value:      "",
@@ -1518,32 +1518,32 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, dataObjPath string) ([
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object metadata id %q: %w", value, err)
 					}
-					pagenatedMetas[row].AVUID = avuID
+					paginatedMetas[row].AVUID = avuID
 				case int(common.ICAT_COLUMN_META_DATA_ATTR_NAME):
-					pagenatedMetas[row].Name = value
+					paginatedMetas[row].Name = value
 				case int(common.ICAT_COLUMN_META_DATA_ATTR_VALUE):
-					pagenatedMetas[row].Value = value
+					paginatedMetas[row].Value = value
 				case int(common.ICAT_COLUMN_META_DATA_ATTR_UNITS):
-					pagenatedMetas[row].Units = value
+					paginatedMetas[row].Units = value
 				case int(common.ICAT_COLUMN_META_DATA_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 					}
-					pagenatedMetas[row].CreateTime = cT
+					paginatedMetas[row].CreateTime = cT
 				case int(common.ICAT_COLUMN_META_DATA_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
-					pagenatedMetas[row].ModifyTime = mT
+					paginatedMetas[row].ModifyTime = mT
 				default:
 					// ignore
 				}
 			}
 		}
 
-		metas = append(metas, pagenatedMetas...)
+		metas = append(metas, paginatedMetas...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -2737,7 +2737,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 			return nil, xerrors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
+		paginatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -2748,7 +2748,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedDataObjects[row] == nil {
+				if paginatedDataObjects[row] == nil {
 					// create a new
 					replica := &types.IRODSReplica{
 						Number:            -1,
@@ -2762,7 +2762,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 						ModifyTime:        time.Time{},
 					}
 
-					pagenatedDataObjects[row] = &types.IRODSDataObject{
+					paginatedDataObjects[row] = &types.IRODSDataObject{
 						ID:           -1,
 						CollectionID: -1,
 						Path:         "",
@@ -2779,86 +2779,86 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse collection id %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].CollectionID = collID
+					paginatedDataObjects[row].CollectionID = collID
 				case int(common.ICAT_COLUMN_COLL_NAME):
-					if len(pagenatedDataObjects[row].Path) > 0 {
-						pagenatedDataObjects[row].Path = util.MakeIRODSPath(value, pagenatedDataObjects[row].Path)
+					if len(paginatedDataObjects[row].Path) > 0 {
+						paginatedDataObjects[row].Path = util.MakeIRODSPath(value, paginatedDataObjects[row].Path)
 					} else {
-						pagenatedDataObjects[row].Path = value
+						paginatedDataObjects[row].Path = value
 					}
 				case int(common.ICAT_COLUMN_D_DATA_ID):
 					objID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object id %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].ID = objID
+					paginatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_DATA_NAME):
-					if len(pagenatedDataObjects[row].Path) > 0 {
-						pagenatedDataObjects[row].Path = util.MakeIRODSPath(pagenatedDataObjects[row].Path, value)
+					if len(paginatedDataObjects[row].Path) > 0 {
+						paginatedDataObjects[row].Path = util.MakeIRODSPath(paginatedDataObjects[row].Path, value)
 					} else {
-						pagenatedDataObjects[row].Path = value
+						paginatedDataObjects[row].Path = value
 					}
-					pagenatedDataObjects[row].Name = value
+					paginatedDataObjects[row].Name = value
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object size %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Size = objSize
+					paginatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
-					pagenatedDataObjects[row].DataType = value
+					paginatedDataObjects[row].DataType = value
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object replica number %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].Number = repNum
+					paginatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
-					pagenatedDataObjects[row].Replicas[0].Owner = value
+					paginatedDataObjects[row].Replicas[0].Owner = value
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
 					checksum, err := types.CreateIRODSChecksum(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object checksum %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
+					paginatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
-					pagenatedDataObjects[row].Replicas[0].Status = value
+					paginatedDataObjects[row].Replicas[0].Status = value
 				case int(common.ICAT_COLUMN_D_RESC_NAME):
-					pagenatedDataObjects[row].Replicas[0].ResourceName = value
+					paginatedDataObjects[row].Replicas[0].ResourceName = value
 				case int(common.ICAT_COLUMN_D_DATA_PATH):
-					pagenatedDataObjects[row].Replicas[0].Path = value
+					paginatedDataObjects[row].Replicas[0].Path = value
 				case int(common.ICAT_COLUMN_D_RESC_HIER):
-					pagenatedDataObjects[row].Replicas[0].ResourceHierarchy = value
+					paginatedDataObjects[row].Replicas[0].ResourceHierarchy = value
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
+					paginatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
+					paginatedDataObjects[row].Replicas[0].ModifyTime = mT
 
-					if pagenatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
+					if paginatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
 						// if access time is not set, set it to modify time
-						pagenatedDataObjects[row].Replicas[0].AccessTime = mT
+						paginatedDataObjects[row].Replicas[0].AccessTime = mT
 					}
 				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
 					aT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
+					paginatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
 					// ignore
 				}
 			}
 		}
 
-		dataObjects = append(dataObjects, pagenatedDataObjects...)
+		dataObjects = append(dataObjects, paginatedDataObjects...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -2966,7 +2966,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 			return nil, xerrors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
+		paginatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -2977,7 +2977,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedDataObjects[row] == nil {
+				if paginatedDataObjects[row] == nil {
 					// create a new
 					replica := &types.IRODSReplica{
 						Number:            -1,
@@ -2991,7 +2991,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 						ModifyTime:        time.Time{},
 					}
 
-					pagenatedDataObjects[row] = &types.IRODSDataObject{
+					paginatedDataObjects[row] = &types.IRODSDataObject{
 						ID:           -1,
 						CollectionID: -1,
 						Path:         "",
@@ -3008,86 +3008,86 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse collection id %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].CollectionID = collID
+					paginatedDataObjects[row].CollectionID = collID
 				case int(common.ICAT_COLUMN_COLL_NAME):
-					if len(pagenatedDataObjects[row].Path) > 0 {
-						pagenatedDataObjects[row].Path = util.MakeIRODSPath(value, pagenatedDataObjects[row].Path)
+					if len(paginatedDataObjects[row].Path) > 0 {
+						paginatedDataObjects[row].Path = util.MakeIRODSPath(value, paginatedDataObjects[row].Path)
 					} else {
-						pagenatedDataObjects[row].Path = value
+						paginatedDataObjects[row].Path = value
 					}
 				case int(common.ICAT_COLUMN_D_DATA_ID):
 					objID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object id %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].ID = objID
+					paginatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_DATA_NAME):
-					if len(pagenatedDataObjects[row].Path) > 0 {
-						pagenatedDataObjects[row].Path = util.MakeIRODSPath(pagenatedDataObjects[row].Path, value)
+					if len(paginatedDataObjects[row].Path) > 0 {
+						paginatedDataObjects[row].Path = util.MakeIRODSPath(paginatedDataObjects[row].Path, value)
 					} else {
-						pagenatedDataObjects[row].Path = value
+						paginatedDataObjects[row].Path = value
 					}
-					pagenatedDataObjects[row].Name = value
+					paginatedDataObjects[row].Name = value
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object size %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Size = objSize
+					paginatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
-					pagenatedDataObjects[row].DataType = value
+					paginatedDataObjects[row].DataType = value
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object replica number %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].Number = repNum
+					paginatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
-					pagenatedDataObjects[row].Replicas[0].Owner = value
+					paginatedDataObjects[row].Replicas[0].Owner = value
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
 					checksum, err := types.CreateIRODSChecksum(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object checksum %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
+					paginatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
-					pagenatedDataObjects[row].Replicas[0].Status = value
+					paginatedDataObjects[row].Replicas[0].Status = value
 				case int(common.ICAT_COLUMN_D_RESC_NAME):
-					pagenatedDataObjects[row].Replicas[0].ResourceName = value
+					paginatedDataObjects[row].Replicas[0].ResourceName = value
 				case int(common.ICAT_COLUMN_D_DATA_PATH):
-					pagenatedDataObjects[row].Replicas[0].Path = value
+					paginatedDataObjects[row].Replicas[0].Path = value
 				case int(common.ICAT_COLUMN_D_RESC_HIER):
-					pagenatedDataObjects[row].Replicas[0].ResourceHierarchy = value
+					paginatedDataObjects[row].Replicas[0].ResourceHierarchy = value
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
+					paginatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
+					paginatedDataObjects[row].Replicas[0].ModifyTime = mT
 
-					if pagenatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
+					if paginatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
 						// if access time is not set, set it to modify time
-						pagenatedDataObjects[row].Replicas[0].AccessTime = mT
+						paginatedDataObjects[row].Replicas[0].AccessTime = mT
 					}
 				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
 					aT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
+					paginatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
 					// ignore
 				}
 			}
 		}
 
-		dataObjects = append(dataObjects, pagenatedDataObjects...)
+		dataObjects = append(dataObjects, paginatedDataObjects...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -3203,7 +3203,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 			return nil, xerrors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
+		paginatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -3214,7 +3214,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedDataObjects[row] == nil {
+				if paginatedDataObjects[row] == nil {
 					// create a new
 					replica := &types.IRODSReplica{
 						Number:            -1,
@@ -3228,7 +3228,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 						ModifyTime:        time.Time{},
 					}
 
-					pagenatedDataObjects[row] = &types.IRODSDataObject{
+					paginatedDataObjects[row] = &types.IRODSDataObject{
 						ID:           -1,
 						CollectionID: -1,
 						Path:         "",
@@ -3245,86 +3245,86 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse collection id %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].CollectionID = collID
+					paginatedDataObjects[row].CollectionID = collID
 				case int(common.ICAT_COLUMN_COLL_NAME):
-					if len(pagenatedDataObjects[row].Path) > 0 {
-						pagenatedDataObjects[row].Path = util.MakeIRODSPath(value, pagenatedDataObjects[row].Path)
+					if len(paginatedDataObjects[row].Path) > 0 {
+						paginatedDataObjects[row].Path = util.MakeIRODSPath(value, paginatedDataObjects[row].Path)
 					} else {
-						pagenatedDataObjects[row].Path = value
+						paginatedDataObjects[row].Path = value
 					}
 				case int(common.ICAT_COLUMN_D_DATA_ID):
 					objID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object id %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].ID = objID
+					paginatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_DATA_NAME):
-					if len(pagenatedDataObjects[row].Path) > 0 {
-						pagenatedDataObjects[row].Path = util.MakeIRODSPath(pagenatedDataObjects[row].Path, value)
+					if len(paginatedDataObjects[row].Path) > 0 {
+						paginatedDataObjects[row].Path = util.MakeIRODSPath(paginatedDataObjects[row].Path, value)
 					} else {
-						pagenatedDataObjects[row].Path = value
+						paginatedDataObjects[row].Path = value
 					}
-					pagenatedDataObjects[row].Name = value
+					paginatedDataObjects[row].Name = value
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object size %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Size = objSize
+					paginatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
-					pagenatedDataObjects[row].DataType = value
+					paginatedDataObjects[row].DataType = value
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object replica number %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].Number = repNum
+					paginatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
-					pagenatedDataObjects[row].Replicas[0].Owner = value
+					paginatedDataObjects[row].Replicas[0].Owner = value
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
 					checksum, err := types.CreateIRODSChecksum(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object checksum %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
+					paginatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
-					pagenatedDataObjects[row].Replicas[0].Status = value
+					paginatedDataObjects[row].Replicas[0].Status = value
 				case int(common.ICAT_COLUMN_D_RESC_NAME):
-					pagenatedDataObjects[row].Replicas[0].ResourceName = value
+					paginatedDataObjects[row].Replicas[0].ResourceName = value
 				case int(common.ICAT_COLUMN_D_DATA_PATH):
-					pagenatedDataObjects[row].Replicas[0].Path = value
+					paginatedDataObjects[row].Replicas[0].Path = value
 				case int(common.ICAT_COLUMN_D_RESC_HIER):
-					pagenatedDataObjects[row].Replicas[0].ResourceHierarchy = value
+					paginatedDataObjects[row].Replicas[0].ResourceHierarchy = value
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
+					paginatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
+					paginatedDataObjects[row].Replicas[0].ModifyTime = mT
 
-					if pagenatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
+					if paginatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
 						// if access time is not set, set it to modify time
-						pagenatedDataObjects[row].Replicas[0].AccessTime = mT
+						paginatedDataObjects[row].Replicas[0].AccessTime = mT
 					}
 				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
 					aT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
+					paginatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
 					// ignore
 				}
 			}
 		}
 
-		dataObjects = append(dataObjects, pagenatedDataObjects...)
+		dataObjects = append(dataObjects, paginatedDataObjects...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -3433,7 +3433,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 			return nil, xerrors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
+		paginatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -3444,7 +3444,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedDataObjects[row] == nil {
+				if paginatedDataObjects[row] == nil {
 					// create a new
 					replica := &types.IRODSReplica{
 						Number:            -1,
@@ -3458,7 +3458,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 						ModifyTime:        time.Time{},
 					}
 
-					pagenatedDataObjects[row] = &types.IRODSDataObject{
+					paginatedDataObjects[row] = &types.IRODSDataObject{
 						ID:           -1,
 						CollectionID: -1,
 						Path:         "",
@@ -3475,86 +3475,86 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse collection id %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].CollectionID = collID
+					paginatedDataObjects[row].CollectionID = collID
 				case int(common.ICAT_COLUMN_COLL_NAME):
-					if len(pagenatedDataObjects[row].Path) > 0 {
-						pagenatedDataObjects[row].Path = util.MakeIRODSPath(value, pagenatedDataObjects[row].Path)
+					if len(paginatedDataObjects[row].Path) > 0 {
+						paginatedDataObjects[row].Path = util.MakeIRODSPath(value, paginatedDataObjects[row].Path)
 					} else {
-						pagenatedDataObjects[row].Path = value
+						paginatedDataObjects[row].Path = value
 					}
 				case int(common.ICAT_COLUMN_D_DATA_ID):
 					objID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object id %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].ID = objID
+					paginatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_DATA_NAME):
-					if len(pagenatedDataObjects[row].Path) > 0 {
-						pagenatedDataObjects[row].Path = util.MakeIRODSPath(pagenatedDataObjects[row].Path, value)
+					if len(paginatedDataObjects[row].Path) > 0 {
+						paginatedDataObjects[row].Path = util.MakeIRODSPath(paginatedDataObjects[row].Path, value)
 					} else {
-						pagenatedDataObjects[row].Path = value
+						paginatedDataObjects[row].Path = value
 					}
-					pagenatedDataObjects[row].Name = value
+					paginatedDataObjects[row].Name = value
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object size %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Size = objSize
+					paginatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
-					pagenatedDataObjects[row].DataType = value
+					paginatedDataObjects[row].DataType = value
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object replica number %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].Number = repNum
+					paginatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
-					pagenatedDataObjects[row].Replicas[0].Owner = value
+					paginatedDataObjects[row].Replicas[0].Owner = value
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
 					checksum, err := types.CreateIRODSChecksum(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse data object checksum %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
+					paginatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
-					pagenatedDataObjects[row].Replicas[0].Status = value
+					paginatedDataObjects[row].Replicas[0].Status = value
 				case int(common.ICAT_COLUMN_D_RESC_NAME):
-					pagenatedDataObjects[row].Replicas[0].ResourceName = value
+					paginatedDataObjects[row].Replicas[0].ResourceName = value
 				case int(common.ICAT_COLUMN_D_DATA_PATH):
-					pagenatedDataObjects[row].Replicas[0].Path = value
+					paginatedDataObjects[row].Replicas[0].Path = value
 				case int(common.ICAT_COLUMN_D_RESC_HIER):
-					pagenatedDataObjects[row].Replicas[0].ResourceHierarchy = value
+					paginatedDataObjects[row].Replicas[0].ResourceHierarchy = value
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
+					paginatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
+					paginatedDataObjects[row].Replicas[0].ModifyTime = mT
 
-					if pagenatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
+					if paginatedDataObjects[row].Replicas[0].AccessTime.IsZero() {
 						// if access time is not set, set it to modify time
-						pagenatedDataObjects[row].Replicas[0].AccessTime = mT
+						paginatedDataObjects[row].Replicas[0].AccessTime = mT
 					}
 				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
 					aT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
 					}
-					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
+					paginatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
 					// ignore
 				}
 			}
 		}
 
-		dataObjects = append(dataObjects, pagenatedDataObjects...)
+		dataObjects = append(dataObjects, paginatedDataObjects...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {

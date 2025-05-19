@@ -49,7 +49,7 @@ func StatProcess(conn *connection.IRODSConnection, address string, zoneName stri
 		return nil, xerrors.Errorf("failed to receive process stat attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 	}
 
-	pagenatedProcesses := make([]*types.IRODSProcess, queryResult.RowCount)
+	paginatedProcesses := make([]*types.IRODSProcess, queryResult.RowCount)
 
 	for attr := 0; attr < queryResult.AttributeCount; attr++ {
 		sqlResult := queryResult.SQLResult[attr]
@@ -60,9 +60,9 @@ func StatProcess(conn *connection.IRODSConnection, address string, zoneName stri
 		for row := 0; row < queryResult.RowCount; row++ {
 			value := sqlResult.Values[row]
 
-			if pagenatedProcesses[row] == nil {
+			if paginatedProcesses[row] == nil {
 				// create a new
-				pagenatedProcesses[row] = &types.IRODSProcess{
+				paginatedProcesses[row] = &types.IRODSProcess{
 					ID:            -1,
 					ProxyUser:     "",
 					ProxyZone:     "",
@@ -80,33 +80,33 @@ func StatProcess(conn *connection.IRODSConnection, address string, zoneName stri
 				if err != nil {
 					return nil, xerrors.Errorf("failed to parse process id %q: %w", value, err)
 				}
-				pagenatedProcesses[row].ID = processID
+				paginatedProcesses[row].ID = processID
 			case int(common.ICAT_COLUMN_STARTTIME):
 				sT, err := util.GetIRODSDateTime(value)
 				if err != nil {
 					return nil, xerrors.Errorf("failed to parse start time %q: %w", value, err)
 				}
-				pagenatedProcesses[row].StartTime = sT
+				paginatedProcesses[row].StartTime = sT
 			case int(common.ICAT_COLUMN_CLIENT_NAME):
-				pagenatedProcesses[row].ClientUser = value
+				paginatedProcesses[row].ClientUser = value
 			case int(common.ICAT_COLUMN_CLIENT_ZONE):
-				pagenatedProcesses[row].ClientZone = value
+				paginatedProcesses[row].ClientZone = value
 			case int(common.ICAT_COLUMN_PROXY_NAME):
-				pagenatedProcesses[row].ProxyUser = value
+				paginatedProcesses[row].ProxyUser = value
 			case int(common.ICAT_COLUMN_PROXY_ZONE):
-				pagenatedProcesses[row].ProxyZone = value
+				paginatedProcesses[row].ProxyZone = value
 			case int(common.ICAT_COLUMN_REMOTE_ADDR):
-				pagenatedProcesses[row].ClientAddress = value
+				paginatedProcesses[row].ClientAddress = value
 			case int(common.ICAT_COLUMN_PROG_NAME):
-				pagenatedProcesses[row].ClientProgram = value
+				paginatedProcesses[row].ClientProgram = value
 			case int(common.ICAT_COLUMN_SERVER_ADDR):
-				pagenatedProcesses[row].ServerAddress = value
+				paginatedProcesses[row].ServerAddress = value
 			default:
 				// ignore
 			}
 		}
 	}
 
-	processes = append(processes, pagenatedProcesses...)
+	processes = append(processes, paginatedProcesses...)
 	return processes, nil
 }

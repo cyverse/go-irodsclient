@@ -178,7 +178,7 @@ func ListResources(conn *connection.IRODSConnection) ([]*types.IRODSResource, er
 			return nil, xerrors.Errorf("failed to receive resource attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedResources := make([]*types.IRODSResource, queryResult.RowCount)
+		paginatedResources := make([]*types.IRODSResource, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -189,9 +189,9 @@ func ListResources(conn *connection.IRODSConnection) ([]*types.IRODSResource, er
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedResources[row] == nil {
+				if paginatedResources[row] == nil {
 					// create a new
-					pagenatedResources[row] = &types.IRODSResource{
+					paginatedResources[row] = &types.IRODSResource{
 						RescID:     -1,
 						Name:       "",
 						Zone:       "",
@@ -211,40 +211,40 @@ func ListResources(conn *connection.IRODSConnection) ([]*types.IRODSResource, er
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse resource id %q: %w", value, err)
 					}
-					pagenatedResources[row].RescID = objID
+					paginatedResources[row].RescID = objID
 				case int(common.ICAT_COLUMN_R_RESC_NAME):
-					pagenatedResources[row].Name = value
+					paginatedResources[row].Name = value
 				case int(common.ICAT_COLUMN_R_ZONE_NAME):
-					pagenatedResources[row].Zone = value
+					paginatedResources[row].Zone = value
 				case int(common.ICAT_COLUMN_R_TYPE_NAME):
-					pagenatedResources[row].Type = value
+					paginatedResources[row].Type = value
 				case int(common.ICAT_COLUMN_R_CLASS_NAME):
-					pagenatedResources[row].Class = value
+					paginatedResources[row].Class = value
 				case int(common.ICAT_COLUMN_R_LOC):
-					pagenatedResources[row].Location = value
+					paginatedResources[row].Location = value
 				case int(common.ICAT_COLUMN_R_VAULT_PATH):
-					pagenatedResources[row].Path = value
+					paginatedResources[row].Path = value
 				case int(common.ICAT_COLUMN_R_RESC_CONTEXT):
-					pagenatedResources[row].Context = value
+					paginatedResources[row].Context = value
 				case int(common.ICAT_COLUMN_R_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 					}
-					pagenatedResources[row].CreateTime = cT
+					paginatedResources[row].CreateTime = cT
 				case int(common.ICAT_COLUMN_R_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
-					pagenatedResources[row].ModifyTime = mT
+					paginatedResources[row].ModifyTime = mT
 				default:
 					// ignore
 				}
 			}
 		}
 
-		resources = append(resources, pagenatedResources...)
+		resources = append(resources, paginatedResources...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -374,7 +374,7 @@ func ListResourceMeta(conn *connection.IRODSConnection, name string) ([]*types.I
 			return nil, xerrors.Errorf("failed to receive resource metadata attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedMetas := make([]*types.IRODSMeta, queryResult.RowCount)
+		paginatedMetas := make([]*types.IRODSMeta, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -385,9 +385,9 @@ func ListResourceMeta(conn *connection.IRODSConnection, name string) ([]*types.I
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedMetas[row] == nil {
+				if paginatedMetas[row] == nil {
 					// create a new
-					pagenatedMetas[row] = &types.IRODSMeta{
+					paginatedMetas[row] = &types.IRODSMeta{
 						AVUID:      -1,
 						Name:       "",
 						Value:      "",
@@ -403,32 +403,32 @@ func ListResourceMeta(conn *connection.IRODSConnection, name string) ([]*types.I
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse resource metadata id %q: %w", value, err)
 					}
-					pagenatedMetas[row].AVUID = avuID
+					paginatedMetas[row].AVUID = avuID
 				case int(common.ICAT_COLUMN_META_RESC_ATTR_NAME):
-					pagenatedMetas[row].Name = value
+					paginatedMetas[row].Name = value
 				case int(common.ICAT_COLUMN_META_RESC_ATTR_VALUE):
-					pagenatedMetas[row].Value = value
+					paginatedMetas[row].Value = value
 				case int(common.ICAT_COLUMN_META_RESC_ATTR_UNITS):
-					pagenatedMetas[row].Units = value
+					paginatedMetas[row].Units = value
 				case int(common.ICAT_COLUMN_META_RESC_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 					}
-					pagenatedMetas[row].CreateTime = cT
+					paginatedMetas[row].CreateTime = cT
 				case int(common.ICAT_COLUMN_META_RESC_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
-					pagenatedMetas[row].ModifyTime = mT
+					paginatedMetas[row].ModifyTime = mT
 				default:
 					// ignore
 				}
 			}
 		}
 
-		metas = append(metas, pagenatedMetas...)
+		metas = append(metas, paginatedMetas...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {

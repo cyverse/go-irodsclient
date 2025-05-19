@@ -215,7 +215,7 @@ func ListCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types
 			return nil, xerrors.Errorf("failed to receive collection metadata attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedMetas := make([]*types.IRODSMeta, queryResult.RowCount)
+		paginatedMetas := make([]*types.IRODSMeta, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -226,9 +226,9 @@ func ListCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedMetas[row] == nil {
+				if paginatedMetas[row] == nil {
 					// create a new
-					pagenatedMetas[row] = &types.IRODSMeta{
+					paginatedMetas[row] = &types.IRODSMeta{
 						AVUID:      -1,
 						Name:       "",
 						Value:      "",
@@ -244,32 +244,32 @@ func ListCollectionMeta(conn *connection.IRODSConnection, path string) ([]*types
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse collection metadata id %q: %w", value, err)
 					}
-					pagenatedMetas[row].AVUID = avuID
+					paginatedMetas[row].AVUID = avuID
 				case int(common.ICAT_COLUMN_META_COLL_ATTR_NAME):
-					pagenatedMetas[row].Name = value
+					paginatedMetas[row].Name = value
 				case int(common.ICAT_COLUMN_META_COLL_ATTR_VALUE):
-					pagenatedMetas[row].Value = value
+					paginatedMetas[row].Value = value
 				case int(common.ICAT_COLUMN_META_COLL_ATTR_UNITS):
-					pagenatedMetas[row].Units = value
+					paginatedMetas[row].Units = value
 				case int(common.ICAT_COLUMN_META_COLL_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 					}
-					pagenatedMetas[row].CreateTime = cT
+					paginatedMetas[row].CreateTime = cT
 				case int(common.ICAT_COLUMN_META_COLL_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
-					pagenatedMetas[row].ModifyTime = mT
+					paginatedMetas[row].ModifyTime = mT
 				default:
 					// ignore
 				}
 			}
 		}
 
-		metas = append(metas, pagenatedMetas...)
+		metas = append(metas, paginatedMetas...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -343,7 +343,7 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 			return nil, xerrors.Errorf("failed to receive collection attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedCollections := make([]*types.IRODSCollection, queryResult.RowCount)
+		paginatedCollections := make([]*types.IRODSCollection, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -354,9 +354,9 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedCollections[row] == nil {
+				if paginatedCollections[row] == nil {
 					// create a new
-					pagenatedCollections[row] = &types.IRODSCollection{
+					paginatedCollections[row] = &types.IRODSCollection{
 						ID:         -1,
 						Path:       "",
 						Name:       "",
@@ -372,31 +372,31 @@ func ListSubCollections(conn *connection.IRODSConnection, path string) ([]*types
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse collection id %q: %w", value, err)
 					}
-					pagenatedCollections[row].ID = cID
+					paginatedCollections[row].ID = cID
 				case int(common.ICAT_COLUMN_COLL_NAME):
-					pagenatedCollections[row].Path = value
-					pagenatedCollections[row].Name = util.GetIRODSPathFileName(value)
+					paginatedCollections[row].Path = value
+					paginatedCollections[row].Name = util.GetIRODSPathFileName(value)
 				case int(common.ICAT_COLUMN_COLL_OWNER_NAME):
-					pagenatedCollections[row].Owner = value
+					paginatedCollections[row].Owner = value
 				case int(common.ICAT_COLUMN_COLL_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 					}
-					pagenatedCollections[row].CreateTime = cT
+					paginatedCollections[row].CreateTime = cT
 				case int(common.ICAT_COLUMN_COLL_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
-					pagenatedCollections[row].ModifyTime = mT
+					paginatedCollections[row].ModifyTime = mT
 				default:
 					// ignore
 				}
 			}
 		}
 
-		collections = append(collections, pagenatedCollections...)
+		collections = append(collections, paginatedCollections...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -472,7 +472,7 @@ func SearchCollectionsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 			return nil, xerrors.Errorf("failed to receive collection attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedCollections := make([]*types.IRODSCollection, queryResult.RowCount)
+		paginatedCollections := make([]*types.IRODSCollection, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -483,9 +483,9 @@ func SearchCollectionsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedCollections[row] == nil {
+				if paginatedCollections[row] == nil {
 					// create a new
-					pagenatedCollections[row] = &types.IRODSCollection{
+					paginatedCollections[row] = &types.IRODSCollection{
 						ID:         -1,
 						Path:       "",
 						Name:       "",
@@ -501,24 +501,24 @@ func SearchCollectionsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse collection id %q: %w", value, err)
 					}
-					pagenatedCollections[row].ID = cID
+					paginatedCollections[row].ID = cID
 				case int(common.ICAT_COLUMN_COLL_NAME):
-					pagenatedCollections[row].Path = value
-					pagenatedCollections[row].Name = util.GetIRODSPathFileName(value)
+					paginatedCollections[row].Path = value
+					paginatedCollections[row].Name = util.GetIRODSPathFileName(value)
 				case int(common.ICAT_COLUMN_COLL_OWNER_NAME):
-					pagenatedCollections[row].Owner = value
+					paginatedCollections[row].Owner = value
 				case int(common.ICAT_COLUMN_COLL_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 					}
-					pagenatedCollections[row].CreateTime = cT
+					paginatedCollections[row].CreateTime = cT
 				case int(common.ICAT_COLUMN_COLL_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
-					pagenatedCollections[row].ModifyTime = mT
+					paginatedCollections[row].ModifyTime = mT
 				default:
 					// ignore
 				}
@@ -527,9 +527,9 @@ func SearchCollectionsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 
 		// Filter results by original unix wildcard, since the SQL wildcards
 		// are less strict (e.g. a unix wildcard range is converted to a generic wildcards in SQL).
-		for _, pagenatedCollection := range pagenatedCollections {
-			if fnmatch.Match(pathUnixWildcard, pagenatedCollection.Path, fnmatch.FNM_PATHNAME) {
-				collections = append(collections, pagenatedCollection)
+		for _, paginatedCollection := range paginatedCollections {
+			if fnmatch.Match(pathUnixWildcard, paginatedCollection.Path, fnmatch.FNM_PATHNAME) {
+				collections = append(collections, paginatedCollection)
 			}
 		}
 
@@ -783,7 +783,7 @@ func SearchCollectionsByMeta(conn *connection.IRODSConnection, metaName string, 
 			return nil, xerrors.Errorf("failed to receive collection attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedCollections := make([]*types.IRODSCollection, queryResult.RowCount)
+		paginatedCollections := make([]*types.IRODSCollection, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -794,9 +794,9 @@ func SearchCollectionsByMeta(conn *connection.IRODSConnection, metaName string, 
 			for row := 0; row < queryResult.RowCount; row++ {
 				value := sqlResult.Values[row]
 
-				if pagenatedCollections[row] == nil {
+				if paginatedCollections[row] == nil {
 					// create a new
-					pagenatedCollections[row] = &types.IRODSCollection{
+					paginatedCollections[row] = &types.IRODSCollection{
 						ID:         -1,
 						Path:       "",
 						Name:       "",
@@ -812,31 +812,31 @@ func SearchCollectionsByMeta(conn *connection.IRODSConnection, metaName string, 
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse collection id %q: %w", value, err)
 					}
-					pagenatedCollections[row].ID = cID
+					paginatedCollections[row].ID = cID
 				case int(common.ICAT_COLUMN_COLL_NAME):
-					pagenatedCollections[row].Path = value
-					pagenatedCollections[row].Name = util.GetIRODSPathFileName(value)
+					paginatedCollections[row].Path = value
+					paginatedCollections[row].Name = util.GetIRODSPathFileName(value)
 				case int(common.ICAT_COLUMN_COLL_OWNER_NAME):
-					pagenatedCollections[row].Owner = value
+					paginatedCollections[row].Owner = value
 				case int(common.ICAT_COLUMN_COLL_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 					}
-					pagenatedCollections[row].CreateTime = cT
+					paginatedCollections[row].CreateTime = cT
 				case int(common.ICAT_COLUMN_COLL_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
 						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 					}
-					pagenatedCollections[row].ModifyTime = mT
+					paginatedCollections[row].ModifyTime = mT
 				default:
 					// ignore
 				}
 			}
 		}
 
-		collections = append(collections, pagenatedCollections...)
+		collections = append(collections, paginatedCollections...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
@@ -907,7 +907,7 @@ func SearchCollectionsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 			return nil, xerrors.Errorf("failed to receive collection attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
-		pagenatedCollections := make([]*types.IRODSCollection, queryResult.RowCount)
+		paginatedCollections := make([]*types.IRODSCollection, queryResult.RowCount)
 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
@@ -924,9 +924,9 @@ func SearchCollectionsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 				for row := 0; row < queryResult.RowCount; row++ {
 					value := sqlResult.Values[row]
 
-					if pagenatedCollections[row] == nil {
+					if paginatedCollections[row] == nil {
 						// create a new
-						pagenatedCollections[row] = &types.IRODSCollection{
+						paginatedCollections[row] = &types.IRODSCollection{
 							ID:         -1,
 							Path:       "",
 							Name:       "",
@@ -942,24 +942,24 @@ func SearchCollectionsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 						if err != nil {
 							return nil, xerrors.Errorf("failed to parse collection id %q: %w", value, err)
 						}
-						pagenatedCollections[row].ID = cID
+						paginatedCollections[row].ID = cID
 					case int(common.ICAT_COLUMN_COLL_NAME):
-						pagenatedCollections[row].Path = value
-						pagenatedCollections[row].Name = util.GetIRODSPathFileName(value)
+						paginatedCollections[row].Path = value
+						paginatedCollections[row].Name = util.GetIRODSPathFileName(value)
 					case int(common.ICAT_COLUMN_COLL_OWNER_NAME):
-						pagenatedCollections[row].Owner = value
+						paginatedCollections[row].Owner = value
 					case int(common.ICAT_COLUMN_COLL_CREATE_TIME):
 						cT, err := util.GetIRODSDateTime(value)
 						if err != nil {
 							return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
 						}
-						pagenatedCollections[row].CreateTime = cT
+						paginatedCollections[row].CreateTime = cT
 					case int(common.ICAT_COLUMN_COLL_MODIFY_TIME):
 						mT, err := util.GetIRODSDateTime(value)
 						if err != nil {
 							return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
 						}
-						pagenatedCollections[row].ModifyTime = mT
+						paginatedCollections[row].ModifyTime = mT
 					default:
 						// ignore
 					}
@@ -967,7 +967,7 @@ func SearchCollectionsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 			}
 		}
 
-		collections = append(collections, pagenatedCollections...)
+		collections = append(collections, paginatedCollections...)
 
 		continueIndex = queryResult.ContinueIndex
 		if continueIndex == 0 {
