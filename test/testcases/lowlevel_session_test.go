@@ -17,7 +17,8 @@ func getLowlevelSessionTest() Test {
 
 func lowlevelSessionTest(t *testing.T, test *Test) {
 	t.Run("Session", testSession)
-	t.Run("testMaxConnections", testMaxConnections)
+	t.Run("testMaxConnectionsShared", testMaxConnectionsShared)
+	t.Run("testMaxConnectionsNotShared", testMaxConnectionsNotShared)
 	t.Run("ConnectionMetrics", testConnectionMetrics)
 }
 
@@ -45,7 +46,7 @@ func testSession(t *testing.T) {
 	FailError(t, err)
 }
 
-func testMaxConnections(t *testing.T) {
+func testMaxConnectionsShared(t *testing.T) {
 	test := GetCurrentTest()
 	server := test.GetServer()
 
@@ -61,6 +62,37 @@ func testMaxConnections(t *testing.T) {
 		conn, err := sess.AcquireConnection()
 		FailError(t, err)
 
+		collection, err := fs.GetCollection(conn, homeDir)
+		FailError(t, err)
+
+		connections = append(connections, conn)
+
+		assert.Equal(t, homeDir, collection.Path)
+		assert.NotEmpty(t, collection.ID)
+	}
+
+	assert.Equal(t, sess.GetConfig().ConnectionMaxNumber, sess.ConnectionTotal())
+
+	for _, conn := range connections {
+		err = sess.ReturnConnection(conn)
+		FailError(t, err)
+	}
+}
+
+func testMaxConnectionsNotShared(t *testing.T) {
+	test := GetCurrentTest()
+	server := test.GetServer()
+
+	sess, err := server.GetSession()
+	FailError(t, err)
+	defer sess.Release()
+
+	homeDir := test.GetTestHomeDir()
+
+	connections, err := sess.AcquireConnectionsMulti(15, false)
+	FailError(t, err)
+
+	for _, conn := range connections {
 		collection, err := fs.GetCollection(conn, homeDir)
 		FailError(t, err)
 
