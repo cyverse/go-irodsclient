@@ -58,7 +58,7 @@ func UploadDataObjectFromBuffer(session *session.IRODSSession, buffer *bytes.Buf
 
 	fileLength := int64(buffer.Len())
 
-	conn, err := session.AcquireConnection()
+	conn, err := session.AcquireConnection(true)
 	if err != nil {
 		return xerrors.Errorf("failed to get connection: %w", err)
 	}
@@ -125,7 +125,7 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 
 	logger.Debugf("upload data object %q", localPath)
 
-	conn, err := session.AcquireConnection()
+	conn, err := session.AcquireConnection(true)
 	if err != nil {
 		return xerrors.Errorf("failed to get connection: %w", err)
 	}
@@ -245,7 +245,7 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 		return UploadDataObject(session, localPath, irodsPath, resource, replicate, keywords, callback)
 	}
 
-	conn, err := session.AcquireUnmanagedConnection()
+	conn, err := session.AcquireConnection(false)
 	if err != nil {
 		return xerrors.Errorf("failed to get connection: %w", err)
 	}
@@ -282,8 +282,8 @@ func UploadDataObjectParallel(session *session.IRODSSession, localPath string, i
 	uploadTask := func(taskOffset int64, taskLength int64) {
 		defer taskWaitGroup.Done()
 
-		// we will not reuse connection from the pool, as it should use fresh one
-		taskConn, taskErr := session.AcquireUnmanagedConnection()
+		// we will use fresh one
+		taskConn, taskErr := session.AcquireConnection(false)
 		if taskErr != nil {
 			errChan <- xerrors.Errorf("failed to get connection: %w", taskErr)
 			return
@@ -420,7 +420,7 @@ func DownloadDataObjectToBuffer(session *session.IRODSSession, irodsPath string,
 		resource = account.DefaultResource
 	}
 
-	conn, err := session.AcquireConnection()
+	conn, err := session.AcquireConnection(true)
 	if err != nil {
 		return xerrors.Errorf("failed to get connection: %w", err)
 	}
@@ -687,7 +687,7 @@ func DownloadDataObjectParallel(session *session.IRODSSession, irodsPath string,
 				session.ReturnConnection(taskConn)
 
 				var connErr error
-				taskConn, connErr = session.AcquireConnection()
+				taskConn, connErr = session.AcquireConnection(true)
 				if connErr != nil {
 					errChan <- xerrors.Errorf("failed to get connection: %w", connErr)
 					return
@@ -967,7 +967,7 @@ func DownloadDataObjectParallelResumable(session *session.IRODSSession, irodsPat
 				session.ReturnConnection(taskConn)
 
 				var connErr error
-				taskConn, connErr = session.AcquireConnection()
+				taskConn, connErr = session.AcquireConnection(true)
 				if connErr != nil {
 					errChan <- xerrors.Errorf("failed to get connection: %w", connErr)
 					return

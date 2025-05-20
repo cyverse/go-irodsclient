@@ -7,7 +7,7 @@ import (
 
 // StatProcess stats processes
 func (fs *FileSystem) StatProcess(address string, zoneName string) ([]*types.IRODSProcess, error) {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}

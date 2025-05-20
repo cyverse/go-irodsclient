@@ -93,7 +93,7 @@ func IsResourceServerConnectionConfigError(err error) bool {
 type ConnectionError struct {
 }
 
-// NewConnectionError creates an error for connection poll full
+// NewConnectionError creates an error for connection error
 func NewConnectionError() error {
 	return &ConnectionError{}
 }

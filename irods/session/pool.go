@@ -164,6 +164,7 @@ func (pool *ConnectionPool) init() error {
 			if pool.config.Metrics != nil {
 				pool.config.Metrics.IncreaseCounterForConnectionPoolFailures(1)
 			}
+
 			return xerrors.Errorf("failed to connect to irods server: %w", err)
 		}
 
@@ -379,8 +380,8 @@ func (pool *ConnectionPool) Discard(conn *connection.IRODSConnection) {
 	}
 }
 
-// OpenConnections returns total number of connections
-func (pool *ConnectionPool) OpenConnections() int {
+// GetOpenConnections returns total number of connections
+func (pool *ConnectionPool) GetOpenConnections() int {
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
 
@@ -409,4 +410,12 @@ func (pool *ConnectionPool) AvailableConnections() int {
 	defer pool.mutex.Unlock()
 
 	return pool.config.MaxCap - len(pool.occupiedConnections)
+}
+
+// MaxConnections returns connections that can be created
+func (pool *ConnectionPool) MaxConnections() int {
+	pool.mutex.Lock()
+	defer pool.mutex.Unlock()
+
+	return pool.config.MaxCap
 }

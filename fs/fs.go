@@ -118,8 +118,8 @@ func (fs *FileSystem) GetConfig() *FileSystemConfig {
 }
 
 // GetIOConnection returns irods connection for IO
-func (fs *FileSystem) GetIOConnection() (*connection.IRODSConnection, error) {
-	return fs.ioSession.AcquireConnection()
+func (fs *FileSystem) GetIOConnection(allowShared bool) (*connection.IRODSConnection, error) {
+	return fs.ioSession.AcquireConnection(allowShared)
 }
 
 // ReturnIOConnection returns irods connection for IO back to session
@@ -128,8 +128,8 @@ func (fs *FileSystem) ReturnIOConnection(conn *connection.IRODSConnection) error
 }
 
 // GetMetadataConnection returns irods connection for metadata operations
-func (fs *FileSystem) GetMetadataConnection() (*connection.IRODSConnection, error) {
-	return fs.metadataSession.AcquireConnection()
+func (fs *FileSystem) GetMetadataConnection(allowShared bool) (*connection.IRODSConnection, error) {
+	return fs.metadataSession.AcquireConnection(allowShared)
 }
 
 // ReturnMetadataConnection returns irods connection for metadata operations back to session
@@ -138,13 +138,13 @@ func (fs *FileSystem) ReturnMetadataConnection(conn *connection.IRODSConnection)
 }
 
 // ConnectionTotal counts current established connections
-func (fs *FileSystem) ConnectionTotal() int {
-	return fs.ioSession.ConnectionTotal() + fs.metadataSession.ConnectionTotal()
+func (fs *FileSystem) ConnectionsTotal() int {
+	return fs.ioSession.GetConnectionsTotal() + fs.metadataSession.GetConnectionsTotal()
 }
 
 // GetServerVersion returns server version info
 func (fs *FileSystem) GetServerVersion() (*types.IRODSVersion, error) {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -288,7 +288,7 @@ func (fs *FileSystem) List(irodsPath string) ([]*Entry, error) {
 }
 
 func (fs *FileSystem) SearchUnixWildcard(pathUnixWildcard string) ([]*Entry, error) {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -318,7 +318,7 @@ func (fs *FileSystem) SearchUnixWildcard(pathUnixWildcard string) ([]*Entry, err
 }
 
 func (fs *FileSystem) SearchDirUnixWildcard(pathUnixWildcard string) ([]*Entry, error) {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -339,7 +339,7 @@ func (fs *FileSystem) SearchDirUnixWildcard(pathUnixWildcard string) ([]*Entry, 
 }
 
 func (fs *FileSystem) SearchFileUnixWildcard(pathUnixWildcard string) ([]*Entry, error) {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -363,7 +363,7 @@ func (fs *FileSystem) SearchFileUnixWildcard(pathUnixWildcard string) ([]*Entry,
 func (fs *FileSystem) RemoveDir(irodsPath string, recurse bool, force bool) error {
 	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -387,7 +387,7 @@ func (fs *FileSystem) RemoveDir(irodsPath string, recurse bool, force bool) erro
 func (fs *FileSystem) RemoveFile(irodsPath string, force bool) error {
 	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -445,7 +445,7 @@ func (fs *FileSystem) RenameDirToDir(srcPath string, destPath string) error {
 	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
 	irodsDestPath := util.GetCorrectIRODSPath(destPath)
 
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -495,7 +495,7 @@ func (fs *FileSystem) RenameFileToFile(srcPath string, destPath string) error {
 	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
 	irodsDestPath := util.GetCorrectIRODSPath(destPath)
 
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -647,7 +647,7 @@ func (fs *FileSystem) postprocessRenameFileHandleForDir(handles []*FileHandle, c
 func (fs *FileSystem) MakeDir(irodsPath string, recurse bool) error {
 	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -695,7 +695,7 @@ func (fs *FileSystem) CopyFileToFile(srcPath string, destPath string, force bool
 	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
 	irodsDestPath := util.GetCorrectIRODSPath(destPath)
 
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -719,7 +719,7 @@ func (fs *FileSystem) TruncateFile(irodsPath string, size int64) error {
 		size = 0
 	}
 
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -739,7 +739,7 @@ func (fs *FileSystem) TruncateFile(irodsPath string, size int64) error {
 func (fs *FileSystem) ReplicateFile(irodsPath string, resource string, update bool) error {
 	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -759,7 +759,7 @@ func (fs *FileSystem) ReplicateFile(irodsPath string, resource string, update bo
 func (fs *FileSystem) OpenFile(irodsPath string, resource string, mode string) (*FileHandle, error) {
 	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
-	conn, err := fs.ioSession.AcquireConnection()
+	conn, err := fs.ioSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -817,7 +817,7 @@ func (fs *FileSystem) OpenFile(irodsPath string, resource string, mode string) (
 func (fs *FileSystem) CreateFile(irodsPath string, resource string, mode string) (*FileHandle, error) {
 	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
-	conn, err := fs.ioSession.AcquireConnection()
+	conn, err := fs.ioSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -871,7 +871,7 @@ func (fs *FileSystem) CreateFile(irodsPath string, resource string, mode string)
 // getCollectionNoCache returns collection entry
 func (fs *FileSystem) getCollectionNoCache(irodsPath string) (*Entry, error) {
 	// retrieve it and add it to cache
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -939,7 +939,7 @@ func (fs *FileSystem) listEntries(collPath string) ([]*Entry, error) {
 	}
 
 	// otherwise, retrieve it and add it to cache
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -1027,7 +1027,7 @@ func (fs *FileSystem) getDataObjectWithConnection(conn *connection.IRODSConnecti
 // getDataObjectNoCache returns an entry for data object
 func (fs *FileSystem) getDataObjectNoCache(irodsPath string) (*Entry, error) {
 	// retrieve it and add it to cache
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}

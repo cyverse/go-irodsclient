@@ -9,10 +9,14 @@ const (
 )
 
 var (
-	IRODS_Versions []IRODSTestServerVersion = []IRODSTestServerVersion{
+	Test_IRODS_Versions []IRODSTestServerVersion = []IRODSTestServerVersion{
 		IRODS_4_2_8,
 		IRODS_4_2_11,
 		IRODS_4_3_3,
+	}
+
+	Production_IRODS_Versions []IRODSTestServerVersion = []IRODSTestServerVersion{
+		IRODS_4_2_8,
 	}
 )
 
@@ -23,4 +27,11 @@ const (
 	testServerAdminPassword string = "rods"
 	testServerZone          string = "tempZone"
 	testServerResource      string = "demoResc"
+
+	productionServerHost          string = "data.cyverse.org"
+	productionServerPort          int    = 1247
+	productionServerAdminUser     string = ""
+	productionServerAdminPassword string = ""
+	productionServerZone          string = "iplant"
+	productionServerResource      string = ""
 )

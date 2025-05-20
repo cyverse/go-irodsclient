@@ -14,7 +14,7 @@ func (fs *FileSystem) GetUser(username string, zoneName string, userType types.I
 	}
 
 	// otherwise, retrieve it and add it to cache
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +56,7 @@ func (fs *FileSystem) ListUsers(zoneName string, userType types.IRODSUserType) (
 	}
 
 	// retrieve it and add it to cache
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func (fs *FileSystem) ListGroupMemberNames(zoneName string, groupName string) ([
 	}
 
 	// otherwise, retrieve it and add it to cache
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +135,7 @@ func (fs *FileSystem) ListGroupMembers(zoneName string, groupName string) ([]*ty
 	}
 
 	// otherwise, retrieve it and add it to cache
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +167,7 @@ func (fs *FileSystem) ListUserGroupNames(zoneName string, username string) ([]st
 	}
 
 	// otherwise, retrieve it and add it to cache
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +209,7 @@ func (fs *FileSystem) ListUserGroups(zoneName string, username string) ([]*types
 	}
 
 	// otherwise, retrieve it and add it to cache
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +254,7 @@ func (fs *FileSystem) ListUserGroups(zoneName string, username string) ([]*types
 
 // CreateUser creates a new user
 func (fs *FileSystem) CreateUser(username string, zoneName string, userType types.IRODSUserType) (*types.IRODSUser, error) {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -278,7 +278,7 @@ func (fs *FileSystem) CreateUser(username string, zoneName string, userType type
 
 // ChangeUserPassword changes a user's password
 func (fs *FileSystem) ChangeUserPassword(username string, zoneName string, newPassword string) error {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -294,7 +294,7 @@ func (fs *FileSystem) ChangeUserPassword(username string, zoneName string, newPa
 
 // ChangeUserType changes a user's type
 func (fs *FileSystem) ChangeUserType(username string, zoneName string, newType types.IRODSUserType) error {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -310,7 +310,7 @@ func (fs *FileSystem) ChangeUserType(username string, zoneName string, newType t
 
 // RemoveUser removes a user
 func (fs *FileSystem) RemoveUser(username string, zoneName string, userType types.IRODSUserType) error {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -326,7 +326,7 @@ func (fs *FileSystem) RemoveUser(username string, zoneName string, userType type
 
 // AddGroupMember adds a user to a group
 func (fs *FileSystem) AddGroupMember(groupName string, username string, zoneName string) error {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -342,7 +342,7 @@ func (fs *FileSystem) AddGroupMember(groupName string, username string, zoneName
 
 // RemoveGroupMember removes a user from a group
 func (fs *FileSystem) RemoveGroupMember(groupName string, username string, zoneName string) error {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}

@@ -847,7 +847,7 @@ func testParallelUploadAndDownloadDataObject(t *testing.T) {
 	FailError(t, err)
 	defer sess.Release()
 
-	conn, err := sess.AcquireConnection()
+	conn, err := sess.AcquireConnection(true)
 	FailError(t, err)
 
 	if !conn.SupportParallelUpload() {

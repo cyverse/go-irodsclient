@@ -31,7 +31,7 @@ func testSession(t *testing.T) {
 	defer sess.Release()
 
 	// first
-	conn, err := sess.AcquireConnection()
+	conn, err := sess.AcquireConnection(true)
 	FailError(t, err)
 
 	homeDir := test.GetTestHomeDir()
@@ -59,7 +59,7 @@ func testMaxConnectionsShared(t *testing.T) {
 	connections := []*connection.IRODSConnection{}
 
 	for i := 0; i < 15; i++ {
-		conn, err := sess.AcquireConnection()
+		conn, err := sess.AcquireConnection(true)
 		FailError(t, err)
 
 		collection, err := fs.GetCollection(conn, homeDir)
@@ -71,7 +71,7 @@ func testMaxConnectionsShared(t *testing.T) {
 		assert.NotEmpty(t, collection.ID)
 	}
 
-	assert.Equal(t, sess.GetConfig().ConnectionMaxNumber, sess.ConnectionTotal())
+	assert.Equal(t, sess.GetConfig().ConnectionMaxNumber, sess.GetConnectionsTotal())
 
 	for _, conn := range connections {
 		err = sess.ReturnConnection(conn)
@@ -102,7 +102,7 @@ func testMaxConnectionsNotShared(t *testing.T) {
 		assert.NotEmpty(t, collection.ID)
 	}
 
-	assert.Equal(t, sess.GetConfig().ConnectionMaxNumber, sess.ConnectionTotal())
+	assert.Equal(t, sess.GetConfig().ConnectionMaxNumber, sess.GetConnectionsTotal())
 
 	for _, conn := range connections {
 		err = sess.ReturnConnection(conn)
@@ -131,7 +131,7 @@ func testConnectionMetrics(t *testing.T) {
 	connections := []*connection.IRODSConnection{}
 
 	for i := 0; i < 15; i++ {
-		conn, err := sess.AcquireConnection()
+		conn, err := sess.AcquireConnection(true)
 		FailError(t, err)
 
 		collection, err := fs.GetCollection(conn, homeDir)
@@ -143,7 +143,7 @@ func testConnectionMetrics(t *testing.T) {
 		assert.NotEmpty(t, collection.ID)
 	}
 
-	assert.Equal(t, sessionConfig.ConnectionMaxNumber, sess.ConnectionTotal())
+	assert.Equal(t, sessionConfig.ConnectionMaxNumber, sess.GetConnectionsTotal())
 	assert.Equal(t, uint64(sessionConfig.ConnectionMaxNumber), metrics.GetConnectionsOpened())
 	assert.Equal(t, uint64(sessionConfig.ConnectionMaxNumber), metrics.GetConnectionsOccupied())
 

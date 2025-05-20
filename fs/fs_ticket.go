@@ -10,7 +10,7 @@ import (
 
 // GetTicketForAnonymousAccess gets ticket information for anonymous access
 func (fs *FileSystem) GetTicketForAnonymousAccess(ticketName string) (*types.IRODSTicketForAnonymousAccess, error) {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -26,7 +26,7 @@ func (fs *FileSystem) GetTicketForAnonymousAccess(ticketName string) (*types.IRO
 
 // GetTicket gets ticket information
 func (fs *FileSystem) GetTicket(ticketName string) (*types.IRODSTicket, error) {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func (fs *FileSystem) GetTicket(ticketName string) (*types.IRODSTicket, error) {
 
 // ListTickets lists all available ticket information
 func (fs *FileSystem) ListTickets() ([]*types.IRODSTicket, error) {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func (fs *FileSystem) ListTickets() ([]*types.IRODSTicket, error) {
 
 // ListTicketsBasic lists all available basic ticket information
 func (fs *FileSystem) ListTicketsBasic() ([]*types.IRODSTicket, error) {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func (fs *FileSystem) ListTicketsBasic() ([]*types.IRODSTicket, error) {
 
 // GetTicketRestrictions gets all restriction info. for the given ticket
 func (fs *FileSystem) GetTicketRestrictions(ticketID int64) (*IRODSTicketRestrictions, error) {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func (fs *FileSystem) GetTicketRestrictions(ticketID int64) (*IRODSTicketRestric
 
 // ListTicketHostRestrictions lists all host restrictions for the given ticket
 func (fs *FileSystem) ListTicketHostRestrictions(ticketID int64) ([]string, error) {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func (fs *FileSystem) ListTicketHostRestrictions(ticketID int64) ([]string, erro
 
 // ListTicketUserNameRestrictions lists all user name restrictions for the given ticket
 func (fs *FileSystem) ListTicketUserNameRestrictions(ticketID int64) ([]string, error) {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func (fs *FileSystem) ListTicketUserNameRestrictions(ticketID int64) ([]string, 
 
 // ListTicketUserGroupRestrictions lists all group name restrictions for the given ticket
 func (fs *FileSystem) ListTicketUserGroupRestrictions(ticketID int64) ([]string, error) {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +154,7 @@ func (fs *FileSystem) ListTicketUserGroupRestrictions(ticketID int64) ([]string,
 func (fs *FileSystem) CreateTicket(ticketName string, ticketType types.TicketType, path string) error {
 	irodsPath := util.GetCorrectIRODSPath(path)
 
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -170,7 +170,7 @@ func (fs *FileSystem) CreateTicket(ticketName string, ticketType types.TicketTyp
 
 // DeleteTicket deletes the given ticket
 func (fs *FileSystem) DeleteTicket(ticketName string) error {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -186,7 +186,7 @@ func (fs *FileSystem) DeleteTicket(ticketName string) error {
 
 // ModifyTicketUseLimit modifies the use limit of the given ticket
 func (fs *FileSystem) ModifyTicketUseLimit(ticketName string, uses int64) error {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -202,7 +202,7 @@ func (fs *FileSystem) ModifyTicketUseLimit(ticketName string, uses int64) error 
 
 // ClearTicketUseLimit clears the use limit of the given ticket
 func (fs *FileSystem) ClearTicketUseLimit(ticketName string) error {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -218,7 +218,7 @@ func (fs *FileSystem) ClearTicketUseLimit(ticketName string) error {
 
 // ModifyTicketWriteFileLimit modifies the write file limit of the given ticket
 func (fs *FileSystem) ModifyTicketWriteFileLimit(ticketName string, count int64) error {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -234,7 +234,7 @@ func (fs *FileSystem) ModifyTicketWriteFileLimit(ticketName string, count int64)
 
 // ClearTicketWriteFileLimit clears the write file limit of the given ticket
 func (fs *FileSystem) ClearTicketWriteFileLimit(ticketName string) error {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -250,7 +250,7 @@ func (fs *FileSystem) ClearTicketWriteFileLimit(ticketName string) error {
 
 // ModifyTicketWriteByteLimit modifies the write byte limit of the given ticket
 func (fs *FileSystem) ModifyTicketWriteByteLimit(ticketName string, bytes int64) error {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -266,7 +266,7 @@ func (fs *FileSystem) ModifyTicketWriteByteLimit(ticketName string, bytes int64)
 
 // ClearTicketWriteByteLimit clears the write byte limit of the given ticket
 func (fs *FileSystem) ClearTicketWriteByteLimit(ticketName string) error {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -282,7 +282,7 @@ func (fs *FileSystem) ClearTicketWriteByteLimit(ticketName string) error {
 
 // AddTicketAllowedUser adds a user to the allowed user names list of the given ticket
 func (fs *FileSystem) AddTicketAllowedUser(ticketName string, userName string) error {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -298,7 +298,7 @@ func (fs *FileSystem) AddTicketAllowedUser(ticketName string, userName string) e
 
 // RemoveTicketAllowedUser removes the user from the allowed user names list of the given ticket
 func (fs *FileSystem) RemoveTicketAllowedUser(ticketName string, userName string) error {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -314,7 +314,7 @@ func (fs *FileSystem) RemoveTicketAllowedUser(ticketName string, userName string
 
 // AddTicketAllowedGroup adds a group to the allowed group names list of the given ticket
 func (fs *FileSystem) AddTicketAllowedGroup(ticketName string, groupName string) error {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -330,7 +330,7 @@ func (fs *FileSystem) AddTicketAllowedGroup(ticketName string, groupName string)
 
 // RemoveTicketAllowedGroup removes the group from the allowed group names list of the given ticket
 func (fs *FileSystem) RemoveTicketAllowedGroup(ticketName string, groupName string) error {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -346,7 +346,7 @@ func (fs *FileSystem) RemoveTicketAllowedGroup(ticketName string, groupName stri
 
 // AddTicketAllowedHost adds a host to the allowed hosts list of the given ticket
 func (fs *FileSystem) AddTicketAllowedHost(ticketName string, host string) error {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -362,7 +362,7 @@ func (fs *FileSystem) AddTicketAllowedHost(ticketName string, host string) error
 
 // RemoveTicketAllowedHost removes the host from the allowed hosts list of the given ticket
 func (fs *FileSystem) RemoveTicketAllowedHost(ticketName string, host string) error {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -378,7 +378,7 @@ func (fs *FileSystem) RemoveTicketAllowedHost(ticketName string, host string) er
 
 // ModifyTicketExpirationTime modifies the expiration time of the given ticket
 func (fs *FileSystem) ModifyTicketExpirationTime(ticketName string, expirationTime time.Time) error {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -394,7 +394,7 @@ func (fs *FileSystem) ModifyTicketExpirationTime(ticketName string, expirationTi
 
 // ClearTicketExpirationTime clears the expiration time of the given ticket
 func (fs *FileSystem) ClearTicketExpirationTime(ticketName string) error {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}

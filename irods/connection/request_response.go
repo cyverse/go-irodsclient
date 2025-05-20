@@ -1,6 +1,7 @@
 package connection
 
 import (
+	"io"
 	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/common"
@@ -68,7 +69,7 @@ func (conn *IRODSConnection) RequestWithTrackerCallBack(request Request, respons
 		if conn.config.Metrics != nil {
 			conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 		}
-		return err
+		return xerrors.Errorf("failed to make a request message: %w", err)
 	}
 
 	requestTimeout := time.Duration(0)
@@ -83,6 +84,7 @@ func (conn *IRODSConnection) RequestWithTrackerCallBack(request Request, respons
 		if conn.config.Metrics != nil {
 			conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 		}
+
 		return xerrors.Errorf("failed to send a request message: %w", err)
 	}
 
@@ -94,6 +96,9 @@ func (conn *IRODSConnection) RequestWithTrackerCallBack(request Request, respons
 			conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 		}
 
+		if err == io.EOF {
+			return err
+		}
 		return xerrors.Errorf("failed to receive a response message: %w", err)
 	}
 
@@ -106,6 +111,7 @@ func (conn *IRODSConnection) RequestWithTrackerCallBack(request Request, respons
 		if conn.config.Metrics != nil {
 			conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 		}
+
 		return xerrors.Errorf("failed to parse response message: %w", err)
 	}
 
@@ -201,9 +207,15 @@ func (conn *IRODSConnection) RequestAsyncWithTrackerCallBack(rrChan chan Request
 					conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 				}
 
-				lastErr = xerrors.Errorf("failed to receive a response message: %w", err)
+				if err == io.EOF {
+					lastErr = err
+				} else {
+					lastErr = xerrors.Errorf("failed to receive a response message: %w", err)
+				}
+
 				pair.Error = lastErr
 				outputPair <- pair
+
 				continue
 			}
 

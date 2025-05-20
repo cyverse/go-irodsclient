@@ -52,7 +52,7 @@ func main() {
 
 	defer sess.Release()
 
-	conn, err := sess.AcquireConnection()
+	conn, err := sess.AcquireConnection(true)
 	if err != nil {
 		logger.Error(err)
 		panic(err)

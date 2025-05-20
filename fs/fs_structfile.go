@@ -12,8 +12,8 @@ func (fs *FileSystem) ExtractStructFile(path string, targetCollection string, re
 	targetIrodsPath := util.GetCorrectIRODSPath(targetCollection)
 
 	// we create a new connection for extraction because iRODS has a bug that does not clear file descriptors, causing SYS_OUT_OF_FILE_DESC error.
-	// create a new unmanaged connection and throw out after use.
-	conn, err := fs.metadataSession.AcquireUnmanagedConnection()
+	// create a fresh connection and throw out after use.
+	conn, err := fs.metadataSession.AcquireConnection(false)
 	if err != nil {
 		return err
 	}

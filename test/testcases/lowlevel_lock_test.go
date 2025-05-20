@@ -28,11 +28,11 @@ func testLockDataObject(t *testing.T) {
 	FailError(t, err)
 	defer session.Release()
 
-	conn1, err := session.AcquireConnection()
+	conn1, err := session.AcquireConnection(true)
 	FailError(t, err)
 	defer session.ReturnConnection(conn1)
 
-	conn2, err := session.AcquireConnection()
+	conn2, err := session.AcquireConnection(true)
 	FailError(t, err)
 	defer session.ReturnConnection(conn2)
 

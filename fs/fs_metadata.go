@@ -22,7 +22,7 @@ func (fs *FileSystem) ListMetadata(irodsPath string) ([]*types.IRODSMeta, error)
 	}
 
 	// otherwise, retrieve it and add it to cache
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func (fs *FileSystem) AddMetadata(irodsPath string, attName string, attValue str
 		Units: attUnits,
 	}
 
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func (fs *FileSystem) DeleteMetadata(irodsPath string, avuID int64) error {
 		AVUID: avuID,
 	}
 
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func (fs *FileSystem) DeleteMetadataByName(irodsPath string, attName string) err
 		Name:  attName,
 	}
 
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -152,7 +152,7 @@ func (fs *FileSystem) DeleteMetadataByAVU(irodsPath string, attName string, attV
 		Units: attUnits,
 	}
 
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -182,7 +182,7 @@ func (fs *FileSystem) AddUserMetadata(username string, zoneName string, attName 
 		Units: attUnits,
 	}
 
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -202,7 +202,7 @@ func (fs *FileSystem) DeleteUserMetadata(username string, zoneName string, avuID
 		AVUID: avuID,
 	}
 
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -223,7 +223,7 @@ func (fs *FileSystem) DeleteUserMetadataByName(username string, zoneName string,
 		Name:  attName,
 	}
 
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -246,7 +246,7 @@ func (fs *FileSystem) DeleteUserMetadataByAVU(username string, zoneName string, 
 		Units: attUnits,
 	}
 
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -262,7 +262,7 @@ func (fs *FileSystem) DeleteUserMetadataByAVU(username string, zoneName string, 
 
 // ListUserMetadata lists all user metadata
 func (fs *FileSystem) ListUserMetadata(username string, zoneName string) ([]*types.IRODSMeta, error) {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -284,7 +284,7 @@ func (fs *FileSystem) AddResourceMetadata(resource string, attName string, attVa
 		Units: attUnits,
 	}
 
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -304,7 +304,7 @@ func (fs *FileSystem) DeleteResourceMetadata(resource string, avuID int64) error
 		AVUID: avuID,
 	}
 
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -325,7 +325,7 @@ func (fs *FileSystem) DeleteResourceMetadataByName(resource string, attName stri
 		Name:  attName,
 	}
 
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -348,7 +348,7 @@ func (fs *FileSystem) DeleteResourceMetadataByAVU(resource string, attName strin
 		Units: attUnits,
 	}
 
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -364,7 +364,7 @@ func (fs *FileSystem) DeleteResourceMetadataByAVU(resource string, attName strin
 
 // ListResourceMetadata lists all resource metadata
 func (fs *FileSystem) ListResourceMetadata(resource string) ([]*types.IRODSMeta, error) {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -380,7 +380,7 @@ func (fs *FileSystem) ListResourceMetadata(resource string) ([]*types.IRODSMeta,
 
 // searchEntriesByMeta searches entries by meta
 func (fs *FileSystem) searchEntriesByMeta(metaName string, metaValue string) ([]*Entry, error) {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}

@@ -66,7 +66,7 @@ func (fs *FileSystem) GetDirACLInheritance(path string) (*types.IRODSAccessInher
 	irodsPath := util.GetCorrectIRODSPath(path)
 
 	// retrieve it
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func (fs *FileSystem) ListDirACLs(path string) ([]*types.IRODSAccess, error) {
 	}
 
 	// otherwise, retrieve it and add it to cache
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +163,7 @@ func (fs *FileSystem) ListFileACLs(path string) ([]*types.IRODSAccess, error) {
 	}
 
 	// otherwise, retrieve it and add it to cache
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +225,7 @@ func (fs *FileSystem) ListFileACLsWithGroupMembers(path string) ([]*types.IRODSA
 
 // ChangeACLs changes ACLs of a file or directory
 func (fs *FileSystem) ChangeACLs(path string, access types.IRODSAccessLevelType, userName string, zoneName string, recursive bool, adminFlag bool) error {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -241,7 +241,7 @@ func (fs *FileSystem) ChangeACLs(path string, access types.IRODSAccessLevelType,
 
 // ChangeDirACLInheritance changes ACL inheritance of a directory
 func (fs *FileSystem) ChangeDirACLInheritance(path string, inherit bool, recursive bool, adminFlag bool) error {
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
@@ -280,7 +280,7 @@ func (fs *FileSystem) listACLsForEntries(collPath string) ([]*types.IRODSAccess,
 	}
 
 	// otherwise, retrieve it and add it to cache
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}

@@ -12,7 +12,7 @@ import (
 func (fs *FileSystem) Touch(irodsPath string, resource string, noCreate bool) error {
 	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
-	conn, err := fs.metadataSession.AcquireConnection()
+	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}

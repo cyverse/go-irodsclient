@@ -381,6 +381,12 @@ func (conn *IRODSConnection) startup() (*types.IRODSVersion, error) {
 		version := message.IRODSMessageVersion{}
 		err := conn.Request(startup, &version, nil, timeout)
 		if err != nil {
+			// handle EOF
+			if err == io.EOF {
+				// this happens when server rejects the connection
+				return nil, xerrors.Errorf("connection rejected (%s): %w", err.Error(), types.NewConnectionError())
+			}
+
 			return nil, xerrors.Errorf("failed to receive version message (%s): %w", err.Error(), types.NewConnectionError())
 		}
 
@@ -390,6 +396,11 @@ func (conn *IRODSConnection) startup() (*types.IRODSVersion, error) {
 	// cs negotiation response
 	negotiationMessage, err := conn.ReadMessage(nil, timeout.ResponseTimeout)
 	if err != nil {
+		if err == io.EOF {
+			// this happens when server rejects the connection
+			return nil, xerrors.Errorf("connection rejected (%s): %w", err.Error(), types.NewConnectionError())
+		}
+
 		return nil, xerrors.Errorf("failed to receive negotiation message (%s): %w", err.Error(), types.NewConnectionError())
 	}
 
@@ -418,9 +429,6 @@ func (conn *IRODSConnection) startup() (*types.IRODSVersion, error) {
 		}
 
 		serverPolicy := types.GetCSNegotiationPolicyRequest(negotiation.Result)
-		if err != nil {
-			return nil, xerrors.Errorf("failed to parse server policy (%s): %w", negotiation.Result, types.NewConnectionError())
-		}
 
 		logger.Debugf("Client policy %q, server policy %q", clientPolicy, serverPolicy)
 
@@ -973,6 +981,10 @@ func (conn *IRODSConnection) readMessageHeader() (*message.IRODSMessageHeader, e
 	headerLenBuffer := make([]byte, 4)
 	readLen, err := conn.Recv(headerLenBuffer, 4, nil)
 	if err != nil {
+		if err == io.EOF {
+			// EOF means the connection is closed
+			return nil, err
+		}
 		return nil, xerrors.Errorf("failed to read header size: %w", err)
 	}
 
@@ -989,6 +1001,10 @@ func (conn *IRODSConnection) readMessageHeader() (*message.IRODSMessageHeader, e
 	headerBuffer := make([]byte, headerSize)
 	readLen, err = conn.Recv(headerBuffer, int(headerSize), nil)
 	if err != nil {
+		if err == io.EOF {
+			// EOF means the connection is closed
+			return nil, err
+		}
 		return nil, xerrors.Errorf("failed to read header: %w", err)
 	}
 	if readLen != int(headerSize) {
@@ -1020,7 +1036,10 @@ func (conn *IRODSConnection) ReadMessageWithTrackerCallBack(bsBuffer []byte, tim
 
 	header, err := conn.readMessageHeader()
 	if err != nil {
-		return nil, err
+		if err == io.EOF {
+			return nil, err
+		}
+		return nil, xerrors.Errorf("failed to read message header: %w", err)
 	}
 
 	// read body
@@ -1034,6 +1053,9 @@ func (conn *IRODSConnection) ReadMessageWithTrackerCallBack(bsBuffer []byte, tim
 
 	bodyReadLen, err := conn.Recv(bodyBuffer, int(bodyLen), nil)
 	if err != nil {
+		if err == io.EOF {
+			return nil, err
+		}
 		return nil, xerrors.Errorf("failed to read body: %w", err)
 	}
 	if bodyReadLen != int(bodyLen) {
@@ -1042,6 +1064,9 @@ func (conn *IRODSConnection) ReadMessageWithTrackerCallBack(bsBuffer []byte, tim
 
 	bsReadLen, err := conn.RecvWithTrackerCallBack(bsBuffer, int(header.BsLen), nil, callback)
 	if err != nil {
+		if err == io.EOF {
+			return nil, err
+		}
 		return nil, xerrors.Errorf("failed to read body (BS), len %d: %w", int(header.BsLen), err)
 	}
 	if bsReadLen != int(header.BsLen) {

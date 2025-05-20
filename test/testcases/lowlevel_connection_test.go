@@ -16,9 +16,33 @@ func getLowlevelConnectionTest() Test {
 }
 
 func lowlevelConnectionTest(t *testing.T, test *Test) {
+	//t.Run("ManyConnections", testManyConnections)
 	t.Run("Connection", testConnection)
 	t.Run("InvalidUsername", testInvalidUsername)
 	t.Run("Negotiation", testNegotiation)
+}
+
+func testManyConnections(t *testing.T) {
+	test := GetCurrentTest()
+	server := test.GetServer()
+
+	account := server.GetAccountCopy()
+	account.CSNegotiationPolicy = types.CSNegotiationPolicyRequestDontCare
+
+	for i := 0; i < 20; i++ {
+		conn, err := connection.NewIRODSConnection(account, server.GetConnectionConfig())
+		FailError(t, err)
+
+		err = conn.Connect()
+		FailError(t, err)
+		defer conn.Disconnect()
+
+		ver := conn.GetVersion()
+		verMajor, _, _ := ver.GetReleaseVersion()
+		assert.GreaterOrEqual(t, 4, verMajor)
+
+		t.Logf("Connection %d: %s", i, conn.GetVersion().APIVersion)
+	}
 }
 
 func testConnection(t *testing.T) {

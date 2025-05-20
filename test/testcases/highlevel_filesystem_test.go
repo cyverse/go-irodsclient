@@ -102,7 +102,7 @@ func testMakeDirRecurse(t *testing.T) {
 	newDir := fmt.Sprintf("%s/make_dir_recurse", homeDir)
 
 	// get side connection
-	conn, err := filesystem.GetMetadataConnection()
+	conn, err := filesystem.GetMetadataConnection(true)
 	FailError(t, err)
 	defer filesystem.ReturnMetadataConnection(conn)
 

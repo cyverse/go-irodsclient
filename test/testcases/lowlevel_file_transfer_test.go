@@ -30,7 +30,7 @@ func testUpload(t *testing.T) {
 	FailError(t, err)
 	defer sess.Release()
 
-	conn, err := sess.AcquireConnection()
+	conn, err := sess.AcquireConnection(true)
 	FailError(t, err)
 
 	homeDir := test.GetTestHomeDir()
@@ -86,7 +86,7 @@ func testParallelUploadAndDownload(t *testing.T) {
 	FailError(t, err)
 	defer session.Release()
 
-	conn, err := session.AcquireConnection()
+	conn, err := session.AcquireConnection(true)
 	FailError(t, err)
 	defer session.ReturnConnection(conn)
 

@@ -32,7 +32,7 @@ func testCreateAndRemoveUser(t *testing.T) {
 	FailError(t, err)
 	defer session.Release()
 
-	conn, err := session.AcquireConnection()
+	conn, err := session.AcquireConnection(true)
 	FailError(t, err)
 	defer session.ReturnConnection(conn)
 
@@ -103,7 +103,7 @@ func testCreateUserWithSpecialCharacterPasswords(t *testing.T) {
 	FailError(t, err)
 	defer session.Release()
 
-	conn, err := session.AcquireConnection()
+	conn, err := session.AcquireConnection(true)
 	FailError(t, err)
 	defer session.ReturnConnection(conn)
 
@@ -178,7 +178,7 @@ func testAddAndRemoveGroupMembers(t *testing.T) {
 	FailError(t, err)
 	defer session.Release()
 
-	conn, err := session.AcquireConnection()
+	conn, err := session.AcquireConnection(true)
 	FailError(t, err)
 	defer session.ReturnConnection(conn)
 
@@ -306,7 +306,7 @@ func testListUsersByType(t *testing.T) {
 	FailError(t, err)
 	defer session.Release()
 
-	conn, err := session.AcquireConnection()
+	conn, err := session.AcquireConnection(true)
 	FailError(t, err)
 	defer session.ReturnConnection(conn)
 

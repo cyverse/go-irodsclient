@@ -90,11 +90,21 @@ func GetCurrentTest() *Test {
 	return currentTest
 }
 
-func testMainForVersion(t *testing.T, ver server.IRODSTestServerVersion, tests []Test) {
+func testMainForVersion(t *testing.T, ver server.IRODSTestServerVersion, production bool, tests []Test) {
 	t.Logf("Testing for version: %s", ver)
 
 	verFunc := func(t *testing.T) {
-		irodsServer, err := server.NewIRODSServer(ver)
+		var irodsServer *server.IRODSTestServer
+		var err error
+		if production {
+			// production server
+			irodsServer, err = server.NewProductionIRODSServer(ver)
+			FailError(t, err)
+		} else {
+			// test server
+			irodsServer, err = server.NewTestIRODSServer(ver)
+			FailError(t, err)
+		}
 		FailError(t, err)
 
 		err = irodsServer.Start()
@@ -135,10 +145,9 @@ func testMainForVersion(t *testing.T, ver server.IRODSTestServerVersion, tests [
 	t.Run(string(ver), verFunc)
 }
 
-func TestMain(t *testing.T) {
+func TestLocalMain(t *testing.T) {
 	t.Log("Running all test cases...")
 
-	versions := server.GetIRODSVersions()
 	tests := []Test{}
 
 	// Add all test cases here
@@ -158,7 +167,23 @@ func TestMain(t *testing.T) {
 	tests = append(tests, getHighlevelFileTransferTest())
 	tests = append(tests, getHighlevelTicketTest())
 
-	for _, ver := range versions {
-		testMainForVersion(t, ver, tests)
+	// local test servers
+	for _, ver := range server.GetTestIRODSVersions() {
+		testMainForVersion(t, ver, false, tests)
+	}
+}
+
+func TestProductionMain(t *testing.T) {
+	t.Log("Running all test cases...")
+
+	tests := []Test{}
+
+	// Add all test cases here
+	//tests = append(tests, getLowlevelConnectionTest())
+	tests = append(tests, getLowlevelSessionTest())
+
+	// production server
+	for _, ver := range server.GetProductionIRODSVersions() {
+		testMainForVersion(t, ver, true, tests)
 	}
 }
