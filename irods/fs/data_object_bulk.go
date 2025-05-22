@@ -58,7 +58,7 @@ func UploadDataObjectFromBuffer(session *session.IRODSSession, buffer *bytes.Buf
 
 	fileLength := int64(buffer.Len())
 
-	conn, err := session.AcquireConnection(true)
+	conn, err := session.AcquireConnection(false)
 	if err != nil {
 		return xerrors.Errorf("failed to get connection: %w", err)
 	}
@@ -125,7 +125,7 @@ func UploadDataObject(session *session.IRODSSession, localPath string, irodsPath
 
 	logger.Debugf("upload data object %q", localPath)
 
-	conn, err := session.AcquireConnection(true)
+	conn, err := session.AcquireConnection(false)
 	if err != nil {
 		return xerrors.Errorf("failed to get connection: %w", err)
 	}

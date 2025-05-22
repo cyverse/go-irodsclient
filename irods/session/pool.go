@@ -18,6 +18,7 @@ type ConnectionPool struct {
 	config              *ConnectionPoolConfig
 	idleConnections     *list.List // list of *connection.IRODSConnection
 	occupiedConnections map[*connection.IRODSConnection]bool
+	maxConnectionsReal  int // max connections can be created in reality
 	mutex               sync.Mutex
 	terminateChan       chan bool
 	terminated          bool
@@ -51,6 +52,7 @@ func NewConnectionPool(account *types.IRODSAccount, config *ConnectionPoolConfig
 		config:              config,
 		idleConnections:     list.New(),
 		occupiedConnections: map[*connection.IRODSConnection]bool{},
+		maxConnectionsReal:  0,
 		mutex:               sync.Mutex{},
 		terminateChan:       make(chan bool),
 		terminated:          false,
@@ -144,6 +146,12 @@ func (pool *ConnectionPool) Release() {
 }
 
 func (pool *ConnectionPool) init() error {
+	logger := log.WithFields(log.Fields{
+		"package":  "session",
+		"struct":   "ConnectionPool",
+		"function": "init",
+	})
+
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
 
@@ -163,6 +171,12 @@ func (pool *ConnectionPool) init() error {
 		if err != nil {
 			if pool.config.Metrics != nil {
 				pool.config.Metrics.IncreaseCounterForConnectionPoolFailures(1)
+			}
+
+			if types.IsConnectionError(err) {
+				// rejected?
+				pool.maxConnectionsReal = i
+				logger.Debugf("adjusted max connections: %d", pool.maxConnectionsReal)
 			}
 
 			return xerrors.Errorf("failed to connect to irods server: %w", err)
@@ -186,8 +200,10 @@ func (pool *ConnectionPool) Get() (*connection.IRODSConnection, bool, error) {
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
 
-	if len(pool.occupiedConnections) >= pool.config.MaxCap {
-		return nil, false, types.NewConnectionPoolFullError(len(pool.occupiedConnections), pool.config.MaxCap)
+	maxConn := pool.getMaxConnectionsReal()
+
+	if len(pool.occupiedConnections) >= maxConn {
+		return nil, false, types.NewConnectionPoolFullError(len(pool.occupiedConnections), maxConn)
 	}
 
 	var err error
@@ -231,6 +247,16 @@ func (pool *ConnectionPool) Get() (*connection.IRODSConnection, bool, error) {
 		if pool.config.Metrics != nil {
 			pool.config.Metrics.IncreaseCounterForConnectionPoolFailures(1)
 		}
+
+		if types.IsConnectionError(err) {
+			// rejected?
+			pool.maxConnectionsReal = len(pool.occupiedConnections) + pool.idleConnections.Len()
+			if pool.maxConnectionsReal > 0 {
+				logger.Debugf("adjusted max connections: %d", pool.maxConnectionsReal)
+				return nil, false, types.NewConnectionPoolFullError(len(pool.occupiedConnections), maxConn)
+			}
+		}
+
 		return nil, false, xerrors.Errorf("failed to connect to irods server: %w", err)
 	}
 
@@ -255,8 +281,9 @@ func (pool *ConnectionPool) GetNew() (*connection.IRODSConnection, error) {
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
 
-	if len(pool.occupiedConnections) >= pool.config.MaxCap {
-		return nil, types.NewConnectionPoolFullError(len(pool.occupiedConnections), pool.config.MaxCap)
+	maxConn := pool.getMaxConnectionsReal()
+	if len(pool.occupiedConnections) >= maxConn {
+		return nil, types.NewConnectionPoolFullError(len(pool.occupiedConnections), maxConn)
 	}
 
 	// full - close an idle connection and create a new one
@@ -274,7 +301,7 @@ func (pool *ConnectionPool) GetNew() (*connection.IRODSConnection, error) {
 	}
 
 	// create a new one
-	if len(pool.occupiedConnections)+pool.idleConnections.Len() < pool.config.MaxCap {
+	if len(pool.occupiedConnections)+pool.idleConnections.Len() < maxConn {
 		// create a new one
 		connConfig := pool.config.ToConnectionConfig()
 
@@ -291,6 +318,16 @@ func (pool *ConnectionPool) GetNew() (*connection.IRODSConnection, error) {
 			if pool.config.Metrics != nil {
 				pool.config.Metrics.IncreaseCounterForConnectionPoolFailures(1)
 			}
+
+			if types.IsConnectionError(err) {
+				// rejected?
+				pool.maxConnectionsReal = len(pool.occupiedConnections) + pool.idleConnections.Len()
+				if pool.maxConnectionsReal > 0 {
+					logger.Debugf("adjusted max connections: %d", pool.maxConnectionsReal)
+					return nil, types.NewConnectionPoolFullError(len(pool.occupiedConnections), maxConn)
+				}
+			}
+
 			return nil, xerrors.Errorf("failed to connect to irods server: %w", err)
 		}
 
@@ -388,34 +425,46 @@ func (pool *ConnectionPool) GetOpenConnections() int {
 	return len(pool.occupiedConnections) + pool.idleConnections.Len()
 }
 
-// OccupiedConnections returns total number of connections in use
-func (pool *ConnectionPool) OccupiedConnections() int {
+// GetOccupiedConnections returns total number of connections in use
+func (pool *ConnectionPool) GetOccupiedConnections() int {
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
 
 	return len(pool.occupiedConnections)
 }
 
-// IdleConnections returns total number of idle connections
-func (pool *ConnectionPool) IdleConnections() int {
+// GetIdleConnections returns total number of idle connections
+func (pool *ConnectionPool) GetIdleConnections() int {
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
 
 	return pool.idleConnections.Len()
 }
 
-// AvailableConnections returns connections that are available to use
-func (pool *ConnectionPool) AvailableConnections() int {
+// GetAvailableConnections returns connections that are available to use
+func (pool *ConnectionPool) GetAvailableConnections() int {
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
 
-	return pool.config.MaxCap - len(pool.occupiedConnections)
+	return pool.getMaxConnectionsReal() - len(pool.occupiedConnections)
 }
 
-// MaxConnections returns connections that can be created
-func (pool *ConnectionPool) MaxConnections() int {
+// GetMaxConnections returns connections that can be created
+func (pool *ConnectionPool) GetMaxConnections() int {
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
+
+	return pool.getMaxConnectionsReal()
+}
+
+func (pool *ConnectionPool) getMaxConnectionsReal() int {
+	if pool.maxConnectionsReal == 0 {
+		return pool.config.MaxCap
+	}
+
+	if pool.maxConnectionsReal < pool.config.MaxCap {
+		return pool.maxConnectionsReal
+	}
 
 	return pool.config.MaxCap
 }

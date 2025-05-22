@@ -21,7 +21,6 @@ type IRODSSession struct {
 	connectionPool *ConnectionPool
 
 	sharedConnections         map[*connection.IRODSConnection]int
-	connectionsMaxDetermined  int // max number of connections can be created in reality, -1 means not determined
 	startNewTransaction       bool
 	commitFail                bool
 	poormansRollbackFail      bool
@@ -61,10 +60,9 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 	}
 
 	sess := IRODSSession{
-		account:                  account,
-		config:                   config,
-		sharedConnections:        map[*connection.IRODSConnection]int{},
-		connectionsMaxDetermined: -1,
+		account:           account,
+		config:            config,
+		sharedConnections: map[*connection.IRODSConnection]int{},
 
 		// transaction
 		startNewTransaction:       config.StartNewTransaction,
@@ -229,76 +227,79 @@ func (sess *IRODSSession) endTransaction(conn *connection.IRODSConnection) error
 	return xerrors.Errorf("failed to commit/rollback transaction")
 }
 
-// AcquireConnection returns an idle connection
-func (sess *IRODSSession) AcquireConnection(allowShared bool) (*connection.IRODSConnection, error) {
+func (sess *IRODSSession) createConnectionFromPool(number int, new bool) ([]*connection.IRODSConnection, error) {
+	connections := []*connection.IRODSConnection{}
+	for i := 0; i < number; i++ {
+		if new {
+			conn, err := sess.connectionPool.GetNew()
+			if err != nil {
+				return connections, err
+			}
+
+			connections = append(connections, conn)
+		} else {
+			conn, _, err := sess.connectionPool.Get()
+			if err != nil {
+				return connections, err
+			}
+
+			connections = append(connections, conn)
+		}
+	}
+
+	return connections, nil
+}
+
+func (sess *IRODSSession) acquireConnection(allowShared bool) (*connection.IRODSConnection, error) {
 	logger := log.WithFields(log.Fields{
 		"package":  "session",
 		"struct":   "IRODSSession",
-		"function": "AcquireConnection",
+		"function": "acquireConnection",
 	})
 
-	sess.mutex.Lock()
-	defer sess.mutex.Unlock()
-
-	// return last error
-	pendingErr := sess.getPendingError()
-	if pendingErr != nil {
-		return nil, xerrors.Errorf("failed to get a connection from the pool because pending error is found: %w", pendingErr)
-	}
-
-	// check if there are available connections in the pool
-	if sess.connectionPool.AvailableConnections() > 0 {
-		if sess.connectionsMaxDetermined > 0 && sess.connectionPool.IdleConnections() == 0 {
-			// if the number of idle connections is 0, we need to check if we can create a new connection
-			// check if the number of connections is less than the max
-			currentConnections := sess.connectionPool.GetOpenConnections()
-			if currentConnections >= sess.connectionsMaxDetermined {
-				// no more connections can be created
-				return nil, xerrors.Errorf("failed to create a connection, exceeded max connections allowed by the server (current %d, max %d, pool size %d)", currentConnections, sess.connectionsMaxDetermined, sess.connectionPool.MaxConnections())
-			}
+	// try to get it from the pool
+	connections, err := sess.createConnectionFromPool(1, false)
+	if err != nil {
+		if !types.IsConnectionPoolFullError(err) {
+			// fail
+			sess.lastConnectionError = err
+			sess.lastConnectionErrorTime = time.Now()
+			return nil, err
 		}
 
-		// try to get it from the pool
-		conn, _, err := sess.connectionPool.Get()
-		// ignore error this happens when connections in the pool are all occupied
-		if err != nil {
-			if types.IsConnectionError(err) || types.IsConnectionPoolFullError(err) {
-				sess.connectionsMaxDetermined = sess.connectionPool.GetOpenConnections()
-			}
+		logger.WithError(err).Debug("failed to get a connection from the pool, the pool is full")
 
-			if types.IsConnectionPoolFullError(err) {
-				logger.WithError(err).Debug("failed to get a connection from the pool, the pool is full")
-				// fall below
-			} else {
-				// fail
-				sess.lastConnectionError = err
-				sess.lastConnectionErrorTime = time.Now()
+		if !allowShared {
+			return nil, xerrors.Errorf("failed to get a connection from the pool, the pool is full: %w", err)
+		}
 
-				return nil, err
-			}
+		// fall below
+	} else {
+		if len(connections) == 0 {
+			err := xerrors.Errorf("failed to get a connection from the pool")
+			sess.lastConnectionError = err
+			sess.lastConnectionErrorTime = time.Now()
+			return nil, err
+		}
+
+		conn := connections[0]
+
+		// put to share
+		if shares, ok := sess.sharedConnections[conn]; ok {
+			shares++
+			sess.sharedConnections[conn] = shares
 		} else {
-			// put to share
-			if shares, ok := sess.sharedConnections[conn]; ok {
-				shares++
-				sess.sharedConnections[conn] = shares
-			} else {
-				sess.sharedConnections[conn] = 1
-			}
-
-			if !sess.supportParallelUploadSet {
-				sess.supportParallelUpload = conn.SupportParallelUpload()
-				sess.supportParallelUploadSet = true
-			}
-
-			return conn, nil
+			sess.sharedConnections[conn] = 1
 		}
+
+		if !sess.supportParallelUploadSet {
+			sess.supportParallelUpload = conn.SupportParallelUpload()
+			sess.supportParallelUploadSet = true
+		}
+
+		return conn, nil
 	}
 
-	if !allowShared {
-		return nil, xerrors.Errorf("failed to get a connection from the pool, the pool is full")
-	}
-
-	// failed to get connection from pool
 	// find a connection from shared connection list that has minimum share count
 	logger.Debug("Share an in-use connection as it cannot create a new connection")
 	minShare := 0
@@ -327,14 +328,8 @@ func (sess *IRODSSession) AcquireConnection(allowShared bool) (*connection.IRODS
 	return minShareConn, nil
 }
 
-// AcquireConnectionsMulti returns idle connections
-func (sess *IRODSSession) AcquireConnectionsMulti(number int, allowShared bool) ([]*connection.IRODSConnection, error) {
-	logger := log.WithFields(log.Fields{
-		"package":  "session",
-		"struct":   "IRODSSession",
-		"function": "AcquireConnectionsMulti",
-	})
-
+// AcquireConnection returns an idle connection
+func (sess *IRODSSession) AcquireConnection(allowShared bool) (*connection.IRODSConnection, error) {
 	sess.mutex.Lock()
 	defer sess.mutex.Unlock()
 
@@ -344,90 +339,37 @@ func (sess *IRODSSession) AcquireConnectionsMulti(number int, allowShared bool) 
 		return nil, xerrors.Errorf("failed to get a connection from the pool because pending error is found: %w", pendingErr)
 	}
 
-	connections := map[*connection.IRODSConnection]bool{}
+	conn, err := sess.acquireConnection(allowShared)
+	if err != nil {
+		return nil, err
+	}
 
-	// check if there are available connections in the pool
+	return conn, nil
+}
+
+// AcquireConnectionsMulti returns idle connections
+func (sess *IRODSSession) AcquireConnectionsMulti(number int, allowShared bool) ([]*connection.IRODSConnection, error) {
+	sess.mutex.Lock()
+	defer sess.mutex.Unlock()
+
+	// return last error
+	pendingErr := sess.getPendingError()
+	if pendingErr != nil {
+		return nil, xerrors.Errorf("failed to get a connection from the pool because pending error is found: %w", pendingErr)
+	}
+
+	connections := []*connection.IRODSConnection{}
 	for i := 0; i < number; i++ {
-		if sess.connectionPool.AvailableConnections() > 0 {
-			if sess.connectionsMaxDetermined > 0 && sess.connectionPool.IdleConnections() == 0 {
-				// if the number of idle connections is 0, we need to check if we can create a new connection
-				// check if the number of connections is less than the max
-				currentConnections := sess.connectionPool.GetOpenConnections()
-				if currentConnections >= sess.connectionsMaxDetermined {
-					// no more connections can be created
-					return nil, xerrors.Errorf("failed to create a connection, exceeded max connections allowed by the server (current %d, max %d, pool size %d)", currentConnections, sess.connectionsMaxDetermined, sess.connectionPool.MaxConnections())
-				}
-			}
-
-			// try to get it from the pool
-			conn, _, err := sess.connectionPool.Get()
-			if err != nil {
-				if types.IsConnectionError(err) || types.IsConnectionPoolFullError(err) {
-					sess.connectionsMaxDetermined = sess.connectionPool.GetOpenConnections()
-				}
-
-				if types.IsConnectionPoolFullError(err) {
-					logger.WithError(err).Debug("failed to get a connection from the pool, the pool is full")
-					// fall below
-
-				} else {
-					// fail
-					sess.lastConnectionError = err
-					sess.lastConnectionErrorTime = time.Now()
-
-					return nil, err
-				}
-				break
-			} else {
-				connections[conn] = true
-
-				// put to share
-				if shares, ok := sess.sharedConnections[conn]; ok {
-					shares++
-					sess.sharedConnections[conn] = shares
-				} else {
-					sess.sharedConnections[conn] = 1
-				}
-			}
-		} else {
-			break
+		conn, err := sess.acquireConnection(allowShared)
+		if err != nil {
+			// return current connections
+			return connections, err
 		}
+
+		connections = append(connections, conn)
 	}
 
-	if allowShared {
-		// failed to get connection from pool
-		// find a connection from shared connection
-		connectionsInNeed := number - len(connections)
-		for connectionsInNeed > 0 {
-			logger.Debug("Share an in-use connection as it cannot create a new connection")
-
-			for sharedConn, shareCount := range sess.sharedConnections {
-				shareCount++
-
-				connections[sharedConn] = true
-				sess.sharedConnections[sharedConn] = shareCount
-
-				connectionsInNeed--
-				if connectionsInNeed <= 0 {
-					break
-				}
-			}
-		}
-	}
-
-	acquiredConnections := []*connection.IRODSConnection{}
-	for conn := range connections {
-		acquiredConnections = append(acquiredConnections, conn)
-	}
-
-	if !sess.supportParallelUploadSet {
-		if len(acquiredConnections) > 0 {
-			sess.supportParallelUpload = acquiredConnections[0].SupportParallelUpload()
-			sess.supportParallelUploadSet = true
-		}
-	}
-
-	return acquiredConnections, nil
+	return connections, nil
 }
 
 // ReturnConnection returns an idle connection with transaction close
@@ -575,14 +517,6 @@ func (sess *IRODSSession) GetConnectionsTotal() int {
 	defer sess.mutex.Unlock()
 
 	return sess.connectionPool.GetOpenConnections()
-}
-
-// GetMaxConnectionsDetermined returns the maximum number of connections that can be created
-func (sess *IRODSSession) GetMaxConnectionsDetermined() int {
-	sess.mutex.Lock()
-	defer sess.mutex.Unlock()
-
-	return sess.connectionsMaxDetermined
 }
 
 // GetMetrics returns metrics
