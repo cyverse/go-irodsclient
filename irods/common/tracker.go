@@ -1,3 +1,4 @@
 package common
 
-type TrackerCallBack func(processed int64, total int64)
+type TransferTrackerCallback func(processed int64, total int64)
+type ConnectionTrackerCallback func(established int, terminated int)

@@ -33,8 +33,8 @@ type RequestResponsePair struct {
 	Response         Response
 	BsBuffer         []byte // can be null
 	Timeout          *RequestResponseTimeout
-	RequestCallback  common.TrackerCallBack // can be null
-	ResponseCallback common.TrackerCallBack // can be null
+	RequestCallback  common.TransferTrackerCallback // can be null
+	ResponseCallback common.TransferTrackerCallback // can be null
 	Error            error
 }
 
@@ -60,7 +60,7 @@ func (conn *IRODSConnection) Request(request Request, response Response, bsBuffe
 
 // RequestWithTrackerCallBack sends a request and expects a response.
 // bsBuffer is optional
-func (conn *IRODSConnection) RequestWithTrackerCallBack(request Request, response Response, bsBuffer []byte, timeout *RequestResponseTimeout, reqCallback common.TrackerCallBack, resCallback common.TrackerCallBack) error {
+func (conn *IRODSConnection) RequestWithTrackerCallBack(request Request, response Response, bsBuffer []byte, timeout *RequestResponseTimeout, reqCallback common.TransferTrackerCallback, resCallback common.TransferTrackerCallback) error {
 	// set transaction dirty
 	conn.SetTransactionDirty(true)
 
@@ -270,7 +270,7 @@ func (conn *IRODSConnection) RequestAndCheck(request Request, response CheckErro
 }
 
 // RequestAndCheckWithCallBack sends a request and expects a CheckErrorResponse, on which the error is already checked.
-func (conn *IRODSConnection) RequestAndCheckWithTrackerCallBack(request Request, response CheckErrorResponse, bsBuffer []byte, timeout *RequestResponseTimeout, reqCallback common.TrackerCallBack, resCallback common.TrackerCallBack) error {
+func (conn *IRODSConnection) RequestAndCheckWithTrackerCallBack(request Request, response CheckErrorResponse, bsBuffer []byte, timeout *RequestResponseTimeout, reqCallback common.TransferTrackerCallback, resCallback common.TransferTrackerCallback) error {
 	if err := conn.RequestWithTrackerCallBack(request, response, bsBuffer, timeout, reqCallback, resCallback); err != nil {
 		return err
 	}

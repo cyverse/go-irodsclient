@@ -31,7 +31,7 @@ func WriteBytes(socket net.Conn, buffer []byte, size int) error {
 }
 
 // ReadBytesWithTrackerCallBack reads data from socket in a particular size
-func ReadBytesWithTrackerCallBack(socket net.Conn, buffer []byte, size int, callback common.TrackerCallBack) (int, error) {
+func ReadBytesWithTrackerCallBack(socket net.Conn, buffer []byte, size int, callback common.TransferTrackerCallback) (int, error) {
 	totalSizeToRead := size
 	sizeLeft := size
 	actualRead := 0
@@ -65,7 +65,7 @@ func ReadBytesWithTrackerCallBack(socket net.Conn, buffer []byte, size int, call
 }
 
 // WriteBytesWithTrackerCallBack writes data to socket
-func WriteBytesWithTrackerCallBack(socket net.Conn, buffer []byte, size int, callback common.TrackerCallBack) error {
+func WriteBytesWithTrackerCallBack(socket net.Conn, buffer []byte, size int, callback common.TransferTrackerCallback) error {
 	totalSizeToSend := size
 	sizeLeft := size
 	actualWrite := 0

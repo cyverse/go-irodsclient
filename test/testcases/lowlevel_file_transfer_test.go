@@ -37,8 +37,8 @@ func testUpload(t *testing.T) {
 
 	// gen large file
 	filename := "test_large_file.bin"
-	fileSize := 100 * 1024 * 1024 // 100MB
-	localPath, err := CreateLocalTestFile(t, filename, int64(fileSize))
+	fileSize := int64(100 * 1024 * 1024) // 100MB
+	localPath, err := CreateLocalTestFile(t, filename, fileSize)
 	FailError(t, err)
 	defer func() {
 		err = os.Remove(localPath)
@@ -51,20 +51,34 @@ func testUpload(t *testing.T) {
 	// upload
 	irodsPath := homeDir + "/" + filename
 
-	callbackCalled := 0
-	callBack := func(current int64, total int64) {
-		callbackCalled++
+	transferCurrent := int64(0)
+	transferTotal := int64(0)
+	transferCallBack := func(current int64, total int64) {
+		transferCurrent = current
+		transferTotal = total
 	}
 
-	err = fs.UploadDataObject(sess, localPath, irodsPath, "", false, nil, callBack)
+	connectionsEstablishedMax := 0
+	connectionsEstablishedCurrent := 0
+	connectionCallback := func(established int, released int) {
+		connectionsEstablishedMax += established
+
+		connectionsEstablishedCurrent += established
+		connectionsEstablishedCurrent -= released
+	}
+
+	err = fs.UploadDataObject(sess, localPath, irodsPath, "", false, nil, transferCallBack, connectionCallback)
 	FailError(t, err)
-	assert.Greater(t, callbackCalled, 10) // at least called 10 times
+	assert.Equal(t, fileSize, transferCurrent)
+	assert.Equal(t, fileSize, transferTotal)
+	assert.Equal(t, 1, connectionsEstablishedMax)
+	assert.Equal(t, 0, connectionsEstablishedCurrent)
 
 	obj, err := fs.GetDataObject(conn, irodsPath)
 	FailError(t, err)
 
 	assert.NotEmpty(t, obj.ID)
-	assert.Equal(t, int64(fileSize), obj.Size)
+	assert.Equal(t, fileSize, obj.Size)
 
 	objChecksum, err := fs.GetDataObjectChecksum(conn, irodsPath, "")
 	FailError(t, err)
@@ -94,9 +108,9 @@ func testParallelUploadAndDownload(t *testing.T) {
 
 	// gen very large file
 	filename := "test_large_file.bin"
-	fileSize := 300 * 1024 * 1024 // 300MB
+	fileSize := int64(300 * 1024 * 1024) // 300MB
 
-	localPath, err := CreateLocalTestFile(t, filename, int64(fileSize))
+	localPath, err := CreateLocalTestFile(t, filename, fileSize)
 	FailError(t, err)
 	defer func() {
 		err = os.Remove(localPath)
@@ -106,31 +120,57 @@ func testParallelUploadAndDownload(t *testing.T) {
 	// upload
 	irodsPath := homeDir + "/" + filename
 
-	callbackCalled := 0
-	callBack := func(current int64, total int64) {
-		callbackCalled++
+	transferCurrent := int64(0)
+	transferTotal := int64(0)
+	transferCallBack := func(current int64, total int64) {
+		transferCurrent = current
+		transferTotal = total
 	}
 
-	err = fs.UploadDataObjectParallel(session, localPath, irodsPath, "", 4, false, nil, callBack)
+	connectionsEstablishedMax := 0
+	connectionsEstablishedCurrent := 0
+	connectionCallback := func(established int, released int) {
+		connectionsEstablishedMax += established
+
+		connectionsEstablishedCurrent += established
+		connectionsEstablishedCurrent -= released
+	}
+
+	err = fs.UploadDataObjectParallel(session, localPath, irodsPath, "", 4, false, nil, transferCallBack, connectionCallback)
 	FailError(t, err)
-	assert.Greater(t, callbackCalled, 10) // at least called 10 times
+
+	assert.Equal(t, fileSize, transferCurrent)
+	assert.Equal(t, fileSize, transferTotal)
+	if session.SupportParallelUpload() {
+		assert.GreaterOrEqual(t, connectionsEstablishedMax, 4)
+	} else {
+		assert.Equal(t, 1, connectionsEstablishedMax)
+	}
+	assert.Equal(t, 0, connectionsEstablishedCurrent)
 
 	obj, err := fs.GetDataObject(conn, irodsPath)
 	FailError(t, err)
 
 	assert.NotEmpty(t, obj.ID)
-	assert.Equal(t, int64(fileSize), obj.Size)
+	assert.Equal(t, fileSize, obj.Size)
 
 	// get
-	callbackCalled = 0
+	transferCurrent = int64(0)
+	transferTotal = int64(0)
+	connectionsEstablishedMax = 0
+	connectionsEstablishedCurrent = 0
+
 	newLocalPath := t.TempDir() + "/new_test_large_file.bin"
-	err = fs.DownloadDataObjectParallel(session, irodsPath, "", newLocalPath, int64(fileSize), 4, nil, callBack)
+	err = fs.DownloadDataObjectParallel(session, irodsPath, "", newLocalPath, fileSize, 4, nil, transferCallBack, connectionCallback)
 	FailError(t, err)
-	assert.Greater(t, callbackCalled, 10) // at least called 10 times
 
 	st, err := os.Stat(newLocalPath)
 	FailError(t, err)
-	assert.Equal(t, int64(fileSize), st.Size())
+	assert.Equal(t, fileSize, st.Size())
+	assert.Equal(t, fileSize, transferCurrent)
+	assert.Equal(t, fileSize, transferTotal)
+	assert.Equal(t, 4, connectionsEstablishedMax)
+	assert.Equal(t, 0, connectionsEstablishedCurrent)
 
 	err = os.Remove(newLocalPath)
 	FailError(t, err)

@@ -32,7 +32,7 @@ type FileTransferResult struct {
 }
 
 // DownloadFile downloads a file to local
-func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath string, verifyChecksum bool, callback common.TrackerCallBack) (*FileTransferResult, error) {
+func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath string, verifyChecksum bool, transferCallback common.TransferTrackerCallback, connectionCallback common.ConnectionTrackerCallback) (*FileTransferResult, error) {
 	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
 	localDestPath := util.GetCorrectLocalPath(localPath)
 
@@ -83,7 +83,7 @@ func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath 
 		keywords[common.VERIFY_CHKSUM_KW] = ""
 	}
 
-	err = irods_fs.DownloadDataObject(fs.ioSession, irodsSrcPath, resource, localFilePath, entry.Size, keywords, callback)
+	err = irods_fs.DownloadDataObject(fs.ioSession, irodsSrcPath, resource, localFilePath, entry.Size, keywords, transferCallback, connectionCallback)
 	if err != nil {
 		return fileTransferResult, xerrors.Errorf("failed to download a data object for path %q: %w", irodsSrcPath, err)
 	}
@@ -116,7 +116,7 @@ func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath 
 }
 
 // DownloadFileResumable downloads a file to local with support of transfer resume
-func (fs *FileSystem) DownloadFileResumable(irodsPath string, resource string, localPath string, verifyChecksum bool, callback common.TrackerCallBack) (*FileTransferResult, error) {
+func (fs *FileSystem) DownloadFileResumable(irodsPath string, resource string, localPath string, verifyChecksum bool, transferCallback common.TransferTrackerCallback, connectionCallback common.ConnectionTrackerCallback) (*FileTransferResult, error) {
 	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
 	localDestPath := util.GetCorrectLocalPath(localPath)
 
@@ -167,7 +167,7 @@ func (fs *FileSystem) DownloadFileResumable(irodsPath string, resource string, l
 		keywords[common.VERIFY_CHKSUM_KW] = ""
 	}
 
-	err = irods_fs.DownloadDataObjectResumable(fs.ioSession, irodsSrcPath, resource, localFilePath, entry.Size, keywords, callback)
+	err = irods_fs.DownloadDataObjectResumable(fs.ioSession, irodsSrcPath, resource, localFilePath, entry.Size, keywords, transferCallback, connectionCallback)
 	if err != nil {
 		return fileTransferResult, xerrors.Errorf("failed to download a data object for path %q: %w", irodsSrcPath, err)
 	}
@@ -200,7 +200,7 @@ func (fs *FileSystem) DownloadFileResumable(irodsPath string, resource string, l
 }
 
 // DownloadFileToBuffer downloads a file to buffer
-func (fs *FileSystem) DownloadFileToBuffer(irodsPath string, resource string, buffer *bytes.Buffer, verifyChecksum bool, callback common.TrackerCallBack) (*FileTransferResult, error) {
+func (fs *FileSystem) DownloadFileToBuffer(irodsPath string, resource string, buffer *bytes.Buffer, verifyChecksum bool, transferCallback common.TransferTrackerCallback, connectionCallback common.ConnectionTrackerCallback) (*FileTransferResult, error) {
 	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
 
 	fileTransferResult := &FileTransferResult{}
@@ -232,7 +232,7 @@ func (fs *FileSystem) DownloadFileToBuffer(irodsPath string, resource string, bu
 		keywords[common.VERIFY_CHKSUM_KW] = ""
 	}
 
-	err = irods_fs.DownloadDataObjectToBuffer(fs.ioSession, irodsSrcPath, resource, buffer, entry.Size, keywords, callback)
+	err = irods_fs.DownloadDataObjectToBuffer(fs.ioSession, irodsSrcPath, resource, buffer, entry.Size, keywords, transferCallback, connectionCallback)
 	if err != nil {
 		return fileTransferResult, xerrors.Errorf("failed to download a data object for path %q: %w", irodsSrcPath, err)
 	}
@@ -260,7 +260,7 @@ func (fs *FileSystem) DownloadFileToBuffer(irodsPath string, resource string, bu
 }
 
 // DownloadFileParallel downloads a file to local in parallel
-func (fs *FileSystem) DownloadFileParallel(irodsPath string, resource string, localPath string, taskNum int, verifyChecksum bool, callback common.TrackerCallBack) (*FileTransferResult, error) {
+func (fs *FileSystem) DownloadFileParallel(irodsPath string, resource string, localPath string, taskNum int, verifyChecksum bool, transferCallback common.TransferTrackerCallback, connectionCallback common.ConnectionTrackerCallback) (*FileTransferResult, error) {
 	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
 	localDestPath := util.GetCorrectLocalPath(localPath)
 
@@ -311,7 +311,7 @@ func (fs *FileSystem) DownloadFileParallel(irodsPath string, resource string, lo
 		keywords[common.VERIFY_CHKSUM_KW] = ""
 	}
 
-	err = irods_fs.DownloadDataObjectParallel(fs.ioSession, irodsSrcPath, resource, localFilePath, entry.Size, taskNum, keywords, callback)
+	err = irods_fs.DownloadDataObjectParallel(fs.ioSession, irodsSrcPath, resource, localFilePath, entry.Size, taskNum, keywords, transferCallback, connectionCallback)
 	if err != nil {
 		return fileTransferResult, xerrors.Errorf("failed to download a data object for path %q: %w", irodsSrcPath, err)
 	}
@@ -344,7 +344,7 @@ func (fs *FileSystem) DownloadFileParallel(irodsPath string, resource string, lo
 }
 
 // DownloadFileParallelResumable downloads a file to local in parallel with support of transfer resume
-func (fs *FileSystem) DownloadFileParallelResumable(irodsPath string, resource string, localPath string, taskNum int, verifyChecksum bool, callback common.TrackerCallBack) (*FileTransferResult, error) {
+func (fs *FileSystem) DownloadFileParallelResumable(irodsPath string, resource string, localPath string, taskNum int, verifyChecksum bool, transferCallback common.TransferTrackerCallback, connectionCallback common.ConnectionTrackerCallback) (*FileTransferResult, error) {
 	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
 	localDestPath := util.GetCorrectLocalPath(localPath)
 
@@ -395,7 +395,7 @@ func (fs *FileSystem) DownloadFileParallelResumable(irodsPath string, resource s
 		keywords[common.VERIFY_CHKSUM_KW] = ""
 	}
 
-	err = irods_fs.DownloadDataObjectParallelResumable(fs.ioSession, irodsSrcPath, resource, localFilePath, entry.Size, taskNum, keywords, callback)
+	err = irods_fs.DownloadDataObjectParallelResumable(fs.ioSession, irodsSrcPath, resource, localFilePath, entry.Size, taskNum, keywords, transferCallback, connectionCallback)
 	if err != nil {
 		return fileTransferResult, xerrors.Errorf("failed to download a data object for path %q: %w", irodsSrcPath, err)
 	}
@@ -428,7 +428,7 @@ func (fs *FileSystem) DownloadFileParallelResumable(irodsPath string, resource s
 }
 
 // DownloadFileRedirectToResource downloads a file from resource to local in parallel
-func (fs *FileSystem) DownloadFileRedirectToResource(irodsPath string, resource string, localPath string, taskNum int, verifyChecksum bool, callback common.TrackerCallBack) (*FileTransferResult, error) {
+func (fs *FileSystem) DownloadFileRedirectToResource(irodsPath string, resource string, localPath string, taskNum int, verifyChecksum bool, transferCallback common.TransferTrackerCallback, connectionCallback common.ConnectionTrackerCallback, resourceConnectionCallback common.ConnectionTrackerCallback) (*FileTransferResult, error) {
 	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
 	localDestPath := util.GetCorrectLocalPath(localPath)
 
@@ -472,7 +472,7 @@ func (fs *FileSystem) DownloadFileRedirectToResource(irodsPath string, resource 
 		keywords[common.VERIFY_CHKSUM_KW] = ""
 	}
 
-	checksumStr, err := irods_fs.DownloadDataObjectFromResourceServer(fs.ioSession, irodsSrcPath, resource, localFilePath, entry.Size, taskNum, keywords, callback)
+	err = irods_fs.DownloadDataObjectFromResourceServer(fs.ioSession, irodsSrcPath, resource, localFilePath, entry.Size, taskNum, keywords, transferCallback, connectionCallback, resourceConnectionCallback)
 	if err != nil {
 		return fileTransferResult, xerrors.Errorf("failed to download a data object for path %q: %w", irodsSrcPath, err)
 	}
@@ -491,26 +491,10 @@ func (fs *FileSystem) DownloadFileRedirectToResource(irodsPath string, resource 
 			return fileTransferResult, xerrors.Errorf("failed to get hash of %q: %w", localFilePath, err)
 		}
 
-		checksumBytes := entry.CheckSum
-		if len(checksumStr) != 0 {
-			checksumAlg, checksum, err := types.ParseIRODSChecksumString(checksumStr)
-			if err != nil {
-				return fileTransferResult, xerrors.Errorf("failed to parse checksum string of %q: %w", checksumStr, err)
-			}
-
-			checksumBytes = checksum
-
-			if checksumAlg != entry.CheckSumAlgorithm {
-				return fileTransferResult, xerrors.Errorf("checksum algorithm mismatch %q vs %q", checksumAlg, entry.CheckSumAlgorithm)
-			}
-
-			fileTransferResult.IRODSCheckSum = checksumBytes
-		}
-
 		fileTransferResult.LocalCheckSumAlgorithm = entry.CheckSumAlgorithm
 		fileTransferResult.LocalCheckSum = hash
 
-		if !bytes.Equal(checksumBytes, hash) {
+		if !bytes.Equal(entry.CheckSum, hash) {
 			return fileTransferResult, xerrors.Errorf("checksum verification failed, download failed")
 		}
 	}
@@ -521,7 +505,7 @@ func (fs *FileSystem) DownloadFileRedirectToResource(irodsPath string, resource 
 }
 
 // UploadFile uploads a local file to irods
-func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource string, replicate bool, checksum bool, verifyChecksum bool, ignoreOverwriteError bool, callback common.TrackerCallBack) (*FileTransferResult, error) {
+func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource string, replicate bool, checksum bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback, connectionCallback common.ConnectionTrackerCallback) (*FileTransferResult, error) {
 	localSrcPath := util.GetCorrectLocalPath(localPath)
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
@@ -605,7 +589,7 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 		keywords[common.VERIFY_CHKSUM_KW] = hashString
 	}
 
-	err = irods_fs.UploadDataObject(fs.ioSession, localSrcPath, irodsFilePath, resource, replicate, keywords, callback)
+	err = irods_fs.UploadDataObject(fs.ioSession, localSrcPath, irodsFilePath, resource, replicate, keywords, transferCallback, connectionCallback)
 	if err != nil {
 		return fileTransferResult, err
 	}
@@ -640,7 +624,7 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 }
 
 // UploadFileFromBuffer uploads buffer data to irods
-func (fs *FileSystem) UploadFileFromBuffer(buffer *bytes.Buffer, irodsPath string, resource string, replicate bool, checksum bool, verifyChecksum bool, ignoreOverwriteError bool, callback common.TrackerCallBack) (*FileTransferResult, error) {
+func (fs *FileSystem) UploadFileFromBuffer(buffer *bytes.Buffer, irodsPath string, resource string, replicate bool, checksum bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback, connectionCallback common.ConnectionTrackerCallback) (*FileTransferResult, error) {
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
 	irodsFilePath := irodsDestPath
@@ -708,7 +692,7 @@ func (fs *FileSystem) UploadFileFromBuffer(buffer *bytes.Buffer, irodsPath strin
 		keywords[common.VERIFY_CHKSUM_KW] = hashString
 	}
 
-	err = irods_fs.UploadDataObjectFromBuffer(fs.ioSession, buffer, irodsFilePath, resource, replicate, keywords, callback)
+	err = irods_fs.UploadDataObjectFromBuffer(fs.ioSession, buffer, irodsFilePath, resource, replicate, keywords, transferCallback, connectionCallback)
 	if err != nil {
 		return fileTransferResult, err
 	}
@@ -743,7 +727,7 @@ func (fs *FileSystem) UploadFileFromBuffer(buffer *bytes.Buffer, irodsPath strin
 }
 
 // UploadFileParallel uploads a local file to irods in parallel
-func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, resource string, taskNum int, replicate bool, checksum bool, verifyChecksum bool, ignoreOverwriteError bool, callback common.TrackerCallBack) (*FileTransferResult, error) {
+func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, resource string, taskNum int, replicate bool, checksum bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback, connectionCallback common.ConnectionTrackerCallback) (*FileTransferResult, error) {
 	localSrcPath := util.GetCorrectLocalPath(localPath)
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
@@ -827,7 +811,7 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 		keywords[common.VERIFY_CHKSUM_KW] = hashString
 	}
 
-	err = irods_fs.UploadDataObjectParallel(fs.ioSession, localSrcPath, irodsFilePath, resource, taskNum, replicate, keywords, callback)
+	err = irods_fs.UploadDataObjectParallel(fs.ioSession, localSrcPath, irodsFilePath, resource, taskNum, replicate, keywords, transferCallback, connectionCallback)
 	if err != nil {
 		return fileTransferResult, err
 	}
@@ -862,7 +846,7 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 }
 
 // UploadFileRedirectToResource uploads a file from local to resource server in parallel
-func (fs *FileSystem) UploadFileRedirectToResource(localPath string, irodsPath string, resource string, taskNum int, replicate bool, checksum bool, verifyChecksum bool, ignoreOverwriteError bool, callback common.TrackerCallBack) (*FileTransferResult, error) {
+func (fs *FileSystem) UploadFileRedirectToResource(localPath string, irodsPath string, resource string, taskNum int, replicate bool, checksum bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback, connectionCallback common.ConnectionTrackerCallback, resourceConnectionCallback common.ConnectionTrackerCallback) (*FileTransferResult, error) {
 	localSrcPath := util.GetCorrectLocalPath(localPath)
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
@@ -946,7 +930,7 @@ func (fs *FileSystem) UploadFileRedirectToResource(localPath string, irodsPath s
 		keywords[common.VERIFY_CHKSUM_KW] = hashString
 	}
 
-	err = irods_fs.UploadDataObjectToResourceServer(fs.ioSession, localSrcPath, irodsFilePath, resource, taskNum, replicate, keywords, callback)
+	err = irods_fs.UploadDataObjectToResourceServer(fs.ioSession, localSrcPath, irodsFilePath, resource, taskNum, replicate, keywords, transferCallback, connectionCallback, resourceConnectionCallback)
 	if err != nil {
 		return fileTransferResult, err
 	}

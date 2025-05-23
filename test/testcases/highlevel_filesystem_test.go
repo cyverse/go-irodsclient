@@ -164,7 +164,7 @@ func testUploadAndDeleteDir(t *testing.T) {
 
 		// upload
 		iRODSPath := fmt.Sprintf("%s/%s", newDir, path.Base(localPath))
-		_, err = filesystem.UploadFile(localPath, iRODSPath, "", false, true, true, false, nil)
+		_, err = filesystem.UploadFile(localPath, iRODSPath, "", false, true, true, false, nil, nil)
 		FailError(t, err)
 
 		// delete dir recursively

@@ -34,12 +34,16 @@ type DataObjectTransferStatus struct {
 	StatusMap      map[int64]*DataObjectTransferStatusEntry `json:"-"`
 }
 
-func (status *DataObjectTransferStatus) Validate(path string, size int64) bool {
+func (status *DataObjectTransferStatus) Validate(path string, size int64, threads int) bool {
 	if status.Path != path {
 		return false
 	}
 
 	if status.Size != size {
+		return false
+	}
+
+	if status.Threads != threads {
 		return false
 	}
 
@@ -238,7 +242,7 @@ func GetOrNewDataObjectTransferStatusLocal(localPath string, size int64, threads
 		return nil, xerrors.Errorf("failed to read transfer status for %q: %w", localPath, err)
 	}
 
-	if !status.status.Validate(localPath, size) {
+	if !status.status.Validate(localPath, size, threads) {
 		// cannot reuse, create a new
 		status := NewDataObjectTransferStatusLocal(localPath, size, threads)
 		return status, nil

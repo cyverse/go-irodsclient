@@ -285,7 +285,7 @@ func (conn *IRODSResourceServerConnection) Send(buffer []byte, size int, timeout
 }
 
 // SendWithTrackerCallBack sends data
-func (conn *IRODSResourceServerConnection) SendWithTrackerCallBack(buffer []byte, size int, timeout *time.Duration, callback common.TrackerCallBack) error {
+func (conn *IRODSResourceServerConnection) SendWithTrackerCallBack(buffer []byte, size int, timeout *time.Duration, callback common.TransferTrackerCallback) error {
 	if conn.socket == nil {
 		return xerrors.Errorf("failed to send data - socket closed")
 	}
@@ -356,7 +356,7 @@ func (conn *IRODSResourceServerConnection) Recv(buffer []byte, size int, timeout
 }
 
 // RecvWithTrackerCallBack receives a message
-func (conn *IRODSResourceServerConnection) RecvWithTrackerCallBack(buffer []byte, size int, timeout *time.Duration, callback common.TrackerCallBack) (int, error) {
+func (conn *IRODSResourceServerConnection) RecvWithTrackerCallBack(buffer []byte, size int, timeout *time.Duration, callback common.TransferTrackerCallback) (int, error) {
 	if conn.socket == nil {
 		return 0, xerrors.Errorf("failed to receive data - socket closed")
 	}

@@ -5,6 +5,7 @@ import (
 
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/fs"
+	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -89,8 +90,17 @@ func testMaxConnectionsNotShared(t *testing.T) {
 
 	homeDir := test.GetTestHomeDir()
 
+	config := sess.GetConfig()
 	connections, err := sess.AcquireConnectionsMulti(15, false)
-	FailError(t, err)
+	if 15 < config.ConnectionMaxNumber {
+		FailError(t, err)
+	} else {
+		assert.Error(t, err)
+		assert.True(t, types.IsConnectionPoolFullError(err))
+	}
+
+	assert.Equal(t, config.ConnectionMaxNumber, len(connections))
+	assert.Equal(t, config.ConnectionMaxNumber, sess.GetConnectionsTotal())
 
 	for _, conn := range connections {
 		collection, err := fs.GetCollection(conn, homeDir)
@@ -101,8 +111,6 @@ func testMaxConnectionsNotShared(t *testing.T) {
 		assert.Equal(t, homeDir, collection.Path)
 		assert.NotEmpty(t, collection.ID)
 	}
-
-	assert.Equal(t, sess.GetConfig().ConnectionMaxNumber, sess.GetConnectionsTotal())
 
 	for _, conn := range connections {
 		err = sess.ReturnConnection(conn)

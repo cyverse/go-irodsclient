@@ -739,7 +739,7 @@ func (conn *IRODSConnection) Send(buffer []byte, size int, timeout *time.Duratio
 }
 
 // SendWithTrackerCallBack sends data
-func (conn *IRODSConnection) SendWithTrackerCallBack(buffer []byte, size int, timeout *time.Duration, callback common.TrackerCallBack) error {
+func (conn *IRODSConnection) SendWithTrackerCallBack(buffer []byte, size int, timeout *time.Duration, callback common.TransferTrackerCallback) error {
 	if conn.socket == nil {
 		return xerrors.Errorf("failed to send data - socket closed")
 	}
@@ -810,7 +810,7 @@ func (conn *IRODSConnection) Recv(buffer []byte, size int, timeout *time.Duratio
 }
 
 // Recv receives a message
-func (conn *IRODSConnection) RecvWithTrackerCallBack(buffer []byte, size int, timeout *time.Duration, callback common.TrackerCallBack) (int, error) {
+func (conn *IRODSConnection) RecvWithTrackerCallBack(buffer []byte, size int, timeout *time.Duration, callback common.TransferTrackerCallback) (int, error) {
 	if conn.socket == nil {
 		return 0, xerrors.Errorf("failed to receive data - socket closed")
 	}
@@ -889,7 +889,7 @@ func (conn *IRODSConnection) SendMessage(msg *message.IRODSMessage, timeout time
 }
 
 // SendMessageWithTrackerCallBack makes the message into bytes
-func (conn *IRODSConnection) SendMessageWithTrackerCallBack(msg *message.IRODSMessage, timeout time.Duration, callback common.TrackerCallBack) error {
+func (conn *IRODSConnection) SendMessageWithTrackerCallBack(msg *message.IRODSMessage, timeout time.Duration, callback common.TransferTrackerCallback) error {
 	if !conn.locked {
 		return xerrors.Errorf("connection must be locked before use")
 	}
@@ -1027,7 +1027,7 @@ func (conn *IRODSConnection) ReadMessage(bsBuffer []byte, timeout time.Duration)
 	return conn.ReadMessageWithTrackerCallBack(bsBuffer, timeout, nil)
 }
 
-func (conn *IRODSConnection) ReadMessageWithTrackerCallBack(bsBuffer []byte, timeout time.Duration, callback common.TrackerCallBack) (*message.IRODSMessage, error) {
+func (conn *IRODSConnection) ReadMessageWithTrackerCallBack(bsBuffer []byte, timeout time.Duration, callback common.TransferTrackerCallback) (*message.IRODSMessage, error) {
 	if !conn.locked {
 		return nil, xerrors.Errorf("connection must be locked before use")
 	}

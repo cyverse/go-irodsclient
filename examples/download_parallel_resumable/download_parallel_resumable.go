@@ -59,7 +59,7 @@ func main() {
 		panic(err)
 	}
 
-	result, err := filesystem.DownloadFileParallelResumable(srcPath, "", destPath, 0, true, nil)
+	result, err := filesystem.DownloadFileParallelResumable(srcPath, "", destPath, 0, true, nil, nil)
 	if err != nil {
 		logger.Error(err)
 		panic(err)

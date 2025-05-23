@@ -2153,7 +2153,7 @@ func ReadDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHan
 }
 
 // ReadDataObjectWithTrackerCallBack reads data from a data object
-func ReadDataObjectWithTrackerCallBack(conn *connection.IRODSConnection, handle *types.IRODSFileHandle, buffer []byte, callback common.TrackerCallBack) (int, error) {
+func ReadDataObjectWithTrackerCallBack(conn *connection.IRODSConnection, handle *types.IRODSFileHandle, buffer []byte, callback common.TransferTrackerCallback) (int, error) {
 	if conn == nil || !conn.IsConnected() {
 		return 0, xerrors.Errorf("connection is nil or disconnected")
 	}
@@ -2195,7 +2195,7 @@ func WriteDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHa
 }
 
 // WriteDataObjectWithTrackerCallBack writes data to a data object
-func WriteDataObjectWithTrackerCallBack(conn *connection.IRODSConnection, handle *types.IRODSFileHandle, data []byte, callback common.TrackerCallBack) error {
+func WriteDataObjectWithTrackerCallBack(conn *connection.IRODSConnection, handle *types.IRODSFileHandle, data []byte, callback common.TransferTrackerCallback) error {
 	if conn == nil || !conn.IsConnected() {
 		return xerrors.Errorf("connection is nil or disconnected")
 	}
@@ -2225,7 +2225,7 @@ func WriteDataObjectWithTrackerCallBack(conn *connection.IRODSConnection, handle
 }
 
 // WriteDataObjectAsyncWithTrackerCallBack writes data to a data object asynchronously
-func WriteDataObjectAsyncWithTrackerCallBack(conn *connection.IRODSConnection, handle *types.IRODSFileHandle, dataReader io.Reader, totalDataSize int64, callback common.TrackerCallBack) error {
+func WriteDataObjectAsyncWithTrackerCallBack(conn *connection.IRODSConnection, handle *types.IRODSFileHandle, dataReader io.Reader, totalDataSize int64, callback common.TransferTrackerCallback) error {
 	if conn == nil || !conn.IsConnected() {
 		return xerrors.Errorf("connection is nil or disconnected")
 	}
