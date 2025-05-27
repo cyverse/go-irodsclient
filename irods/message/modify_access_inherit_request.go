@@ -12,7 +12,7 @@ import (
 type IRODSMessageModifyAccessInheritRequest IRODSMessageModifyAccessRequest
 
 // NewIRODSMessageModifyAccessInheritRequest creates a IRODSMessageModifyAccessInheritRequest message for altering the access control list of a object or collection.
-func NewIRODSMessageModifyAccessInheritRequest(inherit bool, path string, recursive bool, asAdmin bool) *IRODSMessageModifyAccessInheritRequest {
+func NewIRODSMessageModifyAccessInheritRequest(inherit bool, path string, recurse bool, asAdmin bool) *IRODSMessageModifyAccessInheritRequest {
 	inheritString := "inherit"
 	if !inherit {
 		inheritString = "noinherit"
@@ -23,7 +23,7 @@ func NewIRODSMessageModifyAccessInheritRequest(inherit bool, path string, recurs
 	}
 
 	recursiveFlag := 0
-	if recursive {
+	if recurse {
 		recursiveFlag = 1
 	}
 

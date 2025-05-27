@@ -144,10 +144,10 @@ func (cache *FileSystemCache) RemoveEntryCache(path string) {
 }
 
 // RemoveDirEntryCache removes an entry cache for dir
-func (cache *FileSystemCache) RemoveDirEntryCache(path string, recursive bool) {
+func (cache *FileSystemCache) RemoveDirEntryCache(path string, recurse bool) {
 	cache.entryCache.Delete(path)
 
-	if recursive {
+	if recurse {
 		prefix := strings.TrimSuffix(path, "/") + "/"
 
 		// recursive
@@ -162,10 +162,10 @@ func (cache *FileSystemCache) RemoveDirEntryCache(path string, recursive bool) {
 }
 
 // RemoveParentDirCache removes an entry cache for the parent path of the given path
-func (cache *FileSystemCache) RemoveParentDirEntryCache(path string, recursive bool) {
+func (cache *FileSystemCache) RemoveParentDirEntryCache(path string, recurse bool) {
 	if cache.config.InvalidateParentEntryCacheImmediately {
 		parentPath := util.GetIRODSPathDirname(path)
-		cache.RemoveDirEntryCache(parentPath, recursive)
+		cache.RemoveDirEntryCache(parentPath, recurse)
 	}
 }
 

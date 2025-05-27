@@ -19,13 +19,13 @@ type IRODSMessageModifyAccessRequest struct {
 }
 
 // NewIRODSMessageModifyAccessRequest creates a IRODSMessageModAccessRequest message for altering the access control list of a object or collection.
-func NewIRODSMessageModifyAccessRequest(accessLevel string, user string, zone string, path string, recursive bool, asAdmin bool) *IRODSMessageModifyAccessRequest {
+func NewIRODSMessageModifyAccessRequest(accessLevel string, user string, zone string, path string, recurse bool, asAdmin bool) *IRODSMessageModifyAccessRequest {
 	if asAdmin {
 		accessLevel = fmt.Sprintf("admin:%s", accessLevel)
 	}
 
 	recursiveFlag := 0
-	if recursive {
+	if recurse {
 		recursiveFlag = 1
 	}
 

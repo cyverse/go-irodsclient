@@ -224,14 +224,14 @@ func (fs *FileSystem) ListFileACLsWithGroupMembers(path string) ([]*types.IRODSA
 }
 
 // ChangeACLs changes ACLs of a file or directory
-func (fs *FileSystem) ChangeACLs(path string, access types.IRODSAccessLevelType, userName string, zoneName string, recursive bool, adminFlag bool) error {
+func (fs *FileSystem) ChangeACLs(path string, access types.IRODSAccessLevelType, userName string, zoneName string, recurse bool, adminFlag bool) error {
 	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
 	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
-	err = irods_fs.ChangeAccess(conn, path, access, userName, zoneName, recursive, adminFlag)
+	err = irods_fs.ChangeAccess(conn, path, access, userName, zoneName, recurse, adminFlag)
 	if err != nil {
 		return err
 	}
@@ -240,14 +240,14 @@ func (fs *FileSystem) ChangeACLs(path string, access types.IRODSAccessLevelType,
 }
 
 // ChangeDirACLInheritance changes ACL inheritance of a directory
-func (fs *FileSystem) ChangeDirACLInheritance(path string, inherit bool, recursive bool, adminFlag bool) error {
+func (fs *FileSystem) ChangeDirACLInheritance(path string, inherit bool, recurse bool, adminFlag bool) error {
 	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
 	defer fs.metadataSession.ReturnConnection(conn) //nolint
 
-	err = irods_fs.ChangeAccessInherit(conn, path, inherit, recursive, adminFlag)
+	err = irods_fs.ChangeAccessInherit(conn, path, inherit, recurse, adminFlag)
 	if err != nil {
 		return err
 	}

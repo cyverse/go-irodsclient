@@ -778,7 +778,7 @@ func ListAccessesForDataObjectsWithoutCollection(conn *connection.IRODSConnectio
 }
 
 // ChangeAccessInherit changes the inherit bit on a collection.
-func ChangeAccessInherit(conn *connection.IRODSConnection, path string, inherit bool, recursive bool, adminFlag bool) error {
+func ChangeAccessInherit(conn *connection.IRODSConnection, path string, inherit bool, recurse bool, adminFlag bool) error {
 	if conn == nil || !conn.IsConnected() {
 		return xerrors.Errorf("connection is nil or disconnected")
 	}
@@ -792,9 +792,15 @@ func ChangeAccessInherit(conn *connection.IRODSConnection, path string, inherit 
 	conn.Lock()
 	defer conn.Unlock()
 
-	request := message.NewIRODSMessageModifyAccessInheritRequest(inherit, path, recursive, adminFlag)
+	request := message.NewIRODSMessageModifyAccessInheritRequest(inherit, path, recurse, adminFlag)
 	response := message.IRODSMessageModifyAccessInheritResponse{}
-	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
+	timeout := conn.GetOperationTimeout()
+	if recurse {
+		// recursive collection deletion requires long response operation timeout
+		timeout = conn.GetLongResponseOperationTimeout()
+	}
+
+	err := conn.RequestAndCheck(request, &response, nil, timeout)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
 			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
@@ -808,7 +814,7 @@ func ChangeAccessInherit(conn *connection.IRODSConnection, path string, inherit 
 }
 
 // ChangeAccess changes access control on a data object or collection.
-func ChangeAccess(conn *connection.IRODSConnection, path string, access types.IRODSAccessLevelType, userName string, zoneName string, recursive bool, adminFlag bool) error {
+func ChangeAccess(conn *connection.IRODSConnection, path string, access types.IRODSAccessLevelType, userName string, zoneName string, recurse bool, adminFlag bool) error {
 	if conn == nil || !conn.IsConnected() {
 		return xerrors.Errorf("connection is nil or disconnected")
 	}
@@ -822,9 +828,15 @@ func ChangeAccess(conn *connection.IRODSConnection, path string, access types.IR
 	conn.Lock()
 	defer conn.Unlock()
 
-	request := message.NewIRODSMessageModifyAccessRequest(access.ChmodString(), userName, zoneName, path, recursive, adminFlag)
+	request := message.NewIRODSMessageModifyAccessRequest(access.ChmodString(), userName, zoneName, path, recurse, adminFlag)
 	response := message.IRODSMessageModifyAccessResponse{}
-	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
+	timeout := conn.GetOperationTimeout()
+	if recurse {
+		// recursive collection deletion requires long response operation timeout
+		timeout = conn.GetLongResponseOperationTimeout()
+	}
+
+	err := conn.RequestAndCheck(request, &response, nil, timeout)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 			return xerrors.Errorf("failed to find the data-object/collection for path %q: %w", path, types.NewFileNotFoundError(path))
