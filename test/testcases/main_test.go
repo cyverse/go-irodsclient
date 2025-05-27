@@ -111,8 +111,6 @@ func testMainForVersion(t *testing.T, ver server.IRODSTestServerVersion, product
 		FailError(t, err)
 
 		defer func() {
-			//time.Sleep(1 * time.Hour)
-
 			if irodsServer != nil {
 				irodsServer.Stop()
 				currentTest = nil

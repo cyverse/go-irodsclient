@@ -72,7 +72,7 @@ func testMaxConnectionsShared(t *testing.T) {
 		assert.NotEmpty(t, collection.ID)
 	}
 
-	assert.Equal(t, sess.GetConfig().ConnectionMaxNumber, sess.GetConnectionsTotal())
+	assert.Equal(t, sess.GetConfig().ConnectionMaxNumber, sess.GetOpenConnections())
 
 	for _, conn := range connections {
 		err = sess.ReturnConnection(conn)
@@ -100,7 +100,7 @@ func testMaxConnectionsNotShared(t *testing.T) {
 	}
 
 	assert.Equal(t, config.ConnectionMaxNumber, len(connections))
-	assert.Equal(t, config.ConnectionMaxNumber, sess.GetConnectionsTotal())
+	assert.Equal(t, config.ConnectionMaxNumber, sess.GetOpenConnections())
 
 	for _, conn := range connections {
 		collection, err := fs.GetCollection(conn, homeDir)
@@ -151,7 +151,7 @@ func testConnectionMetrics(t *testing.T) {
 		assert.NotEmpty(t, collection.ID)
 	}
 
-	assert.Equal(t, sessionConfig.ConnectionMaxNumber, sess.GetConnectionsTotal())
+	assert.Equal(t, sessionConfig.ConnectionMaxNumber, sess.GetOpenConnections())
 	assert.Equal(t, uint64(sessionConfig.ConnectionMaxNumber), metrics.GetConnectionsOpened())
 	assert.Equal(t, uint64(sessionConfig.ConnectionMaxNumber), metrics.GetConnectionsOccupied())
 
