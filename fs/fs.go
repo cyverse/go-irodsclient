@@ -117,6 +117,16 @@ func (fs *FileSystem) GetConfig() *FileSystemConfig {
 	return fs.config
 }
 
+// GetMetadataSession returns metadata session
+func (fs *FileSystem) GetMetadataSession() *session.IRODSSession {
+	return fs.metadataSession
+}
+
+// GetIOSession returns IO session
+func (fs *FileSystem) GetIOSession() *session.IRODSSession {
+	return fs.ioSession
+}
+
 // GetIOConnection returns irods connection for IO
 func (fs *FileSystem) GetIOConnection(allowShared bool) (*connection.IRODSConnection, error) {
 	return fs.ioSession.AcquireConnection(allowShared)
@@ -137,9 +147,9 @@ func (fs *FileSystem) ReturnMetadataConnection(conn *connection.IRODSConnection)
 	return fs.metadataSession.ReturnConnection(conn)
 }
 
-// ConnectionTotal counts current established connections
-func (fs *FileSystem) ConnectionsTotal() int {
-	return fs.ioSession.GetConnectionsTotal() + fs.metadataSession.GetConnectionsTotal()
+// GetOpenConnections counts current open connections
+func (fs *FileSystem) GetOpenConnections() int {
+	return fs.ioSession.GetOpenConnections() + fs.metadataSession.GetOpenConnections()
 }
 
 // GetServerVersion returns server version info

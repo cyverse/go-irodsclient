@@ -511,12 +511,44 @@ func (sess *IRODSSession) SupportParallelUpload() bool {
 	return sess.supportParallelUpload
 }
 
-// Connections returns the number of connections in the pool
-func (sess *IRODSSession) GetConnectionsTotal() int {
+// GetOpenConnections returns the number of connections open in the pool
+func (sess *IRODSSession) GetOpenConnections() int {
 	sess.mutex.Lock()
 	defer sess.mutex.Unlock()
 
 	return sess.connectionPool.GetOpenConnections()
+}
+
+// GetMaxConnections returns the maximum number of connections in the pool
+func (sess *IRODSSession) GetMaxConnections() int {
+	sess.mutex.Lock()
+	defer sess.mutex.Unlock()
+
+	return sess.connectionPool.GetMaxConnections()
+}
+
+// GetOccupiedConnections returns the number of occupied connections in the pool
+func (sess *IRODSSession) GetOccupiedConnections() int {
+	sess.mutex.Lock()
+	defer sess.mutex.Unlock()
+
+	return sess.connectionPool.GetOccupiedConnections()
+}
+
+// GetIdleConnections returns total number of idle connections
+func (sess *IRODSSession) GetIdleConnections() int {
+	sess.mutex.Lock()
+	defer sess.mutex.Unlock()
+
+	return sess.connectionPool.GetIdleConnections()
+}
+
+// GetAvailableConnections returns the number of available connections in the pool
+func (sess *IRODSSession) GetAvailableConnections() int {
+	sess.mutex.Lock()
+	defer sess.mutex.Unlock()
+
+	return sess.connectionPool.GetAvailableConnections()
 }
 
 // GetMetrics returns metrics
