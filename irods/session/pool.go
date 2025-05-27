@@ -7,10 +7,13 @@ import (
 
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/types"
+	"github.com/rs/xid"
 	"golang.org/x/xerrors"
 
 	log "github.com/sirupsen/logrus"
 )
+
+type ConnectionUsageCallback func(occupied int, idle int, max int)
 
 // ConnectionPool is a struct for connection pool
 type ConnectionPool struct {
@@ -18,7 +21,8 @@ type ConnectionPool struct {
 	config              *ConnectionPoolConfig
 	idleConnections     *list.List // list of *connection.IRODSConnection
 	occupiedConnections map[*connection.IRODSConnection]bool
-	maxConnectionsReal  int // max connections can be created in reality
+	maxConnectionsReal  int                                // max connections can be created in reality
+	callbacks           map[string]ConnectionUsageCallback // callbacks for connection usage changes
 	mutex               sync.Mutex
 	terminateChan       chan bool
 	terminated          bool
@@ -53,6 +57,7 @@ func NewConnectionPool(account *types.IRODSAccount, config *ConnectionPoolConfig
 		idleConnections:     list.New(),
 		occupiedConnections: map[*connection.IRODSConnection]bool{},
 		maxConnectionsReal:  0,
+		callbacks:           map[string]ConnectionUsageCallback{},
 		mutex:               sync.Mutex{},
 		terminateChan:       make(chan bool),
 		terminated:          false,
@@ -88,16 +93,22 @@ func NewConnectionPool(account *types.IRODSAccount, config *ConnectionPoolConfig
 							// timeout
 							pool.idleConnections.Remove(elem)
 							idleConn.Disconnect() //nolint
+
+							pool.callCallbacks()
 						} else if idleConn.GetCreationTime().Add(pool.config.Lifespan).Before(now) {
 							// too old
 							pool.idleConnections.Remove(elem)
 							idleConn.Disconnect() //nolint
+
+							pool.callCallbacks()
 						} else {
 							break
 						}
 					} else {
 						// unknown object, remove it
 						pool.idleConnections.Remove(elem)
+
+						pool.callCallbacks()
 					}
 				}
 
@@ -131,6 +142,8 @@ func (pool *ConnectionPool) Release() {
 		if idleConn, ok := idleConnObj.(*connection.IRODSConnection); ok {
 			idleConn.Disconnect()
 		}
+
+		pool.callCallbacks()
 	}
 
 	for occupiedConn := range pool.occupiedConnections {
@@ -139,10 +152,38 @@ func (pool *ConnectionPool) Release() {
 
 	// clear
 	pool.occupiedConnections = map[*connection.IRODSConnection]bool{}
+	pool.callCallbacks()
+
+	pool.callbacks = map[string]ConnectionUsageCallback{}
 
 	if pool.config.Metrics != nil {
 		pool.config.Metrics.ClearConnections()
 	}
+}
+
+func (pool *ConnectionPool) callCallbacks() {
+	for _, callback := range pool.callbacks {
+		callback(len(pool.occupiedConnections), pool.idleConnections.Len(), pool.getMaxConnectionsReal())
+	}
+}
+
+func (pool *ConnectionPool) SetUsageCallback(callback ConnectionUsageCallback) string {
+	pool.mutex.Lock()
+	defer pool.mutex.Unlock()
+
+	callbackID := xid.New().String()
+	pool.callbacks[callbackID] = callback
+
+	callback(len(pool.occupiedConnections), pool.idleConnections.Len(), pool.getMaxConnectionsReal())
+
+	return callbackID
+}
+
+func (pool *ConnectionPool) RemoveUsageCallback(id string) {
+	pool.mutex.Lock()
+	defer pool.mutex.Unlock()
+
+	delete(pool.callbacks, id)
 }
 
 func (pool *ConnectionPool) init() error {
@@ -154,6 +195,8 @@ func (pool *ConnectionPool) init() error {
 
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
+
+	pool.callCallbacks()
 
 	// create connections
 	connConfig := pool.config.ToConnectionConfig()
@@ -183,6 +226,8 @@ func (pool *ConnectionPool) init() error {
 		}
 
 		pool.idleConnections.PushBack(newConn)
+
+		pool.callCallbacks()
 	}
 
 	return nil
@@ -220,6 +265,8 @@ func (pool *ConnectionPool) Get() (*connection.IRODSConnection, bool, error) {
 					pool.occupiedConnections[idleConn] = true
 					logger.Debug("Reuse an idle connection")
 
+					pool.callCallbacks()
+
 					if pool.config.Metrics != nil {
 						pool.config.Metrics.IncreaseConnectionsOccupied(1)
 					}
@@ -251,6 +298,8 @@ func (pool *ConnectionPool) Get() (*connection.IRODSConnection, bool, error) {
 		if types.IsConnectionError(err) {
 			// rejected?
 			pool.maxConnectionsReal = len(pool.occupiedConnections) + pool.idleConnections.Len()
+
+			pool.callCallbacks()
 			if pool.maxConnectionsReal > 0 {
 				logger.Debugf("adjusted max connections: %d", pool.maxConnectionsReal)
 				return nil, false, types.NewConnectionPoolFullError(len(pool.occupiedConnections), maxConn)
@@ -262,6 +311,8 @@ func (pool *ConnectionPool) Get() (*connection.IRODSConnection, bool, error) {
 
 	pool.occupiedConnections[newConn] = true
 	logger.Debug("Created a new connection")
+
+	pool.callCallbacks()
 
 	if pool.config.Metrics != nil {
 		pool.config.Metrics.IncreaseConnectionsOccupied(1)
@@ -297,6 +348,8 @@ func (pool *ConnectionPool) GetNew() (*connection.IRODSConnection, error) {
 					idleConn.Disconnect()
 				}
 			}
+
+			pool.callCallbacks()
 		}
 	}
 
@@ -322,6 +375,8 @@ func (pool *ConnectionPool) GetNew() (*connection.IRODSConnection, error) {
 			if types.IsConnectionError(err) {
 				// rejected?
 				pool.maxConnectionsReal = len(pool.occupiedConnections) + pool.idleConnections.Len()
+
+				pool.callCallbacks()
 				if pool.maxConnectionsReal > 0 {
 					logger.Debugf("adjusted max connections: %d", pool.maxConnectionsReal)
 					return nil, types.NewConnectionPoolFullError(len(pool.occupiedConnections), maxConn)
@@ -333,6 +388,8 @@ func (pool *ConnectionPool) GetNew() (*connection.IRODSConnection, error) {
 
 		pool.occupiedConnections[newConn] = true
 		logger.Debug("Created a new connection")
+
+		pool.callCallbacks()
 
 		if pool.config.Metrics != nil {
 			pool.config.Metrics.IncreaseConnectionsOccupied(1)
@@ -360,6 +417,8 @@ func (pool *ConnectionPool) Return(conn *connection.IRODSConnection) error {
 		// delete
 		delete(pool.occupiedConnections, conn)
 
+		pool.callCallbacks()
+
 		if pool.config.Metrics != nil {
 			pool.config.Metrics.DecreaseConnectionsOccupied(1)
 		}
@@ -383,12 +442,16 @@ func (pool *ConnectionPool) Return(conn *connection.IRODSConnection) error {
 
 	pool.idleConnections.PushBack(conn)
 
+	pool.callCallbacks()
+
 	// check maxidle
 	for pool.idleConnections.Len() > pool.config.MaxIdle {
 		// check front since it's old
 		elem := pool.idleConnections.Front()
 		if elem != nil {
 			idleConnObj := pool.idleConnections.Remove(elem)
+			pool.callCallbacks()
+
 			if idleConn, ok := idleConnObj.(*connection.IRODSConnection); ok {
 				idleConn.Disconnect()
 			}
@@ -407,6 +470,7 @@ func (pool *ConnectionPool) Discard(conn *connection.IRODSConnection) {
 
 	// find it from occupied map
 	delete(pool.occupiedConnections, conn)
+	pool.callCallbacks()
 
 	if pool.config.Metrics != nil {
 		pool.config.Metrics.DecreaseConnectionsOccupied(1)

@@ -146,6 +146,22 @@ func (sess *IRODSSession) getPendingError() error {
 	return sess.lastConnectionError
 }
 
+// SetConnectionUsageCallback sets connection usage callback
+func (sess *IRODSSession) SetConnectionUsageCallback(callback ConnectionUsageCallback) string {
+	sess.mutex.Lock()
+	defer sess.mutex.Unlock()
+
+	return sess.connectionPool.SetUsageCallback(callback)
+}
+
+// RemoveConnectionUsageCallback removes connection usage callback
+func (sess *IRODSSession) RemoveConnectionUsageCallback(id string) {
+	sess.mutex.Lock()
+	defer sess.mutex.Unlock()
+
+	sess.connectionPool.RemoveUsageCallback(id)
+}
+
 // IsPermanantFailure returns if there is a failure that is unfixable, permanent
 func (sess *IRODSSession) IsPermanantFailure() bool {
 	sess.mutex.Lock()
