@@ -17,7 +17,7 @@ import (
 )
 
 // GetDataObjectRedirectionInfoForGet returns a redirection info for accessing the data object for downloading
-func GetDataObjectRedirectionInfoForGet(conn *connection.IRODSConnection, path string, resource string, fileLength int64, taskNum int, keywords map[common.KeyWord]string) (*types.IRODSFileOpenRedirectionHandle, error) {
+func GetDataObjectRedirectionInfoForGet(conn *connection.IRODSConnection, dataObject *types.IRODSDataObject, resource string, taskNum int, keywords map[common.KeyWord]string) (*types.IRODSFileOpenRedirectionHandle, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, xerrors.Errorf("connection is nil or disconnected")
 	}
@@ -39,10 +39,10 @@ func GetDataObjectRedirectionInfoForGet(conn *connection.IRODSConnection, path s
 
 	numTasks := taskNum
 	if numTasks <= 0 {
-		numTasks = util.GetNumTasksForParallelTransfer(fileLength)
+		numTasks = util.GetNumTasksForParallelTransfer(dataObject.Size)
 	}
 
-	request := message.NewIRODSMessageGetDataObjectRequest(path, resource, fileLength, numTasks)
+	request := message.NewIRODSMessageGetDataObjectRequest(dataObject.Path, resource, dataObject.Size, numTasks)
 	response := message.IRODSMessageGetDataObjectResponse{}
 
 	for k, v := range keywords {
@@ -52,12 +52,12 @@ func GetDataObjectRedirectionInfoForGet(conn *connection.IRODSConnection, path s
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return nil, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+			return nil, xerrors.Errorf("failed to find the data object for path %q: %w", dataObject.Path, types.NewFileNotFoundError(dataObject.Path))
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+			return nil, xerrors.Errorf("failed to find the collection for path %q: %w", dataObject.Path, types.NewFileNotFoundError(dataObject.Path))
 		}
 
-		return nil, xerrors.Errorf("failed to get data object redirection info for path %q: %w", path, err)
+		return nil, xerrors.Errorf("failed to get data object redirection info for path %q: %w", dataObject.Path, err)
 	}
 
 	if metrics != nil {
@@ -66,7 +66,7 @@ func GetDataObjectRedirectionInfoForGet(conn *connection.IRODSConnection, path s
 
 	info := &types.IRODSFileOpenRedirectionHandle{
 		FileDescriptor:  response.FileDescriptor,
-		Path:            path,
+		Path:            dataObject.Path,
 		Resource:        resource,
 		Threads:         response.Threads,
 		CheckSum:        response.CheckSum,
@@ -195,7 +195,7 @@ func CompleteDataObjectRedirection(conn *connection.IRODSConnection, handle *typ
 	return nil
 }
 
-func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskID int, controlConnection *connection.IRODSConnection, handle *types.IRODSFileOpenRedirectionHandle, localPath string, transferCallback common.TransferTrackerCallback, connectionCallback common.ConnectionTrackerCallback) error {
+func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskID int, controlConn *connection.IRODSConnection, handle *types.IRODSFileOpenRedirectionHandle, localPath string, transferCallback common.TransferTrackerCallback) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "fs",
 		"function": "downloadDataObjectChunkFromResourceServer",
@@ -204,7 +204,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 
 	logger.Debugf("download data object %q, task %d", handle.Path, taskID)
 
-	conn, err := sess.GetRedirectionConnection(controlConnection, handle.RedirectionInfo)
+	conn, err := sess.GetRedirectionConnection(controlConn, handle.RedirectionInfo)
 	if err != nil {
 		return xerrors.Errorf("failed to get connection to resource server: %w", err)
 	}
@@ -214,16 +214,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 		return xerrors.Errorf("failed to connect to resource server: %w", err)
 	}
 
-	if connectionCallback != nil {
-		connectionCallback(1, 0)
-	}
-
-	defer func() {
-		conn.Disconnect()
-		if connectionCallback != nil {
-			connectionCallback(0, 1)
-		}
-	}()
+	defer conn.Disconnect()
 
 	if conn == nil || !conn.IsConnected() {
 		return xerrors.Errorf("connection is nil or disconnected")
@@ -239,10 +230,10 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 	defer f.Close()
 
 	// encConfig may be nil
-	encConfig := controlConnection.GetAccount().SSLConfiguration
+	encConfig := controlConn.GetAccount().SSLConfiguration
 	encKeysize := 0
 
-	if controlConnection.IsSSL() {
+	if controlConn.IsSSL() {
 		encKeysize = encConfig.EncryptionKeySize
 	}
 
@@ -260,7 +251,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 	var dataBuffer []byte
 	var encryptedDataBuffer []byte
 
-	timeout := controlConnection.GetOperationTimeout()
+	timeout := controlConn.GetOperationTimeout()
 
 	for cont {
 		// read transfer header
@@ -296,7 +287,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 			conn.SetReadTimeout(timeout.ResponseTimeout)
 
 			// read encryption header
-			if controlConnection.IsSSL() {
+			if controlConn.IsSSL() {
 				encryptionHeader := message.NewIRODSMessageResourceServerTransferEncryptionHeader(encKeysize)
 
 				encryptionHeaderBuffer := make([]byte, encryptionHeader.SizeOf())
@@ -417,7 +408,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 	return nil
 }
 
-func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID int, controlConnection *connection.IRODSConnection, handle *types.IRODSFileOpenRedirectionHandle, localPath string, transferCallback common.TransferTrackerCallback, connectionCallback common.ConnectionTrackerCallback) error {
+func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID int, controlConn *connection.IRODSConnection, handle *types.IRODSFileOpenRedirectionHandle, localPath string, transferCallback common.TransferTrackerCallback) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "fs",
 		"function": "uploadDataObjectChunkToResourceServer",
@@ -426,7 +417,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 
 	logger.Debugf("upload data object %q, task %d", handle.Path, taskID)
 
-	conn, err := sess.GetRedirectionConnection(controlConnection, handle.RedirectionInfo)
+	conn, err := sess.GetRedirectionConnection(controlConn, handle.RedirectionInfo)
 	if err != nil {
 		return xerrors.Errorf("failed to get connection to resource server: %w", err)
 	}
@@ -436,16 +427,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 		return xerrors.Errorf("failed to connect to resource server: %w", err)
 	}
 
-	if connectionCallback != nil {
-		connectionCallback(1, 0)
-	}
-
-	defer func() {
-		conn.Disconnect()
-		if connectionCallback != nil {
-			connectionCallback(0, 1)
-		}
-	}()
+	defer conn.Disconnect()
 
 	if conn == nil || !conn.IsConnected() {
 		return xerrors.Errorf("connection is nil or disconnected")
@@ -461,10 +443,10 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 	defer f.Close()
 
 	// encConfig may be nil
-	encConfig := controlConnection.GetAccount().SSLConfiguration
+	encConfig := controlConn.GetAccount().SSLConfiguration
 	encKeysize := 0
 
-	if controlConnection.IsSSL() {
+	if controlConn.IsSSL() {
 		encKeysize = encConfig.EncryptionKeySize
 	}
 
@@ -483,7 +465,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 	var encryptedDataBuffer []byte
 	dataBufferSize := sess.GetConfig().TcpBufferSize
 
-	timeout := controlConnection.GetOperationTimeout()
+	timeout := controlConn.GetOperationTimeout()
 
 	for cont {
 		// read transfer header
@@ -518,7 +500,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 			conn.SetWriteTimeout(timeout.RequestTimeout)
 
 			// read encryption header
-			if controlConnection.IsSSL() {
+			if controlConn.IsSSL() {
 				// init iv
 				encAlg := types.GetEncryptionAlgorithm(encConfig.EncryptionAlgorithm)
 				encIV, err := util.GetEncryptionIV(encAlg)
@@ -644,7 +626,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 }
 
 // DownloadDataObjectFromResourceServer downloads a data object at the iRODS path to the local path
-func DownloadDataObjectFromResourceServer(session *session.IRODSSession, irodsPath string, resource string, localPath string, fileLength int64, taskNum int, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback, connectionCallback common.ConnectionTrackerCallback, resourceConnectionCallback common.ConnectionTrackerCallback) error {
+func DownloadDataObjectFromResourceServer(sess *session.IRODSSession, dataObject *types.IRODSDataObject, resource string, localPath string, taskNum int, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "fs",
 		"function": "DownloadDataObjectFromResourceServer",
@@ -652,31 +634,27 @@ func DownloadDataObjectFromResourceServer(session *session.IRODSSession, irodsPa
 
 	// use default resource when resource param is empty
 	if len(resource) == 0 {
-		account := session.GetAccount()
+		account := sess.GetAccount()
 		resource = account.DefaultResource
 	}
 
-	if fileLength == 0 {
+	if dataObject.Size == 0 {
 		// empty file
-		return DownloadDataObject(session, irodsPath, resource, localPath, fileLength, keywords, transferCallback, connectionCallback)
+		return DownloadDataObject(sess, dataObject, resource, localPath, keywords, transferCallback)
 	}
 
 	numTasks := taskNum
 	if numTasks <= 0 {
-		numTasks = util.GetNumTasksForParallelTransfer(fileLength)
+		numTasks = util.GetNumTasksForParallelTransfer(dataObject.Size)
 	}
 
 	if numTasks == 1 {
-		return DownloadDataObject(session, irodsPath, resource, localPath, fileLength, keywords, transferCallback, connectionCallback)
+		return DownloadDataObject(sess, dataObject, resource, localPath, keywords, transferCallback)
 	}
 
-	controlConn, err := session.AcquireConnection(true)
+	controlConn, err := sess.AcquireConnection(true)
 	if err != nil {
 		return xerrors.Errorf("failed to get connection: %w", err)
-	}
-
-	if connectionCallback != nil {
-		connectionCallback(1, 0)
 	}
 
 	controlConnReleased := false
@@ -684,10 +662,7 @@ func DownloadDataObjectFromResourceServer(session *session.IRODSSession, irodsPa
 	defer func() {
 		if !controlConnReleased {
 			// close control connection here
-			session.ReturnConnection(controlConn)
-			if connectionCallback != nil {
-				connectionCallback(0, 1)
-			}
+			sess.ReturnConnection(controlConn)
 		}
 	}()
 
@@ -695,34 +670,28 @@ func DownloadDataObjectFromResourceServer(session *session.IRODSSession, irodsPa
 		return xerrors.Errorf("connection is nil or disconnected")
 	}
 
-	handle, err := GetDataObjectRedirectionInfoForGet(controlConn, irodsPath, resource, fileLength, numTasks, keywords)
+	handle, err := GetDataObjectRedirectionInfoForGet(controlConn, dataObject, resource, numTasks, keywords)
 	if err != nil {
 		// close control connection
-		session.ReturnConnection(controlConn)
-		if connectionCallback != nil {
-			connectionCallback(0, 1)
-		}
+		sess.ReturnConnection(controlConn)
 		controlConnReleased = true
 
-		logger.WithError(err).Debugf("failed to get redirection info for data object %q, switch to DownloadDataObjectParallel", irodsPath)
-		return DownloadDataObjectParallel(session, irodsPath, resource, localPath, fileLength, numTasks, keywords, transferCallback, connectionCallback)
+		logger.WithError(err).Debugf("failed to get redirection info for data object %q, switch to DownloadDataObjectParallel", dataObject.Path)
+		return DownloadDataObjectParallel(sess, dataObject, resource, localPath, numTasks, keywords, transferCallback)
 	}
 
-	logger.Debugf("download data object in parallel (redirect-to-resource) %s, size(%d), threads(%d)", irodsPath, fileLength, numTasks)
+	logger.Debugf("download data object in parallel (redirect-to-resource) %s, size(%d), threads(%d)", dataObject.Path, dataObject.Size, numTasks)
 
 	defer CompleteDataObjectRedirection(controlConn, handle)
 
 	if handle.Threads <= 0 || handle.RedirectionInfo == nil {
 		// close control connection
-		session.ReturnConnection(controlConn)
-		if connectionCallback != nil {
-			connectionCallback(0, 1)
-		}
+		sess.ReturnConnection(controlConn)
 		controlConnReleased = true
 
-		logger.Debugf("failed to get redirection info for data object %q, switch to DownloadDataObjectParallel", irodsPath)
+		logger.Debugf("failed to get redirection info for data object %q, switch to DownloadDataObjectParallel", dataObject.Path)
 
-		return DownloadDataObjectParallel(session, irodsPath, resource, localPath, fileLength, numTasks, keywords, transferCallback, connectionCallback)
+		return DownloadDataObjectParallel(sess, dataObject, resource, localPath, numTasks, keywords, transferCallback)
 	}
 
 	numTasks = handle.Threads
@@ -742,7 +711,7 @@ func DownloadDataObjectFromResourceServer(session *session.IRODSSession, irodsPa
 
 	totalBytesDownloaded := int64(0)
 	if transferCallback != nil {
-		transferCallback(totalBytesDownloaded, fileLength)
+		transferCallback(totalBytesDownloaded, dataObject.Size)
 	}
 
 	// task progress
@@ -761,14 +730,123 @@ func DownloadDataObjectFromResourceServer(session *session.IRODSSession, irodsPa
 				atomic.AddInt64(&totalBytesDownloaded, int64(delta))
 
 				if transferCallback != nil {
-					transferCallback(totalBytesDownloaded, fileLength)
+					transferCallback(totalBytesDownloaded, dataObject.Size)
 				}
 			}
 		}
 
-		err = downloadDataObjectChunkFromResourceServer(session, taskID, controlConn, handle, localPath, blockReadCallback, resourceConnectionCallback)
+		err = downloadDataObjectChunkFromResourceServer(sess, taskID, controlConn, handle, localPath, blockReadCallback)
 		if err != nil {
-			dnErr := xerrors.Errorf("failed to download data object chunk %q from resource server: %w", irodsPath, err)
+			dnErr := xerrors.Errorf("failed to download data object chunk %q from resource server: %w", dataObject.Path, err)
+			errChan <- dnErr
+		}
+	}
+
+	for i := 0; i < handle.Threads; i++ {
+		taskWaitGroup.Add(1)
+
+		go downloadTask(i)
+	}
+
+	taskWaitGroup.Wait()
+
+	if len(errChan) > 0 {
+		return <-errChan
+	}
+
+	return nil
+}
+
+// DownloadDataObjectFromResourceServerWithConnection downloads a data object at the iRODS path to the local path
+func DownloadDataObjectFromResourceServerWithConnection(sess *session.IRODSSession, controlConn *connection.IRODSConnection, dataObject *types.IRODSDataObject, resource string, localPath string, taskNum int, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "DownloadDataObjectFromResourceServerWithConnection",
+	})
+
+	if controlConn == nil || !controlConn.IsConnected() {
+		return xerrors.Errorf("connection is nil or disconnected")
+	}
+
+	// use default resource when resource param is empty
+	if len(resource) == 0 {
+		account := sess.GetAccount()
+		resource = account.DefaultResource
+	}
+
+	if dataObject.Size == 0 {
+		// empty file
+		return DownloadDataObjectWithConnection(controlConn, dataObject, resource, localPath, keywords, transferCallback)
+	}
+
+	numTasks := taskNum
+	if numTasks <= 0 {
+		numTasks = util.GetNumTasksForParallelTransfer(dataObject.Size)
+	}
+
+	if numTasks == 1 {
+		return DownloadDataObjectWithConnection(controlConn, dataObject, resource, localPath, keywords, transferCallback)
+	}
+
+	handle, err := GetDataObjectRedirectionInfoForGet(controlConn, dataObject, resource, numTasks, keywords)
+	if err != nil {
+		logger.WithError(err).Debugf("failed to get redirection info for data object %q, switch to DownloadDataObject", dataObject.Path)
+		return DownloadDataObjectWithConnection(controlConn, dataObject, resource, localPath, keywords, transferCallback)
+	}
+
+	logger.Debugf("download data object in parallel (redirect-to-resource) %s, size(%d), threads(%d)", dataObject.Path, dataObject.Size, numTasks)
+
+	defer CompleteDataObjectRedirection(controlConn, handle)
+
+	if handle.Threads <= 0 || handle.RedirectionInfo == nil {
+		logger.Debugf("failed to get redirection info for data object %q, switch to DownloadDataObject", dataObject.Path)
+		return DownloadDataObjectWithConnection(controlConn, dataObject, resource, localPath, keywords, transferCallback)
+	}
+
+	numTasks = handle.Threads
+
+	logger.Debugf("Redirect to resource: path %q, threads %d, addr %q, port %d, window size %d, cookie %d", handle.Path, handle.Threads, handle.RedirectionInfo.Host, handle.RedirectionInfo.Port, handle.RedirectionInfo.WindowSize, handle.RedirectionInfo.Cookie)
+	// get from portal
+
+	// create an empty file
+	f, err := os.Create(localPath)
+	if err != nil {
+		return xerrors.Errorf("failed to create file %q: %w", localPath, err)
+	}
+	f.Close()
+
+	errChan := make(chan error, numTasks)
+	taskWaitGroup := sync.WaitGroup{}
+
+	totalBytesDownloaded := int64(0)
+	if transferCallback != nil {
+		transferCallback(totalBytesDownloaded, dataObject.Size)
+	}
+
+	// task progress
+	taskProgress := make([]int64, numTasks)
+
+	downloadTask := func(taskID int) {
+		taskProgress[taskID] = 0
+
+		defer taskWaitGroup.Done()
+
+		blockReadCallback := func(processed int64, total int64) {
+			if processed > 0 {
+				delta := processed - taskProgress[taskID]
+				taskProgress[taskID] = processed
+
+				atomic.AddInt64(&totalBytesDownloaded, int64(delta))
+
+				if transferCallback != nil {
+					transferCallback(totalBytesDownloaded, dataObject.Size)
+				}
+			}
+		}
+
+		err = downloadDataObjectChunkFromResourceServer(sess, taskID, controlConn, handle, localPath, blockReadCallback)
+		if err != nil {
+			dnErr := xerrors.Errorf("failed to download data object chunk %q from resource server: %w", dataObject.Path, err)
 			errChan <- dnErr
 		}
 	}
@@ -789,17 +867,15 @@ func DownloadDataObjectFromResourceServer(session *session.IRODSSession, irodsPa
 }
 
 // UploadDataObjectToResourceServer uploads a data object at the local path to the iRODS path
-func UploadDataObjectToResourceServer(session *session.IRODSSession, localPath string, irodsPath string, resource string, taskNum int, replicate bool, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback, connectionCallback common.ConnectionTrackerCallback, resourceConnectionCallback common.ConnectionTrackerCallback) error {
+func UploadDataObjectToResourceServer(sess *session.IRODSSession, localPath string, irodsPath string, resource string, taskNum int, replicate bool, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "fs",
 		"function": "UploadDataObjectToResourceServer",
 	})
 
-	logger.Debugf("upload data object %q", irodsPath)
-
 	// use default resource when resource param is empty
 	if len(resource) == 0 {
-		account := session.GetAccount()
+		account := sess.GetAccount()
 		resource = account.DefaultResource
 	}
 
@@ -811,7 +887,7 @@ func UploadDataObjectToResourceServer(session *session.IRODSSession, localPath s
 	fileLength := stat.Size()
 	if fileLength == 0 {
 		// empty file
-		return UploadDataObject(session, localPath, irodsPath, resource, replicate, keywords, transferCallback, connectionCallback)
+		return UploadDataObject(sess, localPath, irodsPath, resource, replicate, keywords, transferCallback)
 	}
 
 	numTasks := taskNum
@@ -820,16 +896,12 @@ func UploadDataObjectToResourceServer(session *session.IRODSSession, localPath s
 	}
 
 	if numTasks == 1 {
-		return UploadDataObject(session, localPath, irodsPath, resource, replicate, keywords, transferCallback, connectionCallback)
+		return UploadDataObject(sess, localPath, irodsPath, resource, replicate, keywords, transferCallback)
 	}
 
-	controlConn, err := session.AcquireConnection(false)
+	controlConn, err := sess.AcquireConnection(false)
 	if err != nil {
 		return xerrors.Errorf("failed to get connection: %w", err)
-	}
-
-	if connectionCallback != nil {
-		connectionCallback(1, 0)
 	}
 
 	controlConnReleased := false
@@ -837,10 +909,7 @@ func UploadDataObjectToResourceServer(session *session.IRODSSession, localPath s
 	defer func() {
 		if !controlConnReleased {
 			// close control connection here
-			session.ReturnConnection(controlConn)
-			if connectionCallback != nil {
-				connectionCallback(0, 1)
-			}
+			sess.ReturnConnection(controlConn)
 		}
 	}()
 
@@ -851,14 +920,11 @@ func UploadDataObjectToResourceServer(session *session.IRODSSession, localPath s
 	handle, err := GetDataObjectRedirectionInfoForPut(controlConn, irodsPath, resource, fileLength, numTasks, keywords)
 	if err != nil {
 		// close control connection
-		session.ReturnConnection(controlConn)
-		if connectionCallback != nil {
-			connectionCallback(0, 1)
-		}
+		sess.ReturnConnection(controlConn)
 		controlConnReleased = true
 
 		logger.WithError(err).Debugf("failed to get redirection info for data object %q, switch to UploadDataObjctParallel", irodsPath)
-		return UploadDataObjectParallel(session, localPath, irodsPath, resource, 0, replicate, keywords, transferCallback, connectionCallback)
+		return UploadDataObjectParallel(sess, localPath, irodsPath, resource, 0, replicate, keywords, transferCallback)
 	}
 
 	logger.Debugf("upload data object in parallel (redirect-to-resource) %s, size(%d), threads(%d)", irodsPath, fileLength, numTasks)
@@ -867,15 +933,12 @@ func UploadDataObjectToResourceServer(session *session.IRODSSession, localPath s
 
 	if handle.Threads <= 0 || handle.RedirectionInfo == nil {
 		// close control connection
-		session.ReturnConnection(controlConn)
-		if connectionCallback != nil {
-			connectionCallback(0, 1)
-		}
+		sess.ReturnConnection(controlConn)
 		controlConnReleased = true
 
 		logger.Debugf("failed to get redirection info for data object %q, switch to UploadDataObjectParallel", irodsPath)
 
-		return UploadDataObjectParallel(session, localPath, irodsPath, resource, numTasks, replicate, keywords, transferCallback, connectionCallback)
+		return UploadDataObjectParallel(sess, localPath, irodsPath, resource, numTasks, replicate, keywords, transferCallback)
 	}
 
 	numTasks = handle.Threads
@@ -912,7 +975,115 @@ func UploadDataObjectToResourceServer(session *session.IRODSSession, localPath s
 			}
 		}
 
-		err = uploadDataObjectChunkToResourceServer(session, taskID, controlConn, handle, localPath, blockWriteCallback, resourceConnectionCallback)
+		err = uploadDataObjectChunkToResourceServer(sess, taskID, controlConn, handle, localPath, blockWriteCallback)
+		if err != nil {
+			dnErr := xerrors.Errorf("failed to upload data object chunk %q to resource server: %w", localPath, err)
+			errChan <- dnErr
+		}
+	}
+
+	for i := 0; i < handle.Threads; i++ {
+		taskWaitGroup.Add(1)
+
+		go uploadTask(i)
+	}
+
+	taskWaitGroup.Wait()
+
+	if len(errChan) > 0 {
+		return <-errChan
+	}
+
+	return nil
+}
+
+// UploadDataObjectToResourceServerWithConnection uploads a data object at the local path to the iRODS path
+func UploadDataObjectToResourceServerWithConnection(sess *session.IRODSSession, controlConn *connection.IRODSConnection, localPath string, irodsPath string, resource string, taskNum int, replicate bool, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
+	logger := log.WithFields(log.Fields{
+		"package":  "fs",
+		"function": "UploadDataObjectToResourceServerWithConnection",
+	})
+
+	if controlConn == nil || !controlConn.IsConnected() {
+		return xerrors.Errorf("connection is nil or disconnected")
+	}
+
+	// use default resource when resource param is empty
+	if len(resource) == 0 {
+		account := sess.GetAccount()
+		resource = account.DefaultResource
+	}
+
+	stat, err := os.Stat(localPath)
+	if err != nil {
+		return xerrors.Errorf("failed to stat file %q: %w", localPath, err)
+	}
+
+	fileLength := stat.Size()
+	if fileLength == 0 {
+		// empty file
+		return UploadDataObjectWithConnection(controlConn, localPath, irodsPath, resource, replicate, keywords, transferCallback)
+	}
+
+	numTasks := taskNum
+	if numTasks <= 0 {
+		numTasks = util.GetNumTasksForParallelTransfer(fileLength)
+	}
+
+	if numTasks == 1 {
+		return UploadDataObjectWithConnection(controlConn, localPath, irodsPath, resource, replicate, keywords, transferCallback)
+	}
+
+	handle, err := GetDataObjectRedirectionInfoForPut(controlConn, irodsPath, resource, fileLength, numTasks, keywords)
+	if err != nil {
+		logger.WithError(err).Debugf("failed to get redirection info for data object %q, switch to UploadDataObjct", irodsPath)
+		return UploadDataObjectWithConnection(controlConn, localPath, irodsPath, resource, replicate, keywords, transferCallback)
+	}
+
+	logger.Debugf("upload data object in parallel (redirect-to-resource) %s, size(%d), threads(%d)", irodsPath, fileLength, numTasks)
+
+	defer CompleteDataObjectRedirection(controlConn, handle)
+
+	if handle.Threads <= 0 || handle.RedirectionInfo == nil {
+		logger.Debugf("failed to get redirection info for data object %q, switch to UploadDataObject", irodsPath)
+		return UploadDataObjectWithConnection(controlConn, localPath, irodsPath, resource, replicate, keywords, transferCallback)
+	}
+
+	numTasks = handle.Threads
+
+	logger.Debugf("Redirect to resource: path %q, threads %d, addr %q, port %d, window size %d, cookie %d", handle.Path, handle.Threads, handle.RedirectionInfo.Host, handle.RedirectionInfo.Port, handle.RedirectionInfo.WindowSize, handle.RedirectionInfo.Cookie)
+	// put to portal
+
+	errChan := make(chan error, numTasks)
+	taskWaitGroup := sync.WaitGroup{}
+
+	totalBytesUploaded := int64(0)
+	if transferCallback != nil {
+		transferCallback(totalBytesUploaded, fileLength)
+	}
+
+	// task progress
+	taskProgress := make([]int64, numTasks)
+
+	uploadTask := func(taskID int) {
+		taskProgress[taskID] = 0
+
+		defer taskWaitGroup.Done()
+
+		blockWriteCallback := func(processed int64, total int64) {
+			if processed > 0 {
+				delta := processed - taskProgress[taskID]
+				taskProgress[taskID] = processed
+
+				atomic.AddInt64(&totalBytesUploaded, int64(delta))
+
+				if transferCallback != nil {
+					transferCallback(totalBytesUploaded, fileLength)
+				}
+			}
+		}
+
+		err = uploadDataObjectChunkToResourceServer(sess, taskID, controlConn, handle, localPath, blockWriteCallback)
 		if err != nil {
 			dnErr := xerrors.Errorf("failed to upload data object chunk %q to resource server: %w", localPath, err)
 			errChan <- dnErr

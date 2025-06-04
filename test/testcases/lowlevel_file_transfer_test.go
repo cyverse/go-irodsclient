@@ -20,6 +20,7 @@ func getLowlevelFileTransferTest() Test {
 func lowlevelFileTransferTest(t *testing.T, test *Test) {
 	t.Run("Upload", testUpload)
 	t.Run("ParallelUploadAndDownload", testParallelUploadAndDownload)
+	t.Run("ParallelUploadAndDownloadWithConnections", testParallelUploadAndDownloadWithConnections)
 }
 
 func testUpload(t *testing.T) {
@@ -58,21 +59,10 @@ func testUpload(t *testing.T) {
 		transferTotal = total
 	}
 
-	connectionsEstablishedMax := 0
-	connectionsEstablishedCurrent := 0
-	connectionCallback := func(established int, released int) {
-		connectionsEstablishedMax += established
-
-		connectionsEstablishedCurrent += established
-		connectionsEstablishedCurrent -= released
-	}
-
-	err = fs.UploadDataObject(sess, localPath, irodsPath, "", false, nil, transferCallBack, connectionCallback)
+	err = fs.UploadDataObject(sess, localPath, irodsPath, "", false, nil, transferCallBack)
 	FailError(t, err)
 	assert.Equal(t, fileSize, transferCurrent)
 	assert.Equal(t, fileSize, transferTotal)
-	assert.Equal(t, 1, connectionsEstablishedMax)
-	assert.Equal(t, 0, connectionsEstablishedCurrent)
 
 	obj, err := fs.GetDataObject(conn, irodsPath)
 	FailError(t, err)
@@ -127,26 +117,11 @@ func testParallelUploadAndDownload(t *testing.T) {
 		transferTotal = total
 	}
 
-	connectionsEstablishedMax := 0
-	connectionsEstablishedCurrent := 0
-	connectionCallback := func(established int, released int) {
-		connectionsEstablishedMax += established
-
-		connectionsEstablishedCurrent += established
-		connectionsEstablishedCurrent -= released
-	}
-
-	err = fs.UploadDataObjectParallel(session, localPath, irodsPath, "", 4, false, nil, transferCallBack, connectionCallback)
+	err = fs.UploadDataObjectParallel(session, localPath, irodsPath, "", 4, false, nil, transferCallBack)
 	FailError(t, err)
 
 	assert.Equal(t, fileSize, transferCurrent)
 	assert.Equal(t, fileSize, transferTotal)
-	if session.SupportParallelUpload() {
-		assert.GreaterOrEqual(t, connectionsEstablishedMax, 4)
-	} else {
-		assert.Equal(t, 1, connectionsEstablishedMax)
-	}
-	assert.Equal(t, 0, connectionsEstablishedCurrent)
 
 	obj, err := fs.GetDataObject(conn, irodsPath)
 	FailError(t, err)
@@ -157,11 +132,9 @@ func testParallelUploadAndDownload(t *testing.T) {
 	// get
 	transferCurrent = int64(0)
 	transferTotal = int64(0)
-	connectionsEstablishedMax = 0
-	connectionsEstablishedCurrent = 0
 
 	newLocalPath := t.TempDir() + "/new_test_large_file.bin"
-	err = fs.DownloadDataObjectParallel(session, irodsPath, "", newLocalPath, fileSize, 4, nil, transferCallBack, connectionCallback)
+	err = fs.DownloadDataObjectParallel(session, obj, "", newLocalPath, 4, nil, transferCallBack)
 	FailError(t, err)
 
 	st, err := os.Stat(newLocalPath)
@@ -169,8 +142,77 @@ func testParallelUploadAndDownload(t *testing.T) {
 	assert.Equal(t, fileSize, st.Size())
 	assert.Equal(t, fileSize, transferCurrent)
 	assert.Equal(t, fileSize, transferTotal)
-	assert.Equal(t, 4, connectionsEstablishedMax)
-	assert.Equal(t, 0, connectionsEstablishedCurrent)
+
+	err = os.Remove(newLocalPath)
+	FailError(t, err)
+
+	// delete
+	err = fs.DeleteDataObject(conn, irodsPath, true)
+	FailError(t, err)
+}
+
+func testParallelUploadAndDownloadWithConnections(t *testing.T) {
+	test := GetCurrentTest()
+	server := test.GetServer()
+	session, err := server.GetSession()
+	FailError(t, err)
+	defer session.Release()
+
+	conn, err := session.AcquireConnection(true)
+	FailError(t, err)
+	defer session.ReturnConnection(conn)
+
+	homeDir := test.GetTestHomeDir()
+
+	// gen very large file
+	filename := "test_large_file.bin"
+	fileSize := int64(300 * 1024 * 1024) // 300MB
+
+	localPath, err := CreateLocalTestFile(t, filename, fileSize)
+	FailError(t, err)
+	defer func() {
+		err = os.Remove(localPath)
+		FailError(t, err)
+	}()
+
+	// upload
+	irodsPath := homeDir + "/" + filename
+
+	transferCurrent := int64(0)
+	transferTotal := int64(0)
+	transferCallBack := func(current int64, total int64) {
+		transferCurrent = current
+		transferTotal = total
+	}
+
+	conns, err := session.AcquireConnectionsMulti(5, false)
+	defer session.ReturnConnectionsMulti(conns)
+
+	err = fs.UploadDataObjectParallelWithConnections(conns, localPath, irodsPath, "", false, nil, transferCallBack)
+	FailError(t, err)
+
+	assert.Equal(t, fileSize, transferCurrent)
+	assert.Equal(t, fileSize, transferTotal)
+
+	obj, err := fs.GetDataObject(conn, irodsPath)
+	FailError(t, err)
+
+	assert.NotEmpty(t, obj.ID)
+	assert.Equal(t, fileSize, obj.Size)
+
+	// get
+	transferCurrent = int64(0)
+	transferTotal = int64(0)
+
+	newLocalPath := t.TempDir() + "/new_test_large_file.bin"
+	err = fs.DownloadDataObjectParallelWithConnections(conns, obj, "", newLocalPath, nil, transferCallBack)
+	FailError(t, err)
+
+	st, err := os.Stat(newLocalPath)
+	FailError(t, err)
+	assert.Equal(t, fileSize, st.Size())
+	assert.Equal(t, fileSize, transferCurrent)
+	assert.Equal(t, fileSize, transferTotal)
 
 	err = os.Remove(newLocalPath)
 	FailError(t, err)

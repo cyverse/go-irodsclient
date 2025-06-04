@@ -57,6 +57,7 @@ type ConnectionConfig struct {
 	OperationTimeout     types.Duration `yaml:"operation_timeout,omitempty" json:"operation_timeout,omitempty"`           // timeout for iRODS operations
 	LongOperationTimeout types.Duration `yaml:"long_operation_timeout,omitempty" json:"long_operation_timeout,omitempty"` // timeout for long iRODS operations
 	TcpBufferSize        int            `yaml:"tcp_buffer_size,omitempty" json:"tcp_buffer_size,omitempty"`               // buffer size
+	WaitConnection       bool           `yaml:"wait_connection,omitempty" json:"wait_connection,omitempty"`               // whether to wait for a connection to be available
 }
 
 // NewDefaultMetadataConnectionConfig creates a default ConnectionConfig for metadata
@@ -71,6 +72,7 @@ func NewDefaultMetadataConnectionConfig() ConnectionConfig {
 		OperationTimeout:     types.Duration(FileSystemOperationTimeout),
 		LongOperationTimeout: types.Duration(FileSystemLongOperationTimeout),
 		TcpBufferSize:        FileSystemTcpBufferSizeDefault,
+		WaitConnection:       true,
 	}
 }
 
@@ -86,6 +88,7 @@ func NewDefaultIOConnectionConfig() ConnectionConfig {
 		OperationTimeout:     types.Duration(FileSystemOperationTimeout),
 		LongOperationTimeout: types.Duration(FileSystemLongOperationTimeout),
 		TcpBufferSize:        FileSystemTcpBufferSizeDefault,
+		WaitConnection:       true,
 	}
 }
 
@@ -129,8 +132,8 @@ func (config *FileSystemConfig) ToMetadataSessionConfig() *session.IRODSSessionC
 		LongOperationTimeout:      time.Duration(config.MetadataConnection.LongOperationTimeout),
 		TcpBufferSize:             config.MetadataConnection.TcpBufferSize,
 		StartNewTransaction:       config.Cache.StartNewTransaction,
-
-		AddressResolver: config.AddressResolver,
+		WaitConnection:            config.MetadataConnection.WaitConnection,
+		AddressResolver:           config.AddressResolver,
 	}
 }
 
@@ -149,7 +152,7 @@ func (config *FileSystemConfig) ToIOSessionConfig() *session.IRODSSessionConfig 
 		LongOperationTimeout:      time.Duration(config.IOConnection.LongOperationTimeout),
 		TcpBufferSize:             config.IOConnection.TcpBufferSize,
 		StartNewTransaction:       config.Cache.StartNewTransaction,
-
-		AddressResolver: config.AddressResolver,
+		WaitConnection:            config.IOConnection.WaitConnection,
+		AddressResolver:           config.AddressResolver,
 	}
 }

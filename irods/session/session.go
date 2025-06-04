@@ -146,12 +146,12 @@ func (sess *IRODSSession) getPendingError() error {
 	return sess.lastConnectionError
 }
 
-// SetConnectionUsageCallback sets connection usage callback
-func (sess *IRODSSession) SetConnectionUsageCallback(callback ConnectionUsageCallback) string {
+// AddConnectionUsageCallback adds connection usage callback
+func (sess *IRODSSession) AddConnectionUsageCallback(callback ConnectionUsageCallback) string {
 	sess.mutex.Lock()
 	defer sess.mutex.Unlock()
 
-	return sess.connectionPool.SetUsageCallback(callback)
+	return sess.connectionPool.AddUsageCallback(callback)
 }
 
 // RemoveConnectionUsageCallback removes connection usage callback
@@ -243,38 +243,28 @@ func (sess *IRODSSession) endTransaction(conn *connection.IRODSConnection) error
 	return xerrors.Errorf("failed to commit/rollback transaction")
 }
 
-func (sess *IRODSSession) createConnectionFromPool(number int, new bool) ([]*connection.IRODSConnection, error) {
-	connections := []*connection.IRODSConnection{}
-	for i := 0; i < number; i++ {
-		if new {
-			conn, err := sess.connectionPool.GetNew()
-			if err != nil {
-				return connections, err
-			}
-
-			connections = append(connections, conn)
-		} else {
-			conn, _, err := sess.connectionPool.Get()
-			if err != nil {
-				return connections, err
-			}
-
-			connections = append(connections, conn)
-		}
+func (sess *IRODSSession) createConnectionFromPool(new bool, wait bool) (*connection.IRODSConnection, error) {
+	conn, _, err := sess.connectionPool.Get(new, wait)
+	if err != nil {
+		return nil, err
 	}
 
-	return connections, nil
+	return conn, nil
 }
 
-func (sess *IRODSSession) acquireConnection(allowShared bool) (*connection.IRODSConnection, error) {
+func (sess *IRODSSession) acquireConnection(new bool, allowShared bool, wait bool) (*connection.IRODSConnection, error) {
 	logger := log.WithFields(log.Fields{
 		"package":  "session",
 		"struct":   "IRODSSession",
 		"function": "acquireConnection",
 	})
 
+	if allowShared {
+		wait = false
+	}
+
 	// try to get it from the pool
-	connections, err := sess.createConnectionFromPool(1, false)
+	conn, err := sess.createConnectionFromPool(new, wait)
 	if err != nil {
 		if !types.IsConnectionPoolFullError(err) {
 			// fail
@@ -291,15 +281,6 @@ func (sess *IRODSSession) acquireConnection(allowShared bool) (*connection.IRODS
 
 		// fall below
 	} else {
-		if len(connections) == 0 {
-			err := xerrors.Errorf("failed to get a connection from the pool")
-			sess.lastConnectionError = err
-			sess.lastConnectionErrorTime = time.Now()
-			return nil, err
-		}
-
-		conn := connections[0]
-
 		// put to share
 		if shares, ok := sess.sharedConnections[conn]; ok {
 			shares++
@@ -344,7 +325,7 @@ func (sess *IRODSSession) acquireConnection(allowShared bool) (*connection.IRODS
 	return minShareConn, nil
 }
 
-// AcquireConnection returns an idle connection
+// AcquireConnection acquires an idle connection
 func (sess *IRODSSession) AcquireConnection(allowShared bool) (*connection.IRODSConnection, error) {
 	sess.mutex.Lock()
 	defer sess.mutex.Unlock()
@@ -355,7 +336,7 @@ func (sess *IRODSSession) AcquireConnection(allowShared bool) (*connection.IRODS
 		return nil, xerrors.Errorf("failed to get a connection from the pool because pending error is found: %w", pendingErr)
 	}
 
-	conn, err := sess.acquireConnection(allowShared)
+	conn, err := sess.acquireConnection(false, allowShared, sess.config.WaitConnection)
 	if err != nil {
 		return nil, err
 	}
@@ -363,7 +344,26 @@ func (sess *IRODSSession) AcquireConnection(allowShared bool) (*connection.IRODS
 	return conn, nil
 }
 
-// AcquireConnectionsMulti returns idle connections
+// AcquireNewConnection acquires a new connection
+func (sess *IRODSSession) AcquireNewConnection(allowShared bool) (*connection.IRODSConnection, error) {
+	sess.mutex.Lock()
+	defer sess.mutex.Unlock()
+
+	// return last error
+	pendingErr := sess.getPendingError()
+	if pendingErr != nil {
+		return nil, xerrors.Errorf("failed to get a connection from the pool because pending error is found: %w", pendingErr)
+	}
+
+	conn, err := sess.acquireConnection(true, allowShared, sess.config.WaitConnection)
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
+}
+
+// AcquireConnectionsMulti acquires multiple idle connections
 func (sess *IRODSSession) AcquireConnectionsMulti(number int, allowShared bool) ([]*connection.IRODSConnection, error) {
 	sess.mutex.Lock()
 	defer sess.mutex.Unlock()
@@ -374,9 +374,18 @@ func (sess *IRODSSession) AcquireConnectionsMulti(number int, allowShared bool) 
 		return nil, xerrors.Errorf("failed to get a connection from the pool because pending error is found: %w", pendingErr)
 	}
 
+	poolFull := false
+	maxConns := sess.connectionPool.GetMaxConnections()
+
+	requestedNum := number
+	if requestedNum > maxConns {
+		requestedNum = maxConns
+		poolFull = true
+	}
+
 	connections := []*connection.IRODSConnection{}
-	for i := 0; i < number; i++ {
-		conn, err := sess.acquireConnection(allowShared)
+	for i := 0; i < requestedNum; i++ {
+		conn, err := sess.acquireConnection(false, allowShared, sess.config.WaitConnection)
 		if err != nil {
 			// return current connections
 			return connections, err
@@ -385,19 +394,18 @@ func (sess *IRODSSession) AcquireConnectionsMulti(number int, allowShared bool) 
 		connections = append(connections, conn)
 	}
 
+	if poolFull {
+		return connections, types.NewConnectionPoolFullError(number, maxConns)
+	}
 	return connections, nil
 }
 
-// ReturnConnection returns an idle connection with transaction close
-func (sess *IRODSSession) ReturnConnection(conn *connection.IRODSConnection) error {
+func (sess *IRODSSession) returnConnection(conn *connection.IRODSConnection) error {
 	logger := log.WithFields(log.Fields{
 		"package":  "session",
 		"struct":   "IRODSSession",
-		"function": "ReturnConnection",
+		"function": "returnConnection",
 	})
-
-	sess.mutex.Lock()
-	defer sess.mutex.Unlock()
 
 	if share, ok := sess.sharedConnections[conn]; ok {
 		share--
@@ -445,6 +453,29 @@ func (sess *IRODSSession) ReturnConnection(conn *connection.IRODSConnection) err
 	}
 
 	return nil
+}
+
+// ReturnConnection returns an idle connection with transaction close
+func (sess *IRODSSession) ReturnConnection(conn *connection.IRODSConnection) error {
+	sess.mutex.Lock()
+	defer sess.mutex.Unlock()
+
+	return sess.returnConnection(conn)
+}
+
+// ReturnConnectionsMulti returns multiple idle connections with transaction close
+func (sess *IRODSSession) ReturnConnectionsMulti(conns []*connection.IRODSConnection) error {
+	var firstErr error
+	for _, conn := range conns {
+		err := sess.returnConnection(conn)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+		}
+	}
+
+	return firstErr
 }
 
 // DiscardConnection discards a connection
@@ -502,7 +533,7 @@ func (sess *IRODSSession) SupportParallelUpload() bool {
 	}
 
 	if !sess.supportParallelUploadSet {
-		conn, _, err := sess.connectionPool.Get()
+		conn, _, err := sess.connectionPool.Get(false, true)
 		if err != nil {
 			if !types.IsConnectionPoolFullError(err) {
 				sess.lastConnectionError = err

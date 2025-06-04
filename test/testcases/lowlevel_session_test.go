@@ -60,6 +60,7 @@ func testMaxConnectionsShared(t *testing.T) {
 	connections := []*connection.IRODSConnection{}
 
 	for i := 0; i < 15; i++ {
+		// allow shared
 		conn, err := sess.AcquireConnection(true)
 		FailError(t, err)
 
@@ -72,6 +73,13 @@ func testMaxConnectionsShared(t *testing.T) {
 		assert.NotEmpty(t, collection.ID)
 	}
 
+	connMap := map[*connection.IRODSConnection]bool{}
+	for _, conn := range connections {
+		connMap[conn] = true
+	}
+
+	assert.Equal(t, 15, len(connections))
+	assert.Equal(t, sess.GetConfig().ConnectionMaxNumber, len(connMap))
 	assert.Equal(t, sess.GetConfig().ConnectionMaxNumber, sess.GetOpenConnections())
 
 	for _, conn := range connections {
@@ -92,12 +100,8 @@ func testMaxConnectionsNotShared(t *testing.T) {
 
 	config := sess.GetConfig()
 	connections, err := sess.AcquireConnectionsMulti(15, false)
-	if 15 < config.ConnectionMaxNumber {
-		FailError(t, err)
-	} else {
-		assert.Error(t, err)
-		assert.True(t, types.IsConnectionPoolFullError(err))
-	}
+	assert.Error(t, err)
+	assert.True(t, types.IsConnectionPoolFullError(err))
 
 	assert.Equal(t, config.ConnectionMaxNumber, len(connections))
 	assert.Equal(t, config.ConnectionMaxNumber, sess.GetOpenConnections())

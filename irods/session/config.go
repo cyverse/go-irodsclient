@@ -64,6 +64,7 @@ type IRODSSessionConfig struct {
 	TcpBufferSize             int
 	StartNewTransaction       bool
 
+	WaitConnection  bool            // if true, wait for a connection to be available when the pool is exhausted
 	AddressResolver AddressResolver // can be nil
 }
 

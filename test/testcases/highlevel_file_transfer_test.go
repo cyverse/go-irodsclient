@@ -46,7 +46,7 @@ func testUploadAndDownload(t *testing.T) {
 
 		irodsPath := homeDir + "/" + filename
 
-		_, err = filesystem.UploadFile(localPath, irodsPath, "", false, true, true, false, nil, nil)
+		_, err = filesystem.UploadFile(localPath, irodsPath, "", false, true, true, false, nil)
 		FailError(t, err)
 
 		entry, err := filesystem.Stat(irodsPath)
@@ -65,7 +65,7 @@ func testUploadAndDownload(t *testing.T) {
 		if test.currentVersion == test_server.IRODS_4_2_8 {
 			compareChecksum = false
 		}
-		_, err = filesystem.DownloadFile(irodsPath, "", newLocalPath, compareChecksum, nil, nil)
+		_, err = filesystem.DownloadFile(irodsPath, "", newLocalPath, compareChecksum, nil)
 		FailError(t, err)
 
 		st, err := os.Stat(newLocalPath)
@@ -102,7 +102,7 @@ func testUploadAndDownloadOverwrite(t *testing.T) {
 		localPath, err := CreateLocalTestFile(t, filename, int64(fileSize))
 		FailError(t, err)
 
-		_, err = filesystem.UploadFile(localPath, irodsPath, "", false, true, true, false, nil, nil)
+		_, err = filesystem.UploadFile(localPath, irodsPath, "", false, true, true, false, nil)
 		FailError(t, err)
 
 		entry, err := filesystem.Stat(irodsPath)
@@ -120,7 +120,7 @@ func testUploadAndDownloadOverwrite(t *testing.T) {
 		if test.currentVersion == test_server.IRODS_4_2_8 {
 			compareChecksum = false
 		}
-		_, err = filesystem.DownloadFile(irodsPath, "", newLocalPath, compareChecksum, nil, nil)
+		_, err = filesystem.DownloadFile(irodsPath, "", newLocalPath, compareChecksum, nil)
 		FailError(t, err)
 
 		st, err := os.Stat(newLocalPath)
@@ -156,7 +156,7 @@ func testUploadAndDownloadParallel(t *testing.T) {
 
 		irodsPath := homeDir + "/" + filename
 
-		_, err = filesystem.UploadFileParallel(localPath, irodsPath, "", 0, false, true, true, false, nil, nil)
+		_, err = filesystem.UploadFileParallel(localPath, irodsPath, "", 0, false, true, true, false, nil)
 		FailError(t, err)
 
 		entry, err := filesystem.Stat(irodsPath)
@@ -175,7 +175,7 @@ func testUploadAndDownloadParallel(t *testing.T) {
 		if test.currentVersion == test_server.IRODS_4_2_8 {
 			compareChecksum = false
 		}
-		_, err = filesystem.DownloadFileParallel(irodsPath, "", newLocalPath, 0, compareChecksum, nil, nil)
+		_, err = filesystem.DownloadFileParallel(irodsPath, "", newLocalPath, 0, compareChecksum, nil)
 		FailError(t, err)
 
 		st, err := os.Stat(newLocalPath)
@@ -212,7 +212,7 @@ func testUploadAndDownloadParallelOverwrite(t *testing.T) {
 		localPath, err := CreateLocalTestFile(t, filename, int64(fileSize))
 		FailError(t, err)
 
-		_, err = filesystem.UploadFileParallel(localPath, irodsPath, "", 0, false, true, true, false, nil, nil)
+		_, err = filesystem.UploadFileParallel(localPath, irodsPath, "", 0, false, true, true, false, nil)
 		FailError(t, err)
 
 		entry, err := filesystem.Stat(irodsPath)
@@ -230,7 +230,7 @@ func testUploadAndDownloadParallelOverwrite(t *testing.T) {
 		if test.currentVersion == test_server.IRODS_4_2_8 {
 			compareChecksum = false
 		}
-		_, err = filesystem.DownloadFileParallel(irodsPath, "", newLocalPath, 0, compareChecksum, nil, nil)
+		_, err = filesystem.DownloadFileParallel(irodsPath, "", newLocalPath, 0, compareChecksum, nil)
 		FailError(t, err)
 
 		st, err := os.Stat(newLocalPath)
@@ -266,7 +266,7 @@ func testUploadAndDownloadRedirectToResource(t *testing.T) {
 
 		irodsPath := homeDir + "/" + filename
 
-		_, err = filesystem.UploadFileRedirectToResource(localPath, irodsPath, "", 0, false, true, true, false, nil, nil, nil)
+		_, err = filesystem.UploadFileRedirectToResource(localPath, irodsPath, "", 0, false, true, true, false, nil)
 		FailError(t, err)
 
 		entry, err := filesystem.Stat(irodsPath)
@@ -285,7 +285,7 @@ func testUploadAndDownloadRedirectToResource(t *testing.T) {
 		if test.currentVersion == test_server.IRODS_4_2_8 {
 			compareChecksum = false
 		}
-		_, err = filesystem.DownloadFileRedirectToResource(irodsPath, "", newLocalPath, 0, compareChecksum, nil, nil, nil)
+		_, err = filesystem.DownloadFileRedirectToResource(irodsPath, "", newLocalPath, 0, compareChecksum, nil)
 		FailError(t, err)
 
 		st, err := os.Stat(newLocalPath)
@@ -322,7 +322,7 @@ func testUploadAndDownloadRedirectToResourceOverwrite(t *testing.T) {
 		localPath, err := CreateLocalTestFile(t, filename, int64(fileSize))
 		FailError(t, err)
 
-		_, err = filesystem.UploadFileRedirectToResource(localPath, irodsPath, "", 0, false, true, true, false, nil, nil, nil)
+		_, err = filesystem.UploadFileRedirectToResource(localPath, irodsPath, "", 0, false, true, true, false, nil)
 		FailError(t, err)
 
 		entry, err := filesystem.Stat(irodsPath)
@@ -340,7 +340,7 @@ func testUploadAndDownloadRedirectToResourceOverwrite(t *testing.T) {
 		if test.currentVersion == test_server.IRODS_4_2_8 {
 			compareChecksum = false
 		}
-		_, err = filesystem.DownloadFileRedirectToResource(irodsPath, "", newLocalPath, 0, compareChecksum, nil, nil, nil)
+		_, err = filesystem.DownloadFileRedirectToResource(irodsPath, "", newLocalPath, 0, compareChecksum, nil)
 		FailError(t, err)
 
 		st, err := os.Stat(newLocalPath)
@@ -376,7 +376,7 @@ func testUploadAndDownload1000sRedirectToResource(t *testing.T) {
 
 		irodsPath := homeDir + "/" + filename
 
-		_, err = filesystem.UploadFileRedirectToResource(localPath, irodsPath, "", 0, false, true, true, false, nil, nil, nil)
+		_, err = filesystem.UploadFileRedirectToResource(localPath, irodsPath, "", 0, false, true, true, false, nil)
 		FailError(t, err)
 
 		entry, err := filesystem.Stat(irodsPath)
@@ -395,7 +395,7 @@ func testUploadAndDownload1000sRedirectToResource(t *testing.T) {
 		if test.currentVersion == test_server.IRODS_4_2_8 {
 			compareChecksum = false
 		}
-		_, err = filesystem.DownloadFileRedirectToResource(irodsPath, "", newLocalPath, 0, compareChecksum, nil, nil, nil)
+		_, err = filesystem.DownloadFileRedirectToResource(irodsPath, "", newLocalPath, 0, compareChecksum, nil)
 		FailError(t, err)
 
 		st, err := os.Stat(newLocalPath)

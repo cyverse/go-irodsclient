@@ -260,13 +260,17 @@ func (conn *IRODSConnection) connectTCP() error {
 
 // Connect connects to iRODS
 func (conn *IRODSConnection) Connect() error {
-	conn.connected = false
-
-	timeout := conn.GetOperationTimeout()
-
 	// lock the connection
 	conn.Lock()
 	defer conn.Unlock()
+
+	return conn.connectInternal()
+}
+
+func (conn *IRODSConnection) connectInternal() error {
+	timeout := conn.GetOperationTimeout()
+
+	conn.connected = false
 
 	// connect TCP
 	err := conn.connectTCP()
@@ -731,6 +735,27 @@ func (conn *IRODSConnection) socketFail() {
 	conn.failed = true
 
 	conn.disconnectNow()
+}
+
+func (conn *IRODSConnection) Reconnect() error {
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	conn.connected = false
+	conn.failed = false
+	conn.isSSLSocket = false
+	conn.socket = nil
+
+	conn.serverVersion = nil
+	conn.sslSharedSecret = nil
+
+	conn.creationTime = time.Now()
+	conn.lastSuccessfulAccess = time.Time{}
+	conn.clientSignature = ""
+	conn.dirtyTransaction = false
+
+	return conn.connectInternal()
 }
 
 // Send sends data

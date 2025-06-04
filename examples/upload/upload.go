@@ -69,7 +69,7 @@ func main() {
 
 	tstart := time.Now()
 
-	result, err := filesystem.UploadFile(srcPath, destPath, "", false, true, true, false, track, nil)
+	result, err := filesystem.UploadFile(srcPath, destPath, "", false, true, true, false, track)
 	if err != nil {
 		logger.Error(err)
 		panic(err)

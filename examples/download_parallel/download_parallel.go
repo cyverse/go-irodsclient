@@ -59,7 +59,7 @@ func main() {
 		panic(err)
 	}
 
-	result, err := filesystem.DownloadFileParallel(srcPath, "", destPath, 0, true, nil, nil)
+	result, err := filesystem.DownloadFileParallel(srcPath, "", destPath, 0, true, nil)
 	if err != nil {
 		logger.Error(err)
 		panic(err)

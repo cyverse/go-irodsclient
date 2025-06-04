@@ -97,7 +97,7 @@ func CreateSampleFilesAndDirs(t *testing.T, server *server.IRODSTestServer, dest
 		}
 
 		irodsPath := dest + "/" + filename
-		_, err = fs.UploadFile(tempPath, irodsPath, "", false, false, false, false, nil, nil)
+		_, err = fs.UploadFile(tempPath, irodsPath, "", false, false, false, false, nil)
 		if err != nil {
 			return nil, nil, xerrors.Errorf("failed to upload a data object: %w", err)
 		}
