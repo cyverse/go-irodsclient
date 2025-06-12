@@ -942,7 +942,6 @@ func SearchDataObjectsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 	}
 
 	pathSqlWildcard := util.UnixWildcardsToSQLWildcards(pathUnixWildcard)
-	// we don't use util.GetBasename() and util.GetDir() as wildcard may have '\' in the path
 	basenameSqlWildcard := path.Base(pathSqlWildcard)
 	dirnameSqlWildcard := path.Dir(pathSqlWildcard)
 
@@ -1184,7 +1183,6 @@ func SearchDataObjectsMasterReplicaUnixWildcard(conn *connection.IRODSConnection
 	}
 
 	pathSqlWildcard := util.UnixWildcardsToSQLWildcards(pathUnixWildcard)
-	// we don't use util.GetBasename() and util.GetDir() as wildcard may have '\' in the path
 	basenameSqlWildcard := path.Base(pathSqlWildcard)
 	dirnameSqlWildcard := path.Dir(pathSqlWildcard)
 

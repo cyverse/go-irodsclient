@@ -11,6 +11,20 @@ import (
 	"golang.org/x/xerrors"
 )
 
+// GetCorrectIRODSPath corrects the path
+func GetCorrectIRODSPath(p string) string {
+	if p == "" || p == "/" {
+		return "/"
+	}
+
+	newPath := path.Clean(p)
+	if !strings.HasPrefix(newPath, "/") {
+		newPath = fmt.Sprintf("/%s", newPath)
+		newPath = path.Clean(newPath)
+	}
+	return newPath
+}
+
 // MakeIRODSPath makes the path from collection and data object
 func MakeIRODSPath(collectionPath string, dataobjectName string) string {
 	if strings.HasSuffix(collectionPath, "/") {
@@ -45,20 +59,6 @@ func GetIRODSZone(p string) (string, error) {
 		return parts[0], nil
 	}
 	return "", xerrors.Errorf("cannot extract Zone from path %q", p)
-}
-
-// GetCorrectIRODSPath corrects the path
-func GetCorrectIRODSPath(p string) string {
-	if p == "" || p == "/" {
-		return "/"
-	}
-
-	newPath := path.Clean(p)
-	if !strings.HasPrefix(newPath, "/") {
-		newPath = fmt.Sprintf("/%s", newPath)
-		newPath = path.Clean(newPath)
-	}
-	return newPath
 }
 
 // GetIRODSPathDepth returns depth of the path

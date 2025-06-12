@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
-	"github.com/cyverse/go-irodsclient/irods/util"
 	"golang.org/x/xerrors"
 )
 
@@ -52,21 +52,20 @@ func (status *DataObjectTransferStatus) Validate(path string, size int64, thread
 
 // IsDataObjectTransferStatusFile checks if the file is transfer status file
 func IsDataObjectTransferStatusFile(p string) bool {
-	filename := util.GetBasename(p)
+	filename := filepath.Base(p)
 	return strings.HasPrefix(filename, DataObjectTransferStatusFilePrefix) && strings.HasSuffix(filename, DataObjectTransferStatusFileSuffix)
 }
 
 // GetDataObjectTransferStatusFilePath returns transfer status file path
 func GetDataObjectTransferStatusFilePath(p string) string {
-	dir := util.GetDir(p)
-	filename := util.GetBasename(p)
+	dir, filename := filepath.Split(p)
 	if strings.HasPrefix(filename, DataObjectTransferStatusFilePrefix) && strings.HasSuffix(filename, DataObjectTransferStatusFileSuffix) {
 		// p is status file
 		return p
 	}
 
 	statusFilename := fmt.Sprintf("%s%s%s", DataObjectTransferStatusFilePrefix, filename, DataObjectTransferStatusFileSuffix)
-	return util.Join(dir, statusFilename)
+	return filepath.Join(dir, statusFilename)
 }
 
 // NewDataObjectTransferStatus creates new DataObjectTransferStatus
