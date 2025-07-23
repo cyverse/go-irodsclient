@@ -46,7 +46,7 @@ func testUpload(t *testing.T) {
 		FailError(t, err)
 	}()
 
-	localHash, err := util.HashLocalFile(localPath, string(types.ChecksumAlgorithmSHA256))
+	localHash, err := util.HashLocalFile(localPath, string(types.ChecksumAlgorithmSHA256), nil)
 	FailError(t, err)
 
 	// upload
@@ -54,9 +54,12 @@ func testUpload(t *testing.T) {
 
 	transferCurrent := int64(0)
 	transferTotal := int64(0)
-	transferCallBack := func(current int64, total int64) {
-		transferCurrent = current
-		transferTotal = total
+
+	transferCallBack := func(taskName string, current int64, total int64) {
+		if taskName == "upload" || taskName == "download" {
+			transferCurrent = current
+			transferTotal = total
+		}
 	}
 
 	err = fs.UploadDataObject(sess, localPath, irodsPath, "", false, nil, transferCallBack)
@@ -112,9 +115,12 @@ func testParallelUploadAndDownload(t *testing.T) {
 
 	transferCurrent := int64(0)
 	transferTotal := int64(0)
-	transferCallBack := func(current int64, total int64) {
-		transferCurrent = current
-		transferTotal = total
+
+	transferCallBack := func(taskName string, current int64, total int64) {
+		if taskName == "upload" || taskName == "download" {
+			transferCurrent = current
+			transferTotal = total
+		}
 	}
 
 	err = fs.UploadDataObjectParallel(session, localPath, irodsPath, "", 4, false, nil, transferCallBack)
@@ -180,9 +186,12 @@ func testParallelUploadAndDownloadWithConnections(t *testing.T) {
 
 	transferCurrent := int64(0)
 	transferTotal := int64(0)
-	transferCallBack := func(current int64, total int64) {
-		transferCurrent = current
-		transferTotal = total
+
+	transferCallBack := func(taskName string, current int64, total int64) {
+		if taskName == "upload" || taskName == "download" {
+			transferCurrent = current
+			transferTotal = total
+		}
 	}
 
 	conns, err := session.AcquireConnectionsMulti(5, false)

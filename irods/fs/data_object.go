@@ -2308,13 +2308,13 @@ func WriteDataObjectAsyncWithTrackerCallBack(conn *connection.IRODSConnection, h
 				Response: &message.IRODSMessageWriteDataObjectResponse{},
 				BsBuffer: nil,
 				Timeout:  conn.GetOperationTimeout(),
-				RequestCallback: func(processed int64, total int64) {
+				RequestCallback: func(taskName string, processed int64, total int64) {
 					// callback
 					if processed > 0 && processed == total {
 						// update
 						curProcessed += processed
 						if callback != nil {
-							callback(curProcessed, totalDataSize)
+							callback("write", curProcessed, totalDataSize)
 						}
 					}
 				},

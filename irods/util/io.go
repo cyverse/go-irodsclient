@@ -44,7 +44,7 @@ func ReadBytesWithTrackerCallBack(socket net.Conn, buffer []byte, size int, call
 			actualRead += sizeRead
 
 			if callback != nil {
-				callback(int64(actualRead), int64(totalSizeToRead))
+				callback("read", int64(actualRead), int64(totalSizeToRead))
 			}
 		}
 
@@ -78,7 +78,7 @@ func WriteBytesWithTrackerCallBack(socket net.Conn, buffer []byte, size int, cal
 			actualWrite += sizeWrite
 
 			if callback != nil {
-				callback(int64(actualWrite), int64(totalSizeToSend))
+				callback("write", int64(actualWrite), int64(totalSizeToSend))
 			}
 		}
 

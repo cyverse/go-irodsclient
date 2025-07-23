@@ -62,9 +62,9 @@ func main() {
 
 	fmt.Printf("upload start")
 
-	track := func(processed int64, total int64) {
+	track := func(taskName string, processed int64, total int64) {
 		pt := (float64(processed) / float64(total)) * 100
-		fmt.Printf("%d / %d ==> %f%%\n", processed, total, pt)
+		fmt.Printf("%s: %d / %d ==> %f%%\n", taskName, processed, total, pt)
 	}
 
 	tstart := time.Now()

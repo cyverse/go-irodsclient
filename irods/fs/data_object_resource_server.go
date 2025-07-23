@@ -239,7 +239,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 
 	totalBytesDownloaded := int64(0)
 	if transferCallback != nil {
-		transferCallback(totalBytesDownloaded, -1)
+		transferCallback("download", totalBytesDownloaded, -1)
 	}
 
 	cont := true
@@ -339,7 +339,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 
 					atomic.AddInt64(&totalBytesDownloaded, int64(decryptedDataLen))
 					if transferCallback != nil {
-						transferCallback(totalBytesDownloaded, -1)
+						transferCallback("download", totalBytesDownloaded, -1)
 					}
 
 					_, writeErr := f.WriteAt(dataBuffer[:decryptedDataLen], curOffset)
@@ -380,7 +380,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 				if readLen > 0 {
 					atomic.AddInt64(&totalBytesDownloaded, readLen)
 					if transferCallback != nil {
-						transferCallback(totalBytesDownloaded, -1)
+						transferCallback("download", totalBytesDownloaded, -1)
 					}
 
 					toGet -= int64(readLen)
@@ -452,7 +452,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 
 	totalBytesUploaded := int64(0)
 	if transferCallback != nil {
-		transferCallback(totalBytesUploaded, -1)
+		transferCallback("upload", totalBytesUploaded, -1)
 	}
 
 	cont := true
@@ -571,7 +571,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 
 				atomic.AddInt64(&totalBytesUploaded, int64(readLen))
 				if transferCallback != nil {
-					transferCallback(totalBytesUploaded, -1)
+					transferCallback("upload", totalBytesUploaded, -1)
 				}
 
 				toPut -= int64(readLen)
@@ -597,7 +597,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 				if putLen > 0 {
 					atomic.AddInt64(&totalBytesUploaded, putLen)
 					if transferCallback != nil {
-						transferCallback(totalBytesUploaded, -1)
+						transferCallback("upload", totalBytesUploaded, -1)
 					}
 
 					toPut -= putLen
@@ -711,7 +711,7 @@ func DownloadDataObjectFromResourceServer(sess *session.IRODSSession, dataObject
 
 	totalBytesDownloaded := int64(0)
 	if transferCallback != nil {
-		transferCallback(totalBytesDownloaded, dataObject.Size)
+		transferCallback("download", totalBytesDownloaded, dataObject.Size)
 	}
 
 	// task progress
@@ -722,7 +722,7 @@ func DownloadDataObjectFromResourceServer(sess *session.IRODSSession, dataObject
 
 		defer taskWaitGroup.Done()
 
-		blockReadCallback := func(processed int64, total int64) {
+		blockReadCallback := func(taskName string, processed int64, total int64) {
 			if processed > 0 {
 				delta := processed - taskProgress[taskID]
 				taskProgress[taskID] = processed
@@ -730,7 +730,7 @@ func DownloadDataObjectFromResourceServer(sess *session.IRODSSession, dataObject
 				atomic.AddInt64(&totalBytesDownloaded, int64(delta))
 
 				if transferCallback != nil {
-					transferCallback(totalBytesDownloaded, dataObject.Size)
+					transferCallback(taskName, totalBytesDownloaded, dataObject.Size)
 				}
 			}
 		}
@@ -820,7 +820,7 @@ func DownloadDataObjectFromResourceServerWithConnection(sess *session.IRODSSessi
 
 	totalBytesDownloaded := int64(0)
 	if transferCallback != nil {
-		transferCallback(totalBytesDownloaded, dataObject.Size)
+		transferCallback("download", totalBytesDownloaded, dataObject.Size)
 	}
 
 	// task progress
@@ -831,7 +831,7 @@ func DownloadDataObjectFromResourceServerWithConnection(sess *session.IRODSSessi
 
 		defer taskWaitGroup.Done()
 
-		blockReadCallback := func(processed int64, total int64) {
+		blockReadCallback := func(taskName string, processed int64, total int64) {
 			if processed > 0 {
 				delta := processed - taskProgress[taskID]
 				taskProgress[taskID] = processed
@@ -839,7 +839,7 @@ func DownloadDataObjectFromResourceServerWithConnection(sess *session.IRODSSessi
 				atomic.AddInt64(&totalBytesDownloaded, int64(delta))
 
 				if transferCallback != nil {
-					transferCallback(totalBytesDownloaded, dataObject.Size)
+					transferCallback(taskName, totalBytesDownloaded, dataObject.Size)
 				}
 			}
 		}
@@ -951,7 +951,7 @@ func UploadDataObjectToResourceServer(sess *session.IRODSSession, localPath stri
 
 	totalBytesUploaded := int64(0)
 	if transferCallback != nil {
-		transferCallback(totalBytesUploaded, fileLength)
+		transferCallback("upload", totalBytesUploaded, fileLength)
 	}
 
 	// task progress
@@ -962,7 +962,7 @@ func UploadDataObjectToResourceServer(sess *session.IRODSSession, localPath stri
 
 		defer taskWaitGroup.Done()
 
-		blockWriteCallback := func(processed int64, total int64) {
+		blockWriteCallback := func(taskName string, processed int64, total int64) {
 			if processed > 0 {
 				delta := processed - taskProgress[taskID]
 				taskProgress[taskID] = processed
@@ -970,7 +970,7 @@ func UploadDataObjectToResourceServer(sess *session.IRODSSession, localPath stri
 				atomic.AddInt64(&totalBytesUploaded, int64(delta))
 
 				if transferCallback != nil {
-					transferCallback(totalBytesUploaded, fileLength)
+					transferCallback(taskName, totalBytesUploaded, fileLength)
 				}
 			}
 		}
@@ -1059,7 +1059,7 @@ func UploadDataObjectToResourceServerWithConnection(sess *session.IRODSSession, 
 
 	totalBytesUploaded := int64(0)
 	if transferCallback != nil {
-		transferCallback(totalBytesUploaded, fileLength)
+		transferCallback("upload", totalBytesUploaded, fileLength)
 	}
 
 	// task progress
@@ -1070,7 +1070,7 @@ func UploadDataObjectToResourceServerWithConnection(sess *session.IRODSSession, 
 
 		defer taskWaitGroup.Done()
 
-		blockWriteCallback := func(processed int64, total int64) {
+		blockWriteCallback := func(taskName string, processed int64, total int64) {
 			if processed > 0 {
 				delta := processed - taskProgress[taskID]
 				taskProgress[taskID] = processed
@@ -1078,7 +1078,7 @@ func UploadDataObjectToResourceServerWithConnection(sess *session.IRODSSession, 
 				atomic.AddInt64(&totalBytesUploaded, int64(delta))
 
 				if transferCallback != nil {
-					transferCallback(totalBytesUploaded, fileLength)
+					transferCallback(taskName, totalBytesUploaded, fileLength)
 				}
 			}
 		}
