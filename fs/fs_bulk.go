@@ -1076,22 +1076,27 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 		return fileTransferResult, err
 	}
 
+	fileTransferResult.IRODSCheckSumAlgorithm = entry.CheckSumAlgorithm
+	fileTransferResult.IRODSCheckSum = entry.CheckSum
+	fileTransferResult.IRODSSize = entry.Size
+
 	if verifyChecksum {
 		if len(fileTransferResult.LocalCheckSumAlgorithm) > 0 && fileTransferResult.LocalCheckSumAlgorithm != entry.CheckSumAlgorithm {
 			// different algorithm was used
-			_, hashBytes, err := fs.calculateLocalFileHash(localSrcPath, entry.CheckSumAlgorithm, transferCallback)
+			_, hash, err := fs.calculateLocalFileHash(localSrcPath, entry.CheckSumAlgorithm, transferCallback)
 			if err != nil {
 				return fileTransferResult, xerrors.Errorf("failed to get hash of %q: %w", localSrcPath, err)
 			}
 
 			fileTransferResult.LocalCheckSumAlgorithm = entry.CheckSumAlgorithm
-			fileTransferResult.LocalCheckSum = hashBytes
+			fileTransferResult.LocalCheckSum = hash
+
+			if !bytes.Equal(entry.CheckSum, hash) {
+				return fileTransferResult, xerrors.Errorf("checksum verification failed, upload failed")
+			}
 		}
 	}
 
-	fileTransferResult.IRODSCheckSumAlgorithm = entry.CheckSumAlgorithm
-	fileTransferResult.IRODSCheckSum = entry.CheckSum
-	fileTransferResult.IRODSSize = entry.Size
 	fileTransferResult.EndTime = time.Now()
 
 	return fileTransferResult, nil
@@ -1195,22 +1200,27 @@ func (fs *FileSystem) UploadFileWithConnection(conn *connection.IRODSConnection,
 		return fileTransferResult, err
 	}
 
+	fileTransferResult.IRODSCheckSumAlgorithm = entry.CheckSumAlgorithm
+	fileTransferResult.IRODSCheckSum = entry.CheckSum
+	fileTransferResult.IRODSSize = entry.Size
+
 	if verifyChecksum {
 		if len(fileTransferResult.LocalCheckSumAlgorithm) > 0 && fileTransferResult.LocalCheckSumAlgorithm != entry.CheckSumAlgorithm {
 			// different algorithm was used
-			_, hashBytes, err := fs.calculateLocalFileHash(localSrcPath, entry.CheckSumAlgorithm, transferCallback)
+			_, hash, err := fs.calculateLocalFileHash(localSrcPath, entry.CheckSumAlgorithm, transferCallback)
 			if err != nil {
 				return fileTransferResult, xerrors.Errorf("failed to get hash of %q: %w", localSrcPath, err)
 			}
 
 			fileTransferResult.LocalCheckSumAlgorithm = entry.CheckSumAlgorithm
-			fileTransferResult.LocalCheckSum = hashBytes
+			fileTransferResult.LocalCheckSum = hash
+
+			if !bytes.Equal(entry.CheckSum, hash) {
+				return fileTransferResult, xerrors.Errorf("checksum verification failed, upload failed")
+			}
 		}
 	}
 
-	fileTransferResult.IRODSCheckSumAlgorithm = entry.CheckSumAlgorithm
-	fileTransferResult.IRODSCheckSum = entry.CheckSum
-	fileTransferResult.IRODSSize = entry.Size
 	fileTransferResult.EndTime = time.Now()
 
 	return fileTransferResult, nil
@@ -1298,22 +1308,27 @@ func (fs *FileSystem) UploadFileFromBuffer(buffer *bytes.Buffer, irodsPath strin
 		return fileTransferResult, err
 	}
 
+	fileTransferResult.IRODSCheckSumAlgorithm = entry.CheckSumAlgorithm
+	fileTransferResult.IRODSCheckSum = entry.CheckSum
+	fileTransferResult.IRODSSize = entry.Size
+
 	if verifyChecksum {
 		if len(fileTransferResult.LocalCheckSumAlgorithm) > 0 && fileTransferResult.LocalCheckSumAlgorithm != entry.CheckSumAlgorithm {
 			// different algorithm was used
-			_, hashBytes, err := fs.calculateBufferHash(buffer, entry.CheckSumAlgorithm, transferCallback)
+			_, hash, err := fs.calculateBufferHash(buffer, entry.CheckSumAlgorithm, transferCallback)
 			if err != nil {
 				return fileTransferResult, xerrors.Errorf("failed to get hash of buffer data: %w", err)
 			}
 
 			fileTransferResult.LocalCheckSumAlgorithm = entry.CheckSumAlgorithm
-			fileTransferResult.LocalCheckSum = hashBytes
+			fileTransferResult.LocalCheckSum = hash
+
+			if !bytes.Equal(entry.CheckSum, hash) {
+				return fileTransferResult, xerrors.Errorf("checksum verification failed, upload failed")
+			}
 		}
 	}
 
-	fileTransferResult.IRODSCheckSumAlgorithm = entry.CheckSumAlgorithm
-	fileTransferResult.IRODSCheckSum = entry.CheckSum
-	fileTransferResult.IRODSSize = entry.Size
 	fileTransferResult.EndTime = time.Now()
 
 	return fileTransferResult, nil
@@ -1401,22 +1416,27 @@ func (fs *FileSystem) UploadFileFromBufferWithConnection(conn *connection.IRODSC
 		return fileTransferResult, err
 	}
 
+	fileTransferResult.IRODSCheckSumAlgorithm = entry.CheckSumAlgorithm
+	fileTransferResult.IRODSCheckSum = entry.CheckSum
+	fileTransferResult.IRODSSize = entry.Size
+
 	if verifyChecksum {
 		if len(fileTransferResult.LocalCheckSumAlgorithm) > 0 && fileTransferResult.LocalCheckSumAlgorithm != entry.CheckSumAlgorithm {
 			// different algorithm was used
-			_, hashBytes, err := fs.calculateBufferHash(buffer, entry.CheckSumAlgorithm, transferCallback)
+			_, hash, err := fs.calculateBufferHash(buffer, entry.CheckSumAlgorithm, transferCallback)
 			if err != nil {
 				return fileTransferResult, xerrors.Errorf("failed to get hash of buffer data: %w", err)
 			}
 
 			fileTransferResult.LocalCheckSumAlgorithm = entry.CheckSumAlgorithm
-			fileTransferResult.LocalCheckSum = hashBytes
+			fileTransferResult.LocalCheckSum = hash
+
+			if !bytes.Equal(entry.CheckSum, hash) {
+				return fileTransferResult, xerrors.Errorf("checksum verification failed, upload failed")
+			}
 		}
 	}
 
-	fileTransferResult.IRODSCheckSumAlgorithm = entry.CheckSumAlgorithm
-	fileTransferResult.IRODSCheckSum = entry.CheckSum
-	fileTransferResult.IRODSSize = entry.Size
 	fileTransferResult.EndTime = time.Now()
 
 	return fileTransferResult, nil
@@ -1520,22 +1540,27 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 		return fileTransferResult, err
 	}
 
+	fileTransferResult.IRODSCheckSumAlgorithm = entry.CheckSumAlgorithm
+	fileTransferResult.IRODSCheckSum = entry.CheckSum
+	fileTransferResult.IRODSSize = entry.Size
+
 	if verifyChecksum {
 		if len(fileTransferResult.LocalCheckSumAlgorithm) > 0 && fileTransferResult.LocalCheckSumAlgorithm != entry.CheckSumAlgorithm {
 			// different algorithm was used
-			_, hashBytes, err := fs.calculateLocalFileHash(localSrcPath, entry.CheckSumAlgorithm, transferCallback)
+			_, hash, err := fs.calculateLocalFileHash(localSrcPath, entry.CheckSumAlgorithm, transferCallback)
 			if err != nil {
 				return fileTransferResult, xerrors.Errorf("failed to get hash of %q: %w", localSrcPath, err)
 			}
 
 			fileTransferResult.LocalCheckSumAlgorithm = entry.CheckSumAlgorithm
-			fileTransferResult.LocalCheckSum = hashBytes
+			fileTransferResult.LocalCheckSum = hash
+
+			if !bytes.Equal(entry.CheckSum, hash) {
+				return fileTransferResult, xerrors.Errorf("checksum verification failed, upload failed")
+			}
 		}
 	}
 
-	fileTransferResult.IRODSCheckSumAlgorithm = entry.CheckSumAlgorithm
-	fileTransferResult.IRODSCheckSum = entry.CheckSum
-	fileTransferResult.IRODSSize = entry.Size
 	fileTransferResult.EndTime = time.Now()
 
 	return fileTransferResult, nil
@@ -1639,22 +1664,27 @@ func (fs *FileSystem) UploadFileParallelWithConnections(conns []*connection.IROD
 		return fileTransferResult, err
 	}
 
+	fileTransferResult.IRODSCheckSumAlgorithm = entry.CheckSumAlgorithm
+	fileTransferResult.IRODSCheckSum = entry.CheckSum
+	fileTransferResult.IRODSSize = entry.Size
+
 	if verifyChecksum {
 		if len(fileTransferResult.LocalCheckSumAlgorithm) > 0 && fileTransferResult.LocalCheckSumAlgorithm != entry.CheckSumAlgorithm {
 			// different algorithm was used
-			_, hashBytes, err := fs.calculateLocalFileHash(localSrcPath, entry.CheckSumAlgorithm, transferCallback)
+			_, hash, err := fs.calculateLocalFileHash(localSrcPath, entry.CheckSumAlgorithm, transferCallback)
 			if err != nil {
 				return fileTransferResult, xerrors.Errorf("failed to get hash of %q: %w", localSrcPath, err)
 			}
 
 			fileTransferResult.LocalCheckSumAlgorithm = entry.CheckSumAlgorithm
-			fileTransferResult.LocalCheckSum = hashBytes
+			fileTransferResult.LocalCheckSum = hash
+
+			if !bytes.Equal(entry.CheckSum, hash) {
+				return fileTransferResult, xerrors.Errorf("checksum verification failed, upload failed")
+			}
 		}
 	}
 
-	fileTransferResult.IRODSCheckSumAlgorithm = entry.CheckSumAlgorithm
-	fileTransferResult.IRODSCheckSum = entry.CheckSum
-	fileTransferResult.IRODSSize = entry.Size
 	fileTransferResult.EndTime = time.Now()
 
 	return fileTransferResult, nil
@@ -1758,22 +1788,27 @@ func (fs *FileSystem) UploadFileRedirectToResource(localPath string, irodsPath s
 		return fileTransferResult, err
 	}
 
+	fileTransferResult.IRODSCheckSumAlgorithm = entry.CheckSumAlgorithm
+	fileTransferResult.IRODSCheckSum = entry.CheckSum
+	fileTransferResult.IRODSSize = entry.Size
+
 	if verifyChecksum {
 		if len(fileTransferResult.LocalCheckSumAlgorithm) > 0 && fileTransferResult.LocalCheckSumAlgorithm != entry.CheckSumAlgorithm {
 			// different algorithm was used
-			_, hashBytes, err := fs.calculateLocalFileHash(localSrcPath, entry.CheckSumAlgorithm, transferCallback)
+			_, hash, err := fs.calculateLocalFileHash(localSrcPath, entry.CheckSumAlgorithm, transferCallback)
 			if err != nil {
 				return fileTransferResult, xerrors.Errorf("failed to get hash of %q: %w", localSrcPath, err)
 			}
 
 			fileTransferResult.LocalCheckSumAlgorithm = entry.CheckSumAlgorithm
-			fileTransferResult.LocalCheckSum = hashBytes
+			fileTransferResult.LocalCheckSum = hash
+
+			if !bytes.Equal(entry.CheckSum, hash) {
+				return fileTransferResult, xerrors.Errorf("checksum verification failed, upload failed")
+			}
 		}
 	}
 
-	fileTransferResult.IRODSCheckSumAlgorithm = entry.CheckSumAlgorithm
-	fileTransferResult.IRODSCheckSum = entry.CheckSum
-	fileTransferResult.IRODSSize = entry.Size
 	fileTransferResult.EndTime = time.Now()
 
 	return fileTransferResult, nil
@@ -1877,22 +1912,27 @@ func (fs *FileSystem) UploadFileRedirectToResourceWithConnection(controlConn *co
 		return fileTransferResult, err
 	}
 
+	fileTransferResult.IRODSCheckSumAlgorithm = entry.CheckSumAlgorithm
+	fileTransferResult.IRODSCheckSum = entry.CheckSum
+	fileTransferResult.IRODSSize = entry.Size
+
 	if verifyChecksum {
 		if len(fileTransferResult.LocalCheckSumAlgorithm) > 0 && fileTransferResult.LocalCheckSumAlgorithm != entry.CheckSumAlgorithm {
 			// different algorithm was used
-			_, hashBytes, err := fs.calculateLocalFileHash(localSrcPath, entry.CheckSumAlgorithm, transferCallback)
+			_, hash, err := fs.calculateLocalFileHash(localSrcPath, entry.CheckSumAlgorithm, transferCallback)
 			if err != nil {
 				return fileTransferResult, xerrors.Errorf("failed to get hash of %q: %w", localSrcPath, err)
 			}
 
 			fileTransferResult.LocalCheckSumAlgorithm = entry.CheckSumAlgorithm
-			fileTransferResult.LocalCheckSum = hashBytes
+			fileTransferResult.LocalCheckSum = hash
+
+			if !bytes.Equal(entry.CheckSum, hash) {
+				return fileTransferResult, xerrors.Errorf("checksum verification failed, upload failed")
+			}
 		}
 	}
 
-	fileTransferResult.IRODSCheckSumAlgorithm = entry.CheckSumAlgorithm
-	fileTransferResult.IRODSCheckSum = entry.CheckSum
-	fileTransferResult.IRODSSize = entry.Size
 	fileTransferResult.EndTime = time.Now()
 
 	return fileTransferResult, nil
