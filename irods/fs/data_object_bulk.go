@@ -452,6 +452,14 @@ func UploadDataObjectParallel(sess *session.IRODSSession, localPath string, irod
 	}
 
 	uploadTask := func(taskID int, transferConn *connection.IRODSConnection, taskOffset int64, taskLength int64) {
+		taskLogger := log.WithFields(log.Fields{
+			"package":  "fs",
+			"function": "UploadDataObjectParallel",
+			"task":     taskID,
+		})
+
+		taskLogger.Debugf("uploading data object %q for task %d, offset %d, length %d", irodsPath, taskID, taskOffset, taskLength)
+
 		// close transfer connection after use
 		defer func() {
 			sess.DiscardConnection(transferConn)
@@ -644,6 +652,14 @@ func UploadDataObjectParallelWithConnections(conns []*connection.IRODSConnection
 	}
 
 	uploadTask := func(taskID int, transferConn *connection.IRODSConnection, taskOffset int64, taskLength int64) {
+		taskLogger := log.WithFields(log.Fields{
+			"package":  "fs",
+			"function": "UploadDataObjectParallelWithConnections",
+			"task":     taskID,
+		})
+
+		taskLogger.Debugf("uploading data object %q for task %d, offset %d, length %d", irodsPath, taskID, taskOffset, taskLength)
+
 		defer taskWaitGroup.Done()
 
 		// open the file with read-write mode
@@ -1001,6 +1017,8 @@ func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IR
 			"task":     taskID,
 		})
 
+		taskLogger.Debugf("downloading data object %q for task %d, offset %d, length %d", dataObject.Path, taskID, taskOffset, taskLength)
+
 		// close transfer connection after use
 		defer func() {
 			sess.ReturnConnection(transferConn)
@@ -1223,6 +1241,8 @@ func DownloadDataObjectParallelWithConnections(conns []*connection.IRODSConnecti
 			"function": "DownloadDataObjectParallel",
 			"task":     taskID,
 		})
+
+		taskLogger.Debugf("downloading data object %q for task %d, offset %d, length %d", dataObject.Path, taskID, taskOffset, taskLength)
 
 		defer taskWaitGroup.Done()
 
@@ -1476,6 +1496,8 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 			"function": "DownloadDataObjectParallelResumable",
 			"task":     taskID,
 		})
+
+		taskLogger.Debugf("downloading data object %q for task %d, offset %d, length %d", dataObject.Path, taskID, taskOffset, taskLength)
 
 		// close transfer connection after use
 		defer func() {
@@ -1750,6 +1772,8 @@ func DownloadDataObjectParallelResumableWithConnections(conns []*connection.IROD
 			"function": "DownloadDataObjectParallelResumable",
 			"task":     taskID,
 		})
+
+		taskLogger.Debugf("downloading data object %q for task %d, offset %d, length %d", dataObject.Path, taskID, taskOffset, taskLength)
 
 		defer taskWaitGroup.Done()
 
