@@ -1665,8 +1665,6 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 					lastOffset += int64(bytesRead)
 				}
 
-				taskLogger.Debugf("downloaded %d bytes in a block, read err %v", bytesRead, attemptReadErr)
-
 				if attemptReadErr != nil {
 					if attemptReadErr == io.EOF {
 						return nil
