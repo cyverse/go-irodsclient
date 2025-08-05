@@ -25,11 +25,7 @@ func (test *Test) GetTestHomeDir() string {
 }
 
 func (test *Test) MakeTestHomeDir() error {
-	logger := log.WithFields(log.Fields{
-		"package":  "testcases",
-		"struct":   "Test",
-		"function": "MakeTestHomeDir",
-	})
+	logger := log.WithFields(log.Fields{})
 
 	fs, err := test.server.GetFileSystem()
 	if err != nil {

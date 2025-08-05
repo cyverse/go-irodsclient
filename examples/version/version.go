@@ -11,10 +11,7 @@ import (
 )
 
 func main() {
-	logger := log.WithFields(log.Fields{
-		"package":  "main",
-		"function": "main",
-	})
+	logger := log.WithFields(log.Fields{})
 
 	logger.Logger.SetLevel(log.DebugLevel)
 

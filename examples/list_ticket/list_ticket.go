@@ -10,10 +10,7 @@ import (
 )
 
 func main() {
-	logger := log.WithFields(log.Fields{
-		"package":  "main",
-		"function": "main",
-	})
+	logger := log.WithFields(log.Fields{})
 
 	// Read account configuration from YAML file
 	cfg, err := config.NewConfigFromYAMLFile(config.GetDefaultConfig(), "account.yml")

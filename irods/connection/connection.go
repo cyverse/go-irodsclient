@@ -193,9 +193,7 @@ func (conn *IRODSConnection) IsTransactionDirty() bool {
 // setSocketOpt sets socket opts
 func (conn *IRODSConnection) setSocketOpt(socket net.Conn, bufferSize int) {
 	logger := log.WithFields(log.Fields{
-		"package":  "connection",
-		"struct":   "IRODSConnection",
-		"function": "setSocketOpt",
+		"buffer_size": bufferSize,
 	})
 
 	if tcpSocket, ok := socket.(*net.TCPConn); ok {
@@ -224,11 +222,7 @@ func (conn *IRODSConnection) setSocketOpt(socket net.Conn, bufferSize int) {
 }
 
 func (conn *IRODSConnection) connectTCP() error {
-	logger := log.WithFields(log.Fields{
-		"package":  "connection",
-		"struct":   "IRODSConnection",
-		"function": "connectTCP",
-	})
+	logger := log.WithFields(log.Fields{})
 
 	server := fmt.Sprintf("%s:%d", conn.account.Host, conn.account.Port)
 	logger.Debugf("Connecting to %s", server)
@@ -354,11 +348,7 @@ func (conn *IRODSConnection) connectInternal() error {
 }
 
 func (conn *IRODSConnection) startup() (*types.IRODSVersion, error) {
-	logger := log.WithFields(log.Fields{
-		"package":  "connection",
-		"struct":   "IRODSConnection",
-		"function": "startup",
-	})
+	logger := log.WithFields(log.Fields{})
 
 	clientPolicy := types.CSNegotiationPolicyRequestTCP
 	if conn.requiresCSNegotiation() {
@@ -467,11 +457,7 @@ func (conn *IRODSConnection) startup() (*types.IRODSVersion, error) {
 }
 
 func (conn *IRODSConnection) sslStartup() error {
-	logger := log.WithFields(log.Fields{
-		"package":  "connection",
-		"struct":   "IRODSConnection",
-		"function": "sslStartup",
-	})
+	logger := log.WithFields(log.Fields{})
 
 	logger.Debug("Start up SSL")
 
@@ -556,11 +542,7 @@ func (conn *IRODSConnection) login(password string) error {
 }
 
 func (conn *IRODSConnection) loginNative() error {
-	logger := log.WithFields(log.Fields{
-		"package":  "connection",
-		"struct":   "IRODSConnection",
-		"function": "loginNative",
-	})
+	logger := log.WithFields(log.Fields{})
 
 	logger.Debug("Logging in using native authentication method")
 	return conn.login(conn.account.Password)
@@ -577,11 +559,7 @@ func (conn *IRODSConnection) getSafePAMPassword(password string) string {
 }
 
 func (conn *IRODSConnection) loginPAMWithPassword() error {
-	logger := log.WithFields(log.Fields{
-		"package":  "connection",
-		"struct":   "IRODSConnection",
-		"function": "loginPAMWithPassword",
-	})
+	logger := log.WithFields(log.Fields{})
 
 	logger.Debug("Logging in using pam authentication method")
 
@@ -646,11 +624,7 @@ func (conn *IRODSConnection) loginPAMWithPassword() error {
 }
 
 func (conn *IRODSConnection) loginPAMWithToken() error {
-	logger := log.WithFields(log.Fields{
-		"package":  "connection",
-		"struct":   "IRODSConnection",
-		"function": "loginPAMWithToken",
-	})
+	logger := log.WithFields(log.Fields{})
 
 	logger.Debug("Logging in using pam authentication method")
 
@@ -701,11 +675,7 @@ func (conn *IRODSConnection) disconnectNow() error {
 
 // Disconnect disconnects
 func (conn *IRODSConnection) Disconnect() error {
-	logger := log.WithFields(log.Fields{
-		"package":  "connection",
-		"struct":   "IRODSConnection",
-		"function": "Disconnect",
-	})
+	logger := log.WithFields(log.Fields{})
 
 	logger.Debug("Disconnecting the connection")
 

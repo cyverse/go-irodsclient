@@ -109,11 +109,7 @@ func NewProductionIRODSServer(version IRODSTestServerVersion) (*IRODSTestServer,
 }
 
 func (server *IRODSTestServer) Start() error {
-	logger := log.WithFields(log.Fields{
-		"package":  "server",
-		"stsruct":  "IRODSTestServer",
-		"function": "Start",
-	})
+	logger := log.WithFields(log.Fields{})
 
 	if len(server.DockerComposePath) == 0 {
 		// Production server

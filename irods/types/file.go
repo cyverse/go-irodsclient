@@ -89,10 +89,7 @@ func (mode FileOpenMode) SeekToEnd() bool {
 
 // GetFlagSeekToEnd returns file open flag and returns true if file pointer moves to the file end
 func (mode FileOpenMode) GetFlagSeekToEnd() (int, bool) {
-	logger := log.WithFields(log.Fields{
-		"package":  "types",
-		"function": "GetFileOpenFlagSeekToEnd",
-	})
+	logger := log.WithFields(log.Fields{})
 
 	switch mode {
 	case FileOpenModeReadOnly:

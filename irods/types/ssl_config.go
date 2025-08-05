@@ -64,9 +64,7 @@ type IRODSSSLConfig struct {
 // LoadCACert loads CA Cert
 func (config *IRODSSSLConfig) LoadCACert(ignoreWrongFile bool) (*x509.CertPool, error) {
 	logger := log.WithFields(log.Fields{
-		"package":  "types",
-		"struct":   "IRODSSSLConfig",
-		"function": "LoadCACert",
+		"ignore_wrong_file": ignoreWrongFile,
 	})
 
 	if len(config.CACertificateFile) > 0 {

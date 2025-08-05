@@ -128,9 +128,7 @@ func (conn *IRODSResourceServerConnection) GetLastSuccessfulAccess() time.Time {
 // setSocketOpt sets socket opts
 func (conn *IRODSResourceServerConnection) setSocketOpt(socket net.Conn, bufferSize int) {
 	logger := log.WithFields(log.Fields{
-		"package":  "connection",
-		"struct":   "IRODSResourceServerConnection",
-		"function": "setSocketOpt",
+		"buffer_size": bufferSize,
 	})
 
 	if tcpSocket, ok := socket.(*net.TCPConn); ok {
@@ -160,11 +158,7 @@ func (conn *IRODSResourceServerConnection) setSocketOpt(socket net.Conn, bufferS
 
 // Connect connects to iRODS
 func (conn *IRODSResourceServerConnection) Connect() error {
-	logger := log.WithFields(log.Fields{
-		"package":  "connection",
-		"struct":   "IRODSResourceServerConnection",
-		"function": "Connect",
-	})
+	logger := log.WithFields(log.Fields{})
 
 	conn.connected = false
 
@@ -249,11 +243,7 @@ func (conn *IRODSResourceServerConnection) disconnectNow() error {
 
 // Disconnect disconnects
 func (conn *IRODSResourceServerConnection) Disconnect() error {
-	logger := log.WithFields(log.Fields{
-		"package":  "connection",
-		"struct":   "IRODSResourceServerConnection",
-		"function": "Disconnect",
-	})
+	logger := log.WithFields(log.Fields{})
 
 	logger.Debug("Disconnecting the connection")
 

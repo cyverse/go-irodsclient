@@ -187,11 +187,7 @@ func (sess *IRODSSession) SetPoormansRollbackFail(poormansRollbackFail bool) {
 
 // endTransaction ends transaction
 func (sess *IRODSSession) endTransaction(conn *connection.IRODSConnection) error {
-	logger := log.WithFields(log.Fields{
-		"package":  "session",
-		"struct":   "IRODSSession",
-		"function": "endTransaction",
-	})
+	logger := log.WithFields(log.Fields{})
 
 	// Each irods connection automatically starts a database transaction at initial setup.
 	// All queries against irods using a connection will give results corresponding to the time
@@ -254,9 +250,9 @@ func (sess *IRODSSession) createConnectionFromPool(new bool, wait bool) (*connec
 
 func (sess *IRODSSession) acquireConnection(new bool, allowShared bool, wait bool) (*connection.IRODSConnection, error) {
 	logger := log.WithFields(log.Fields{
-		"package":  "session",
-		"struct":   "IRODSSession",
-		"function": "acquireConnection",
+		"new":          new,
+		"allow_shared": allowShared,
+		"wait":         wait,
 	})
 
 	if allowShared {
@@ -401,11 +397,7 @@ func (sess *IRODSSession) AcquireConnectionsMulti(number int, allowShared bool) 
 }
 
 func (sess *IRODSSession) returnConnection(conn *connection.IRODSConnection) error {
-	logger := log.WithFields(log.Fields{
-		"package":  "session",
-		"struct":   "IRODSSession",
-		"function": "returnConnection",
-	})
+	logger := log.WithFields(log.Fields{})
 
 	if share, ok := sess.sharedConnections[conn]; ok {
 		share--
@@ -518,10 +510,7 @@ func (sess *IRODSSession) Release() {
 
 // SupportParallelUpload returns if parallel upload is supported
 func (sess *IRODSSession) SupportParallelUpload() bool {
-	logger := log.WithFields(log.Fields{
-		"package":  "session",
-		"function": "SupportParallelUpload",
-	})
+	logger := log.WithFields(log.Fields{})
 
 	sess.mutex.Lock()
 	defer sess.mutex.Unlock()

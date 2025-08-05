@@ -193,11 +193,7 @@ func (pool *ConnectionPool) RemoveUsageCallback(id string) {
 }
 
 func (pool *ConnectionPool) init() error {
-	logger := log.WithFields(log.Fields{
-		"package":  "session",
-		"struct":   "ConnectionPool",
-		"function": "init",
-	})
+	logger := log.WithFields(log.Fields{})
 
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
@@ -241,9 +237,7 @@ func (pool *ConnectionPool) init() error {
 
 func (pool *ConnectionPool) get(new bool) (*connection.IRODSConnection, bool, error) {
 	logger := log.WithFields(log.Fields{
-		"package":  "session",
-		"struct":   "ConnectionPool",
-		"function": "get",
+		"new": new,
 	})
 
 	maxConn := pool.getMaxConnectionsReal()
@@ -364,11 +358,7 @@ func (pool *ConnectionPool) Get(new bool, wait bool) (*connection.IRODSConnectio
 
 // Return returns the connection after use
 func (pool *ConnectionPool) Return(conn *connection.IRODSConnection) error {
-	logger := log.WithFields(log.Fields{
-		"package":  "session",
-		"struct":   "ConnectionPool",
-		"function": "Return",
-	})
+	logger := log.WithFields(log.Fields{})
 
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
