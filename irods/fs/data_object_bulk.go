@@ -1018,6 +1018,7 @@ func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IR
 	taskWaitGroup := sync.WaitGroup{}
 
 	currentBytesDownloaded := make([]int64, numTasks)
+	bytesDownloaded := make([]int64, numTasks)
 	totalBytesDownloaded := int64(0)
 	if transferCallback != nil {
 		transferCallback("download", atomic.LoadInt64(&totalBytesDownloaded), dataObject.Size)
@@ -1035,6 +1036,7 @@ func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IR
 		taskLogger.Debug("downloading data object partition")
 
 		atomic.StoreInt64(&currentBytesDownloaded[taskID], 0)
+		atomic.StoreInt64(&bytesDownloaded[taskID], 0)
 
 		// close transfer connection after use
 		defer func() {
@@ -1051,12 +1053,11 @@ func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IR
 
 		lastOffset := int64(taskOffset)
 
-		calcProgress := func(processed int64) {
-			atomic.StoreInt64(&currentBytesDownloaded[taskID], processed)
-
+		calcProgress := func() {
 			newTotal := int64(0)
 			for i := 0; i < numTasks; i++ {
 				newTotal += atomic.LoadInt64(&currentBytesDownloaded[i])
+				newTotal += atomic.LoadInt64(&bytesDownloaded[i])
 			}
 
 			atomic.StoreInt64(&totalBytesDownloaded, newTotal)
@@ -1064,7 +1065,8 @@ func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IR
 
 		blockReadCallback := func(taskName string, processed int64, total int64) {
 			if processed > 0 {
-				calcProgress(processed)
+				atomic.StoreInt64(&currentBytesDownloaded[taskID], processed)
+				calcProgress()
 
 				if transferCallback != nil {
 					transferCallback("download", atomic.LoadInt64(&totalBytesDownloaded), dataObject.Size)
@@ -1121,7 +1123,10 @@ func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IR
 						return xerrors.Errorf("failed to write to file %q from task %d: %w", localPath, taskID, attemptWriteErr)
 					}
 
-					calcProgress(int64(bytesRead))
+					atomic.StoreInt64(&currentBytesDownloaded[taskID], 0)
+					atomic.AddInt64(&bytesDownloaded[taskID], int64(bytesRead))
+
+					calcProgress()
 
 					if transferCallback != nil {
 						transferCallback("download", atomic.LoadInt64(&totalBytesDownloaded), dataObject.Size)
@@ -1252,6 +1257,7 @@ func DownloadDataObjectParallelWithConnections(conns []*connection.IRODSConnecti
 	taskWaitGroup := sync.WaitGroup{}
 
 	currentBytesDownloaded := make([]int64, numTasks)
+	bytesDownloaded := make([]int64, numTasks)
 	totalBytesDownloaded := int64(0)
 	if transferCallback != nil {
 		transferCallback("download", atomic.LoadInt64(&totalBytesDownloaded), dataObject.Size)
@@ -1269,6 +1275,7 @@ func DownloadDataObjectParallelWithConnections(conns []*connection.IRODSConnecti
 		taskLogger.Debug("downloading data object partition")
 
 		atomic.StoreInt64(&currentBytesDownloaded[taskID], 0)
+		atomic.StoreInt64(&bytesDownloaded[taskID], 0)
 
 		defer taskWaitGroup.Done()
 
@@ -1281,12 +1288,11 @@ func DownloadDataObjectParallelWithConnections(conns []*connection.IRODSConnecti
 
 		lastOffset := int64(taskOffset)
 
-		calcProgress := func(processed int64) {
-			atomic.StoreInt64(&currentBytesDownloaded[taskID], processed)
-
+		calcProgress := func() {
 			newTotal := int64(0)
 			for i := 0; i < numTasks; i++ {
 				newTotal += atomic.LoadInt64(&currentBytesDownloaded[i])
+				newTotal += atomic.LoadInt64(&bytesDownloaded[i])
 			}
 
 			atomic.StoreInt64(&totalBytesDownloaded, newTotal)
@@ -1294,7 +1300,8 @@ func DownloadDataObjectParallelWithConnections(conns []*connection.IRODSConnecti
 
 		blockReadCallback := func(taskName string, processed int64, total int64) {
 			if processed > 0 {
-				calcProgress(processed)
+				atomic.StoreInt64(&currentBytesDownloaded[taskID], processed)
+				calcProgress()
 
 				if transferCallback != nil {
 					transferCallback("download", atomic.LoadInt64(&totalBytesDownloaded), dataObject.Size)
@@ -1351,7 +1358,10 @@ func DownloadDataObjectParallelWithConnections(conns []*connection.IRODSConnecti
 						return xerrors.Errorf("failed to write to file %q from task %d: %w", localPath, taskID, attemptWriteErr)
 					}
 
-					calcProgress(int64(bytesRead))
+					atomic.StoreInt64(&currentBytesDownloaded[taskID], 0)
+					atomic.AddInt64(&bytesDownloaded[taskID], int64(bytesRead))
+
+					calcProgress()
 
 					if transferCallback != nil {
 						transferCallback("download", atomic.LoadInt64(&totalBytesDownloaded), dataObject.Size)
@@ -1517,6 +1527,7 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 	taskWaitGroup := sync.WaitGroup{}
 
 	currentBytesDownloaded := make([]int64, numTasks)
+	bytesDownloaded := make([]int64, numTasks)
 	totalBytesDownloaded := int64(0)
 	if transferCallback != nil {
 		transferCallback("download", atomic.LoadInt64(&totalBytesDownloaded), dataObject.Size)
@@ -1534,6 +1545,7 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 		taskLogger.Debug("downloading data object partition")
 
 		atomic.StoreInt64(&currentBytesDownloaded[taskID], 0)
+		atomic.StoreInt64(&bytesDownloaded[taskID], 0)
 
 		// close transfer connection after use
 		defer func() {
@@ -1557,12 +1569,11 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 			}
 		}
 
-		calcProgress := func(processed int64) {
-			atomic.StoreInt64(&currentBytesDownloaded[taskID], processed)
-
+		calcProgress := func() {
 			newTotal := int64(0)
 			for i := 0; i < numTasks; i++ {
 				newTotal += atomic.LoadInt64(&currentBytesDownloaded[i])
+				newTotal += atomic.LoadInt64(&bytesDownloaded[i])
 			}
 
 			atomic.StoreInt64(&totalBytesDownloaded, newTotal)
@@ -1570,7 +1581,8 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 
 		blockReadCallback := func(taskName string, processed int64, total int64) {
 			if processed > 0 {
-				calcProgress(processed)
+				atomic.StoreInt64(&currentBytesDownloaded[taskID], processed)
+				calcProgress()
 
 				if transferCallback != nil {
 					transferCallback("download", atomic.LoadInt64(&totalBytesDownloaded), dataObject.Size)
@@ -1579,7 +1591,8 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 		}
 
 		if lastOffset-taskOffset > 0 {
-			blockReadCallback("download", lastOffset-taskOffset, taskLength)
+			atomic.AddInt64(&bytesDownloaded[taskID], lastOffset-taskOffset)
+			calcProgress()
 		}
 
 		taskRemain := taskLength - (lastOffset - taskOffset)
@@ -1631,7 +1644,10 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 						return xerrors.Errorf("failed to write to file %q from task %d: %w", localPath, taskID, attemptWriteErr)
 					}
 
-					calcProgress(int64(bytesRead))
+					atomic.StoreInt64(&currentBytesDownloaded[taskID], 0)
+					atomic.AddInt64(&bytesDownloaded[taskID], int64(bytesRead))
+
+					calcProgress()
 
 					// write status
 					transferStatusEntry := &DataObjectTransferStatusEntry{
@@ -1648,6 +1664,8 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 					taskRemain -= int64(bytesRead)
 					lastOffset += int64(bytesRead)
 				}
+
+				taskLogger.Debugf("downloaded %d bytes in a block, read err %v", bytesRead, attemptReadErr)
 
 				if attemptReadErr != nil {
 					if attemptReadErr == io.EOF {
@@ -1799,6 +1817,7 @@ func DownloadDataObjectParallelResumableWithConnections(conns []*connection.IROD
 	taskWaitGroup := sync.WaitGroup{}
 
 	currentBytesDownloaded := make([]int64, numTasks)
+	bytesDownloaded := make([]int64, numTasks)
 	totalBytesDownloaded := int64(0)
 	if transferCallback != nil {
 		transferCallback("download", atomic.LoadInt64(&totalBytesDownloaded), dataObject.Size)
@@ -1816,6 +1835,7 @@ func DownloadDataObjectParallelResumableWithConnections(conns []*connection.IROD
 		taskLogger.Debug("downloading data object partition")
 
 		atomic.StoreInt64(&currentBytesDownloaded[taskID], 0)
+		atomic.StoreInt64(&bytesDownloaded[taskID], 0)
 
 		defer taskWaitGroup.Done()
 
@@ -1835,12 +1855,11 @@ func DownloadDataObjectParallelResumableWithConnections(conns []*connection.IROD
 			}
 		}
 
-		calcProgress := func(processed int64) {
-			atomic.StoreInt64(&currentBytesDownloaded[taskID], processed)
-
+		calcProgress := func() {
 			newTotal := int64(0)
 			for i := 0; i < numTasks; i++ {
 				newTotal += atomic.LoadInt64(&currentBytesDownloaded[i])
+				newTotal += atomic.LoadInt64(&bytesDownloaded[i])
 			}
 
 			atomic.StoreInt64(&totalBytesDownloaded, newTotal)
@@ -1848,7 +1867,8 @@ func DownloadDataObjectParallelResumableWithConnections(conns []*connection.IROD
 
 		blockReadCallback := func(taskName string, processed int64, total int64) {
 			if processed > 0 {
-				calcProgress(processed)
+				atomic.StoreInt64(&currentBytesDownloaded[taskID], processed)
+				calcProgress()
 
 				if transferCallback != nil {
 					transferCallback("download", atomic.LoadInt64(&totalBytesDownloaded), dataObject.Size)
@@ -1857,7 +1877,8 @@ func DownloadDataObjectParallelResumableWithConnections(conns []*connection.IROD
 		}
 
 		if lastOffset-taskOffset > 0 {
-			blockReadCallback("download", lastOffset-taskOffset, taskLength)
+			atomic.AddInt64(&bytesDownloaded[taskID], lastOffset-taskOffset)
+			calcProgress()
 		}
 
 		taskRemain := taskLength - (lastOffset - taskOffset)
@@ -1909,7 +1930,10 @@ func DownloadDataObjectParallelResumableWithConnections(conns []*connection.IROD
 						return xerrors.Errorf("failed to write to file %q from task %d: %w", localPath, taskID, attemptWriteErr)
 					}
 
-					calcProgress(int64(bytesRead))
+					atomic.StoreInt64(&currentBytesDownloaded[taskID], 0)
+					atomic.AddInt64(&bytesDownloaded[taskID], int64(bytesRead))
+
+					calcProgress()
 
 					// write status
 					transferStatusEntry := &DataObjectTransferStatusEntry{

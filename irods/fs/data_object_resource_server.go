@@ -711,28 +711,36 @@ func DownloadDataObjectFromResourceServer(sess *session.IRODSSession, dataObject
 	errChan := make(chan error, numTasks)
 	taskWaitGroup := sync.WaitGroup{}
 
+	currentBytesDownloaded := make([]int64, numTasks)
+	bytesDownloaded := make([]int64, numTasks)
 	totalBytesDownloaded := int64(0)
 	if transferCallback != nil {
 		transferCallback("download", totalBytesDownloaded, dataObject.Size)
 	}
 
-	// task progress
-	taskProgress := make([]int64, numTasks)
-
 	downloadTask := func(taskID int) {
-		taskProgress[taskID] = 0
+		atomic.StoreInt64(&currentBytesDownloaded[taskID], 0)
+		atomic.StoreInt64(&bytesDownloaded[taskID], 0)
 
 		defer taskWaitGroup.Done()
 
+		calcProgress := func() {
+			newTotal := int64(0)
+			for i := 0; i < numTasks; i++ {
+				newTotal += atomic.LoadInt64(&currentBytesDownloaded[i])
+				newTotal += atomic.LoadInt64(&bytesDownloaded[i])
+			}
+
+			atomic.StoreInt64(&totalBytesDownloaded, newTotal)
+		}
+
 		blockReadCallback := func(taskName string, processed int64, total int64) {
 			if processed > 0 {
-				delta := processed - taskProgress[taskID]
-				taskProgress[taskID] = processed
-
-				atomic.AddInt64(&totalBytesDownloaded, int64(delta))
+				atomic.StoreInt64(&currentBytesDownloaded[taskID], processed)
+				calcProgress()
 
 				if transferCallback != nil {
-					transferCallback(taskName, totalBytesDownloaded, dataObject.Size)
+					transferCallback(taskName, atomic.LoadInt64(&totalBytesDownloaded), dataObject.Size)
 				}
 			}
 		}
@@ -822,28 +830,36 @@ func DownloadDataObjectFromResourceServerWithConnection(sess *session.IRODSSessi
 	errChan := make(chan error, numTasks)
 	taskWaitGroup := sync.WaitGroup{}
 
+	currentBytesDownloaded := make([]int64, numTasks)
+	bytesDownloaded := make([]int64, numTasks)
 	totalBytesDownloaded := int64(0)
 	if transferCallback != nil {
 		transferCallback("download", totalBytesDownloaded, dataObject.Size)
 	}
 
-	// task progress
-	taskProgress := make([]int64, numTasks)
-
 	downloadTask := func(taskID int) {
-		taskProgress[taskID] = 0
+		atomic.StoreInt64(&currentBytesDownloaded[taskID], 0)
+		atomic.StoreInt64(&bytesDownloaded[taskID], 0)
 
 		defer taskWaitGroup.Done()
 
+		calcProgress := func() {
+			newTotal := int64(0)
+			for i := 0; i < numTasks; i++ {
+				newTotal += atomic.LoadInt64(&currentBytesDownloaded[i])
+				newTotal += atomic.LoadInt64(&bytesDownloaded[i])
+			}
+
+			atomic.StoreInt64(&totalBytesDownloaded, newTotal)
+		}
+
 		blockReadCallback := func(taskName string, processed int64, total int64) {
 			if processed > 0 {
-				delta := processed - taskProgress[taskID]
-				taskProgress[taskID] = processed
-
-				atomic.AddInt64(&totalBytesDownloaded, int64(delta))
+				atomic.StoreInt64(&currentBytesDownloaded[taskID], processed)
+				calcProgress()
 
 				if transferCallback != nil {
-					transferCallback(taskName, totalBytesDownloaded, dataObject.Size)
+					transferCallback(taskName, atomic.LoadInt64(&totalBytesDownloaded), dataObject.Size)
 				}
 			}
 		}
@@ -954,28 +970,36 @@ func UploadDataObjectToResourceServer(sess *session.IRODSSession, localPath stri
 	errChan := make(chan error, handle.Threads)
 	taskWaitGroup := sync.WaitGroup{}
 
+	currentBytesUploaded := make([]int64, handle.Threads)
+	bytesUploaded := make([]int64, handle.Threads)
 	totalBytesUploaded := int64(0)
 	if transferCallback != nil {
 		transferCallback("upload", totalBytesUploaded, fileLength)
 	}
 
-	// task progress
-	taskProgress := make([]int64, handle.Threads)
-
 	uploadTask := func(taskID int) {
-		taskProgress[taskID] = 0
+		atomic.StoreInt64(&currentBytesUploaded[taskID], 0)
+		atomic.StoreInt64(&bytesUploaded[taskID], 0)
 
 		defer taskWaitGroup.Done()
 
+		calcProgress := func() {
+			newTotal := int64(0)
+			for i := 0; i < numTasks; i++ {
+				newTotal += atomic.LoadInt64(&currentBytesUploaded[i])
+				newTotal += atomic.LoadInt64(&bytesUploaded[i])
+			}
+
+			atomic.StoreInt64(&totalBytesUploaded, newTotal)
+		}
+
 		blockWriteCallback := func(taskName string, processed int64, total int64) {
 			if processed > 0 {
-				delta := processed - taskProgress[taskID]
-				taskProgress[taskID] = processed
-
-				atomic.AddInt64(&totalBytesUploaded, int64(delta))
+				atomic.StoreInt64(&currentBytesUploaded[taskID], processed)
+				calcProgress()
 
 				if transferCallback != nil {
-					transferCallback(taskName, totalBytesUploaded, fileLength)
+					transferCallback(taskName, atomic.LoadInt64(&totalBytesUploaded), fileLength)
 				}
 			}
 		}
@@ -1065,25 +1089,33 @@ func UploadDataObjectToResourceServerWithConnection(sess *session.IRODSSession, 
 	errChan := make(chan error, numTasks)
 	taskWaitGroup := sync.WaitGroup{}
 
+	currentBytesUploaded := make([]int64, handle.Threads)
+	bytesUploaded := make([]int64, handle.Threads)
 	totalBytesUploaded := int64(0)
 	if transferCallback != nil {
 		transferCallback("upload", totalBytesUploaded, fileLength)
 	}
 
-	// task progress
-	taskProgress := make([]int64, numTasks)
-
 	uploadTask := func(taskID int) {
-		taskProgress[taskID] = 0
+		atomic.StoreInt64(&currentBytesUploaded[taskID], 0)
+		atomic.StoreInt64(&bytesUploaded[taskID], 0)
 
 		defer taskWaitGroup.Done()
 
+		calcProgress := func() {
+			newTotal := int64(0)
+			for i := 0; i < numTasks; i++ {
+				newTotal += atomic.LoadInt64(&currentBytesUploaded[i])
+				newTotal += atomic.LoadInt64(&bytesUploaded[i])
+			}
+
+			atomic.StoreInt64(&totalBytesUploaded, newTotal)
+		}
+
 		blockWriteCallback := func(taskName string, processed int64, total int64) {
 			if processed > 0 {
-				delta := processed - taskProgress[taskID]
-				taskProgress[taskID] = processed
-
-				atomic.AddInt64(&totalBytesUploaded, int64(delta))
+				atomic.StoreInt64(&currentBytesUploaded[taskID], processed)
+				calcProgress()
 
 				if transferCallback != nil {
 					transferCallback(taskName, totalBytesUploaded, fileLength)
