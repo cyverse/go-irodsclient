@@ -152,6 +152,72 @@ func IsAuthError(err error) bool {
 	return errors.Is(err, &AuthError{})
 }
 
+// AuthOperationNotFoundError contains auth operation not found error information
+type AuthOperationNotFoundError struct {
+	OperationName string
+}
+
+// NewAuthOperationNotFoundError creates an auth operation not found error
+func NewAuthOperationNotFoundError(operationName string) error {
+	return &AuthOperationNotFoundError{
+		OperationName: operationName,
+	}
+}
+
+// Error returns error message
+func (err *AuthOperationNotFoundError) Error() string {
+	return fmt.Sprintf("auth operation not found (operation name: %q)", err.OperationName)
+}
+
+// Is tests type of error
+func (err *AuthOperationNotFoundError) Is(other error) bool {
+	_, ok := other.(*AuthOperationNotFoundError)
+	return ok
+}
+
+// ToString stringifies the object
+func (err *AuthOperationNotFoundError) ToString() string {
+	return "<AuthOperationNotFoundError>"
+}
+
+// IsAuthOperationNotFoundError evaluates if the given error is auth operation not found error
+func IsAuthOperationNotFoundError(err error) bool {
+	return errors.Is(err, &AuthOperationNotFoundError{})
+}
+
+// AuthFlowError contains auth flow error information
+type AuthFlowError struct {
+	Message string
+}
+
+// NewAuthFlowError creates an auth flow error
+func NewAuthFlowError(msg string) error {
+	return &AuthFlowError{
+		Message: msg,
+	}
+}
+
+// Error returns error message
+func (err *AuthFlowError) Error() string {
+	return fmt.Sprintf("auth flow error: %q", err.Message)
+}
+
+// Is tests type of error
+func (err *AuthFlowError) Is(other error) bool {
+	_, ok := other.(*AuthFlowError)
+	return ok
+}
+
+// ToString stringifies the object
+func (err *AuthFlowError) ToString() string {
+	return "<AuthFlowError>"
+}
+
+// IsAuthFlowError evaluates if the given error is auth flow error
+func IsAuthFlowError(err error) bool {
+	return errors.Is(err, &AuthFlowError{})
+}
+
 // ConnectionPoolFullError contains connection pool full error information
 type ConnectionPoolFullError struct {
 	Occupied int

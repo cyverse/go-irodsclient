@@ -8,12 +8,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/message"
 	"github.com/cyverse/go-irodsclient/irods/metrics"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
-	"golang.org/x/xerrors"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -35,11 +35,13 @@ type IRODSResourceServerConnection struct {
 // NewIRODSResourceServerConnection create a IRODSResourceServerConnection
 func NewIRODSResourceServerConnection(controlConnection *IRODSConnection, redirectionInfo *types.IRODSRedirectionInfo, config *IRODSResourceServerConnectionConfig) (*IRODSResourceServerConnection, error) {
 	if controlConnection == nil {
-		return nil, xerrors.Errorf("control connection is not set: %w", types.NewResourceServerConnectionConfigError(nil))
+		newErr := types.NewResourceServerConnectionConfigError(nil)
+		return nil, errors.Wrapf(newErr, "control connection is not set")
 	}
 
 	if redirectionInfo == nil {
-		return nil, xerrors.Errorf("redirection info is not set: %w", types.NewResourceServerConnectionConfigError(nil))
+		newErr := types.NewResourceServerConnectionConfigError(nil)
+		return nil, errors.Wrapf(newErr, "redirection info is not set")
 	}
 
 	if config == nil {
@@ -143,13 +145,13 @@ func (conn *IRODSResourceServerConnection) setSocketOpt(socket net.Conn, bufferS
 		if bufferSize > 0 {
 			sockErr := tcpSocket.SetReadBuffer(bufferSize)
 			if sockErr != nil {
-				sockBuffErr := xerrors.Errorf("failed to set tcp read buffer size %d: %w", bufferSize, sockErr)
+				sockBuffErr := errors.Wrapf(sockErr, "failed to set tcp read buffer size %d", bufferSize)
 				logger.Errorf("%+v", sockBuffErr)
 			}
 
 			sockErr = tcpSocket.SetWriteBuffer(bufferSize)
 			if sockErr != nil {
-				sockBuffErr := xerrors.Errorf("failed to set tcp write buffer size %d: %w", bufferSize, sockErr)
+				sockBuffErr := errors.Wrapf(sockErr, "failed to set tcp write buffer size %d", bufferSize)
 				logger.Errorf("%+v", sockBuffErr)
 			}
 		}
@@ -176,7 +178,8 @@ func (conn *IRODSResourceServerConnection) Connect() error {
 
 	socket, err := dialer.DialContext(ctx, "tcp", server)
 	if err != nil {
-		connErr := xerrors.Errorf("failed to connect to specified host %q and port %d (%s): %w", conn.serverInfo.Host, conn.serverInfo.Port, err.Error(), types.NewConnectionError())
+		newErr := errors.Join(err, types.NewConnectionError())
+		connErr := errors.Wrapf(newErr, "failed to connect to specified host %q and port %d", conn.serverInfo.Host, conn.serverInfo.Port)
 
 		if conn.config.Metrics != nil {
 			conn.config.Metrics.IncreaseCounterForConnectionFailures(1)
@@ -195,7 +198,8 @@ func (conn *IRODSResourceServerConnection) Connect() error {
 	auth := message.NewIRODSMessageResourceServerAuth(conn.serverInfo)
 	authBytes, err := auth.GetBytes()
 	if err != nil {
-		connErr := xerrors.Errorf("failed to make authentication request (%s): %w", err.Error(), types.NewConnectionError())
+		newErr := errors.Join(err, types.NewConnectionError())
+		connErr := errors.Wrapf(newErr, "failed to make authentication request")
 		_ = conn.disconnectNow()
 		if conn.config.Metrics != nil {
 			conn.config.Metrics.IncreaseCounterForConnectionFailures(1)
@@ -207,7 +211,7 @@ func (conn *IRODSResourceServerConnection) Connect() error {
 
 	err = conn.Send(authBytes, len(authBytes), &timeout.RequestTimeout)
 	if err != nil {
-		authErr := xerrors.Errorf("failed to send authentication request to server %q and port %d: %w", conn.serverInfo.Host, conn.serverInfo.Port, err)
+		authErr := errors.Wrapf(err, "failed to send authentication request to server %q and port %d", conn.serverInfo.Host, conn.serverInfo.Port)
 		_ = conn.disconnectNow()
 		if conn.config.Metrics != nil {
 			conn.config.Metrics.IncreaseCounterForConnectionFailures(1)
@@ -238,7 +242,7 @@ func (conn *IRODSResourceServerConnection) disconnectNow() error {
 		return nil
 	}
 
-	return xerrors.Errorf("failed to close socket: %w", err)
+	return errors.Wrapf(err, "failed to close socket")
 }
 
 // Disconnect disconnects
@@ -277,11 +281,11 @@ func (conn *IRODSResourceServerConnection) Send(buffer []byte, size int, timeout
 // SendWithTrackerCallBack sends data
 func (conn *IRODSResourceServerConnection) SendWithTrackerCallBack(buffer []byte, size int, timeout *time.Duration, callback common.TransferTrackerCallback) error {
 	if conn.socket == nil {
-		return xerrors.Errorf("failed to send data - socket closed")
+		return errors.Errorf("failed to send data - socket closed")
 	}
 
 	if !conn.locked {
-		return xerrors.Errorf("connection must be locked before use")
+		return errors.Errorf("connection must be locked before use")
 	}
 
 	if timeout != nil {
@@ -291,7 +295,7 @@ func (conn *IRODSResourceServerConnection) SendWithTrackerCallBack(buffer []byte
 	err := util.WriteBytesWithTrackerCallBack(conn.socket, buffer, size, callback)
 	if err != nil {
 		conn.socketFail()
-		return xerrors.Errorf("failed to send data: %w", err)
+		return errors.Wrapf(err, "failed to send data")
 	}
 
 	if size > 0 {
@@ -308,11 +312,11 @@ func (conn *IRODSResourceServerConnection) SendWithTrackerCallBack(buffer []byte
 // SendFromReader sends data from Reader
 func (conn *IRODSResourceServerConnection) SendFromReader(src io.Reader, size int64, timeout *time.Duration) (int64, error) {
 	if conn.socket == nil {
-		return 0, xerrors.Errorf("failed to send data - socket closed")
+		return 0, errors.Errorf("failed to send data - socket closed")
 	}
 
 	if !conn.locked {
-		return 0, xerrors.Errorf("connection must be locked before use")
+		return 0, errors.Errorf("connection must be locked before use")
 	}
 
 	if timeout != nil {
@@ -332,7 +336,7 @@ func (conn *IRODSResourceServerConnection) SendFromReader(src io.Reader, size in
 		}
 
 		conn.socketFail()
-		return copyLen, xerrors.Errorf("failed to send data (req: %d, sent: %d): %w", size, copyLen, err)
+		return copyLen, errors.Wrapf(err, "failed to send data (req: %d, sent: %d)", size, copyLen)
 	}
 
 	conn.lastSuccessfulAccess = time.Now()
@@ -348,11 +352,11 @@ func (conn *IRODSResourceServerConnection) Recv(buffer []byte, size int, timeout
 // RecvWithTrackerCallBack receives a message
 func (conn *IRODSResourceServerConnection) RecvWithTrackerCallBack(buffer []byte, size int, timeout *time.Duration, callback common.TransferTrackerCallback) (int, error) {
 	if conn.socket == nil {
-		return 0, xerrors.Errorf("failed to receive data - socket closed")
+		return 0, errors.Errorf("failed to receive data - socket closed")
 	}
 
 	if !conn.locked {
-		return 0, xerrors.Errorf("connection must be locked before use")
+		return 0, errors.Errorf("connection must be locked before use")
 	}
 
 	if timeout != nil {
@@ -374,7 +378,7 @@ func (conn *IRODSResourceServerConnection) RecvWithTrackerCallBack(buffer []byte
 		}
 
 		conn.socketFail()
-		return readLen, xerrors.Errorf("failed to receive data: %w", err)
+		return readLen, errors.Wrapf(err, "failed to receive data")
 	}
 
 	conn.lastSuccessfulAccess = time.Now()
@@ -385,11 +389,11 @@ func (conn *IRODSResourceServerConnection) RecvWithTrackerCallBack(buffer []byte
 // RecvToWriter receives a message to Writer
 func (conn *IRODSResourceServerConnection) RecvToWriter(writer io.Writer, size int64, timeout *time.Duration) (int64, error) {
 	if conn.socket == nil {
-		return 0, xerrors.Errorf("failed to receive data - socket closed")
+		return 0, errors.Errorf("failed to receive data - socket closed")
 	}
 
 	if !conn.locked {
-		return 0, xerrors.Errorf("connection must be locked before use")
+		return 0, errors.Errorf("connection must be locked before use")
 	}
 
 	if timeout != nil {
@@ -411,7 +415,7 @@ func (conn *IRODSResourceServerConnection) RecvToWriter(writer io.Writer, size i
 		}
 
 		conn.socketFail()
-		return copyLen, xerrors.Errorf("failed to receive data: %w", err)
+		return copyLen, errors.Wrapf(err, "failed to receive data")
 	}
 
 	conn.lastSuccessfulAccess = time.Now()
@@ -422,7 +426,7 @@ func (conn *IRODSResourceServerConnection) RecvToWriter(writer io.Writer, size i
 // Decrypt decrypts byte buf
 func (conn *IRODSResourceServerConnection) Decrypt(iv []byte, source []byte, dest []byte) (int, error) {
 	if !conn.controlConnection.isSSLSocket {
-		return 0, xerrors.Errorf("the connection is not SSL encrypted")
+		return 0, errors.Errorf("the connection is not SSL encrypted")
 	}
 
 	sslConf := conn.controlConnection.account.SSLConfiguration
@@ -430,7 +434,7 @@ func (conn *IRODSResourceServerConnection) Decrypt(iv []byte, source []byte, des
 
 	len, err := util.Decrypt(encryptionAlg, conn.controlConnection.sslSharedSecret, iv, source, dest)
 	if err != nil {
-		return 0, xerrors.Errorf("failed to decrypt data: %w", err)
+		return 0, errors.Wrapf(err, "failed to decrypt data")
 	}
 
 	return len, nil
@@ -439,7 +443,7 @@ func (conn *IRODSResourceServerConnection) Decrypt(iv []byte, source []byte, des
 // Decrypt decrypts byte buf
 func (conn *IRODSResourceServerConnection) Encrypt(iv []byte, source []byte, dest []byte) (int, error) {
 	if !conn.controlConnection.isSSLSocket {
-		return 0, xerrors.Errorf("the connection is not SSL encrypted")
+		return 0, errors.Errorf("the connection is not SSL encrypted")
 	}
 
 	sslConf := conn.controlConnection.account.SSLConfiguration
@@ -447,7 +451,7 @@ func (conn *IRODSResourceServerConnection) Encrypt(iv []byte, source []byte, des
 
 	len, err := util.Encrypt(encryptionAlg, conn.controlConnection.sslSharedSecret, iv, source, dest)
 	if err != nil {
-		return 0, xerrors.Errorf("failed to encrypt data: %w", err)
+		return 0, errors.Wrapf(err, "failed to encrypt data")
 	}
 
 	return len, nil

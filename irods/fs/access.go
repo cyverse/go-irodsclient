@@ -4,18 +4,18 @@ import (
 	"path"
 	"strconv"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/message"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
-	"golang.org/x/xerrors"
 )
 
 // GetCollectionAccessInheritance returns collection access inheritance info for the path
 func GetCollectionAccessInheritance(conn *connection.IRODSConnection, path string) (*types.IRODSAccessInheritance, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -45,10 +45,11 @@ func GetCollectionAccessInheritance(conn *connection.IRODSConnection, path strin
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+				newErr := errors.Join(err, types.NewFileNotFoundError(path))
+				return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", path)
 			}
 
-			return nil, xerrors.Errorf("failed to receive a collection access inheritance query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a collection access inheritance query result message")
 		}
 
 		err = queryResult.CheckError()
@@ -57,10 +58,11 @@ func GetCollectionAccessInheritance(conn *connection.IRODSConnection, path strin
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+				newErr := errors.Join(err, types.NewFileNotFoundError(path))
+				return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", path)
 			}
 
-			return nil, xerrors.Errorf("received collection access inheritance query error: %w", err)
+			return nil, errors.Wrapf(err, "received collection access inheritance query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -68,7 +70,7 @@ func GetCollectionAccessInheritance(conn *connection.IRODSConnection, path strin
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive collection access inheritance attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive collection access inheritance attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedAccessInheritances := make([]*types.IRODSAccessInheritance, queryResult.RowCount)
@@ -76,7 +78,7 @@ func GetCollectionAccessInheritance(conn *connection.IRODSConnection, path strin
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive collection access inheritance rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive collection access inheritance rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -115,7 +117,7 @@ func GetCollectionAccessInheritance(conn *connection.IRODSConnection, path strin
 // ListCollectionAccesses returns collection accesses for the path
 func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*types.IRODSAccess, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -142,10 +144,11 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+				newErr := errors.Join(err, types.NewFileNotFoundError(path))
+				return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", path)
 			}
 
-			return nil, xerrors.Errorf("failed to receive a collection access query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a collection access query result message")
 		}
 
 		err = queryResult.CheckError()
@@ -154,10 +157,11 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+				newErr := errors.Join(err, types.NewFileNotFoundError(path))
+				return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", path)
 			}
 
-			return nil, xerrors.Errorf("received collection access query error: %w", err)
+			return nil, errors.Wrapf(err, "received collection access query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -165,7 +169,7 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive collection access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive collection access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount)
@@ -173,7 +177,7 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive collection access rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive collection access rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -219,7 +223,7 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 // ListDataObjectAccesses returns data object accesses for the path
 func ListDataObjectAccesses(conn *connection.IRODSConnection, dataObjPath string) ([]*types.IRODSAccess, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -253,10 +257,11 @@ func ListDataObjectAccesses(conn *connection.IRODSConnection, dataObjPath string
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", dataObjPath, types.NewFileNotFoundError(dataObjPath))
+				newErr := errors.Join(err, types.NewFileNotFoundError(dataObjPath))
+				return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", dataObjPath)
 			}
 
-			return nil, xerrors.Errorf("failed to receive a data object access query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a data object access query result message")
 		}
 
 		err = queryResult.CheckError()
@@ -265,10 +270,11 @@ func ListDataObjectAccesses(conn *connection.IRODSConnection, dataObjPath string
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", dataObjPath, types.NewFileNotFoundError(dataObjPath))
+				newErr := errors.Join(err, types.NewFileNotFoundError(dataObjPath))
+				return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", dataObjPath)
 			}
 
-			return nil, xerrors.Errorf("received data object access query error: %w", err)
+			return nil, errors.Wrapf(err, "received data object access query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -276,7 +282,7 @@ func ListDataObjectAccesses(conn *connection.IRODSConnection, dataObjPath string
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive data object access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive data object access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount)
@@ -284,7 +290,7 @@ func ListDataObjectAccesses(conn *connection.IRODSConnection, dataObjPath string
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive data object access rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive data object access rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -330,7 +336,7 @@ func ListDataObjectAccesses(conn *connection.IRODSConnection, dataObjPath string
 // ListDataObjectAccessesWithoutCollection returns data object accesses for the path
 func ListDataObjectAccessesWithoutCollection(conn *connection.IRODSConnection, dataObjPath string) ([]*types.IRODSAccess, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -364,10 +370,11 @@ func ListDataObjectAccessesWithoutCollection(conn *connection.IRODSConnection, d
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", dataObjPath, types.NewFileNotFoundError(dataObjPath))
+				newErr := errors.Join(err, types.NewFileNotFoundError(dataObjPath))
+				return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", dataObjPath)
 			}
 
-			return nil, xerrors.Errorf("failed to receive a data object access query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a data object access query result message")
 		}
 
 		err = queryResult.CheckError()
@@ -376,10 +383,11 @@ func ListDataObjectAccessesWithoutCollection(conn *connection.IRODSConnection, d
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", dataObjPath, types.NewFileNotFoundError(dataObjPath))
+				newErr := errors.Join(err, types.NewFileNotFoundError(dataObjPath))
+				return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", dataObjPath)
 			}
 
-			return nil, xerrors.Errorf("received data object access query error: %w", err)
+			return nil, errors.Wrapf(err, "received data object access query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -387,7 +395,7 @@ func ListDataObjectAccessesWithoutCollection(conn *connection.IRODSConnection, d
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive data object access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive data object access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount)
@@ -395,7 +403,7 @@ func ListDataObjectAccessesWithoutCollection(conn *connection.IRODSConnection, d
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive data object access rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive data object access rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -441,7 +449,7 @@ func ListDataObjectAccessesWithoutCollection(conn *connection.IRODSConnection, d
 // ListAccessesForSubCollections returns collection accesses for subcollections in the given path
 func ListAccessesForSubCollections(conn *connection.IRODSConnection, collPath string) ([]*types.IRODSAccess, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -475,10 +483,11 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, collPath st
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection access for path %q: %w", collPath, types.NewFileNotFoundError(collPath))
+				newErr := errors.Join(err, types.NewFileNotFoundError(collPath))
+				return nil, errors.Wrapf(newErr, "failed to find the collection access for path %q", collPath)
 			}
 
-			return nil, xerrors.Errorf("failed to receive a collection access query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a collection access query result message")
 		}
 
 		err = queryResult.CheckError()
@@ -487,10 +496,11 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, collPath st
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collPath, types.NewFileNotFoundError(collPath))
+				newErr := errors.Join(err, types.NewFileNotFoundError(collPath))
+				return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", collPath)
 			}
 
-			return nil, xerrors.Errorf("received collection access query error: %w", err)
+			return nil, errors.Wrapf(err, "received collection access query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -498,7 +508,7 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, collPath st
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive collection access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive collection access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount)
@@ -506,7 +516,7 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, collPath st
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive collection access rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive collection access rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -554,7 +564,7 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, collPath st
 // ListAccessesForDataObjectsInCollection returns data object accesses for data objects in the given path
 func ListAccessesForDataObjectsInCollection(conn *connection.IRODSConnection, collPath string) ([]*types.IRODSAccess, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -588,10 +598,11 @@ func ListAccessesForDataObjectsInCollection(conn *connection.IRODSConnection, co
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collPath, types.NewFileNotFoundError(collPath))
+				newErr := errors.Join(err, types.NewFileNotFoundError(collPath))
+				return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", collPath)
 			}
 
-			return nil, xerrors.Errorf("failed to receive a data object access query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a data object access query result message")
 		}
 
 		err = queryResult.CheckError()
@@ -600,10 +611,11 @@ func ListAccessesForDataObjectsInCollection(conn *connection.IRODSConnection, co
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collPath, types.NewFileNotFoundError(collPath))
+				newErr := errors.Join(err, types.NewFileNotFoundError(collPath))
+				return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", collPath)
 			}
 
-			return nil, xerrors.Errorf("received data object access query error: %w", err)
+			return nil, errors.Wrapf(err, "received data object access query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -611,7 +623,7 @@ func ListAccessesForDataObjectsInCollection(conn *connection.IRODSConnection, co
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive data object access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive data object access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount)
@@ -619,7 +631,7 @@ func ListAccessesForDataObjectsInCollection(conn *connection.IRODSConnection, co
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive data object access rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive data object access rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -667,7 +679,7 @@ func ListAccessesForDataObjectsInCollection(conn *connection.IRODSConnection, co
 // ListAccessesForDataObjects returns data object accesses for data objects in the given path
 func ListAccessesForDataObjectsWithoutCollection(conn *connection.IRODSConnection, collPath string) ([]*types.IRODSAccess, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -701,10 +713,11 @@ func ListAccessesForDataObjectsWithoutCollection(conn *connection.IRODSConnectio
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collPath, types.NewFileNotFoundError(collPath))
+				newErr := errors.Join(err, types.NewFileNotFoundError(collPath))
+				return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", collPath)
 			}
 
-			return nil, xerrors.Errorf("failed to receive a data object access query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a data object access query result message")
 		}
 
 		err = queryResult.CheckError()
@@ -713,10 +726,11 @@ func ListAccessesForDataObjectsWithoutCollection(conn *connection.IRODSConnectio
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collPath, types.NewFileNotFoundError(collPath))
+				newErr := errors.Join(err, types.NewFileNotFoundError(collPath))
+				return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", collPath)
 			}
 
-			return nil, xerrors.Errorf("received data object access query error: %w", err)
+			return nil, errors.Wrapf(err, "received data object access query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -724,7 +738,7 @@ func ListAccessesForDataObjectsWithoutCollection(conn *connection.IRODSConnectio
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive data object access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive data object access attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedAccesses := make([]*types.IRODSAccess, queryResult.RowCount)
@@ -732,7 +746,7 @@ func ListAccessesForDataObjectsWithoutCollection(conn *connection.IRODSConnectio
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive data object access rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive data object access rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -780,7 +794,7 @@ func ListAccessesForDataObjectsWithoutCollection(conn *connection.IRODSConnectio
 // ChangeAccessInherit changes the inherit bit on a collection.
 func ChangeAccessInherit(conn *connection.IRODSConnection, path string, inherit bool, recurse bool, adminFlag bool) error {
 	if conn == nil || !conn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
+		return errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -803,12 +817,14 @@ func ChangeAccessInherit(conn *connection.IRODSConnection, path string, inherit 
 	err := conn.RequestAndCheck(request, &response, nil, timeout)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return errors.Wrapf(newErr, "failed to find the collection for path %q", path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return errors.Wrapf(newErr, "failed to find the collection for path %q", path)
 		}
 
-		return xerrors.Errorf("received set access inherit error: %w", err)
+		return errors.Wrapf(err, "received set access inherit error")
 	}
 	return nil
 }
@@ -816,7 +832,7 @@ func ChangeAccessInherit(conn *connection.IRODSConnection, path string, inherit 
 // ChangeAccess changes access control on a data object or collection.
 func ChangeAccess(conn *connection.IRODSConnection, path string, access types.IRODSAccessLevelType, userName string, zoneName string, recurse bool, adminFlag bool) error {
 	if conn == nil || !conn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
+		return errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -839,12 +855,14 @@ func ChangeAccess(conn *connection.IRODSConnection, path string, access types.IR
 	err := conn.RequestAndCheck(request, &response, nil, timeout)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return xerrors.Errorf("failed to find the data-object/collection for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return errors.Wrapf(newErr, "failed to find the data-object/collection for path %q", path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return errors.Wrapf(newErr, "failed to find the collection for path %q", path)
 		}
 
-		return xerrors.Errorf("failed to change data-object/collection access: %w", err)
+		return errors.Wrapf(err, "failed to change data-object/collection access")
 	}
 	return nil
 }

@@ -1,17 +1,17 @@
 package fs
 
 import (
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/message"
 	"github.com/cyverse/go-irodsclient/irods/types"
-	"golang.org/x/xerrors"
 )
 
 // Touch create an empty data object or update timestamp for the path
 func Touch(conn *connection.IRODSConnection, path string, resource string, noCreate bool) error {
 	if conn == nil || !conn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
+		return errors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -29,15 +29,18 @@ func Touch(conn *connection.IRODSConnection, path string, resource string, noCre
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return errors.Wrapf(newErr, "failed to find the data object for path %q", path)
 		} else if types.GetIRODSErrorCode(err) == common.SYS_UNMATCHED_API_NUM {
 			// not supported
-			return xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewAPINotSupportedError(common.TOUCH_APN))
+			newErr := errors.Join(err, types.NewAPINotSupportedError(common.TOUCH_APN))
+			return errors.Wrapf(newErr, "failed to find the data object for path %q", path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return errors.Wrapf(newErr, "failed to find the collection for path %q", path)
 		}
 
-		return xerrors.Errorf("failed to touch: %w", err)
+		return errors.Wrapf(err, "failed to touch data object for path %q", path)
 	}
 
 	return nil

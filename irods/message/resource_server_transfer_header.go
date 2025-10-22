@@ -3,7 +3,7 @@ package message
 import (
 	"encoding/binary"
 
-	"golang.org/x/xerrors"
+	"github.com/cockroachdb/errors"
 )
 
 // IRODSMessageResourceServerTransferHeader stores resource server transfer header message
@@ -17,7 +17,7 @@ type IRODSMessageResourceServerTransferHeader struct {
 // FromBytes returns struct from bytes
 func (msg *IRODSMessageResourceServerTransferHeader) FromBytes(bytes []byte) error {
 	if len(bytes) < 24 {
-		return xerrors.Errorf("failed to raed transfer header, header must be 24 bytes, but received %d", len(bytes))
+		return errors.Errorf("failed to read transfer header, header must be 24 bytes, but received %d", len(bytes))
 	}
 
 	msg.OperationType = int(binary.BigEndian.Uint32(bytes[0:4]))

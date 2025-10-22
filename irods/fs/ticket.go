@@ -6,20 +6,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/message"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
 	"github.com/rs/xid"
-	"golang.org/x/xerrors"
 )
 
 // https://github.com/irods/irods_client_s3_ticketbooth/blob/b92e8aaa3127cb56fcb8fef09caa00244bd29ca6/ticket_booth/main.py
 // GetTicketForAnonymousAccess returns minimal ticket information for the ticket name string
 func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticketName string) (*types.IRODSTicketForAnonymousAccess, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -39,28 +39,31 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticketName st
 	err := conn.Request(query, &queryResult, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+			newErr := errors.Join(err, types.NewTicketNotFoundError(ticketName))
+			return nil, errors.Wrapf(newErr, "failed to find the ticket for name %q", ticketName)
 		}
 
-		return nil, xerrors.Errorf("failed to receive a ticket query result message: %w", err)
+		return nil, errors.Wrapf(err, "failed to receive a ticket query result message")
 	}
 
 	err = queryResult.CheckError()
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+			newErr := errors.Join(err, types.NewTicketNotFoundError(ticketName))
+			return nil, errors.Wrapf(newErr, "failed to find the ticket for name %q", ticketName)
 		}
 
-		return nil, xerrors.Errorf("received a ticket query error: %w", err)
+		return nil, errors.Wrapf(err, "received a ticket query error")
 	}
 
 	if queryResult.RowCount != 1 {
 		// file not found
-		return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+		newErr := types.NewTicketNotFoundError(ticketName)
+		return nil, errors.Wrapf(newErr, "failed to find the ticket for name %q", ticketName)
 	}
 
 	if queryResult.AttributeCount > len(queryResult.SQLResult) {
-		return nil, xerrors.Errorf("failed to receive ticket attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+		return nil, errors.Errorf("failed to receive ticket attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 	}
 
 	var ticketID int64 = -1
@@ -71,7 +74,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticketName st
 	for idx := 0; idx < queryResult.AttributeCount; idx++ {
 		sqlResult := queryResult.SQLResult[idx]
 		if len(sqlResult.Values) != queryResult.RowCount {
-			return nil, xerrors.Errorf("failed to receive ticket rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+			return nil, errors.Errorf("failed to receive ticket rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 		}
 
 		value := sqlResult.Values[0]
@@ -80,7 +83,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticketName st
 		case int(common.ICAT_COLUMN_TICKET_ID):
 			cID, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse ticket id %q: %w", value, err)
+				return nil, errors.Wrapf(err, "failed to parse ticket id %q", value)
 			}
 			ticketID = cID
 		case int(common.ICAT_COLUMN_TICKET_TYPE):
@@ -91,7 +94,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticketName st
 			if len(strings.TrimSpace(value)) > 0 {
 				mT, err := util.GetIRODSDateTime(value)
 				if err != nil {
-					return nil, xerrors.Errorf("failed to parse expiry time %q: %w", value, err)
+					return nil, errors.Wrapf(err, "failed to parse expiry time %q", value)
 				}
 				expirationTime = mT
 			}
@@ -101,7 +104,8 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticketName st
 	}
 
 	if ticketID == -1 {
-		return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+		newErr := types.NewTicketNotFoundError(ticketName)
+		return nil, errors.Wrapf(newErr, "failed to find the ticket for name %q", ticketName)
 	}
 
 	return &types.IRODSTicketForAnonymousAccess{
@@ -116,7 +120,7 @@ func GetTicketForAnonymousAccess(conn *connection.IRODSConnection, ticketName st
 // GetTicket returns the ticket
 func GetTicket(conn *connection.IRODSConnection, ticketName string) (*types.IRODSTicket, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	ticketColl, err := GetTicketForCollections(conn, ticketName)
@@ -141,13 +145,14 @@ func GetTicket(conn *connection.IRODSConnection, ticketName string) (*types.IROD
 		}
 	}
 
-	return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+	newErr := types.NewTicketNotFoundError(ticketName)
+	return nil, errors.Wrapf(newErr, "failed to find the ticket for name %q", ticketName)
 }
 
 // GetTicketForDataObjects returns ticket information for the ticket name string
 func GetTicketForDataObjects(conn *connection.IRODSConnection, ticketName string) (*types.IRODSTicket, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -176,28 +181,31 @@ func GetTicketForDataObjects(conn *connection.IRODSConnection, ticketName string
 	err := conn.Request(query, &queryResult, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+			newErr := errors.Join(err, types.NewTicketNotFoundError(ticketName))
+			return nil, errors.Wrapf(newErr, "failed to find the ticket for name %q", ticketName)
 		}
 
-		return nil, xerrors.Errorf("failed to receive a ticket query result message: %w", err)
+		return nil, errors.Wrapf(err, "failed to receive a ticket query result message")
 	}
 
 	err = queryResult.CheckError()
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+			newErr := errors.Join(err, types.NewTicketNotFoundError(ticketName))
+			return nil, errors.Wrapf(newErr, "failed to find the ticket for name %q", ticketName)
 		}
 
-		return nil, xerrors.Errorf("received a ticket query error: %w", err)
+		return nil, errors.Wrapf(err, "received a ticket query error")
 	}
 
 	if queryResult.RowCount != 1 {
 		// file not found
-		return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+		newErr := types.NewTicketNotFoundError(ticketName)
+		return nil, errors.Wrapf(newErr, "failed to find the ticket for name %q", ticketName)
 	}
 
 	if queryResult.AttributeCount > len(queryResult.SQLResult) {
-		return nil, xerrors.Errorf("failed to receive ticket attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+		return nil, errors.Errorf("failed to receive ticket attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 	}
 
 	ticketID := int64(-1)
@@ -219,7 +227,7 @@ func GetTicketForDataObjects(conn *connection.IRODSConnection, ticketName string
 	for idx := 0; idx < queryResult.AttributeCount; idx++ {
 		sqlResult := queryResult.SQLResult[idx]
 		if len(sqlResult.Values) != queryResult.RowCount {
-			return nil, xerrors.Errorf("failed to receive ticket rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+			return nil, errors.Errorf("failed to receive ticket rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 		}
 
 		value := sqlResult.Values[0]
@@ -228,7 +236,7 @@ func GetTicketForDataObjects(conn *connection.IRODSConnection, ticketName string
 		case int(common.ICAT_COLUMN_TICKET_ID):
 			cID, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse ticket id %q: %w", value, err)
+				return nil, errors.Wrapf(err, "failed to parse ticket id %q", value)
 			}
 			ticketID = cID
 		case int(common.ICAT_COLUMN_TICKET_TYPE):
@@ -238,45 +246,45 @@ func GetTicketForDataObjects(conn *connection.IRODSConnection, ticketName string
 		case int(common.ICAT_COLUMN_TICKET_USES_LIMIT):
 			limit, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse uses limit %q: %w", value, err)
+				return nil, errors.Wrapf(err, "failed to parse uses limit %q", value)
 			}
 			usesLimit = limit
 		case int(common.ICAT_COLUMN_TICKET_USES_COUNT):
 			count, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse uses count %q: %w", value, err)
+				return nil, errors.Wrapf(err, "failed to parse uses count %q", value)
 			}
 			usesCount = count
 		case int(common.ICAT_COLUMN_TICKET_EXPIRY_TS):
 			if len(strings.TrimSpace(value)) > 0 {
 				mT, err := util.GetIRODSDateTime(value)
 				if err != nil {
-					return nil, xerrors.Errorf("failed to parse expiry time %q: %w", value, err)
+					return nil, errors.Wrapf(err, "failed to parse expiry time %q", value)
 				}
 				expirationTime = mT
 			}
 		case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_LIMIT):
 			limit, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse write file limit %q: %w", value, err)
+				return nil, errors.Wrapf(err, "failed to parse write file limit %q", value)
 			}
 			writeFileLimit = limit
 		case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_COUNT):
 			count, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse write file count %q: %w", value, err)
+				return nil, errors.Wrapf(err, "failed to parse write file count %q", value)
 			}
 			writeFileCount = count
 		case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_LIMIT):
 			limit, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse write byte limit %q: %w", value, err)
+				return nil, errors.Wrapf(err, "failed to parse write byte limit %q", value)
 			}
 			writeByteLimit = limit
 		case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_COUNT):
 			count, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse write byte count %q: %w", value, err)
+				return nil, errors.Wrapf(err, "failed to parse write byte count %q", value)
 			}
 			writeByteCount = count
 		case int(common.ICAT_COLUMN_TICKET_DATA_NAME):
@@ -295,7 +303,8 @@ func GetTicketForDataObjects(conn *connection.IRODSConnection, ticketName string
 	}
 
 	if ticketID == -1 {
-		return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+		newErr := types.NewTicketNotFoundError(ticketName)
+		return nil, errors.Wrapf(newErr, "failed to find the ticket for name %q", ticketName)
 	}
 
 	return &types.IRODSTicket{
@@ -319,7 +328,7 @@ func GetTicketForDataObjects(conn *connection.IRODSConnection, ticketName string
 // GetTicketForCollections returns ticket information for the ticket name string
 func GetTicketForCollections(conn *connection.IRODSConnection, ticketName string) (*types.IRODSTicket, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -347,27 +356,30 @@ func GetTicketForCollections(conn *connection.IRODSConnection, ticketName string
 	err := conn.Request(query, &queryResult, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+			newErr := errors.Join(err, types.NewTicketNotFoundError(ticketName))
+			return nil, errors.Wrapf(newErr, "failed to find the ticket for name %q", ticketName)
 		}
 
-		return nil, xerrors.Errorf("failed to receive a ticket query result message: %w", err)
+		return nil, errors.Wrapf(err, "failed to receive a ticket query result message")
 	}
 
 	err = queryResult.CheckError()
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+			newErr := errors.Join(err, types.NewTicketNotFoundError(ticketName))
+			return nil, errors.Wrapf(newErr, "failed to find the ticket for name %q", ticketName)
 		}
 
-		return nil, xerrors.Errorf("received a ticket query error: %w", err)
+		return nil, errors.Wrapf(err, "received a ticket query error")
 	}
 
 	if queryResult.RowCount != 1 {
-		return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+		newErr := types.NewTicketNotFoundError(ticketName)
+		return nil, errors.Wrapf(newErr, "failed to find the ticket for name %q", ticketName)
 	}
 
 	if queryResult.AttributeCount > len(queryResult.SQLResult) {
-		return nil, xerrors.Errorf("failed to receive ticket attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+		return nil, errors.Errorf("failed to receive ticket attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 	}
 
 	ticketID := int64(-1)
@@ -387,7 +399,7 @@ func GetTicketForCollections(conn *connection.IRODSConnection, ticketName string
 	for idx := 0; idx < queryResult.AttributeCount; idx++ {
 		sqlResult := queryResult.SQLResult[idx]
 		if len(sqlResult.Values) != queryResult.RowCount {
-			return nil, xerrors.Errorf("failed to receive ticket rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+			return nil, errors.Errorf("failed to receive ticket rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 		}
 
 		value := sqlResult.Values[0]
@@ -396,7 +408,7 @@ func GetTicketForCollections(conn *connection.IRODSConnection, ticketName string
 		case int(common.ICAT_COLUMN_TICKET_ID):
 			cID, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse ticket id %q: %w", value, err)
+				return nil, errors.Wrapf(err, "failed to parse ticket id %q", value)
 			}
 			ticketID = cID
 		case int(common.ICAT_COLUMN_TICKET_TYPE):
@@ -406,45 +418,45 @@ func GetTicketForCollections(conn *connection.IRODSConnection, ticketName string
 		case int(common.ICAT_COLUMN_TICKET_USES_LIMIT):
 			limit, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse uses limit %q: %w", value, err)
+				return nil, errors.Wrapf(err, "failed to parse uses limit %q", value)
 			}
 			usesLimit = limit
 		case int(common.ICAT_COLUMN_TICKET_USES_COUNT):
 			count, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse uses count %q: %w", value, err)
+				return nil, errors.Wrapf(err, "failed to parse uses count %q", value)
 			}
 			usesCount = count
 		case int(common.ICAT_COLUMN_TICKET_EXPIRY_TS):
 			if len(strings.TrimSpace(value)) > 0 {
 				mT, err := util.GetIRODSDateTime(value)
 				if err != nil {
-					return nil, xerrors.Errorf("failed to parse expiry time %q: %w", value, err)
+					return nil, errors.Wrapf(err, "failed to parse expiry time %q", value)
 				}
 				expirationTime = mT
 			}
 		case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_LIMIT):
 			limit, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse write file limit %q: %w", value, err)
+				return nil, errors.Wrapf(err, "failed to parse write file limit %q", value)
 			}
 			writeFileLimit = limit
 		case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_COUNT):
 			count, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse write file count %q: %w", value, err)
+				return nil, errors.Wrapf(err, "failed to parse write file count %q", value)
 			}
 			writeFileCount = count
 		case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_LIMIT):
 			limit, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse write byte limit %q: %w", value, err)
+				return nil, errors.Wrapf(err, "failed to parse write byte limit %q", value)
 			}
 			writeByteLimit = limit
 		case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_COUNT):
 			count, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse write byte count %q: %w", value, err)
+				return nil, errors.Wrapf(err, "failed to parse write byte count %q", value)
 			}
 			writeByteCount = count
 		case int(common.ICAT_COLUMN_TICKET_COLL_NAME):
@@ -459,7 +471,8 @@ func GetTicketForCollections(conn *connection.IRODSConnection, ticketName string
 	}
 
 	if ticketID == -1 {
-		return nil, xerrors.Errorf("failed to find the ticket for name %q: %w", ticketName, types.NewTicketNotFoundError(ticketName))
+		newErr := types.NewTicketNotFoundError(ticketName)
+		return nil, errors.Wrapf(newErr, "failed to find the ticket for name %q", ticketName)
 	}
 
 	return &types.IRODSTicket{
@@ -483,7 +496,7 @@ func GetTicketForCollections(conn *connection.IRODSConnection, ticketName string
 // ListTickets returns tickets
 func ListTickets(conn *connection.IRODSConnection) ([]*types.IRODSTicket, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	tickets := []*types.IRODSTicket{}
@@ -508,7 +521,7 @@ func ListTickets(conn *connection.IRODSConnection) ([]*types.IRODSTicket, error)
 // ListTicketsForDataObjects returns tickets for data objects
 func ListTicketsForDataObjects(conn *connection.IRODSConnection) ([]*types.IRODSTicket, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -545,7 +558,7 @@ func ListTicketsForDataObjects(conn *connection.IRODSConnection) ([]*types.IRODS
 				break
 			}
 
-			return nil, xerrors.Errorf("failed to receive a ticket query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a ticket query result message")
 		}
 
 		err = queryResult.CheckError()
@@ -555,7 +568,7 @@ func ListTicketsForDataObjects(conn *connection.IRODSConnection) ([]*types.IRODS
 				break
 			}
 
-			return nil, xerrors.Errorf("received a ticket query error: %w", err)
+			return nil, errors.Wrapf(err, "received a ticket query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -563,7 +576,7 @@ func ListTicketsForDataObjects(conn *connection.IRODSConnection) ([]*types.IRODS
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive ticket attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive ticket attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedTickets := make([]*types.IRODSTicket, queryResult.RowCount)
@@ -572,7 +585,7 @@ func ListTicketsForDataObjects(conn *connection.IRODSConnection) ([]*types.IRODS
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive ticket rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive ticket rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -607,7 +620,7 @@ func ListTicketsForDataObjects(conn *connection.IRODSConnection) ([]*types.IRODS
 				case int(common.ICAT_COLUMN_TICKET_ID):
 					tID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse ticket id %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse ticket id %q", value)
 					}
 					pagenatedTickets[row].ID = tID
 				case int(common.ICAT_COLUMN_TICKET_STRING):
@@ -619,45 +632,45 @@ func ListTicketsForDataObjects(conn *connection.IRODSConnection) ([]*types.IRODS
 				case int(common.ICAT_COLUMN_TICKET_USES_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse uses limit %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse uses limit %q", value)
 					}
 					pagenatedTickets[row].UsesLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_USES_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse uses count %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse uses count %q", value)
 					}
 					pagenatedTickets[row].UsesCount = count
 				case int(common.ICAT_COLUMN_TICKET_EXPIRY_TS):
 					if len(strings.TrimSpace(value)) > 0 {
 						mT, err := util.GetIRODSDateTime(value)
 						if err != nil {
-							return nil, xerrors.Errorf("failed to parse expiry time %q: %w", value, err)
+							return nil, errors.Wrapf(err, "failed to parse expiry time %q", value)
 						}
 						pagenatedTickets[row].ExpirationTime = mT
 					}
 				case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse write file limit %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse write file limit %q", value)
 					}
 					pagenatedTickets[row].WriteFileLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse write file count %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse write file count %q", value)
 					}
 					pagenatedTickets[row].WriteFileCount = count
 				case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse write byte limit %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse write byte limit %q", value)
 					}
 					pagenatedTickets[row].WriteByteLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse write byte count %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse write byte count %q", value)
 					}
 					pagenatedTickets[row].WriteByteCount = count
 				case int(common.ICAT_COLUMN_TICKET_DATA_NAME):
@@ -694,7 +707,7 @@ func ListTicketsForDataObjects(conn *connection.IRODSConnection) ([]*types.IRODS
 // ListTicketsForCollections returns tickets for collections
 func ListTicketsForCollections(conn *connection.IRODSConnection) ([]*types.IRODSTicket, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -730,7 +743,7 @@ func ListTicketsForCollections(conn *connection.IRODSConnection) ([]*types.IRODS
 				break
 			}
 
-			return nil, xerrors.Errorf("failed to receive a ticket query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a ticket query result message")
 		}
 
 		err = queryResult.CheckError()
@@ -740,7 +753,7 @@ func ListTicketsForCollections(conn *connection.IRODSConnection) ([]*types.IRODS
 				break
 			}
 
-			return nil, xerrors.Errorf("received a ticket query error: %w", err)
+			return nil, errors.Wrapf(err, "received a ticket query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -748,7 +761,7 @@ func ListTicketsForCollections(conn *connection.IRODSConnection) ([]*types.IRODS
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive ticket attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive ticket attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedTickets := make([]*types.IRODSTicket, queryResult.RowCount)
@@ -756,7 +769,7 @@ func ListTicketsForCollections(conn *connection.IRODSConnection) ([]*types.IRODS
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive ticket rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive ticket rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -786,7 +799,7 @@ func ListTicketsForCollections(conn *connection.IRODSConnection) ([]*types.IRODS
 				case int(common.ICAT_COLUMN_TICKET_ID):
 					tID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse ticket id %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse ticket id %q", value)
 					}
 					pagenatedTickets[row].ID = tID
 				case int(common.ICAT_COLUMN_TICKET_STRING):
@@ -798,45 +811,45 @@ func ListTicketsForCollections(conn *connection.IRODSConnection) ([]*types.IRODS
 				case int(common.ICAT_COLUMN_TICKET_USES_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse uses limit %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse uses limit %q", value)
 					}
 					pagenatedTickets[row].UsesLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_USES_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse uses count %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse uses count %q", value)
 					}
 					pagenatedTickets[row].UsesCount = count
 				case int(common.ICAT_COLUMN_TICKET_EXPIRY_TS):
 					if len(strings.TrimSpace(value)) > 0 {
 						mT, err := util.GetIRODSDateTime(value)
 						if err != nil {
-							return nil, xerrors.Errorf("failed to parse expiry time %q: %w", value, err)
+							return nil, errors.Wrapf(err, "failed to parse expiry time %q", value)
 						}
 						pagenatedTickets[row].ExpirationTime = mT
 					}
 				case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse write file limit %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse write file limit %q", value)
 					}
 					pagenatedTickets[row].WriteFileLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse write file count %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse write file count %q", value)
 					}
 					pagenatedTickets[row].WriteFileCount = count
 				case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse write byte limit %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse write byte limit %q", value)
 					}
 					pagenatedTickets[row].WriteByteLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse write byte count %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse write byte count %q", value)
 					}
 					pagenatedTickets[row].WriteByteCount = count
 				case int(common.ICAT_COLUMN_TICKET_COLL_NAME):
@@ -865,7 +878,7 @@ func ListTicketsForCollections(conn *connection.IRODSConnection) ([]*types.IRODS
 // ListTicketsBasic returns tickets with basic info
 func ListTicketsBasic(conn *connection.IRODSConnection) ([]*types.IRODSTicket, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -900,7 +913,7 @@ func ListTicketsBasic(conn *connection.IRODSConnection) ([]*types.IRODSTicket, e
 				break
 			}
 
-			return nil, xerrors.Errorf("failed to receive a ticket query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a ticket query result message")
 		}
 
 		err = queryResult.CheckError()
@@ -910,7 +923,7 @@ func ListTicketsBasic(conn *connection.IRODSConnection) ([]*types.IRODSTicket, e
 				break
 			}
 
-			return nil, xerrors.Errorf("received a ticket query error: %w", err)
+			return nil, errors.Wrapf(err, "received a ticket query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -918,7 +931,7 @@ func ListTicketsBasic(conn *connection.IRODSConnection) ([]*types.IRODSTicket, e
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive ticket attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive ticket attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedTickets := make([]*types.IRODSTicket, queryResult.RowCount)
@@ -926,7 +939,7 @@ func ListTicketsBasic(conn *connection.IRODSConnection) ([]*types.IRODSTicket, e
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive ticket rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive ticket rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -956,7 +969,7 @@ func ListTicketsBasic(conn *connection.IRODSConnection) ([]*types.IRODSTicket, e
 				case int(common.ICAT_COLUMN_TICKET_ID):
 					tID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse ticket id %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse ticket id %q", value)
 					}
 					pagenatedTickets[row].ID = tID
 				case int(common.ICAT_COLUMN_TICKET_STRING):
@@ -968,45 +981,45 @@ func ListTicketsBasic(conn *connection.IRODSConnection) ([]*types.IRODSTicket, e
 				case int(common.ICAT_COLUMN_TICKET_USES_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse uses limit %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse uses limit %q", value)
 					}
 					pagenatedTickets[row].UsesLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_USES_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse uses count %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse uses count %q", value)
 					}
 					pagenatedTickets[row].UsesCount = count
 				case int(common.ICAT_COLUMN_TICKET_EXPIRY_TS):
 					if len(strings.TrimSpace(value)) > 0 {
 						mT, err := util.GetIRODSDateTime(value)
 						if err != nil {
-							return nil, xerrors.Errorf("failed to parse expiry time %q: %w", value, err)
+							return nil, errors.Wrapf(err, "failed to parse expiry time %q", value)
 						}
 						pagenatedTickets[row].ExpirationTime = mT
 					}
 				case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse write file limit %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse write file limit %q", value)
 					}
 					pagenatedTickets[row].WriteFileLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_WRITE_FILE_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse write file count %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse write file count %q", value)
 					}
 					pagenatedTickets[row].WriteFileCount = count
 				case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_LIMIT):
 					limit, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse write byte limit %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse write byte limit %q", value)
 					}
 					pagenatedTickets[row].WriteByteLimit = limit
 				case int(common.ICAT_COLUMN_TICKET_WRITE_BYTE_COUNT):
 					count, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse write byte count %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse write byte count %q", value)
 					}
 					pagenatedTickets[row].WriteByteCount = count
 				case int(common.ICAT_COLUMN_TICKET_OWNER_NAME):
@@ -1033,7 +1046,7 @@ func ListTicketsBasic(conn *connection.IRODSConnection) ([]*types.IRODSTicket, e
 // ListTicketAllowedHosts returns allowed hosts for the given ticket
 func ListTicketAllowedHosts(conn *connection.IRODSConnection, ticketID int64) ([]string, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -1058,7 +1071,7 @@ func ListTicketAllowedHosts(conn *connection.IRODSConnection, ticketID int64) ([
 				break
 			}
 
-			return nil, xerrors.Errorf("failed to receive a ticket restriction query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a ticket restriction query result message")
 		}
 
 		err = queryResult.CheckError()
@@ -1068,7 +1081,7 @@ func ListTicketAllowedHosts(conn *connection.IRODSConnection, ticketID int64) ([
 				break
 			}
 
-			return nil, xerrors.Errorf("received a ticket restriction query error: %w", err)
+			return nil, errors.Wrapf(err, "received a ticket restriction query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -1076,7 +1089,7 @@ func ListTicketAllowedHosts(conn *connection.IRODSConnection, ticketID int64) ([
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive ticket restriction attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive ticket restriction attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedHosts := make([]string, queryResult.RowCount)
@@ -1084,7 +1097,7 @@ func ListTicketAllowedHosts(conn *connection.IRODSConnection, ticketID int64) ([
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive ticket restriction rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive ticket restriction rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -1113,7 +1126,7 @@ func ListTicketAllowedHosts(conn *connection.IRODSConnection, ticketID int64) ([
 // ListTicketAllowedUserNames returns allowed user names for the given ticket
 func ListTicketAllowedUserNames(conn *connection.IRODSConnection, ticketID int64) ([]string, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -1138,7 +1151,7 @@ func ListTicketAllowedUserNames(conn *connection.IRODSConnection, ticketID int64
 				break
 			}
 
-			return nil, xerrors.Errorf("failed to receive a ticket restriction query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a ticket restriction query result message")
 		}
 
 		err = queryResult.CheckError()
@@ -1148,7 +1161,7 @@ func ListTicketAllowedUserNames(conn *connection.IRODSConnection, ticketID int64
 				break
 			}
 
-			return nil, xerrors.Errorf("received a ticket restriction query error: %w", err)
+			return nil, errors.Wrapf(err, "received a ticket restriction query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -1156,7 +1169,7 @@ func ListTicketAllowedUserNames(conn *connection.IRODSConnection, ticketID int64
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive ticket restriction attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive ticket restriction attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedUsernames := make([]string, queryResult.RowCount)
@@ -1164,7 +1177,7 @@ func ListTicketAllowedUserNames(conn *connection.IRODSConnection, ticketID int64
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive ticket restriction rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive ticket restriction rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -1193,7 +1206,7 @@ func ListTicketAllowedUserNames(conn *connection.IRODSConnection, ticketID int64
 // ListTicketAllowedGroupNames returns allowed group names for the given ticket
 func ListTicketAllowedGroupNames(conn *connection.IRODSConnection, ticketID int64) ([]string, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -1218,7 +1231,7 @@ func ListTicketAllowedGroupNames(conn *connection.IRODSConnection, ticketID int6
 				break
 			}
 
-			return nil, xerrors.Errorf("failed to receive a ticket restriction query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a ticket restriction query result message")
 		}
 
 		err = queryResult.CheckError()
@@ -1228,7 +1241,7 @@ func ListTicketAllowedGroupNames(conn *connection.IRODSConnection, ticketID int6
 				break
 			}
 
-			return nil, xerrors.Errorf("received a ticket restriction query error: %w", err)
+			return nil, errors.Wrapf(err, "received a ticket restriction query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -1236,7 +1249,7 @@ func ListTicketAllowedGroupNames(conn *connection.IRODSConnection, ticketID int6
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive ticket restriction attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive ticket restriction attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedGroupnames := make([]string, queryResult.RowCount)
@@ -1244,7 +1257,7 @@ func ListTicketAllowedGroupNames(conn *connection.IRODSConnection, ticketID int6
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive ticket restriction rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive ticket restriction rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -1285,7 +1298,7 @@ func CreateTicket(conn *connection.IRODSConnection, ticketName string, ticketTyp
 
 	err := conn.RequestAndCheck(req, &message.IRODSMessageTicketAdminResponse{}, nil, conn.GetOperationTimeout())
 	if err != nil {
-		return xerrors.Errorf("received create ticket error: %w", err)
+		return errors.Wrapf(err, "received create ticket error")
 	}
 	return nil
 }
@@ -1300,7 +1313,7 @@ func DeleteTicket(conn *connection.IRODSConnection, ticketName string) error {
 
 	err := conn.RequestAndCheck(req, &message.IRODSMessageTicketAdminResponse{}, nil, conn.GetOperationTimeout())
 	if err != nil {
-		return xerrors.Errorf("received delete ticket error: %w", err)
+		return errors.Wrapf(err, "received delete ticket error")
 	}
 	return nil
 }
@@ -1315,7 +1328,7 @@ func ModifyTicket(conn *connection.IRODSConnection, ticketName string, args ...s
 
 	err := conn.RequestAndCheck(req, &message.IRODSMessageTicketAdminResponse{}, nil, conn.GetOperationTimeout())
 	if err != nil {
-		return xerrors.Errorf("received mod ticket error: %w", err)
+		return errors.Wrapf(err, "received mod ticket error")
 	}
 	return nil
 }
@@ -1401,7 +1414,7 @@ func SupplyTicket(conn *connection.IRODSConnection, ticketName string) error {
 	req := message.NewIRODSMessageTicketAdminRequest("session", ticketName)
 	err := conn.RequestAndCheck(req, &message.IRODSMessageTicketAdminResponse{}, nil, conn.GetOperationTimeout())
 	if err != nil {
-		return xerrors.Errorf("received supply ticket error: %w", err)
+		return errors.Wrapf(err, "received supply ticket error")
 	}
 	return nil
 }

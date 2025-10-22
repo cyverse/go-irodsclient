@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	irods_fs "github.com/cyverse/go-irodsclient/irods/fs"
 	"github.com/cyverse/go-irodsclient/irods/types"
-	"golang.org/x/xerrors"
 )
 
 // FileHandle is a handle for a file opened
@@ -143,7 +143,7 @@ func (handle *FileHandle) Read(buffer []byte) (int, error) {
 	defer handle.mutex.Unlock()
 
 	if !handle.IsReadMode() {
-		return 0, xerrors.Errorf("file is opened with %q mode", handle.openMode)
+		return 0, errors.Errorf("file is opened with %q mode", handle.openMode)
 	}
 
 	readLen, err := irods_fs.ReadDataObject(handle.connection, handle.irodsFileHandle, buffer)
@@ -161,7 +161,7 @@ func (handle *FileHandle) ReadAt(buffer []byte, offset int64) (int, error) {
 	defer handle.mutex.Unlock()
 
 	if !handle.IsReadMode() {
-		return 0, xerrors.Errorf("file is opened with %q mode", handle.openMode)
+		return 0, errors.Errorf("file is opened with %q mode", handle.openMode)
 	}
 
 	if handle.offset != offset {
@@ -173,7 +173,7 @@ func (handle *FileHandle) ReadAt(buffer []byte, offset int64) (int, error) {
 		handle.offset = newOffset
 
 		if newOffset != offset {
-			return 0, xerrors.Errorf("failed to seek to %d", offset)
+			return 0, errors.Errorf("failed to seek to %d", offset)
 		}
 	}
 
@@ -192,7 +192,7 @@ func (handle *FileHandle) Write(data []byte) (int, error) {
 	defer handle.mutex.Unlock()
 
 	if !handle.IsWriteMode() {
-		return 0, xerrors.Errorf("file is opened with %q mode", handle.openMode)
+		return 0, errors.Errorf("file is opened with %q mode", handle.openMode)
 	}
 
 	err := irods_fs.WriteDataObject(handle.connection, handle.irodsFileHandle, data)
@@ -216,7 +216,7 @@ func (handle *FileHandle) WriteAt(data []byte, offset int64) (int, error) {
 	defer handle.mutex.Unlock()
 
 	if !handle.IsWriteMode() {
-		return 0, xerrors.Errorf("file is opened with %q mode", handle.openMode)
+		return 0, errors.Errorf("file is opened with %q mode", handle.openMode)
 	}
 
 	if handle.offset != offset {
@@ -228,7 +228,7 @@ func (handle *FileHandle) WriteAt(data []byte, offset int64) (int, error) {
 		handle.offset = newOffset
 
 		if newOffset != offset {
-			return 0, xerrors.Errorf("failed to seek to %d", offset)
+			return 0, errors.Errorf("failed to seek to %d", offset)
 		}
 	}
 
@@ -353,7 +353,7 @@ func (handle *FileHandle) postprocessRename(newPath string, newEntry *Entry) err
 		}
 
 		if handle.offset != newOffset {
-			return xerrors.Errorf("failed to seek to %d", handle.offset)
+			return errors.Errorf("failed to seek to %d", handle.offset)
 		}
 	}
 

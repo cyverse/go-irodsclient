@@ -4,7 +4,7 @@ import (
 	"os"
 	"time"
 
-	"golang.org/x/xerrors"
+	"github.com/cockroachdb/errors"
 )
 
 var (
@@ -58,7 +58,7 @@ func (obf *PasswordObfuscator) SetUID(uid int) {
 func (obf *PasswordObfuscator) DecodeFile(path string) ([]byte, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to read file %q: %w", path, err)
+		return nil, errors.Wrapf(err, "failed to read file %q", path)
 	}
 
 	return obf.Decode(content), nil
@@ -70,7 +70,7 @@ func (obf *PasswordObfuscator) EncodeToFile(path string, password []byte) error 
 
 	err := os.WriteFile(path, []byte(content), 0600)
 	if err != nil {
-		return xerrors.Errorf("failed to write file %q: %w", path, err)
+		return errors.Wrapf(err, "failed to write file %q", path)
 	}
 	return nil
 }

@@ -4,9 +4,9 @@ import (
 	"encoding/xml"
 	"fmt"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/types"
-	"golang.org/x/xerrors"
 )
 
 // IRODSMessageAuthResponse stores auth response
@@ -38,7 +38,7 @@ func (msg *IRODSMessageAuthResponse) CheckError() error {
 func (msg *IRODSMessageAuthResponse) GetBytes() ([]byte, error) {
 	xmlBytes, err := xml.Marshal(msg)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to marshal irods message to xml: %w", err)
+		return nil, errors.Wrapf(err, "failed to marshal irods message to xml")
 	}
 	return xmlBytes, nil
 }
@@ -47,7 +47,7 @@ func (msg *IRODSMessageAuthResponse) GetBytes() ([]byte, error) {
 func (msg *IRODSMessageAuthResponse) FromBytes(bytes []byte) error {
 	err := xml.Unmarshal(bytes, msg)
 	if err != nil {
-		return xerrors.Errorf("failed to unmarshal xml to irods message: %w", err)
+		return errors.Wrapf(err, "failed to unmarshal xml to irods message")
 	}
 	return nil
 }
@@ -56,7 +56,7 @@ func (msg *IRODSMessageAuthResponse) FromBytes(bytes []byte) error {
 func (msg *IRODSMessageAuthResponse) GetMessage() (*IRODSMessage, error) {
 	bytes, err := msg.GetBytes()
 	if err != nil {
-		return nil, xerrors.Errorf("failed to get bytes from irods message: %w", err)
+		return nil, errors.Wrapf(err, "failed to get bytes from irods message")
 	}
 
 	msgBody := IRODSMessageBody{
@@ -69,7 +69,7 @@ func (msg *IRODSMessageAuthResponse) GetMessage() (*IRODSMessage, error) {
 
 	msgHeader, err := msgBody.BuildHeader()
 	if err != nil {
-		return nil, xerrors.Errorf("failed to build header from irods message: %w", err)
+		return nil, errors.Wrapf(err, "failed to build header from irods message")
 	}
 
 	return &IRODSMessage{
@@ -81,7 +81,7 @@ func (msg *IRODSMessageAuthResponse) GetMessage() (*IRODSMessage, error) {
 // FromMessage returns struct from IRODSMessage
 func (msg *IRODSMessageAuthResponse) FromMessage(msgIn *IRODSMessage) error {
 	if msgIn.Body == nil {
-		return xerrors.Errorf("empty message body")
+		return errors.Errorf("empty message body")
 	}
 
 	msg.Result = int(msgIn.Body.IntInfo)
@@ -89,7 +89,7 @@ func (msg *IRODSMessageAuthResponse) FromMessage(msgIn *IRODSMessage) error {
 	if msgIn.Body.Message != nil {
 		err := msg.FromBytes(msgIn.Body.Message)
 		if err != nil {
-			return xerrors.Errorf("failed to get irods message from message body: %w", err)
+			return errors.Wrapf(err, "failed to get irods message from message body")
 		}
 	}
 

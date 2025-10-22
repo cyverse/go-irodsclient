@@ -3,9 +3,9 @@ package connection
 import (
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/metrics"
 	"github.com/cyverse/go-irodsclient/irods/types"
-	"golang.org/x/xerrors"
 )
 
 const (
@@ -58,23 +58,28 @@ func (connConfig *IRODSConnectionConfig) fillDefaults() {
 
 func (connConfig *IRODSConnectionConfig) Validate() error {
 	if len(connConfig.ApplicationName) == 0 {
-		return xerrors.Errorf("application name is empty: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "application name is empty")
 	}
 
 	if connConfig.ConnectTimeout <= 0 {
-		return xerrors.Errorf("connect timeout is invalid: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "connect timeout is invalid")
 	}
 
 	if connConfig.OperationTimeout <= 0 {
-		return xerrors.Errorf("operation timeout is invalid: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "operation timeout is invalid")
 	}
 
 	if connConfig.LongOperationTimeout <= 0 {
-		return xerrors.Errorf("long operation timeout is invalid: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "long operation timeout is invalid")
 	}
 
 	if connConfig.TcpBufferSize < 0 {
-		return xerrors.Errorf("tcp buffer size is invalid: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "tcp buffer size is invalid")
 	}
 
 	return nil
@@ -92,11 +97,13 @@ func (connConfig *IRODSResourceServerConnectionConfig) fillDefaults() {
 
 func (connConfig *IRODSResourceServerConnectionConfig) Validate() error {
 	if connConfig.ConnectTimeout <= 0 {
-		return xerrors.Errorf("connect timeout is invalid: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "connect timeout is invalid")
 	}
 
 	if connConfig.TcpBufferSize < 0 {
-		return xerrors.Errorf("tcp buffer size is invalid: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "tcp buffer size is invalid")
 	}
 
 	return nil

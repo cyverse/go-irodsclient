@@ -5,10 +5,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
 	"github.com/kelseyhightower/envconfig"
-	"golang.org/x/xerrors"
 	"gopkg.in/yaml.v2"
 )
 
@@ -92,14 +92,14 @@ func NewConfigFromFile(config *Config, filePath string) (*Config, error) {
 	st, err := os.Stat(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, xerrors.Errorf("file %q does not exist: %w", filePath, err)
+			return nil, errors.Wrapf(err, "file %q does not exist", filePath)
 		}
 
-		return nil, xerrors.Errorf("failed to stat file %q: %w", filePath, err)
+		return nil, errors.Wrapf(err, "failed to stat file %q", filePath)
 	}
 
 	if st.IsDir() {
-		return nil, xerrors.Errorf("path %q is a directory: %w", filePath, err)
+		return nil, errors.Errorf("path %q is a directory", filePath)
 	}
 
 	ext := filepath.Ext(filePath)
@@ -119,12 +119,12 @@ func NewConfigFromYAMLFile(config *Config, yamlPath string) (*Config, error) {
 
 	yamlBytes, err := os.ReadFile(yamlPath)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to read YAML file %q: %w", yamlPath, err)
+		return nil, errors.Wrapf(err, "failed to read YAML file %q", yamlPath)
 	}
 
 	err = yaml.Unmarshal(yamlBytes, &cfg)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to unmarshal YAML file %q to config: %w", yamlPath, err)
+		return nil, errors.Wrapf(err, "failed to unmarshal YAML file %q to config", yamlPath)
 	}
 
 	return &cfg, nil
@@ -139,7 +139,7 @@ func NewConfigFromYAML(config *Config, yamlBytes []byte) (*Config, error) {
 
 	err := yaml.Unmarshal(yamlBytes, &cfg)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to unmarshal YAML to config: %w", err)
+		return nil, errors.Wrapf(err, "failed to unmarshal YAML to config")
 	}
 
 	return &cfg, nil
@@ -154,12 +154,12 @@ func NewConfigFromJSONFile(config *Config, jsonPath string) (*Config, error) {
 
 	jsonBytes, err := os.ReadFile(jsonPath)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to read YAML file %q: %w", jsonPath, err)
+		return nil, errors.Wrapf(err, "failed to read JSON file %q", jsonPath)
 	}
 
 	err = json.Unmarshal(jsonBytes, &cfg)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to unmarshal JSON file %q to config: %w", jsonPath, err)
+		return nil, errors.Wrapf(err, "failed to unmarshal JSON file %q to config", jsonPath)
 	}
 
 	return &cfg, nil
@@ -174,7 +174,7 @@ func NewConfigFromJSON(config *Config, jsonBytes []byte) (*Config, error) {
 
 	err := json.Unmarshal(jsonBytes, &cfg)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to unmarshal JSON to Config: %w", err)
+		return nil, errors.Wrapf(err, "failed to unmarshal JSON to Config")
 	}
 
 	return &cfg, nil
@@ -189,7 +189,7 @@ func NewConfigFromEnv(config *Config) (*Config, error) {
 
 	err := envconfig.Process("", &cfg)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to read config from environmental variables: %w", err)
+		return nil, errors.Wrapf(err, "failed to read config from environmental variables")
 	}
 
 	return &cfg, nil
@@ -300,7 +300,7 @@ func (cfg *Config) ClearICommandsIncompatibleFields() *Config {
 func (cfg *Config) ToJSON() ([]byte, error) {
 	jsonBytes, err := json.MarshalIndent(cfg, "", "    ")
 	if err != nil {
-		return nil, xerrors.Errorf("failed to marshal configuration to json: %w", err)
+		return nil, errors.Wrapf(err, "failed to marshal configuration to json")
 	}
 
 	return jsonBytes, nil
@@ -315,7 +315,7 @@ func (cfg *Config) ToFile(envPath string) error {
 
 	err = os.WriteFile(envPath, jsonByte, 0664)
 	if err != nil {
-		return xerrors.Errorf("failed to write to file %q: %w", envPath, err)
+		return errors.Wrapf(err, "failed to write to file %q", envPath)
 	}
 	return nil
 }

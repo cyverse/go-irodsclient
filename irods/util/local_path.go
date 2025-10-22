@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"golang.org/x/xerrors"
+	"github.com/cockroachdb/errors"
 )
 
 // GetCorrectLocalPath corrects the path
@@ -24,7 +24,7 @@ func ExpandHomeDir(path string) (string, error) {
 
 	homedir, err := os.UserHomeDir()
 	if err != nil {
-		return "", xerrors.Errorf("failed to get user home dir: %w", err)
+		return "", errors.Wrapf(err, "failed to get user home dir")
 	}
 
 	// resolve "~"

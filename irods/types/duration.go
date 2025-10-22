@@ -2,10 +2,9 @@ package types
 
 import (
 	"encoding/json"
-	"fmt"
 	"time"
 
-	"golang.org/x/xerrors"
+	"github.com/cockroachdb/errors"
 )
 
 // Duration is a replacement of time.Duration that supports JSON
@@ -20,7 +19,7 @@ func (d *Duration) MarshalJSON() ([]byte, error) {
 func (d *Duration) UnmarshalJSON(b []byte) error {
 	var v interface{}
 	if err := json.Unmarshal(b, &v); err != nil {
-		return xerrors.Errorf("failed to parse '%s' to time.Duration: %w", string(b), err)
+		return errors.Wrapf(err, "failed to parse %q to time.Duration", string(b))
 	}
 	switch value := v.(type) {
 	case float64:
@@ -29,12 +28,12 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 	case string:
 		tmp, err := time.ParseDuration(value)
 		if err != nil {
-			return xerrors.Errorf("failed to parse '%s' to time.Duration: %w", string(b), err)
+			return errors.Wrapf(err, "failed to parse %q to time.Duration", string(b))
 		}
 		*d = Duration(tmp)
 		return nil
 	default:
-		return xerrors.Errorf("failed to parse '%s' to time.Duration", string(b))
+		return errors.Errorf("failed to parse %q to time.Duration", string(b))
 	}
 }
 
@@ -48,7 +47,7 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 func (d *Duration) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var tm string
 	if err := unmarshal(&tm); err != nil {
-		return xerrors.Errorf("failed to parse '%s' to time.Duration: %w", tm, err)
+		return errors.Wrapf(err, "failed to parse %q to time.Duration", tm)
 	}
 
 	lastChar := byte(tm[len(tm)-1])
@@ -59,7 +58,7 @@ func (d *Duration) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 	td, err := time.ParseDuration(tm)
 	if err != nil {
-		return fmt.Errorf("failed to parse '%s' to time.Duration: %w", tm, err)
+		return errors.Wrapf(err, "failed to parse %q to time.Duration", tm)
 	}
 
 	*d = Duration(td)

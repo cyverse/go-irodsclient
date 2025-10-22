@@ -4,8 +4,8 @@ import (
 	"io"
 	"net"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/common"
-	"golang.org/x/xerrors"
 )
 
 // ReadBytes reads data from socket in a particular size
@@ -16,7 +16,7 @@ func ReadBytes(socket net.Conn, buffer []byte, size int) (int, error) {
 			return readLen, io.EOF
 		}
 
-		return readLen, xerrors.Errorf("failed to read bytes from socket: %w", err)
+		return readLen, errors.Wrapf(err, "failed to read bytes from socket")
 	}
 	return readLen, nil
 }
@@ -25,7 +25,7 @@ func ReadBytes(socket net.Conn, buffer []byte, size int) (int, error) {
 func WriteBytes(socket net.Conn, buffer []byte, size int) error {
 	err := WriteBytesWithTrackerCallBack(socket, buffer, size, nil)
 	if err != nil {
-		return xerrors.Errorf("failed to write bytes to socket: %w", err)
+		return errors.Wrapf(err, "failed to write bytes to socket")
 	}
 	return nil
 }
@@ -53,12 +53,12 @@ func ReadBytesWithTrackerCallBack(socket net.Conn, buffer []byte, size int, call
 				return actualRead, io.EOF
 			}
 
-			return actualRead, xerrors.Errorf("failed to read from socket: %w", err)
+			return actualRead, errors.Wrapf(err, "failed to read from socket")
 		}
 	}
 
 	if sizeLeft < 0 {
-		return actualRead, xerrors.Errorf("received more bytes than requested, %d requested, but %d read", size, actualRead)
+		return actualRead, errors.Errorf("received more bytes than requested, %d requested, but %d read", size, actualRead)
 	}
 
 	return actualRead, nil
@@ -83,7 +83,7 @@ func WriteBytesWithTrackerCallBack(socket net.Conn, buffer []byte, size int, cal
 		}
 
 		if err != nil {
-			return xerrors.Errorf("failed to write to socket: %w", err)
+			return errors.Wrapf(err, "failed to write to socket")
 		}
 	}
 

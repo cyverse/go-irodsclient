@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
-	"golang.org/x/xerrors"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -145,7 +145,7 @@ func (manager *ICommandsEnvironmentManager) FromIRODSAccount(account *types.IROD
 func (manager *ICommandsEnvironmentManager) SetEnvironmentFilePath(envFilePath string) error {
 	envFilePath, err := util.ExpandHomeDir(envFilePath)
 	if err != nil {
-		return xerrors.Errorf("failed to expand home dir %q: %w", envFilePath, err)
+		return errors.Wrapf(err, "failed to expand home dir %q", envFilePath)
 	}
 
 	manager.EnvironmentDirPath = filepath.Dir(envFilePath)
@@ -161,7 +161,7 @@ func (manager *ICommandsEnvironmentManager) SetEnvironmentFilePath(envFilePath s
 func (manager *ICommandsEnvironmentManager) SetEnvironmentDirPath(envDirPath string) error {
 	envDirPath, err := util.ExpandHomeDir(envDirPath)
 	if err != nil {
-		return xerrors.Errorf("failed to expand home dir %q: %w", envDirPath, err)
+		return errors.Wrapf(err, "failed to expand home dir %q", envDirPath)
 	}
 
 	manager.EnvironmentDirPath = envDirPath
@@ -183,7 +183,7 @@ func (manager *ICommandsEnvironmentManager) Load() error {
 
 			cfg, err := NewConfigFromFile(GetDefaultConfig(), manager.EnvironmentFilePath)
 			if err != nil {
-				return xerrors.Errorf("failed to create icommands configuration from file %q: %w", manager.EnvironmentFilePath, err)
+				return errors.Wrapf(err, "failed to create icommands configuration from file %q", manager.EnvironmentFilePath)
 			}
 
 			manager.Environment = cfg
@@ -201,7 +201,7 @@ func (manager *ICommandsEnvironmentManager) Load() error {
 
 			cfg, err := NewConfigFromJSONFile(nil, manager.SessionFilePath)
 			if err != nil {
-				return xerrors.Errorf("failed to create icommands session from file %q: %w", manager.SessionFilePath, err)
+				return errors.Wrapf(err, "failed to create icommands session from file %q", manager.SessionFilePath)
 			}
 
 			manager.Session = cfg
@@ -240,31 +240,31 @@ func (manager *ICommandsEnvironmentManager) Load() error {
 // GetSessionConfig returns session config that is merged with environment
 func (manager *ICommandsEnvironmentManager) GetSessionConfig() (*Config, error) {
 	if manager.Environment == nil && manager.Session == nil {
-		return nil, xerrors.Errorf("environment is not set")
+		return nil, errors.Errorf("environment is not set")
 	}
 
 	manager.FixAuthConfiguration()
 
 	envJSONBytes, err := manager.Environment.ToJSON()
 	if err != nil {
-		return nil, xerrors.Errorf("failed to get json from environment")
+		return nil, errors.Wrapf(err, "failed to get json from environment")
 	}
 
 	envMap := map[string]interface{}{}
 	err = json.Unmarshal(envJSONBytes, &envMap)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to unmarshal JSON to map: %w", err)
+		return nil, errors.Wrapf(err, "failed to unmarshal JSON to map")
 	}
 
 	sessionJSONBytes, err := manager.Session.ToJSON()
 	if err != nil {
-		return nil, xerrors.Errorf("failed to get json from session")
+		return nil, errors.Wrapf(err, "failed to get json from session")
 	}
 
 	sessionMap := map[string]interface{}{}
 	err = json.Unmarshal(sessionJSONBytes, &sessionMap)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to unmarshal JSON to map: %w", err)
+		return nil, errors.Wrapf(err, "failed to unmarshal JSON to map")
 	}
 
 	// merge
@@ -275,7 +275,7 @@ func (manager *ICommandsEnvironmentManager) GetSessionConfig() (*Config, error) 
 
 	newEnvBytes, err := json.Marshal(envMap)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to marshal map to JSON: %w", err)
+		return nil, errors.Wrapf(err, "failed to marshal map to JSON")
 	}
 
 	return NewConfigFromJSON(nil, newEnvBytes)
@@ -284,7 +284,7 @@ func (manager *ICommandsEnvironmentManager) GetSessionConfig() (*Config, error) 
 // ToIRODSAccount exports to IRODSAccount
 func (manager *ICommandsEnvironmentManager) ToIRODSAccount() (*types.IRODSAccount, error) {
 	if manager.Environment == nil {
-		return nil, xerrors.Errorf("environment is not set")
+		return nil, errors.Errorf("environment is not set")
 	}
 
 	manager.FixAuthConfiguration()
@@ -295,7 +295,7 @@ func (manager *ICommandsEnvironmentManager) ToIRODSAccount() (*types.IRODSAccoun
 // SaveEnvironment saves environment
 func (manager *ICommandsEnvironmentManager) SaveEnvironment() error {
 	if manager.Environment == nil {
-		return xerrors.Errorf("environment is not set")
+		return errors.Errorf("environment is not set")
 	}
 
 	manager.FixAuthConfiguration()
@@ -305,13 +305,13 @@ func (manager *ICommandsEnvironmentManager) SaveEnvironment() error {
 		dirpath := filepath.Dir(manager.EnvironmentFilePath)
 		err := os.MkdirAll(dirpath, 0700)
 		if err != nil {
-			return xerrors.Errorf("failed to make a dir %q: %w", dirpath, err)
+			return errors.Wrapf(err, "failed to make a dir %q", dirpath)
 		}
 
 		newEnv := manager.Environment.ClearICommandsIncompatibleFields()
 		err = newEnv.ToFile(manager.EnvironmentFilePath)
 		if err != nil {
-			return xerrors.Errorf("failed to write icommands configuration to file %q: %w", manager.EnvironmentFilePath, err)
+			return errors.Wrapf(err, "failed to write icommands configuration to file %q", manager.EnvironmentFilePath)
 		}
 	}
 
@@ -328,7 +328,7 @@ func (manager *ICommandsEnvironmentManager) SaveEnvironment() error {
 
 		err := obfuscator.EncodeToFile(manager.PasswordFilePath, []byte(password))
 		if err != nil {
-			return xerrors.Errorf("failed to encode password to file %q: %w", manager.PasswordFilePath, err)
+			return errors.Wrapf(err, "failed to encode password to file %q", manager.PasswordFilePath)
 		}
 	}
 
@@ -348,13 +348,13 @@ func (manager *ICommandsEnvironmentManager) SaveSession() error {
 		dirpath := filepath.Dir(manager.SessionFilePath)
 		err := os.MkdirAll(dirpath, 0700)
 		if err != nil {
-			return xerrors.Errorf("failed to make a dir %q: %w", dirpath, err)
+			return errors.Wrapf(err, "failed to make a dir %q", dirpath)
 		}
 
 		newSession := manager.Session.ClearICommandsIncompatibleFields()
 		err = newSession.ToFile(manager.SessionFilePath)
 		if err != nil {
-			return xerrors.Errorf("failed to save to file %q: %w", manager.SessionFilePath, err)
+			return errors.Wrapf(err, "failed to save to file %q", manager.SessionFilePath)
 		}
 	}
 

@@ -12,8 +12,7 @@ import (
 	"os"
 	"strings"
 
-	"golang.org/x/xerrors"
-
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/types"
 )
@@ -32,7 +31,7 @@ func HashStrings(strs []string, hashAlg string) ([]byte, error) {
 	case strings.ToLower(string(types.ChecksumAlgorithmSHA512)):
 		return HashStringsWithAlgorithm(strs, sha512.New())
 	default:
-		return nil, xerrors.Errorf("unknown hash algorithm %q", hashAlg)
+		return nil, errors.Errorf("unknown hash algorithm %q", hashAlg)
 	}
 }
 
@@ -50,7 +49,7 @@ func HashLocalFile(sourcePath string, hashAlg string, processCallback common.Tra
 	case strings.ToLower(string(types.ChecksumAlgorithmSHA512)):
 		return HashLocalFileWithAlgorithm(sourcePath, sha512.New(), processCallback)
 	default:
-		return nil, xerrors.Errorf("unknown hash algorithm %q", hashAlg)
+		return nil, errors.Errorf("unknown hash algorithm %q", hashAlg)
 	}
 }
 
@@ -68,7 +67,7 @@ func HashBuffer(buffer *bytes.Buffer, hashAlg string, processCallback common.Tra
 	case strings.ToLower(string(types.ChecksumAlgorithmSHA512)):
 		return HashBufferWithAlgorithm(buffer, sha512.New(), processCallback)
 	default:
-		return nil, xerrors.Errorf("unknown hash algorithm %q", hashAlg)
+		return nil, errors.Errorf("unknown hash algorithm %q", hashAlg)
 	}
 }
 
@@ -77,7 +76,7 @@ func HashStringsWithAlgorithm(strs []string, hashAlg hash.Hash) ([]byte, error) 
 	for _, str := range strs {
 		_, err := hashAlg.Write([]byte(str))
 		if err != nil {
-			return nil, xerrors.Errorf("failed to write: %w", err)
+			return nil, errors.Wrapf(err, "failed to write")
 		}
 	}
 
@@ -89,12 +88,12 @@ func HashStringsWithAlgorithm(strs []string, hashAlg hash.Hash) ([]byte, error) 
 func HashLocalFileWithAlgorithm(sourcePath string, hashAlg hash.Hash, processCallback common.TransferTrackerCallback) ([]byte, error) {
 	stat, err := os.Stat(sourcePath)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to stat file %q: %w", sourcePath, err)
+		return nil, errors.Wrapf(err, "failed to stat file %q", sourcePath)
 	}
 
 	f, err := os.Open(sourcePath)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to open file %q: %w", sourcePath, err)
+		return nil, errors.Wrapf(err, "failed to open file %q", sourcePath)
 	}
 	defer f.Close()
 
@@ -113,7 +112,7 @@ func HashLocalFileWithAlgorithm(sourcePath string, hashAlg hash.Hash, processCal
 		if readLen > 0 {
 			_, writeErr := hashAlg.Write(buffer[:readLen])
 			if writeErr != nil {
-				return nil, xerrors.Errorf("failed to write data to hash algorithm: %w", writeErr)
+				return nil, errors.Wrapf(writeErr, "failed to write data to hash algorithm")
 			}
 
 			calculatedBytes += int64(readLen)
@@ -128,7 +127,7 @@ func HashLocalFileWithAlgorithm(sourcePath string, hashAlg hash.Hash, processCal
 				break
 			}
 
-			return nil, xerrors.Errorf("failed to read file %q: %w", sourcePath, readErr)
+			return nil, errors.Wrapf(readErr, "failed to read file %q", sourcePath)
 		}
 	}
 
@@ -146,7 +145,7 @@ func HashBufferWithAlgorithm(buffer *bytes.Buffer, hashAlg hash.Hash, processCal
 
 	_, err := hashAlg.Write(buffer.Bytes())
 	if err != nil {
-		return nil, xerrors.Errorf("failed to write: %w", err)
+		return nil, errors.Wrapf(err, "failed to write")
 	}
 
 	if processCallback != nil {

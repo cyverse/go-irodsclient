@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/cockroachdb/errors"
 	irods_fs "github.com/cyverse/go-irodsclient/fs"
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/session"
@@ -14,7 +15,6 @@ import (
 	"github.com/docker/compose/v2/pkg/api"
 	log "github.com/sirupsen/logrus"
 	"github.com/testcontainers/testcontainers-go/modules/compose"
-	"golang.org/x/xerrors"
 )
 
 type IRODSTestServer struct {
@@ -29,7 +29,7 @@ type IRODSTestServer struct {
 func getComposeFilePath(version IRODSTestServerVersion) (string, error) {
 	_, currentFile, _, ok := runtime.Caller(0)
 	if !ok {
-		return "", fmt.Errorf("failed to get current file path")
+		return "", errors.Errorf("failed to get current file path")
 	}
 
 	currentDir := filepath.Dir(currentFile)
@@ -40,7 +40,7 @@ func getComposeFilePath(version IRODSTestServerVersion) (string, error) {
 func getTestIRODSServerAccount() (*types.IRODSAccount, error) {
 	account, err := types.CreateIRODSAccount(testServerHost, testServerPort, testServerAdminUser, testServerZone, types.AuthSchemeNative, testServerAdminPassword, testServerResource)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to create irods account: %w", err)
+		return nil, errors.Wrapf(err, "failed to create irods account")
 	}
 
 	account.ClientServerNegotiation = false
@@ -51,7 +51,7 @@ func getTestIRODSServerAccount() (*types.IRODSAccount, error) {
 func getProductionIRODSServerAccount() (*types.IRODSAccount, error) {
 	account, err := types.CreateIRODSAccount(productionServerHost, productionServerPort, productionServerAdminUser, productionServerZone, types.AuthSchemeNative, productionServerAdminPassword, productionServerResource)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to create irods account: %w", err)
+		return nil, errors.Wrapf(err, "failed to create irods account")
 	}
 
 	account.ClientServerNegotiation = false
@@ -74,12 +74,12 @@ func GetProductionIRODSVersions() []IRODSTestServerVersion {
 func NewTestIRODSServer(version IRODSTestServerVersion) (*IRODSTestServer, error) {
 	composePath, err := getComposeFilePath(version)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to get compose file path: %w", err)
+		return nil, errors.Wrapf(err, "failed to get compose file path")
 	}
 
 	account, err := getTestIRODSServerAccount()
 	if err != nil {
-		return nil, xerrors.Errorf("failed to get iRODS test server account: %w", err)
+		return nil, errors.Wrapf(err, "failed to get iRODS test server account")
 	}
 
 	return &IRODSTestServer{
@@ -95,7 +95,7 @@ func NewTestIRODSServer(version IRODSTestServerVersion) (*IRODSTestServer, error
 func NewProductionIRODSServer(version IRODSTestServerVersion) (*IRODSTestServer, error) {
 	account, err := getProductionIRODSServerAccount()
 	if err != nil {
-		return nil, xerrors.Errorf("failed to get production iRODS server account: %w", err)
+		return nil, errors.Wrapf(err, "failed to get production iRODS server account")
 	}
 
 	return &IRODSTestServer{
@@ -121,7 +121,7 @@ func (server *IRODSTestServer) Start() error {
 
 	comp, err := compose.NewDockerCompose(server.DockerComposePath)
 	if err != nil {
-		return xerrors.Errorf("failed to create docker compose: %w", err)
+		return errors.Wrapf(err, "failed to create docker compose")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -129,7 +129,7 @@ func (server *IRODSTestServer) Start() error {
 
 	err = comp.Up(ctx, compose.WithRecreate(api.RecreateForce), compose.Wait(true))
 	if err != nil {
-		return xerrors.Errorf("failed to start iRODS test server: %w", err)
+		return errors.Wrapf(err, "failed to start iRODS test server")
 	}
 
 	server.terminateWait.Add(1)
@@ -145,7 +145,7 @@ func (server *IRODSTestServer) Start() error {
 
 		err = comp.Down(ctx, compose.RemoveOrphans(true))
 		if err != nil {
-			logger.Error(xerrors.Errorf("failed to stop iRODS test server: %w", err))
+			logger.Error(errors.Wrapf(err, "failed to stop iRODS test server"))
 		}
 
 		server.terminateWait.Done()

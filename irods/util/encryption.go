@@ -7,8 +7,8 @@ import (
 	"crypto/des"
 	"crypto/rand"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/types"
-	"golang.org/x/xerrors"
 )
 
 // GetEncryptionBlockSize returns block size
@@ -31,7 +31,7 @@ func GetEncryptionIV(algorithm types.EncryptionAlgorithm) ([]byte, error) {
 	iv := make([]byte, blockSize)
 	_, err := rand.Read(iv)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to generate iv: %w", err)
+		return nil, errors.Wrapf(err, "failed to generate iv")
 	}
 
 	return iv, nil
@@ -62,7 +62,7 @@ func Encrypt(algorithm types.EncryptionAlgorithm, key []byte, iv []byte, source 
 	case types.EncryptionAlgorithmUnknown:
 		fallthrough
 	default:
-		return 0, xerrors.Errorf("unknown encryption algorithm")
+		return 0, errors.Errorf("unknown encryption algorithm")
 	}
 }
 
@@ -93,7 +93,7 @@ func Decrypt(algorithm types.EncryptionAlgorithm, key []byte, iv []byte, source 
 	case types.EncryptionAlgorithmUnknown:
 		fallthrough
 	default:
-		return 0, xerrors.Errorf("unknown encryption algorithm")
+		return 0, errors.Errorf("unknown encryption algorithm")
 	}
 
 	if err != nil {
@@ -102,7 +102,7 @@ func Decrypt(algorithm types.EncryptionAlgorithm, key []byte, iv []byte, source 
 
 	unpaddedDest, err := stripPkcs7(paddedDest, blockSize)
 	if err != nil {
-		return 0, xerrors.Errorf("failed to strip pkcs7 padding: %w", err)
+		return 0, errors.Wrapf(err, "failed to strip pkcs7 padding")
 	}
 
 	destLen := copy(dest, unpaddedDest)
@@ -125,21 +125,21 @@ func stripPkcs7(data []byte, blockSize int) ([]byte, error) {
 	}
 
 	if (len(data) % blockSize) != 0 {
-		return nil, xerrors.Errorf("unaligned data")
+		return nil, errors.Errorf("unaligned data")
 	}
 
 	padLen := int(data[len(data)-1])
 	ref := bytes.Repeat([]byte{byte(padLen)}, padLen)
 	if padLen > blockSize {
-		return nil, xerrors.Errorf("invalid pkcs7 padding, padding length %d is larger than block size %d", padLen, blockSize)
+		return nil, errors.Errorf("invalid pkcs7 padding, padding length %d is larger than block size %d", padLen, blockSize)
 	}
 
 	if padLen == 0 {
-		return nil, xerrors.Errorf("invalid pkcs7 padding, padding length must be non-zero")
+		return nil, errors.Errorf("invalid pkcs7 padding, padding length must be non-zero")
 	}
 
 	if !bytes.HasSuffix(data, ref) {
-		return nil, xerrors.Errorf("invalid pkcs7 padding")
+		return nil, errors.Errorf("invalid pkcs7 padding")
 	}
 	return data[:len(data)-padLen], nil
 }
@@ -147,7 +147,7 @@ func stripPkcs7(data []byte, blockSize int) ([]byte, error) {
 func encryptAES256CBC(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
-		return 0, xerrors.Errorf("failed to create AES cipher: %w", err)
+		return 0, errors.Wrapf(err, "failed to create AES cipher")
 	}
 
 	encrypter := cipher.NewCBCEncrypter(block, iv)
@@ -159,7 +159,7 @@ func encryptAES256CBC(key []byte, iv []byte, source []byte, dest []byte) (int, e
 func decryptAES256CBC(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
-		return 0, xerrors.Errorf("failed to create AES cipher: %w", err)
+		return 0, errors.Wrapf(err, "failed to create AES cipher")
 	}
 
 	decrypter := cipher.NewCBCDecrypter(block, iv)
@@ -171,7 +171,7 @@ func decryptAES256CBC(key []byte, iv []byte, source []byte, dest []byte) (int, e
 func encryptAES256CTR(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
-		return 0, xerrors.Errorf("failed to create AES cipher: %w", err)
+		return 0, errors.Wrapf(err, "failed to create AES cipher")
 	}
 
 	decrypter := cipher.NewCTR(block, iv)
@@ -183,7 +183,7 @@ func encryptAES256CTR(key []byte, iv []byte, source []byte, dest []byte) (int, e
 func decryptAES256CTR(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
-		return 0, xerrors.Errorf("failed to create AES cipher: %w", err)
+		return 0, errors.Wrapf(err, "failed to create AES cipher")
 	}
 
 	decrypter := cipher.NewCTR(block, iv)
@@ -195,7 +195,7 @@ func decryptAES256CTR(key []byte, iv []byte, source []byte, dest []byte) (int, e
 func encryptAES256CFB(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
-		return 0, xerrors.Errorf("failed to create AES cipher: %w", err)
+		return 0, errors.Wrapf(err, "failed to create AES cipher")
 	}
 
 	decrypter := cipher.NewCFBEncrypter(block, iv)
@@ -207,7 +207,7 @@ func encryptAES256CFB(key []byte, iv []byte, source []byte, dest []byte) (int, e
 func decryptAES256CFB(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
-		return 0, xerrors.Errorf("failed to create AES cipher: %w", err)
+		return 0, errors.Wrapf(err, "failed to create AES cipher")
 	}
 
 	decrypter := cipher.NewCFBDecrypter(block, iv)
@@ -219,7 +219,7 @@ func decryptAES256CFB(key []byte, iv []byte, source []byte, dest []byte) (int, e
 func encryptAES256OFB(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
-		return 0, xerrors.Errorf("failed to create AES cipher: %w", err)
+		return 0, errors.Wrapf(err, "failed to create AES cipher")
 	}
 
 	decrypter := cipher.NewOFB(block, iv)
@@ -231,7 +231,7 @@ func encryptAES256OFB(key []byte, iv []byte, source []byte, dest []byte) (int, e
 func decryptAES256OFB(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
-		return 0, xerrors.Errorf("failed to create AES cipher: %w", err)
+		return 0, errors.Wrapf(err, "failed to create AES cipher")
 	}
 
 	decrypter := cipher.NewOFB(block, iv)
@@ -243,7 +243,7 @@ func decryptAES256OFB(key []byte, iv []byte, source []byte, dest []byte) (int, e
 func encryptDES256CBC(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := des.NewCipher([]byte(key))
 	if err != nil {
-		return 0, xerrors.Errorf("failed to create DES cipher: %w", err)
+		return 0, errors.Wrapf(err, "failed to create DES cipher")
 	}
 
 	decrypter := cipher.NewCBCEncrypter(block, iv)
@@ -255,7 +255,7 @@ func encryptDES256CBC(key []byte, iv []byte, source []byte, dest []byte) (int, e
 func decryptDES256CBC(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := des.NewCipher([]byte(key))
 	if err != nil {
-		return 0, xerrors.Errorf("failed to create DES cipher: %w", err)
+		return 0, errors.Wrapf(err, "failed to create DES cipher")
 	}
 
 	decrypter := cipher.NewCBCDecrypter(block, iv)
@@ -267,7 +267,7 @@ func decryptDES256CBC(key []byte, iv []byte, source []byte, dest []byte) (int, e
 func encryptDES256CTR(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := des.NewCipher([]byte(key))
 	if err != nil {
-		return 0, xerrors.Errorf("failed to create DES cipher: %w", err)
+		return 0, errors.Wrapf(err, "failed to create DES cipher")
 	}
 
 	decrypter := cipher.NewCTR(block, iv)
@@ -279,7 +279,7 @@ func encryptDES256CTR(key []byte, iv []byte, source []byte, dest []byte) (int, e
 func decryptDES256CTR(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := des.NewCipher([]byte(key))
 	if err != nil {
-		return 0, xerrors.Errorf("failed to create DES cipher: %w", err)
+		return 0, errors.Wrapf(err, "failed to create DES cipher")
 	}
 
 	decrypter := cipher.NewCTR(block, iv)
@@ -291,7 +291,7 @@ func decryptDES256CTR(key []byte, iv []byte, source []byte, dest []byte) (int, e
 func encryptDES256CFB(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := des.NewCipher([]byte(key))
 	if err != nil {
-		return 0, xerrors.Errorf("failed to create DES cipher: %w", err)
+		return 0, errors.Wrapf(err, "failed to create DES cipher")
 	}
 
 	decrypter := cipher.NewCFBEncrypter(block, iv)
@@ -303,7 +303,7 @@ func encryptDES256CFB(key []byte, iv []byte, source []byte, dest []byte) (int, e
 func decryptDES256CFB(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := des.NewCipher([]byte(key))
 	if err != nil {
-		return 0, xerrors.Errorf("failed to create DES cipher: %w", err)
+		return 0, errors.Wrapf(err, "failed to create DES cipher")
 	}
 
 	decrypter := cipher.NewCFBDecrypter(block, iv)
@@ -315,7 +315,7 @@ func decryptDES256CFB(key []byte, iv []byte, source []byte, dest []byte) (int, e
 func encryptDES256OFB(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := des.NewCipher([]byte(key))
 	if err != nil {
-		return 0, xerrors.Errorf("failed to create DES cipher: %w", err)
+		return 0, errors.Wrapf(err, "failed to create DES cipher")
 	}
 
 	decrypter := cipher.NewOFB(block, iv)
@@ -327,7 +327,7 @@ func encryptDES256OFB(key []byte, iv []byte, source []byte, dest []byte) (int, e
 func decryptDES256OFB(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := des.NewCipher([]byte(key))
 	if err != nil {
-		return 0, xerrors.Errorf("failed to create DES cipher: %w", err)
+		return 0, errors.Wrapf(err, "failed to create DES cipher")
 	}
 
 	decrypter := cipher.NewOFB(block, iv)

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"golang.org/x/xerrors"
+	"github.com/cockroachdb/errors"
 )
 
 // IRODSMetaItemType describes a type to set metadata on
@@ -31,7 +31,7 @@ func GetIRODSMetaItemType(data interface{}) (IRODSMetaItemType, error) {
 	case IRODSUser:
 		return IRODSUserMetaItemType, nil
 	default:
-		return "", xerrors.Errorf("unknown irods metadata item type")
+		return "", errors.Errorf("unknown irods metadata item type")
 	}
 }
 

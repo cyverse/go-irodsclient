@@ -3,9 +3,9 @@ package message
 import (
 	"encoding/xml"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/types"
-	"golang.org/x/xerrors"
 )
 
 // IRODSMessageChecksumRequest stores data object checksum request
@@ -45,7 +45,7 @@ func (msg *IRODSMessageChecksumRequest) AddKeyVal(key common.KeyWord, val string
 func (msg *IRODSMessageChecksumRequest) GetBytes() ([]byte, error) {
 	xmlBytes, err := xml.Marshal(msg)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to marshal irods message to xml: %w", err)
+		return nil, errors.Wrapf(err, "failed to marshal irods message to xml")
 	}
 	return xmlBytes, nil
 }
@@ -54,7 +54,7 @@ func (msg *IRODSMessageChecksumRequest) GetBytes() ([]byte, error) {
 func (msg *IRODSMessageChecksumRequest) FromBytes(bytes []byte) error {
 	err := xml.Unmarshal(bytes, msg)
 	if err != nil {
-		return xerrors.Errorf("failed to unmarshal xml to irods message: %w", err)
+		return errors.Wrapf(err, "failed to unmarshal xml to irods message")
 	}
 	return nil
 }
@@ -63,7 +63,7 @@ func (msg *IRODSMessageChecksumRequest) FromBytes(bytes []byte) error {
 func (msg *IRODSMessageChecksumRequest) GetMessage() (*IRODSMessage, error) {
 	bytes, err := msg.GetBytes()
 	if err != nil {
-		return nil, xerrors.Errorf("failed to get bytes from irods message: %w", err)
+		return nil, errors.Wrapf(err, "failed to get bytes from irods message")
 	}
 
 	msgBody := IRODSMessageBody{
@@ -76,7 +76,7 @@ func (msg *IRODSMessageChecksumRequest) GetMessage() (*IRODSMessage, error) {
 
 	msgHeader, err := msgBody.BuildHeader()
 	if err != nil {
-		return nil, xerrors.Errorf("failed to build header from irods message: %w", err)
+		return nil, errors.Wrapf(err, "failed to build header from irods message")
 	}
 
 	return &IRODSMessage{

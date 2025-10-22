@@ -4,9 +4,9 @@ import (
 	"encoding/xml"
 	"fmt"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/types"
-	"golang.org/x/xerrors"
 )
 
 const (
@@ -57,7 +57,7 @@ func NewIRODSMessageStartupPack(account *types.IRODSAccount, option string, requ
 func (msg *IRODSMessageStartupPack) GetBytes() ([]byte, error) {
 	xmlBytes, err := xml.Marshal(msg)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to marshal irods message to xml: %w", err)
+		return nil, errors.Wrapf(err, "failed to marshal irods message to xml")
 	}
 	return xmlBytes, nil
 }
@@ -66,7 +66,7 @@ func (msg *IRODSMessageStartupPack) GetBytes() ([]byte, error) {
 func (msg *IRODSMessageStartupPack) FromBytes(bytes []byte) error {
 	err := xml.Unmarshal(bytes, msg)
 	if err != nil {
-		return xerrors.Errorf("failed to unmarshal xml to irods message: %w", err)
+		return errors.Wrapf(err, "failed to unmarshal xml to irods message")
 	}
 	return nil
 }
@@ -75,7 +75,7 @@ func (msg *IRODSMessageStartupPack) FromBytes(bytes []byte) error {
 func (msg *IRODSMessageStartupPack) GetMessage() (*IRODSMessage, error) {
 	bytes, err := msg.GetBytes()
 	if err != nil {
-		return nil, xerrors.Errorf("failed to get bytes from irods message: %w", err)
+		return nil, errors.Wrapf(err, "failed to get bytes from irods message")
 	}
 
 	msgBody := IRODSMessageBody{
@@ -88,7 +88,7 @@ func (msg *IRODSMessageStartupPack) GetMessage() (*IRODSMessage, error) {
 
 	msgHeader, err := msgBody.BuildHeader()
 	if err != nil {
-		return nil, xerrors.Errorf("failed to build header from irods message: %w", err)
+		return nil, errors.Wrapf(err, "failed to build header from irods message")
 	}
 
 	return &IRODSMessage{
@@ -100,12 +100,12 @@ func (msg *IRODSMessageStartupPack) GetMessage() (*IRODSMessage, error) {
 // FromMessage returns struct from IRODSMessage
 func (msg *IRODSMessageStartupPack) FromMessage(msgIn *IRODSMessage) error {
 	if msgIn.Body == nil {
-		return xerrors.Errorf("empty message body")
+		return errors.Errorf("empty message body")
 	}
 
 	err := msg.FromBytes(msgIn.Body.Message)
 	if err != nil {
-		return xerrors.Errorf("failed to get irods message from message body: %w", err)
+		return errors.Wrapf(err, "failed to get irods message from message body")
 	}
 	return nil
 }

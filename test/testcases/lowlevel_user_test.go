@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/fs"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/xerrors"
 )
 
 func getLowlevelUserTest() Test {
@@ -44,7 +44,7 @@ func testCreateAndRemoveUser(t *testing.T) {
 
 	_, err = fs.GetUser(conn, testUsername, account.ClientZone)
 	if err == nil {
-		FailError(t, xerrors.Errorf("User %s already exists", testUsername))
+		FailError(t, errors.Errorf("User %s already exists", testUsername))
 	}
 	if err != nil && !types.IsUserNotFoundError(err) {
 		FailError(t, err)
@@ -82,7 +82,7 @@ func testCreateAndRemoveUser(t *testing.T) {
 
 	_, err = fs.GetUser(conn, testUsername, account.ClientZone)
 	if err == nil {
-		FailError(t, xerrors.Errorf("User %s still exists", testUsername))
+		FailError(t, errors.Errorf("User %s still exists", testUsername))
 	}
 	if err != nil && !types.IsUserNotFoundError(err) {
 		FailError(t, err)
@@ -125,7 +125,7 @@ func testCreateUserWithSpecialCharacterPasswords(t *testing.T) {
 
 		_, err = fs.GetUser(conn, testUsername, account.ClientZone)
 		if err == nil {
-			FailError(t, xerrors.Errorf("User %s already exists", testUsername))
+			FailError(t, errors.Errorf("User %s already exists", testUsername))
 		}
 		if err != nil && !types.IsUserNotFoundError(err) {
 			FailError(t, err)
@@ -163,7 +163,7 @@ func testCreateUserWithSpecialCharacterPasswords(t *testing.T) {
 
 		_, err = fs.GetUser(conn, testUsername, account.ClientZone)
 		if err == nil {
-			FailError(t, xerrors.Errorf("User %s still exists", testUsername))
+			FailError(t, errors.Errorf("User %s still exists", testUsername))
 		}
 		if err != nil && !types.IsUserNotFoundError(err) {
 			FailError(t, err)
@@ -191,7 +191,7 @@ func testAddAndRemoveGroupMembers(t *testing.T) {
 	// create user first
 	_, err = fs.GetUser(conn, testUsername, account.ClientZone)
 	if err == nil {
-		FailError(t, xerrors.Errorf("User %s already exists", testUsername))
+		FailError(t, errors.Errorf("User %s already exists", testUsername))
 	}
 	if err != nil && !types.IsUserNotFoundError(err) {
 		FailError(t, err)
@@ -210,7 +210,7 @@ func testAddAndRemoveGroupMembers(t *testing.T) {
 	// create group next
 	_, err = fs.GetUser(conn, testGroupName, account.ClientZone)
 	if err == nil {
-		FailError(t, xerrors.Errorf("Group %s already exists", testGroupName))
+		FailError(t, errors.Errorf("Group %s already exists", testGroupName))
 	}
 	if err != nil && !types.IsUserNotFoundError(err) {
 		FailError(t, err)
@@ -280,7 +280,7 @@ func testAddAndRemoveGroupMembers(t *testing.T) {
 
 	_, err = fs.GetUser(conn, testUsername, account.ClientZone)
 	if err == nil {
-		FailError(t, xerrors.Errorf("User %s still exists", testUsername))
+		FailError(t, errors.Errorf("User %s still exists", testUsername))
 	}
 	if err != nil && !types.IsUserNotFoundError(err) {
 		FailError(t, err)
@@ -292,7 +292,7 @@ func testAddAndRemoveGroupMembers(t *testing.T) {
 
 	_, err = fs.GetUser(conn, testGroupName, account.ClientZone)
 	if err == nil {
-		FailError(t, xerrors.Errorf("Group %s still exists", testGroupName))
+		FailError(t, errors.Errorf("Group %s still exists", testGroupName))
 	}
 	if err != nil && !types.IsUserNotFoundError(err) {
 		FailError(t, err)
@@ -317,7 +317,7 @@ func testListUsersByType(t *testing.T) {
 
 	for _, user := range users {
 		if user.Type != types.IRODSUserRodsUser {
-			FailError(t, xerrors.Errorf("User %s is not %s", user.Name, types.IRODSUserRodsUser))
+			FailError(t, errors.Errorf("User %s is not %s", user.Name, types.IRODSUserRodsUser))
 		}
 	}
 
@@ -326,7 +326,7 @@ func testListUsersByType(t *testing.T) {
 
 	for _, group := range groups {
 		if group.Type != types.IRODSUserRodsGroup {
-			FailError(t, xerrors.Errorf("Group %s is not %s", group.Name, types.IRODSUserRodsGroup))
+			FailError(t, errors.Errorf("Group %s is not %s", group.Name, types.IRODSUserRodsGroup))
 		}
 	}
 
@@ -335,7 +335,7 @@ func testListUsersByType(t *testing.T) {
 
 	for _, admin := range admins {
 		if admin.Type != types.IRODSUserRodsAdmin {
-			FailError(t, xerrors.Errorf("Admin %s is not %s", admin.Name, types.IRODSUserRodsAdmin))
+			FailError(t, errors.Errorf("Admin %s is not %s", admin.Name, types.IRODSUserRodsAdmin))
 		}
 	}
 
@@ -344,7 +344,7 @@ func testListUsersByType(t *testing.T) {
 
 	for _, groupAdmin := range groupAdmins {
 		if groupAdmin.Type != types.IRODSUserGroupAdmin {
-			FailError(t, xerrors.Errorf("Group Admin %s is not %s", groupAdmin.Name, types.IRODSUserGroupAdmin))
+			FailError(t, errors.Errorf("Group Admin %s is not %s", groupAdmin.Name, types.IRODSUserGroupAdmin))
 		}
 	}
 

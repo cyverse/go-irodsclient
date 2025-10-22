@@ -3,10 +3,10 @@ package session
 import (
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/metrics"
 	"github.com/cyverse/go-irodsclient/irods/types"
-	"golang.org/x/xerrors"
 )
 
 const (
@@ -112,43 +112,53 @@ func (poolConfig *ConnectionPoolConfig) fillDefaults() {
 
 func (poolConfig *ConnectionPoolConfig) Validate() error {
 	if len(poolConfig.ApplicationName) == 0 {
-		return xerrors.Errorf("application name is empty: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "application name is empty")
 	}
 
 	if poolConfig.InitialCap < 0 {
-		return xerrors.Errorf("initial cap is invalid: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "initial cap is invalid")
 	}
 
 	if poolConfig.MaxIdle < 0 {
-		return xerrors.Errorf("max idle is invalid: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "max idle is invalid")
 	}
 
 	if poolConfig.MaxCap <= 0 {
-		return xerrors.Errorf("max cap is invalid: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "max cap is invalid")
 	}
 
 	if poolConfig.Lifespan <= 0 {
-		return xerrors.Errorf("lifespan is invalid: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "lifespan is invalid")
 	}
 
 	if poolConfig.IdleTimeout <= 0 {
-		return xerrors.Errorf("idle timeout is invalid: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "idle timeout is invalid")
 	}
 
 	if poolConfig.ConnectTimeout <= 0 {
-		return xerrors.Errorf("connect timeout is invalid: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "connect timeout is invalid")
 	}
 
 	if poolConfig.OperationTimeout <= 0 {
-		return xerrors.Errorf("operation timeout is invalid: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "operation timeout is invalid")
 	}
 
 	if poolConfig.LongOperationTimeout <= 0 {
-		return xerrors.Errorf("long operation timeout is invalid: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "long operation timeout is invalid")
 	}
 
 	if poolConfig.TcpBufferSize < 0 {
-		return xerrors.Errorf("tcp buffer size is invalid: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "tcp buffer size is invalid")
 	}
 
 	return nil
@@ -209,43 +219,53 @@ func (sessionConfig *IRODSSessionConfig) fillDefaults() {
 
 func (sessionConfig *IRODSSessionConfig) Validate() error {
 	if len(sessionConfig.ApplicationName) == 0 {
-		return xerrors.Errorf("application name is empty: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "application name is empty")
 	}
 
 	if sessionConfig.ConnectionCreationTimeout <= 0 {
-		return xerrors.Errorf("connection creation timeout is invalid: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "connection creation timeout is invalid")
 	}
 
 	if sessionConfig.ConnectionInitNumber < 0 {
-		return xerrors.Errorf("connection init number is invalid: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "connection init number is invalid")
 	}
 
 	if sessionConfig.ConnectionMaxNumber <= 0 {
-		return xerrors.Errorf("connection max number is invalid: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "connection max number is invalid")
 	}
 
 	if sessionConfig.ConnectionLifespan <= 0 {
-		return xerrors.Errorf("connection lifespan is invalid: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "connection lifespan is invalid")
 	}
 
 	if sessionConfig.ConnectionIdleTimeout <= 0 {
-		return xerrors.Errorf("connection idle timeout is invalid: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "connection idle timeout is invalid")
 	}
 
 	if sessionConfig.ConnectionMaxIdleNumber <= 0 {
-		return xerrors.Errorf("connection max idle number is invalid: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "connection max idle number is invalid")
 	}
 
 	if sessionConfig.OperationTimeout <= 0 {
-		return xerrors.Errorf("operation timeout is invalid: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "operation timeout is invalid")
 	}
 
 	if sessionConfig.LongOperationTimeout <= 0 {
-		return xerrors.Errorf("long operation timeout is invalid: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "long operation timeout is invalid")
 	}
 
 	if sessionConfig.TcpBufferSize < 0 {
-		return xerrors.Errorf("tcp buffer size is invalid: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "tcp buffer size is invalid")
 	}
 
 	return nil

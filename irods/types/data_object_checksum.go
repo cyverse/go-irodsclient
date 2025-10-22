@@ -3,7 +3,7 @@ package types
 import (
 	"fmt"
 
-	"golang.org/x/xerrors"
+	"github.com/cockroachdb/errors"
 )
 
 // IRODSChecksum contains data object hash information
@@ -26,7 +26,7 @@ func CreateIRODSChecksum(checksumString string) (*IRODSChecksum, error) {
 
 	algorithm, checksum, err := ParseIRODSChecksumString(checksumString)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to split data object checksum: %w", err)
+		return nil, errors.Wrapf(err, "failed to split data object checksum")
 	}
 
 	return &IRODSChecksum{

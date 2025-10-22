@@ -6,9 +6,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/test/server"
 	"github.com/rs/xid"
-	"golang.org/x/xerrors"
 )
 
 func MakeFixedContentDataBuf(size int64) []byte {
@@ -72,12 +72,12 @@ func CreateLocalTestFile(t *testing.T, name string, size int64) (string, error) 
 func CreateSampleFilesAndDirs(t *testing.T, server *server.IRODSTestServer, dest string, numFiles int, numDirs int) ([]string, []string, error) {
 	fs, err := server.GetFileSystem()
 	if err != nil {
-		return nil, nil, xerrors.Errorf("failed to create a new filesystem: %w", err)
+		return nil, nil, errors.Wrapf(err, "failed to create a new filesystem")
 	}
 	defer fs.Release()
 
 	if !fs.ExistsDir(dest) {
-		return nil, nil, xerrors.Errorf("dest directory %q does not exist", dest)
+		return nil, nil, errors.Errorf("dest directory %q does not exist", dest)
 	}
 
 	sampleFiles := []string{}
@@ -93,18 +93,18 @@ func CreateSampleFilesAndDirs(t *testing.T, server *server.IRODSTestServer, dest
 
 		tempPath, err := CreateLocalTestFile(t, filename, filesize)
 		if err != nil {
-			return nil, nil, xerrors.Errorf("failed to create a local test file: %w", err)
+			return nil, nil, errors.Wrapf(err, "failed to create a local test file %q", filename)
 		}
 
 		irodsPath := dest + "/" + filename
 		_, err = fs.UploadFile(tempPath, irodsPath, "", false, false, false, false, nil)
 		if err != nil {
-			return nil, nil, xerrors.Errorf("failed to upload a data object: %w", err)
+			return nil, nil, errors.Wrapf(err, "failed to upload a data object %q", irodsPath)
 		}
 
 		err = os.Remove(tempPath)
 		if err != nil {
-			return nil, nil, xerrors.Errorf("failed to remove a local test file %q: %w", tempPath, err)
+			return nil, nil, errors.Wrapf(err, "failed to remove a local test file %q", tempPath)
 		}
 
 		sampleFiles = append(sampleFiles, irodsPath)
@@ -117,7 +117,7 @@ func CreateSampleFilesAndDirs(t *testing.T, server *server.IRODSTestServer, dest
 		irodsPath := dest + "/" + dirname
 		err = fs.MakeDir(irodsPath, true)
 		if err != nil {
-			return nil, nil, xerrors.Errorf("failed to make a directory: %w", err)
+			return nil, nil, errors.Wrapf(err, "failed to make a directory %q", irodsPath)
 		}
 
 		sampleDirs = append(sampleDirs, irodsPath)

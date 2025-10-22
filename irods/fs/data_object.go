@@ -9,13 +9,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/message"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
 	"github.com/danwakefield/fnmatch"
-	"golang.org/x/xerrors"
 )
 
 /*
@@ -56,7 +56,7 @@ Indexes:
 // GetDataObject returns a data object for the path
 func GetDataObject(conn *connection.IRODSConnection, dataObjPath string) (*types.IRODSDataObject, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -103,23 +103,27 @@ func GetDataObject(conn *connection.IRODSConnection, dataObjPath string) (*types
 		err := conn.Request(query, &queryResult, nil, conn.GetOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the data object for path %q: %w", dataObjPath, types.NewFileNotFoundError(dataObjPath))
+				newErr := errors.Join(err, types.NewFileNotFoundError(dataObjPath))
+				return nil, errors.Wrapf(newErr, "failed to find the data object for path %q", dataObjPath)
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", dataObjPath, types.NewFileNotFoundError(dataObjPath))
+				newErr := errors.Join(err, types.NewFileNotFoundError(dataObjPath))
+				return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", dataObjPath)
 			}
 
-			return nil, xerrors.Errorf("failed to receive a data object query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a data object query result message")
 		}
 
 		err = queryResult.CheckError()
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the data object for path %q: %w", dataObjPath, types.NewFileNotFoundError(dataObjPath))
+				newErr := errors.Join(err, types.NewFileNotFoundError(dataObjPath))
+				return nil, errors.Wrapf(newErr, "failed to find the data object for path %q", dataObjPath)
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", dataObjPath, types.NewFileNotFoundError(dataObjPath))
+				newErr := errors.Join(err, types.NewFileNotFoundError(dataObjPath))
+				return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", dataObjPath)
 			}
 
-			return nil, xerrors.Errorf("received data object query error: %w", err)
+			return nil, errors.Wrapf(err, "received data object query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -127,7 +131,7 @@ func GetDataObject(conn *connection.IRODSConnection, dataObjPath string) (*types
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
@@ -135,7 +139,7 @@ func GetDataObject(conn *connection.IRODSConnection, dataObjPath string) (*types
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -170,7 +174,7 @@ func GetDataObject(conn *connection.IRODSConnection, dataObjPath string) (*types
 				case int(common.ICAT_COLUMN_D_DATA_ID):
 					objID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object id %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object id %q", value)
 					}
 					pagenatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_DATA_NAME):
@@ -179,7 +183,7 @@ func GetDataObject(conn *connection.IRODSConnection, dataObjPath string) (*types
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object size %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object size %q", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
@@ -187,7 +191,7 @@ func GetDataObject(conn *connection.IRODSConnection, dataObjPath string) (*types
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object replica number %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object replica number %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
@@ -195,7 +199,7 @@ func GetDataObject(conn *connection.IRODSConnection, dataObjPath string) (*types
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
 					checksum, err := types.CreateIRODSChecksum(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object checksum %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object checksum %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
@@ -209,13 +213,13 @@ func GetDataObject(conn *connection.IRODSConnection, dataObjPath string) (*types
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse create time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse modify time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
 
@@ -226,7 +230,7 @@ func GetDataObject(conn *connection.IRODSConnection, dataObjPath string) (*types
 				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
 					aT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse access time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
@@ -244,7 +248,8 @@ func GetDataObject(conn *connection.IRODSConnection, dataObjPath string) (*types
 	}
 
 	if len(dataObjects) == 0 {
-		return nil, xerrors.Errorf("failed to find the data object for path %q: %w", dataObjPath, types.NewFileNotFoundError(dataObjPath))
+		newErr := types.NewFileNotFoundError(dataObjPath)
+		return nil, errors.Wrapf(newErr, "failed to find the data object for path %q", dataObjPath)
 	}
 
 	// merge data objects per file
@@ -265,13 +270,14 @@ func GetDataObject(conn *connection.IRODSConnection, dataObjPath string) (*types
 		return object, nil
 	}
 
-	return nil, xerrors.Errorf("failed to find the data object for path %q: %w", dataObjPath, types.NewFileNotFoundError(dataObjPath))
+	newErr := types.NewFileNotFoundError(dataObjPath)
+	return nil, errors.Wrapf(newErr, "failed to find the data object for path %q", dataObjPath)
 }
 
 // GetDataObjectMasterReplica returns a data object for the path, returns only master replica
 func GetDataObjectMasterReplica(conn *connection.IRODSConnection, dataObjPath string) (*types.IRODSDataObject, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -319,23 +325,27 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, dataObjPath st
 		err := conn.Request(query, &queryResult, nil, conn.GetOperationTimeout())
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the data object for path %q: %w", dataObjPath, types.NewFileNotFoundError(dataObjPath))
+				newErr := errors.Join(err, types.NewFileNotFoundError(dataObjPath))
+				return nil, errors.Wrapf(newErr, "failed to find the data object for path %q", dataObjPath)
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", dataObjPath, types.NewFileNotFoundError(dataObjPath))
+				newErr := errors.Join(err, types.NewFileNotFoundError(dataObjPath))
+				return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", dataObjPath)
 			}
 
-			return nil, xerrors.Errorf("failed to receive a data object query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a data object query result message")
 		}
 
 		err = queryResult.CheckError()
 		if err != nil {
 			if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the data object for path %q: %w", dataObjPath, types.NewFileNotFoundError(dataObjPath))
+				newErr := errors.Join(err, types.NewFileNotFoundError(dataObjPath))
+				return nil, errors.Wrapf(newErr, "failed to find the data object for path %q", dataObjPath)
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", dataObjPath, types.NewFileNotFoundError(dataObjPath))
+				newErr := errors.Join(err, types.NewFileNotFoundError(dataObjPath))
+				return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", dataObjPath)
 			}
 
-			return nil, xerrors.Errorf("received data object query error: %w", err)
+			return nil, errors.Wrapf(err, "received data object query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -343,7 +353,7 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, dataObjPath st
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
@@ -351,7 +361,7 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, dataObjPath st
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -386,7 +396,7 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, dataObjPath st
 				case int(common.ICAT_COLUMN_D_DATA_ID):
 					objID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object id %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object id %q", value)
 					}
 					pagenatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_DATA_NAME):
@@ -395,7 +405,7 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, dataObjPath st
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object size %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object size %q", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
@@ -403,7 +413,7 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, dataObjPath st
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object replica number %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object replica number %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
@@ -411,7 +421,7 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, dataObjPath st
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
 					checksum, err := types.CreateIRODSChecksum(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object checksum %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object checksum %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
@@ -425,13 +435,13 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, dataObjPath st
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse create time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse modify time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
 
@@ -442,7 +452,7 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, dataObjPath st
 				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
 					aT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse access time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
@@ -460,7 +470,8 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, dataObjPath st
 	}
 
 	if len(dataObjects) == 0 {
-		return nil, xerrors.Errorf("failed to find the data object for path %q: %w", dataObjPath, types.NewFileNotFoundError(dataObjPath))
+		newErr := types.NewFileNotFoundError(dataObjPath)
+		return nil, errors.Wrapf(newErr, "failed to find the data object for path %q", dataObjPath)
 	}
 
 	// merge data objects per file
@@ -489,13 +500,14 @@ func GetDataObjectMasterReplica(conn *connection.IRODSConnection, dataObjPath st
 		return object, nil
 	}
 
-	return nil, xerrors.Errorf("failed to find the data object for path %q: %w", dataObjPath, types.NewFileNotFoundError(dataObjPath))
+	newErr := types.NewFileNotFoundError(dataObjPath)
+	return nil, errors.Wrapf(newErr, "failed to find the data object for path %q", dataObjPath)
 }
 
 // ListDataObjects lists data objects in the given collection
 func ListDataObjects(conn *connection.IRODSConnection, collPath string) ([]*types.IRODSDataObject, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -544,10 +556,11 @@ func ListDataObjects(conn *connection.IRODSConnection, collPath string) ([]*type
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collPath, types.NewFileNotFoundError(collPath))
+				newErr := errors.Join(err, types.NewFileNotFoundError(collPath))
+				return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", collPath)
 			}
 
-			return nil, xerrors.Errorf("failed to receive a data object query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a data object query result message")
 		}
 
 		err = queryResult.CheckError()
@@ -556,10 +569,11 @@ func ListDataObjects(conn *connection.IRODSConnection, collPath string) ([]*type
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collPath, types.NewFileNotFoundError(collPath))
+				newErr := errors.Join(err, types.NewFileNotFoundError(collPath))
+				return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", collPath)
 			}
 
-			return nil, xerrors.Errorf("received data object query error: %w", err)
+			return nil, errors.Wrapf(err, "received data object query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -567,7 +581,7 @@ func ListDataObjects(conn *connection.IRODSConnection, collPath string) ([]*type
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
@@ -575,7 +589,7 @@ func ListDataObjects(conn *connection.IRODSConnection, collPath string) ([]*type
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -611,7 +625,7 @@ func ListDataObjects(conn *connection.IRODSConnection, collPath string) ([]*type
 				case int(common.ICAT_COLUMN_D_DATA_ID):
 					objID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object id %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object id %q", value)
 					}
 					pagenatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_DATA_NAME):
@@ -620,7 +634,7 @@ func ListDataObjects(conn *connection.IRODSConnection, collPath string) ([]*type
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object size %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object size %q", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
@@ -628,7 +642,7 @@ func ListDataObjects(conn *connection.IRODSConnection, collPath string) ([]*type
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object replica number %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object replica number %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
@@ -636,7 +650,7 @@ func ListDataObjects(conn *connection.IRODSConnection, collPath string) ([]*type
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
 					checksum, err := types.CreateIRODSChecksum(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object checksum %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object checksum %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
@@ -650,13 +664,13 @@ func ListDataObjects(conn *connection.IRODSConnection, collPath string) ([]*type
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse create time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse modify time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
 
@@ -667,7 +681,7 @@ func ListDataObjects(conn *connection.IRODSConnection, collPath string) ([]*type
 				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
 					aT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse access time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
@@ -709,7 +723,7 @@ func ListDataObjects(conn *connection.IRODSConnection, collPath string) ([]*type
 // ListDataObjectsMasterReplica lists data objects in the given collection, returns only master replica
 func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collPath string) ([]*types.IRODSDataObject, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -759,10 +773,11 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collPath str
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collPath, types.NewFileNotFoundError(collPath))
+				newErr := errors.Join(err, types.NewFileNotFoundError(collPath))
+				return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", collPath)
 			}
 
-			return nil, xerrors.Errorf("failed to receive a data object query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a data object query result message")
 		}
 
 		err = queryResult.CheckError()
@@ -771,10 +786,11 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collPath str
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", collPath, types.NewFileNotFoundError(collPath))
+				newErr := errors.Join(err, types.NewFileNotFoundError(collPath))
+				return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", collPath)
 			}
 
-			return nil, xerrors.Errorf("received data object query error: %w", err)
+			return nil, errors.Wrapf(err, "received data object query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -782,7 +798,7 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collPath str
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
@@ -790,7 +806,7 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collPath str
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -826,7 +842,7 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collPath str
 				case int(common.ICAT_COLUMN_D_DATA_ID):
 					objID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object id %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object id %q", value)
 					}
 					pagenatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_DATA_NAME):
@@ -835,7 +851,7 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collPath str
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object size %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object size %q", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
@@ -843,7 +859,7 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collPath str
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object replica number %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object replica number %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
@@ -851,7 +867,7 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collPath str
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
 					checksum, err := types.CreateIRODSChecksum(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object checksum %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object checksum %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
@@ -865,13 +881,13 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collPath str
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse create time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse modify time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
 
@@ -882,7 +898,7 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collPath str
 				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
 					aT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse access time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
@@ -933,7 +949,7 @@ func ListDataObjectsMasterReplica(conn *connection.IRODSConnection, collPath str
 // SearchDataObjectsUnixWildcard searches data objects in the given collection using unix-style wildcard
 func SearchDataObjectsUnixWildcard(conn *connection.IRODSConnection, pathUnixWildcard string) ([]*types.IRODSDataObject, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -992,7 +1008,7 @@ func SearchDataObjectsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 				break
 			}
 
-			return nil, xerrors.Errorf("failed to receive a data object query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a data object query result message")
 		}
 
 		err = queryResult.CheckError()
@@ -1004,7 +1020,7 @@ func SearchDataObjectsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 				break
 			}
 
-			return nil, xerrors.Errorf("received data object query error: %w", err)
+			return nil, errors.Wrapf(err, "received data object query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -1012,7 +1028,7 @@ func SearchDataObjectsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
@@ -1021,7 +1037,7 @@ func SearchDataObjectsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -1057,13 +1073,13 @@ func SearchDataObjectsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 				case int(common.ICAT_COLUMN_D_DATA_ID):
 					objID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object id %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object id %q", value)
 					}
 					pagenatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_D_COLL_ID):
 					colID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse collection id %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse collection id %q", value)
 					}
 					pagenatedDataObjects[row].CollectionID = colID
 				case int(common.ICAT_COLUMN_DATA_NAME):
@@ -1079,7 +1095,7 @@ func SearchDataObjectsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object size %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object size %q", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
@@ -1087,7 +1103,7 @@ func SearchDataObjectsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object replica number %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object replica number %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
@@ -1095,7 +1111,7 @@ func SearchDataObjectsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
 					checksum, err := types.CreateIRODSChecksum(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object checksum %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object checksum %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
@@ -1109,13 +1125,13 @@ func SearchDataObjectsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse create time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse modify time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
 
@@ -1126,7 +1142,7 @@ func SearchDataObjectsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
 					aT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse access time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
@@ -1174,7 +1190,7 @@ func SearchDataObjectsUnixWildcard(conn *connection.IRODSConnection, pathUnixWil
 // SearchDataObjectsMasterReplicaUnixWildcard searches data objects in the given collection using unix-style wildcard, returns only master replica
 func SearchDataObjectsMasterReplicaUnixWildcard(conn *connection.IRODSConnection, pathUnixWildcard string) ([]*types.IRODSDataObject, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -1234,7 +1250,7 @@ func SearchDataObjectsMasterReplicaUnixWildcard(conn *connection.IRODSConnection
 				break
 			}
 
-			return nil, xerrors.Errorf("failed to receive a data object query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a data object query result message")
 		}
 
 		err = queryResult.CheckError()
@@ -1246,7 +1262,7 @@ func SearchDataObjectsMasterReplicaUnixWildcard(conn *connection.IRODSConnection
 				break
 			}
 
-			return nil, xerrors.Errorf("received data object query error: %w", err)
+			return nil, errors.Wrapf(err, "received data object query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -1254,7 +1270,7 @@ func SearchDataObjectsMasterReplicaUnixWildcard(conn *connection.IRODSConnection
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
@@ -1263,7 +1279,7 @@ func SearchDataObjectsMasterReplicaUnixWildcard(conn *connection.IRODSConnection
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -1299,13 +1315,13 @@ func SearchDataObjectsMasterReplicaUnixWildcard(conn *connection.IRODSConnection
 				case int(common.ICAT_COLUMN_D_DATA_ID):
 					objID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object id %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object id %q", value)
 					}
 					pagenatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_D_COLL_ID):
 					colID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse collection id %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse collection id %q", value)
 					}
 					pagenatedDataObjects[row].CollectionID = colID
 				case int(common.ICAT_COLUMN_DATA_NAME):
@@ -1321,7 +1337,7 @@ func SearchDataObjectsMasterReplicaUnixWildcard(conn *connection.IRODSConnection
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object size %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object size %q", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
@@ -1329,7 +1345,7 @@ func SearchDataObjectsMasterReplicaUnixWildcard(conn *connection.IRODSConnection
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object replica number %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object replica number %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
@@ -1337,7 +1353,7 @@ func SearchDataObjectsMasterReplicaUnixWildcard(conn *connection.IRODSConnection
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
 					checksum, err := types.CreateIRODSChecksum(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object checksum %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object checksum %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
@@ -1351,13 +1367,13 @@ func SearchDataObjectsMasterReplicaUnixWildcard(conn *connection.IRODSConnection
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse create time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse modify time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
 
@@ -1368,7 +1384,7 @@ func SearchDataObjectsMasterReplicaUnixWildcard(conn *connection.IRODSConnection
 				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
 					aT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse access time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
@@ -1425,7 +1441,7 @@ func SearchDataObjectsMasterReplicaUnixWildcard(conn *connection.IRODSConnection
 // ListDataObjectMeta returns a data object metadata for the path
 func ListDataObjectMeta(conn *connection.IRODSConnection, dataObjPath string) ([]*types.IRODSMeta, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -1461,10 +1477,11 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, dataObjPath string) ([
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection or data object for path %q: %w", dataObjPath, types.NewFileNotFoundError(dataObjPath))
+				newErr := errors.Join(err, types.NewFileNotFoundError(dataObjPath))
+				return nil, errors.Wrapf(newErr, "failed to find the collection or data object for path %q", dataObjPath)
 			}
 
-			return nil, xerrors.Errorf("failed to receive a data object metadata query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a data object metadata query result message")
 		}
 
 		err = queryResult.CheckError()
@@ -1473,10 +1490,11 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, dataObjPath string) ([
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-				return nil, xerrors.Errorf("failed to find the collection for path %q: %w", dataObjPath, types.NewFileNotFoundError(dataObjPath))
+				newErr := errors.Join(err, types.NewFileNotFoundError(dataObjPath))
+				return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", dataObjPath)
 			}
 
-			return nil, xerrors.Errorf("received data object metadata query error: %w", err)
+			return nil, errors.Wrapf(err, "received data object metadata query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -1484,7 +1502,7 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, dataObjPath string) ([
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive data object metadata attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive data object metadata attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedMetas := make([]*types.IRODSMeta, queryResult.RowCount)
@@ -1492,7 +1510,7 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, dataObjPath string) ([
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive data object metadata rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive data object metadata rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -1514,7 +1532,7 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, dataObjPath string) ([
 				case int(common.ICAT_COLUMN_META_DATA_ATTR_ID):
 					avuID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object metadata id %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object metadata id %q", value)
 					}
 					pagenatedMetas[row].AVUID = avuID
 				case int(common.ICAT_COLUMN_META_DATA_ATTR_NAME):
@@ -1526,13 +1544,13 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, dataObjPath string) ([
 				case int(common.ICAT_COLUMN_META_DATA_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse create time %q", value)
 					}
 					pagenatedMetas[row].CreateTime = cT
 				case int(common.ICAT_COLUMN_META_DATA_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse modify time %q", value)
 					}
 					pagenatedMetas[row].ModifyTime = mT
 				default:
@@ -1555,7 +1573,7 @@ func ListDataObjectMeta(conn *connection.IRODSConnection, dataObjPath string) ([
 // DeleteDataObject deletes a data object for the path
 func DeleteDataObject(conn *connection.IRODSConnection, path string, force bool) error {
 	if conn == nil || !conn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
+		return errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -1573,15 +1591,17 @@ func DeleteDataObject(conn *connection.IRODSConnection, path string, force bool)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 			if !force {
-				return xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+				newErr := errors.Join(err, types.NewFileNotFoundError(path))
+				return errors.Wrapf(newErr, "failed to find the data object for path %q", path)
 			}
 			// suppress
 			return nil
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return errors.Wrapf(newErr, "failed to find the collection for path %q", path)
 		}
 
-		return xerrors.Errorf("failed to delete data object: %w", err)
+		return errors.Wrapf(err, "failed to delete data object")
 	}
 	return nil
 }
@@ -1589,7 +1609,7 @@ func DeleteDataObject(conn *connection.IRODSConnection, path string, force bool)
 // MoveDataObject moves a data object for the path to another path
 func MoveDataObject(conn *connection.IRODSConnection, srcPath string, destPath string) error {
 	if conn == nil || !conn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
+		return errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -1606,12 +1626,14 @@ func MoveDataObject(conn *connection.IRODSConnection, srcPath string, destPath s
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return xerrors.Errorf("failed to find the data object for path %q: %w", srcPath, types.NewFileNotFoundError(srcPath))
+			newErr := errors.Join(err, types.NewFileNotFoundError(srcPath))
+			return errors.Wrapf(newErr, "failed to find the data object for path %q", srcPath)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return xerrors.Errorf("failed to find the collection for path %q: %w", srcPath, types.NewFileNotFoundError(srcPath))
+			newErr := errors.Join(err, types.NewFileNotFoundError(srcPath))
+			return errors.Wrapf(newErr, "failed to find the collection for path %q", srcPath)
 		}
 
-		return xerrors.Errorf("failed to move data object: %w", err)
+		return errors.Wrapf(err, "failed to move data object")
 	}
 	return nil
 }
@@ -1619,7 +1641,7 @@ func MoveDataObject(conn *connection.IRODSConnection, srcPath string, destPath s
 // CopyDataObject creates a copy of a data object for the path
 func CopyDataObject(conn *connection.IRODSConnection, srcPath string, destPath string, force bool) error {
 	if conn == nil || !conn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
+		return errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -1636,12 +1658,14 @@ func CopyDataObject(conn *connection.IRODSConnection, srcPath string, destPath s
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return xerrors.Errorf("failed to find the data object for path %q: %w", srcPath, types.NewFileNotFoundError(srcPath))
+			newErr := errors.Join(err, types.NewFileNotFoundError(srcPath))
+			return errors.Wrapf(newErr, "failed to find the data object for path %q", srcPath)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return xerrors.Errorf("failed to find the collection for path %q: %w", srcPath, types.NewFileNotFoundError(srcPath))
+			newErr := errors.Join(err, types.NewFileNotFoundError(srcPath))
+			return errors.Wrapf(newErr, "failed to find the collection for path %q", srcPath)
 		}
 
-		return xerrors.Errorf("failed to copy data object: %w", err)
+		return errors.Wrapf(err, "failed to copy data object")
 	}
 	return nil
 }
@@ -1649,7 +1673,7 @@ func CopyDataObject(conn *connection.IRODSConnection, srcPath string, destPath s
 // TruncateDataObject truncates a data object for the path to the given size
 func TruncateDataObject(conn *connection.IRODSConnection, path string, size int64) error {
 	if conn == nil || !conn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
+		return errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -1666,12 +1690,14 @@ func TruncateDataObject(conn *connection.IRODSConnection, path string, size int6
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return errors.Wrapf(newErr, "failed to find the data object for path %q", path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return errors.Wrapf(newErr, "failed to find the collection for path %q", path)
 		}
 
-		return xerrors.Errorf("failed to truncate data object: %w", err)
+		return errors.Wrapf(err, "failed to truncate data object")
 	}
 	return nil
 }
@@ -1679,7 +1705,7 @@ func TruncateDataObject(conn *connection.IRODSConnection, path string, size int6
 // ReplicateDataObject replicates a data object for the path to the given reousrce
 func ReplicateDataObject(conn *connection.IRODSConnection, path string, resource string, update bool, adminFlag bool) error {
 	if conn == nil || !conn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
+		return errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -1711,12 +1737,14 @@ func ReplicateDataObject(conn *connection.IRODSConnection, path string, resource
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return errors.Wrapf(newErr, "failed to find the data object for path %q", path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return errors.Wrapf(newErr, "failed to find the collection for path %q", path)
 		}
 
-		return xerrors.Errorf("failed to replicate data object: %w", err)
+		return errors.Wrapf(err, "failed to replicate data object")
 	}
 	return nil
 }
@@ -1724,7 +1752,7 @@ func ReplicateDataObject(conn *connection.IRODSConnection, path string, resource
 // TrimDataObject trims replicas for a data object
 func TrimDataObject(conn *connection.IRODSConnection, path string, resource string, minCopies int, minAgeMinutes int, adminFlag bool) error {
 	if conn == nil || !conn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
+		return errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -1752,12 +1780,14 @@ func TrimDataObject(conn *connection.IRODSConnection, path string, resource stri
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return errors.Wrapf(newErr, "failed to find the data object for path %q", path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return errors.Wrapf(newErr, "failed to find the collection for path %q", path)
 		}
 
-		return xerrors.Errorf("failed to trim data object: %w", err)
+		return errors.Wrapf(err, "failed to trim data object")
 	}
 	return nil
 }
@@ -1765,7 +1795,7 @@ func TrimDataObject(conn *connection.IRODSConnection, path string, resource stri
 // CreateDataObject creates a data object for the path, returns a file handle
 func CreateDataObject(conn *connection.IRODSConnection, path string, resource string, mode string, force bool, keywords map[common.KeyWord]string) (*types.IRODSFileHandle, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -1795,12 +1825,14 @@ func CreateDataObject(conn *connection.IRODSConnection, path string, resource st
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return nil, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return nil, errors.Wrapf(newErr, "failed to find the data object for path %q", path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return nil, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", path)
 		}
 
-		return nil, xerrors.Errorf("failed to create data object: %w", err)
+		return nil, errors.Wrapf(err, "failed to create data object")
 	}
 
 	return &types.IRODSFileHandle{
@@ -1815,7 +1847,7 @@ func CreateDataObject(conn *connection.IRODSConnection, path string, resource st
 // OpenDataObject opens a data object for the path, returns a file handle
 func OpenDataObject(conn *connection.IRODSConnection, path string, resource string, mode string, keywords map[common.KeyWord]string) (*types.IRODSFileHandle, int64, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, -1, xerrors.Errorf("connection is nil or disconnected")
+		return nil, -1, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -1845,12 +1877,14 @@ func OpenDataObject(conn *connection.IRODSConnection, path string, resource stri
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return nil, -1, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return nil, -1, errors.Wrapf(newErr, "failed to find the data object for path %q", path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return nil, -1, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return nil, -1, errors.Wrapf(newErr, "failed to find the collection for path %q", path)
 		}
 
-		return nil, -1, xerrors.Errorf("failed to open data object: %w", err)
+		return nil, -1, errors.Wrapf(err, "failed to open data object")
 	}
 
 	handle := &types.IRODSFileHandle{
@@ -1880,7 +1914,7 @@ func OpenDataObject(conn *connection.IRODSConnection, path string, resource stri
 // OpenDataObjectWithReplicaToken opens a data object for the path, returns a file handle
 func OpenDataObjectWithReplicaToken(conn *connection.IRODSConnection, path string, resource string, mode string, replicaToken string, resourceHierarchy string, threadNum int, dataSize int64, keywords map[common.KeyWord]string) (*types.IRODSFileHandle, int64, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, -1, xerrors.Errorf("connection is nil or disconnected")
+		return nil, -1, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -1910,12 +1944,14 @@ func OpenDataObjectWithReplicaToken(conn *connection.IRODSConnection, path strin
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return nil, -1, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return nil, -1, errors.Wrapf(newErr, "failed to find the data object for path %q", path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return nil, -1, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return nil, -1, errors.Wrapf(newErr, "failed to find the collection for path %q", path)
 		}
 
-		return nil, -1, xerrors.Errorf("failed to open data object with replica token: %w", err)
+		return nil, -1, errors.Wrapf(err, "failed to open data object with replica token")
 	}
 
 	handle := &types.IRODSFileHandle{
@@ -1945,7 +1981,7 @@ func OpenDataObjectWithReplicaToken(conn *connection.IRODSConnection, path strin
 // OpenDataObjectWithOperation opens a data object for the path, returns a file handle
 func OpenDataObjectWithOperation(conn *connection.IRODSConnection, path string, resource string, mode string, oper common.OperationType, keywords map[common.KeyWord]string) (*types.IRODSFileHandle, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -1975,12 +2011,14 @@ func OpenDataObjectWithOperation(conn *connection.IRODSConnection, path string, 
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return nil, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return nil, errors.Wrapf(newErr, "failed to find the data object for path %q", path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", path)
 		}
 
-		return nil, xerrors.Errorf("failed to open data object: %w", err)
+		return nil, errors.Wrapf(err, "failed to open data object")
 	}
 
 	handle := &types.IRODSFileHandle{
@@ -2009,7 +2047,7 @@ func OpenDataObjectWithOperation(conn *connection.IRODSConnection, path string, 
 // OpenDataObjectForPutParallel opens a data object for the path, returns a file handle
 func OpenDataObjectForPutParallel(conn *connection.IRODSConnection, path string, resource string, mode string, oper common.OperationType, threadNum int, dataSize int64, keywords map[common.KeyWord]string) (*types.IRODSFileHandle, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -2039,12 +2077,14 @@ func OpenDataObjectForPutParallel(conn *connection.IRODSConnection, path string,
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return nil, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return nil, errors.Wrapf(newErr, "failed to find the data object for path %q", path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", path)
 		}
 
-		return nil, xerrors.Errorf("failed to open data object: %w", err)
+		return nil, errors.Wrapf(err, "failed to open data object")
 	}
 
 	handle := &types.IRODSFileHandle{
@@ -2073,7 +2113,7 @@ func OpenDataObjectForPutParallel(conn *connection.IRODSConnection, path string,
 // GetReplicaAccessInfo returns replica token and resource hierarchy
 func GetReplicaAccessInfo(conn *connection.IRODSConnection, handle *types.IRODSFileHandle) (string, string, error) {
 	if conn == nil || !conn.IsConnected() {
-		return "", "", xerrors.Errorf("connection is nil or disconnected")
+		return "", "", errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -2090,12 +2130,14 @@ func GetReplicaAccessInfo(conn *connection.IRODSConnection, handle *types.IRODSF
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return "", "", xerrors.Errorf("failed to find the data object for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(handle.Path))
+			return "", "", errors.Wrapf(newErr, "failed to find the data object for path %q", handle.Path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return "", "", xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(handle.Path))
+			return "", "", errors.Wrapf(newErr, "failed to find the collection for path %q", handle.Path)
 		}
 
-		return "", "", xerrors.Errorf("failed to get replica access info: %w", err)
+		return "", "", errors.Wrapf(err, "failed to get replica access info")
 	}
 
 	// handle fields buried in other structs
@@ -2114,7 +2156,7 @@ func GetReplicaAccessInfo(conn *connection.IRODSConnection, handle *types.IRODSF
 // SeekDataObject moves file pointer of a data object, returns offset
 func SeekDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHandle, offset int64, whence types.Whence) (int64, error) {
 	if conn == nil || !conn.IsConnected() {
-		return -1, xerrors.Errorf("connection is nil or disconnected")
+		return -1, errors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -2123,7 +2165,7 @@ func SeekDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHan
 
 	seekLoc, err := seekDataObject(conn, handle, offset, whence)
 	if err != nil {
-		return seekLoc, xerrors.Errorf("failed to seek data object: %w", err)
+		return seekLoc, errors.Wrapf(err, "failed to seek data object")
 	}
 	return seekLoc, nil
 }
@@ -2134,12 +2176,14 @@ func seekDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHan
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return -1, xerrors.Errorf("failed to find the data object for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(handle.Path))
+			return -1, errors.Wrapf(newErr, "failed to find the data object for path %q", handle.Path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return -1, xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(handle.Path))
+			return -1, errors.Wrapf(newErr, "failed to find the collection for path %q", handle.Path)
 		}
 
-		return -1, xerrors.Errorf("failed to seek data object: %w", err)
+		return -1, errors.Wrapf(err, "failed to seek data object")
 	}
 
 	return response.Offset, nil
@@ -2153,7 +2197,7 @@ func ReadDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHan
 // ReadDataObjectWithTrackerCallBack reads data from a data object
 func ReadDataObjectWithTrackerCallBack(conn *connection.IRODSConnection, handle *types.IRODSFileHandle, buffer []byte, callback common.TransferTrackerCallback) (int, error) {
 	if conn == nil || !conn.IsConnected() {
-		return 0, xerrors.Errorf("connection is nil or disconnected")
+		return 0, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -2170,12 +2214,14 @@ func ReadDataObjectWithTrackerCallBack(conn *connection.IRODSConnection, handle 
 	err := conn.RequestAndCheckWithTrackerCallBack(request, &response, buffer, conn.GetOperationTimeout(), nil, callback)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return 0, xerrors.Errorf("failed to find the data object for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(handle.Path))
+			return 0, errors.Wrapf(newErr, "failed to find the data object for path %q", handle.Path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return 0, xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(handle.Path))
+			return 0, errors.Wrapf(newErr, "failed to find the collection for path %q", handle.Path)
 		}
 
-		return 0, xerrors.Errorf("failed to read data object: %w", err)
+		return 0, errors.Wrapf(err, "failed to read data object")
 	}
 
 	readLen := len(response.Data)
@@ -2195,7 +2241,7 @@ func WriteDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHa
 // WriteDataObjectWithTrackerCallBack writes data to a data object
 func WriteDataObjectWithTrackerCallBack(conn *connection.IRODSConnection, handle *types.IRODSFileHandle, data []byte, callback common.TransferTrackerCallback) error {
 	if conn == nil || !conn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
+		return errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -2212,12 +2258,14 @@ func WriteDataObjectWithTrackerCallBack(conn *connection.IRODSConnection, handle
 	err := conn.RequestAndCheckWithTrackerCallBack(request, &response, nil, conn.GetOperationTimeout(), callback, nil)
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return xerrors.Errorf("failed to find the data object for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(handle.Path))
+			return errors.Wrapf(newErr, "failed to find the data object for path %q", handle.Path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(handle.Path))
+			return errors.Wrapf(newErr, "failed to find the collection for path %q", handle.Path)
 		}
 
-		return xerrors.Errorf("failed to write to data object: %w", err)
+		return errors.Wrapf(err, "failed to write to data object")
 	}
 	return nil
 }
@@ -2225,7 +2273,7 @@ func WriteDataObjectWithTrackerCallBack(conn *connection.IRODSConnection, handle
 // WriteDataObjectAsyncWithTrackerCallBack writes data to a data object asynchronously
 func WriteDataObjectAsyncWithTrackerCallBack(conn *connection.IRODSConnection, handle *types.IRODSFileHandle, dataReader io.Reader, totalDataSize int64, callback common.TransferTrackerCallback) error {
 	if conn == nil || !conn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
+		return errors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -2264,14 +2312,16 @@ func WriteDataObjectAsyncWithTrackerCallBack(conn *connection.IRODSConnection, h
 				resErr := res.CheckError()
 				if resErr != nil {
 					if types.GetIRODSErrorCode(resErr) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(resErr) == common.CAT_UNKNOWN_FILE {
-						returnErr = xerrors.Errorf("failed to find the data object for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+						newErr := errors.Join(resErr, types.NewFileNotFoundError(handle.Path))
+						returnErr = errors.Wrapf(newErr, "failed to find the data object for path %q", handle.Path)
 						return
 					} else if types.GetIRODSErrorCode(resErr) == common.CAT_UNKNOWN_COLLECTION {
-						returnErr = xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+						newErr := errors.Join(resErr, types.NewFileNotFoundError(handle.Path))
+						returnErr = errors.Wrapf(newErr, "failed to find the collection for path %q", handle.Path)
 						return
 					}
 
-					returnErr = xerrors.Errorf("failed to write to data object: %w", resErr)
+					returnErr = errors.Wrapf(resErr, "failed to write to data object")
 					return
 				}
 			}
@@ -2330,7 +2380,7 @@ func WriteDataObjectAsyncWithTrackerCallBack(conn *connection.IRODSConnection, h
 			if readErr == io.EOF {
 				break
 			} else {
-				returnErr = xerrors.Errorf("failed to read from Reader: %w", readErr)
+				returnErr = errors.Wrapf(readErr, "failed to read from Reader")
 				break
 			}
 		}
@@ -2347,7 +2397,7 @@ func WriteDataObjectAsyncWithTrackerCallBack(conn *connection.IRODSConnection, h
 // TruncateDataObjectHandle truncates a data object to the given size
 func TruncateDataObjectHandle(conn *connection.IRODSConnection, handle *types.IRODSFileHandle, size int64) error {
 	if conn == nil || !conn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
+		return errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -2374,12 +2424,14 @@ func TruncateDataObjectHandle(conn *connection.IRODSConnection, handle *types.IR
 	err = conn.RequestAndCheck(request1, &response1, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return xerrors.Errorf("failed to find the data object for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(handle.Path))
+			return errors.Wrapf(newErr, "failed to find the data object for path %q", handle.Path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(handle.Path))
+			return errors.Wrapf(newErr, "failed to find the collection for path %q", handle.Path)
 		}
 
-		return xerrors.Errorf("failed to close data object: %w", err)
+		return errors.Wrapf(err, "failed to close data object")
 	}
 
 	// truncate
@@ -2388,12 +2440,14 @@ func TruncateDataObjectHandle(conn *connection.IRODSConnection, handle *types.IR
 	err = conn.RequestAndCheck(request2, &response2, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return xerrors.Errorf("failed to find the data object for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(handle.Path))
+			return errors.Wrapf(newErr, "failed to find the data object for path %q", handle.Path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(handle.Path))
+			return errors.Wrapf(newErr, "failed to find the collection for path %q", handle.Path)
 		}
 
-		return xerrors.Errorf("failed to truncate data object: %w", err)
+		return errors.Wrapf(err, "failed to truncate data object")
 	}
 
 	// reopen
@@ -2402,12 +2456,14 @@ func TruncateDataObjectHandle(conn *connection.IRODSConnection, handle *types.IR
 	err = conn.RequestAndCheck(request3, &response3, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return xerrors.Errorf("failed to find the data object for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(handle.Path))
+			return errors.Wrapf(newErr, "failed to find the data object for path %q", handle.Path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(handle.Path))
+			return errors.Wrapf(newErr, "failed to find the collection for path %q", handle.Path)
 		}
 
-		return xerrors.Errorf("failed to reopen data object: %w", err)
+		return errors.Wrapf(err, "failed to reopen data object")
 	}
 
 	handle.FileDescriptor = response3.GetFileDescriptor()
@@ -2418,12 +2474,14 @@ func TruncateDataObjectHandle(conn *connection.IRODSConnection, handle *types.IR
 	err = conn.RequestAndCheck(request4, &response4, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return xerrors.Errorf("failed to find the data object for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(handle.Path))
+			return errors.Wrapf(newErr, "failed to find the data object for path %q", handle.Path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(handle.Path))
+			return errors.Wrapf(newErr, "failed to find the collection for path %q", handle.Path)
 		}
 
-		return xerrors.Errorf("failed to seek data object: %w", err)
+		return errors.Wrapf(err, "failed to seek data object")
 	}
 
 	return nil
@@ -2432,7 +2490,7 @@ func TruncateDataObjectHandle(conn *connection.IRODSConnection, handle *types.IR
 // CloseDataObject closes a file handle of a data object
 func CloseDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHandle) error {
 	if conn == nil || !conn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
+		return errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -2453,12 +2511,14 @@ func CloseDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHa
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return xerrors.Errorf("failed to find the data object for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(handle.Path))
+			return errors.Wrapf(newErr, "failed to find the data object for path %q", handle.Path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(handle.Path))
+			return errors.Wrapf(newErr, "failed to find the collection for path %q", handle.Path)
 		}
 
-		return xerrors.Errorf("failed to close data object: %w", err)
+		return errors.Wrapf(err, "failed to close data object")
 	}
 	return nil
 }
@@ -2466,11 +2526,11 @@ func CloseDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileHa
 // LockDataObject locks a data object for the path, returns a file lock handle
 func LockDataObject(conn *connection.IRODSConnection, path string, lockType types.DataObjectLockType, lockCommand types.DataObjectLockCommand) (*types.IRODSFileLockHandle, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	if lockType != types.DataObjectLockTypeRead && lockType != types.DataObjectLockTypeWrite {
-		return nil, xerrors.Errorf("lock type is neither read nor write")
+		return nil, errors.Errorf("lock type is neither read nor write")
 	}
 
 	metrics := conn.GetMetrics()
@@ -2487,12 +2547,14 @@ func LockDataObject(conn *connection.IRODSConnection, path string, lockType type
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return nil, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return nil, errors.Wrapf(newErr, "failed to find the data object for path %q", path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", path)
 		}
 
-		return nil, xerrors.Errorf("failed to lock data object: %w", err)
+		return nil, errors.Wrapf(err, "failed to lock data object")
 	}
 
 	handle := &types.IRODSFileLockHandle{
@@ -2513,7 +2575,7 @@ func LockDataObject(conn *connection.IRODSConnection, path string, lockType type
 // GetLockDataObject returns a data object lock for the path, returns a file lock handle
 func GetLockDataObject(conn *connection.IRODSConnection, path string) (*types.IRODSFileLockHandle, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -2530,12 +2592,14 @@ func GetLockDataObject(conn *connection.IRODSConnection, path string) (*types.IR
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return nil, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return nil, errors.Wrapf(newErr, "failed to find the data object for path %q", path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", path)
 		}
 
-		return nil, xerrors.Errorf("failed to get data object lock: %w", err)
+		return nil, errors.Wrapf(err, "failed to get data object lock")
 	}
 
 	handle := &types.IRODSFileLockHandle{
@@ -2556,7 +2620,7 @@ func GetLockDataObject(conn *connection.IRODSConnection, path string) (*types.IR
 // UnlockDataObject unlocks a file handle of a data object
 func UnlockDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileLockHandle) error {
 	if conn == nil || !conn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
+		return errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -2577,12 +2641,14 @@ func UnlockDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileL
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return xerrors.Errorf("failed to find the data object for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(handle.Path))
+			return errors.Wrapf(newErr, "failed to find the data object for path %q", handle.Path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(handle.Path))
+			return errors.Wrapf(newErr, "failed to find the collection for path %q", handle.Path)
 		}
 
-		return xerrors.Errorf("failed to unlock data object: %w", err)
+		return errors.Wrapf(err, "failed to unlock data object")
 	}
 	return nil
 }
@@ -2591,7 +2657,7 @@ func UnlockDataObject(conn *connection.IRODSConnection, handle *types.IRODSFileL
 // metadata.AVUID is ignored
 func AddDataObjectMeta(conn *connection.IRODSConnection, path string, metadata *types.IRODSMeta) error {
 	if conn == nil || !conn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
+		return errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -2608,12 +2674,14 @@ func AddDataObjectMeta(conn *connection.IRODSConnection, path string, metadata *
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return errors.Wrapf(newErr, "failed to find the data object for path %q", path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return errors.Wrapf(newErr, "failed to find the collection for path %q", path)
 		}
 
-		return xerrors.Errorf("failed to add data object meta: %w", err)
+		return errors.Wrapf(err, "failed to add data object meta")
 	}
 	return nil
 }
@@ -2622,7 +2690,7 @@ func AddDataObjectMeta(conn *connection.IRODSConnection, path string, metadata *
 // The metadata AVU is selected on basis of AVUID if it is supplied, otherwise on basis of Name, Value and Units.
 func DeleteDataObjectMeta(conn *connection.IRODSConnection, path string, metadata *types.IRODSMeta) error {
 	if conn == nil || !conn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
+		return errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -2648,12 +2716,14 @@ func DeleteDataObjectMeta(conn *connection.IRODSConnection, path string, metadat
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return errors.Wrapf(newErr, "failed to find the data object for path %q", path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return errors.Wrapf(newErr, "failed to find the collection for path %q", path)
 		}
 
-		return xerrors.Errorf("failed to delete data object meta: %w", err)
+		return errors.Wrapf(err, "failed to delete data object meta")
 	}
 	return nil
 }
@@ -2661,7 +2731,7 @@ func DeleteDataObjectMeta(conn *connection.IRODSConnection, path string, metadat
 // SearchDataObjectsByMeta searches data objects by metadata
 func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, metaValue string) ([]*types.IRODSDataObject, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -2714,7 +2784,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 				break
 			}
 
-			return nil, xerrors.Errorf("failed to receive a data object query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a data object query result message")
 		}
 
 		err = queryResult.CheckError()
@@ -2724,7 +2794,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 				break
 			}
 
-			return nil, xerrors.Errorf("received data object query error: %w", err)
+			return nil, errors.Wrapf(err, "received data object query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -2732,7 +2802,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
@@ -2740,7 +2810,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -2775,7 +2845,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 				case int(common.ICAT_COLUMN_COLL_ID):
 					collID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse collection id %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse collection id %q", value)
 					}
 					pagenatedDataObjects[row].CollectionID = collID
 				case int(common.ICAT_COLUMN_COLL_NAME):
@@ -2787,7 +2857,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 				case int(common.ICAT_COLUMN_D_DATA_ID):
 					objID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object id %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object id %q", value)
 					}
 					pagenatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_DATA_NAME):
@@ -2800,7 +2870,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object size %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object size %q", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
@@ -2808,7 +2878,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object replica number %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object replica number %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
@@ -2816,7 +2886,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
 					checksum, err := types.CreateIRODSChecksum(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object checksum %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object checksum %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
@@ -2830,13 +2900,13 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse create time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse modify time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
 
@@ -2847,7 +2917,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
 					aT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse access time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
@@ -2889,7 +2959,7 @@ func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, 
 // SearchDataObjectsMasterReplicaByMeta searches data objects by metadata, returns only master replica
 func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, metaName string, metaValue string) ([]*types.IRODSDataObject, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -2943,7 +3013,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 				break
 			}
 
-			return nil, xerrors.Errorf("failed to receive a data object query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a data object query result message")
 		}
 
 		err = queryResult.CheckError()
@@ -2953,7 +3023,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 				break
 			}
 
-			return nil, xerrors.Errorf("received data object query error: %w", err)
+			return nil, errors.Wrapf(err, "received data object query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -2961,7 +3031,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
@@ -2969,7 +3039,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -3004,7 +3074,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 				case int(common.ICAT_COLUMN_COLL_ID):
 					collID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse collection id %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse collection id %q", value)
 					}
 					pagenatedDataObjects[row].CollectionID = collID
 				case int(common.ICAT_COLUMN_COLL_NAME):
@@ -3016,7 +3086,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 				case int(common.ICAT_COLUMN_D_DATA_ID):
 					objID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object id %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object id %q", value)
 					}
 					pagenatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_DATA_NAME):
@@ -3029,7 +3099,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object size %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object size %q", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
@@ -3037,7 +3107,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object replica number %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object replica number %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
@@ -3045,7 +3115,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
 					checksum, err := types.CreateIRODSChecksum(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object checksum %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object checksum %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
@@ -3059,13 +3129,13 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse create time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse modify time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
 
@@ -3076,7 +3146,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
 					aT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse access time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
@@ -3127,7 +3197,7 @@ func SearchDataObjectsMasterReplicaByMeta(conn *connection.IRODSConnection, meta
 // Caution: This is a very slow operation
 func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName string, metaValue string) ([]*types.IRODSDataObject, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -3180,7 +3250,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 				break
 			}
 
-			return nil, xerrors.Errorf("failed to receive a data object query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a data object query result message")
 		}
 
 		err = queryResult.CheckError()
@@ -3190,7 +3260,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 				break
 			}
 
-			return nil, xerrors.Errorf("received data object query error: %w", err)
+			return nil, errors.Wrapf(err, "received data object query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -3198,7 +3268,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
@@ -3206,7 +3276,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -3241,7 +3311,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 				case int(common.ICAT_COLUMN_COLL_ID):
 					collID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse collection id %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse collection id %q", value)
 					}
 					pagenatedDataObjects[row].CollectionID = collID
 				case int(common.ICAT_COLUMN_COLL_NAME):
@@ -3253,7 +3323,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 				case int(common.ICAT_COLUMN_D_DATA_ID):
 					objID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object id %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object id %q", value)
 					}
 					pagenatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_DATA_NAME):
@@ -3266,7 +3336,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object size %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object size %q", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
@@ -3274,7 +3344,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object replica number %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object replica number %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
@@ -3282,7 +3352,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
 					checksum, err := types.CreateIRODSChecksum(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object checksum %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object checksum %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
@@ -3296,13 +3366,13 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse create time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse modify time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
 
@@ -3313,7 +3383,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
 					aT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse access time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:
@@ -3356,7 +3426,7 @@ func SearchDataObjectsByMetaWildcard(conn *connection.IRODSConnection, metaName 
 // Caution: This is a very slow operation
 func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnection, metaName string, metaValue string) ([]*types.IRODSDataObject, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -3410,7 +3480,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 				break
 			}
 
-			return nil, xerrors.Errorf("failed to receive a data object query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a data object query result message")
 		}
 
 		err = queryResult.CheckError()
@@ -3420,7 +3490,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 				break
 			}
 
-			return nil, xerrors.Errorf("received data object query error: %w", err)
+			return nil, errors.Wrapf(err, "received data object query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -3428,7 +3498,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive data object attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedDataObjects := make([]*types.IRODSDataObject, queryResult.RowCount)
@@ -3436,7 +3506,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive data object rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -3471,7 +3541,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 				case int(common.ICAT_COLUMN_COLL_ID):
 					collID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse collection id %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse collection id %q", value)
 					}
 					pagenatedDataObjects[row].CollectionID = collID
 				case int(common.ICAT_COLUMN_COLL_NAME):
@@ -3483,7 +3553,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 				case int(common.ICAT_COLUMN_D_DATA_ID):
 					objID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object id %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object id %q", value)
 					}
 					pagenatedDataObjects[row].ID = objID
 				case int(common.ICAT_COLUMN_DATA_NAME):
@@ -3496,7 +3566,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 				case int(common.ICAT_COLUMN_DATA_SIZE):
 					objSize, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object size %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object size %q", value)
 					}
 					pagenatedDataObjects[row].Size = objSize
 				case int(common.ICAT_COLUMN_DATA_TYPE_NAME):
@@ -3504,7 +3574,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 				case int(common.ICAT_COLUMN_DATA_REPL_NUM):
 					repNum, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object replica number %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object replica number %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Number = repNum
 				case int(common.ICAT_COLUMN_D_OWNER_NAME):
@@ -3512,7 +3582,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 				case int(common.ICAT_COLUMN_D_DATA_CHECKSUM):
 					checksum, err := types.CreateIRODSChecksum(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse data object checksum %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse data object checksum %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].Checksum = checksum
 				case int(common.ICAT_COLUMN_D_REPL_STATUS):
@@ -3526,13 +3596,13 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 				case int(common.ICAT_COLUMN_D_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse create time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].CreateTime = cT
 				case int(common.ICAT_COLUMN_D_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse modify time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].ModifyTime = mT
 
@@ -3543,7 +3613,7 @@ func SearchDataObjectsMasterReplicaByMetaWildcard(conn *connection.IRODSConnecti
 				case int(common.ICAT_COLUMN_D_ACCESS_TIME):
 					aT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse access time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse access time %q", value)
 					}
 					pagenatedDataObjects[row].Replicas[0].AccessTime = aT
 				default:

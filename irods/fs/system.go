@@ -3,12 +3,12 @@ package fs
 import (
 	"strconv"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/message"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
-	"golang.org/x/xerrors"
 )
 
 // StatProcess stats processes.
@@ -28,7 +28,7 @@ func StatProcess(conn *connection.IRODSConnection, address string, zoneName stri
 			return processes, nil
 		}
 
-		return nil, xerrors.Errorf("failed to receive a process stat result message: %w", err)
+		return nil, errors.Wrapf(err, "failed to receive a process stat result message")
 	}
 
 	err = queryResult.CheckError()
@@ -38,7 +38,7 @@ func StatProcess(conn *connection.IRODSConnection, address string, zoneName stri
 			return processes, nil
 		}
 
-		return nil, xerrors.Errorf("received a process stat query error: %w", err)
+		return nil, errors.Wrapf(err, "received a process stat query error")
 	}
 
 	if queryResult.RowCount == 0 {
@@ -46,7 +46,7 @@ func StatProcess(conn *connection.IRODSConnection, address string, zoneName stri
 	}
 
 	if queryResult.AttributeCount > len(queryResult.SQLResult) {
-		return nil, xerrors.Errorf("failed to receive process stat attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+		return nil, errors.Errorf("failed to receive process stat attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 	}
 
 	pagenatedProcesses := make([]*types.IRODSProcess, queryResult.RowCount)
@@ -54,7 +54,7 @@ func StatProcess(conn *connection.IRODSConnection, address string, zoneName stri
 	for attr := 0; attr < queryResult.AttributeCount; attr++ {
 		sqlResult := queryResult.SQLResult[attr]
 		if len(sqlResult.Values) != queryResult.RowCount {
-			return nil, xerrors.Errorf("failed to receive process stat rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+			return nil, errors.Errorf("failed to receive process stat rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 		}
 
 		for row := 0; row < queryResult.RowCount; row++ {
@@ -78,13 +78,13 @@ func StatProcess(conn *connection.IRODSConnection, address string, zoneName stri
 			case int(common.ICAT_COLUMN_PROCESS_ID):
 				processID, err := strconv.ParseInt(value, 10, 64)
 				if err != nil {
-					return nil, xerrors.Errorf("failed to parse process id %q: %w", value, err)
+					return nil, errors.Wrapf(err, "failed to parse process id %q", value)
 				}
 				pagenatedProcesses[row].ID = processID
 			case int(common.ICAT_COLUMN_STARTTIME):
 				sT, err := util.GetIRODSDateTime(value)
 				if err != nil {
-					return nil, xerrors.Errorf("failed to parse start time %q: %w", value, err)
+					return nil, errors.Wrapf(err, "failed to parse start time %q", value)
 				}
 				pagenatedProcesses[row].StartTime = sT
 			case int(common.ICAT_COLUMN_CLIENT_NAME):

@@ -3,10 +3,10 @@ package fs
 import (
 	"fmt"
 
+	"github.com/cockroachdb/errors"
 	irods_fs "github.com/cyverse/go-irodsclient/irods/fs"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
-	"golang.org/x/xerrors"
 )
 
 // ListACLs returns ACLs
@@ -16,13 +16,14 @@ func (fs *FileSystem) ListACLs(path string) ([]*types.IRODSAccess, error) {
 		return nil, err
 	}
 
-	if stat.Type == DirectoryEntry {
+	switch stat.Type {
+	case DirectoryEntry:
 		return fs.ListDirACLs(path)
-	} else if stat.Type == FileEntry {
+	case FileEntry:
 		return fs.ListFileACLs(path)
+	default:
+		return nil, errors.Errorf("unknown type %q", stat.Type)
 	}
-
-	return nil, xerrors.Errorf("unknown type %q", stat.Type)
 }
 
 // ListACLsForEntries returns ACLs for entries in a collection
@@ -39,26 +40,24 @@ func (fs *FileSystem) ListACLsWithGroupUsers(path string) ([]*types.IRODSAccess,
 		return nil, err
 	}
 
-	accesses := []*types.IRODSAccess{}
-	if stat.Type == DirectoryEntry {
+	switch stat.Type {
+	case DirectoryEntry:
 		accessList, err := fs.ListDirACLsWithGroupMembers(path)
 		if err != nil {
 			return nil, err
 		}
 
-		accesses = append(accesses, accessList...)
-	} else if stat.Type == FileEntry {
+		return accessList, nil
+	case FileEntry:
 		accessList, err := fs.ListFileACLsWithGroupMembers(path)
 		if err != nil {
 			return nil, err
 		}
 
-		accesses = append(accesses, accessList...)
-	} else {
-		return nil, xerrors.Errorf("unknown type %q", stat.Type)
+		return accessList, nil
+	default:
+		return nil, errors.Errorf("unknown type %q", stat.Type)
 	}
-
-	return accesses, nil
 }
 
 // GetDirACLInheritance returns ACL inheritance of a directory

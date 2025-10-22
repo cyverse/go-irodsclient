@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"regexp"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/common"
-	"golang.org/x/xerrors"
 )
 
 const (
@@ -156,53 +156,61 @@ func (account *IRODSAccount) GetHomeDirPath() string {
 // Validate validates iRODS account
 func (account *IRODSAccount) Validate() error {
 	if len(account.Host) == 0 {
-		return xerrors.Errorf("empty host: %w", NewConnectionConfigError(account))
+		newErr := NewConnectionConfigError(account)
+		return errors.Wrapf(newErr, "empty host")
 	}
 
 	if account.Port <= 0 {
-		return xerrors.Errorf("empty port: %w", NewConnectionConfigError(account))
+		newErr := NewConnectionConfigError(account)
+		return errors.Wrapf(newErr, "empty port")
 	}
 
 	if len(account.ProxyUser) == 0 {
-		return xerrors.Errorf("empty user: %w", NewConnectionConfigError(account))
+		newErr := NewConnectionConfigError(account)
+		return errors.Wrapf(newErr, "empty user")
 	}
 
 	err := account.validateUsername(account.ProxyUser)
 	if err != nil {
-		return xerrors.Errorf("failed to validate username %q: %w", account.ProxyUser, err)
+		return errors.Wrapf(err, "failed to validate username %q", account.ProxyUser)
 	}
 
 	if len(account.ClientUser) > 0 {
 		err = account.validateUsername(account.ClientUser)
 		if err != nil {
-			return xerrors.Errorf("failed to validate username %q: %w", account.ClientUser, err)
+			return errors.Wrapf(err, "failed to validate username %q", account.ClientUser)
 		}
 	}
 
 	if len(account.ProxyZone) == 0 {
-		return xerrors.Errorf("empty zone: %w", NewConnectionConfigError(account))
+		newErr := NewConnectionConfigError(account)
+		return errors.Wrapf(newErr, "empty zone")
 	}
 
 	if account.AuthenticationScheme == AuthSchemeUnknown {
-		return xerrors.Errorf("unknown authentication scheme: %w", NewConnectionConfigError(account))
+		newErr := NewConnectionConfigError(account)
+		return errors.Wrapf(newErr, "unknown authentication scheme")
 	}
 
 	if account.AuthenticationScheme != AuthSchemeNative && account.CSNegotiationPolicy != CSNegotiationPolicyRequestSSL {
-		return xerrors.Errorf("SSL is required for non-native authentication scheme: %w", NewConnectionConfigError(account))
+		newErr := NewConnectionConfigError(account)
+		return errors.Wrapf(newErr, "SSL is required for non-native authentication scheme")
 	}
 
 	if account.CSNegotiationPolicy == CSNegotiationPolicyRequestSSL && !account.ClientServerNegotiation {
-		return xerrors.Errorf("client-server negotiation is required for SSL: %w", NewConnectionConfigError(account))
+		newErr := NewConnectionConfigError(account)
+		return errors.Wrapf(newErr, "client-server negotiation is required for SSL")
 	}
 
 	if account.CSNegotiationPolicy == CSNegotiationPolicyRequestSSL && account.SSLConfiguration == nil {
-		return xerrors.Errorf("SSL configuration is empty: %w", NewConnectionConfigError(account))
+		newErr := NewConnectionConfigError(account)
+		return errors.Wrapf(newErr, "SSL configuration is empty")
 	}
 
 	if account.SSLConfiguration != nil {
 		err = account.SSLConfiguration.Validate()
 		if err != nil {
-			return xerrors.Errorf("failed to validate SSL configuration (%s): %w", err.Error(), NewConnectionConfigError(account))
+			return errors.Wrapf(err, "failed to validate SSL configuration")
 		}
 	}
 
@@ -211,20 +219,24 @@ func (account *IRODSAccount) Validate() error {
 
 func (account *IRODSAccount) validateUsername(username string) error {
 	if len(username) >= common.MaxNameLength {
-		return xerrors.Errorf("username too long: %w", NewConnectionConfigError(account))
+		newErr := NewConnectionConfigError(account)
+		return errors.Wrapf(newErr, "username too long")
 	}
 
 	if username == "." || username == ".." {
-		return xerrors.Errorf("invalid username: %w", NewConnectionConfigError(account))
+		newErr := NewConnectionConfigError(account)
+		return errors.Wrapf(newErr, "invalid username")
 	}
 
 	usernameRegEx, err := regexp.Compile(UsernameRegexString)
 	if err != nil {
-		return xerrors.Errorf("failed to compile regex (err %s): %w", err.Error(), NewConnectionConfigError(account))
+		newErr := errors.Join(err, NewConnectionConfigError(account))
+		return errors.Wrapf(newErr, "failed to compile regex")
 	}
 
 	if !usernameRegEx.Match([]byte(username)) {
-		return xerrors.Errorf("invalid username, containing invalid chars: %w", NewConnectionConfigError(account))
+		newErr := NewConnectionConfigError(account)
+		return errors.Wrapf(newErr, "invalid username, containing invalid chars")
 	}
 	return nil
 }

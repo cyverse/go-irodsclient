@@ -3,7 +3,7 @@ package types
 import (
 	"fmt"
 
-	"golang.org/x/xerrors"
+	"github.com/cockroachdb/errors"
 )
 
 // IRODSFileOpenRedirectionHandle contains file open redirection handle
@@ -39,19 +39,23 @@ func (info *IRODSRedirectionInfo) ToString() string {
 // Validate validates redirection info
 func (info *IRODSRedirectionInfo) Validate() error {
 	if len(info.Host) == 0 {
-		return xerrors.Errorf("empty host: %w", NewResourceServerConnectionConfigError(info))
+		newErr := NewResourceServerConnectionConfigError(info)
+		return errors.Wrapf(newErr, "empty host")
 	}
 
 	if info.Port <= 0 {
-		return xerrors.Errorf("empty port: %w", NewResourceServerConnectionConfigError(info))
+		newErr := NewResourceServerConnectionConfigError(info)
+		return errors.Wrapf(newErr, "empty port")
 	}
 
 	if info.Cookie <= 0 {
-		return xerrors.Errorf("empty cookie: %w", NewResourceServerConnectionConfigError(info))
+		newErr := NewResourceServerConnectionConfigError(info)
+		return errors.Wrapf(newErr, "empty cookie")
 	}
 
 	if info.ServerSocket <= 0 {
-		return xerrors.Errorf("empty server socket: %w", NewResourceServerConnectionConfigError(info))
+		newErr := NewResourceServerConnectionConfigError(info)
+		return errors.Wrapf(newErr, "empty server socket")
 	}
 
 	return nil

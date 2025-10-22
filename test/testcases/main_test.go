@@ -4,9 +4,9 @@ import (
 	"path"
 	"testing"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/test/server"
 	"github.com/rs/xid"
-	"golang.org/x/xerrors"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -29,7 +29,7 @@ func (test *Test) MakeTestHomeDir() error {
 
 	fs, err := test.server.GetFileSystem()
 	if err != nil {
-		return xerrors.Errorf("failed to create a new filesystem: %w", err)
+		return errors.Wrapf(err, "failed to create a new filesystem")
 	}
 	defer fs.Release()
 
@@ -37,7 +37,7 @@ func (test *Test) MakeTestHomeDir() error {
 
 	err = fs.MakeDir(homeDir, true)
 	if err != nil {
-		return xerrors.Errorf("failed to make a home directory %q: %w", homeDir, err)
+		return errors.Wrapf(err, "failed to make a home directory %q", homeDir)
 	}
 
 	logger.Infof("Created test home directory: %s", homeDir)

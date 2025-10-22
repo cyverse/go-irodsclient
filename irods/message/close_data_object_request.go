@@ -3,8 +3,8 @@ package message
 import (
 	"encoding/xml"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/common"
-	"golang.org/x/xerrors"
 )
 
 // IRODSMessageCloseDataObjectRequest stores data object close request
@@ -36,7 +36,7 @@ func (msg *IRODSMessageCloseDataObjectRequest) AddKeyVal(key common.KeyWord, val
 func (msg *IRODSMessageCloseDataObjectRequest) GetBytes() ([]byte, error) {
 	xmlBytes, err := xml.Marshal(msg)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to marshal irods message to xml: %w", err)
+		return nil, errors.Wrapf(err, "failed to marshal irods message to xml")
 	}
 	return xmlBytes, nil
 }
@@ -45,7 +45,7 @@ func (msg *IRODSMessageCloseDataObjectRequest) GetBytes() ([]byte, error) {
 func (msg *IRODSMessageCloseDataObjectRequest) FromBytes(bytes []byte) error {
 	err := xml.Unmarshal(bytes, msg)
 	if err != nil {
-		return xerrors.Errorf("failed to unmarshal xml to irods message: %w", err)
+		return errors.Wrapf(err, "failed to unmarshal xml to irods message")
 	}
 	return nil
 }
@@ -54,7 +54,7 @@ func (msg *IRODSMessageCloseDataObjectRequest) FromBytes(bytes []byte) error {
 func (msg *IRODSMessageCloseDataObjectRequest) GetMessage() (*IRODSMessage, error) {
 	bytes, err := msg.GetBytes()
 	if err != nil {
-		return nil, xerrors.Errorf("failed to get bytes from irods message: %w", err)
+		return nil, errors.Wrapf(err, "failed to get bytes from irods message")
 	}
 
 	msgBody := IRODSMessageBody{
@@ -67,7 +67,7 @@ func (msg *IRODSMessageCloseDataObjectRequest) GetMessage() (*IRODSMessage, erro
 
 	msgHeader, err := msgBody.BuildHeader()
 	if err != nil {
-		return nil, xerrors.Errorf("failed to build header from irods message: %w", err)
+		return nil, errors.Wrapf(err, "failed to build header from irods message")
 	}
 
 	return &IRODSMessage{

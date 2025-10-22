@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"encoding/xml"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/types"
-	"golang.org/x/xerrors"
 )
 
 // IRODSMessageGetDescriptorInfoResponse stores data object descriptor info. response
@@ -55,12 +55,12 @@ func (msg *IRODSMessageGetDescriptorInfoResponse) FromBytes(bytes []byte) error 
 	binBytesBuf := IRODSMessageBinBytesBuf{}
 	err := xml.Unmarshal(bytes, &binBytesBuf)
 	if err != nil {
-		return xerrors.Errorf("failed to unmarshal xml to irods message: %w", err)
+		return errors.Wrapf(err, "failed to unmarshal xml to irods message")
 	}
 
 	jsonBody, err := base64.StdEncoding.DecodeString(binBytesBuf.Data)
 	if err != nil {
-		return xerrors.Errorf("failed to decode base64 data: %w", err)
+		return errors.Wrapf(err, "failed to decode base64 data")
 	}
 
 	// remove trail \x00
@@ -74,7 +74,7 @@ func (msg *IRODSMessageGetDescriptorInfoResponse) FromBytes(bytes []byte) error 
 
 	err = json.Unmarshal(jsonBody, msg)
 	if err != nil {
-		return xerrors.Errorf("failed to unmarshal json to irods message: %w", err)
+		return errors.Wrapf(err, "failed to unmarshal json to irods message")
 	}
 
 	return nil
@@ -83,7 +83,7 @@ func (msg *IRODSMessageGetDescriptorInfoResponse) FromBytes(bytes []byte) error 
 // FromMessage returns struct from IRODSMessage
 func (msg *IRODSMessageGetDescriptorInfoResponse) FromMessage(msgIn *IRODSMessage) error {
 	if msgIn.Body == nil {
-		return xerrors.Errorf("empty message body")
+		return errors.Errorf("empty message body")
 	}
 
 	msg.Result = int(msgIn.Body.IntInfo)
@@ -91,7 +91,7 @@ func (msg *IRODSMessageGetDescriptorInfoResponse) FromMessage(msgIn *IRODSMessag
 	if msgIn.Body.Message != nil {
 		err := msg.FromBytes(msgIn.Body.Message)
 		if err != nil {
-			return xerrors.Errorf("failed to get irods message from message body: %w", err)
+			return errors.Wrapf(err, "failed to get irods message from message body")
 		}
 	}
 

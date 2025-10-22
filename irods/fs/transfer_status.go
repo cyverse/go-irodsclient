@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"golang.org/x/xerrors"
+	"github.com/cockroachdb/errors"
 )
 
 const (
@@ -84,18 +84,18 @@ func newDataObjectTransferFromBytes(data []byte) (*DataObjectTransferStatus, err
 	bufReader := bufio.NewReader(byteReader)
 	line, prefix, err := bufReader.ReadLine()
 	if err != nil {
-		return nil, xerrors.Errorf("failed to read lines from bytedata: %w", err)
+		return nil, errors.Wrapf(err, "failed to read lines from bytedata")
 	}
 
 	if prefix {
-		return nil, xerrors.Errorf("failed to read long line from bytedata, buffer overflow")
+		return nil, errors.Errorf("failed to read long line from bytedata, buffer overflow")
 	}
 
 	// first line is status
 	transferStatus := DataObjectTransferStatus{}
 	err = json.Unmarshal(line, &transferStatus)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to unmarshal json data to DataObjectTransferStatus: %w", err)
+		return nil, errors.Wrapf(err, "failed to unmarshal json data to DataObjectTransferStatus")
 	}
 
 	statusMap := map[int64]*DataObjectTransferStatusEntry{}
@@ -107,18 +107,18 @@ func newDataObjectTransferFromBytes(data []byte) (*DataObjectTransferStatus, err
 				break
 			}
 
-			return nil, xerrors.Errorf("failed to read lines from bytedata: %w", err)
+			return nil, errors.Wrapf(err, "failed to read lines from bytedata")
 		}
 
 		if prefix {
-			return nil, xerrors.Errorf("failed to read long line from bytedata, buffer overflow")
+			return nil, errors.Errorf("failed to read long line from bytedata, buffer overflow")
 		}
 
 		if len(line) > 0 {
 			statusEntry := DataObjectTransferStatusEntry{}
 			err = json.Unmarshal(line, &statusEntry)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to unmarshal json data to DataObjectTransferStatusEntry: %w", err)
+				return nil, errors.Wrapf(err, "failed to unmarshal json data to DataObjectTransferStatusEntry")
 			}
 
 			// update
@@ -151,7 +151,7 @@ func (status *DataObjectTransferStatusLocal) GetStatus() *DataObjectTransferStat
 func (status *DataObjectTransferStatusLocal) CreateStatusFile() error {
 	handle, err := os.Create(status.status.StatusFilePath)
 	if err != nil {
-		return xerrors.Errorf("failed to create file %q: %w", status.status.StatusFilePath, err)
+		return errors.Wrapf(err, "failed to create file %q", status.status.StatusFilePath)
 	}
 
 	status.fileHandle = handle
@@ -171,7 +171,7 @@ func (status *DataObjectTransferStatusLocal) CloseStatusFile() error {
 func (status *DataObjectTransferStatusLocal) DeleteStatusFile() error {
 	err := os.RemoveAll(status.status.StatusFilePath)
 	if err != nil {
-		return xerrors.Errorf("failed to delete status file %q: %w", status.status.StatusFilePath, err)
+		return errors.Wrapf(err, "failed to delete status file %q", status.status.StatusFilePath)
 	}
 
 	return nil
@@ -179,12 +179,12 @@ func (status *DataObjectTransferStatusLocal) DeleteStatusFile() error {
 
 func (status *DataObjectTransferStatusLocal) WriteHeader() error {
 	if status.fileHandle == nil {
-		return xerrors.Errorf("failed to write header, file handle is nil")
+		return errors.Errorf("failed to write header, file handle is nil")
 	}
 
 	bytes, err := json.Marshal(status.status)
 	if err != nil {
-		return xerrors.Errorf("failed to marshal DataObjectTransferStatus to json: %w", err)
+		return errors.Wrapf(err, "failed to marshal DataObjectTransferStatus to json")
 	}
 
 	bytes = append(bytes, '\n')
@@ -195,7 +195,7 @@ func (status *DataObjectTransferStatusLocal) WriteHeader() error {
 func (status *DataObjectTransferStatusLocal) WriteStatus(entry *DataObjectTransferStatusEntry) error {
 	bytes, err := json.Marshal(entry)
 	if err != nil {
-		return xerrors.Errorf("failed to marshal DataObjectTransferStatusEntry to json: %w", err)
+		return errors.Wrapf(err, "failed to marshal DataObjectTransferStatusEntry to json")
 	}
 
 	bytes = append(bytes, '\n')
@@ -214,12 +214,12 @@ func GetDataObjectTransferStatusLocal(localPath string) (*DataObjectTransferStat
 
 	data, err := os.ReadFile(statusFilePath)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to read file %q: %w", statusFilePath, err)
+		return nil, errors.Wrapf(err, "failed to read file %q", statusFilePath)
 	}
 
 	status, err := newDataObjectTransferFromBytes(data)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to create transfer status for %q: %w", localPath, err)
+		return nil, errors.Wrapf(err, "failed to create transfer status for %q", localPath)
 	}
 
 	return &DataObjectTransferStatusLocal{
@@ -238,7 +238,7 @@ func GetOrNewDataObjectTransferStatusLocal(localPath string, size int64, threads
 			return status, nil
 		}
 
-		return nil, xerrors.Errorf("failed to read transfer status for %q: %w", localPath, err)
+		return nil, errors.Wrapf(err, "failed to read transfer status for %q", localPath)
 	}
 
 	if !status.status.Validate(localPath, size, threads) {

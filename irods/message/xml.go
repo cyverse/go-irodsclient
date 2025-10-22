@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"unicode/utf8"
 
-	"golang.org/x/xerrors"
+	"github.com/cockroachdb/errors"
 )
 
 var (
@@ -24,7 +24,7 @@ var (
 )
 
 // ErrInvalidUTF8 is returned if an invalid utf-8 character is found.
-var ErrInvalidUTF8 = xerrors.Errorf("invalid utf-8 character")
+var ErrInvalidUTF8 = errors.Errorf("invalid utf-8 character")
 
 // XMLCorrector is a function that corrects XML
 type XMLCorrector func(msg *IRODSMessage, newXML bool) error

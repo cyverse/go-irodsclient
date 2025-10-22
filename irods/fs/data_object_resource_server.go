@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/message"
@@ -13,13 +14,12 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/xerrors"
 )
 
 // GetDataObjectRedirectionInfoForGet returns a redirection info for accessing the data object for downloading
 func GetDataObjectRedirectionInfoForGet(conn *connection.IRODSConnection, dataObject *types.IRODSDataObject, resource string, taskNum int, keywords map[common.KeyWord]string) (*types.IRODSFileOpenRedirectionHandle, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -52,12 +52,14 @@ func GetDataObjectRedirectionInfoForGet(conn *connection.IRODSConnection, dataOb
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return nil, xerrors.Errorf("failed to find the data object for path %q: %w", dataObject.Path, types.NewFileNotFoundError(dataObject.Path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(dataObject.Path))
+			return nil, errors.Wrapf(newErr, "failed to find the data object for path %q", dataObject.Path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return nil, xerrors.Errorf("failed to find the collection for path %q: %w", dataObject.Path, types.NewFileNotFoundError(dataObject.Path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(dataObject.Path))
+			return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", dataObject.Path)
 		}
 
-		return nil, xerrors.Errorf("failed to get data object redirection info for path %q: %w", dataObject.Path, err)
+		return nil, errors.Wrapf(err, "failed to get data object redirection info for path %q", dataObject.Path)
 	}
 
 	if metrics != nil {
@@ -91,7 +93,7 @@ func GetDataObjectRedirectionInfoForGet(conn *connection.IRODSConnection, dataOb
 // GetDataObjectRedirectionInfoForPut returns a redirection info for accessing the data object for uploading
 func GetDataObjectRedirectionInfoForPut(conn *connection.IRODSConnection, path string, resource string, fileLength int64, taskNum int, keywords map[common.KeyWord]string) (*types.IRODSFileOpenRedirectionHandle, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -124,12 +126,14 @@ func GetDataObjectRedirectionInfoForPut(conn *connection.IRODSConnection, path s
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return nil, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return nil, errors.Wrapf(newErr, "failed to find the data object for path %q", path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", path)
 		}
 
-		return nil, xerrors.Errorf("failed to get data object redirection info for path %q: %w", path, err)
+		return nil, errors.Wrapf(err, "failed to get data object redirection info for path %q", path)
 	}
 
 	if metrics != nil {
@@ -163,7 +167,7 @@ func GetDataObjectRedirectionInfoForPut(conn *connection.IRODSConnection, path s
 // CompleteDataObjectRedirection completes a redirection for accessing the data object for downloading and uploading
 func CompleteDataObjectRedirection(conn *connection.IRODSConnection, handle *types.IRODSFileOpenRedirectionHandle) error {
 	if conn == nil || !conn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
+		return errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -184,12 +188,14 @@ func CompleteDataObjectRedirection(conn *connection.IRODSConnection, handle *typ
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return xerrors.Errorf("failed to complete data object redirection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(handle.Path))
+			return errors.Wrapf(newErr, "failed to complete data object redirection for path %q", handle.Path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return xerrors.Errorf("failed to find the collection for path %q: %w", handle.Path, types.NewFileNotFoundError(handle.Path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(handle.Path))
+			return errors.Wrapf(newErr, "failed to find the collection for path %q", handle.Path)
 		}
 
-		return xerrors.Errorf("failed to complete data object redirection for path %q: %w", handle.Path, err)
+		return errors.Wrapf(err, "failed to complete data object redirection for path %q", handle.Path)
 	}
 
 	return nil
@@ -206,18 +212,18 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 
 	conn, err := sess.GetRedirectionConnection(controlConn, handle.RedirectionInfo)
 	if err != nil {
-		return xerrors.Errorf("failed to get connection to resource server: %w", err)
+		return errors.Wrapf(err, "failed to get connection to resource server")
 	}
 
 	err = conn.Connect()
 	if err != nil {
-		return xerrors.Errorf("failed to connect to resource server: %w", err)
+		return errors.Wrapf(err, "failed to connect to resource server")
 	}
 
 	defer conn.Disconnect()
 
 	if conn == nil || !conn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
+		return errors.Errorf("connection is nil or disconnected")
 	}
 
 	conn.Lock()
@@ -225,7 +231,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 
 	f, taskErr := os.OpenFile(localPath, os.O_WRONLY, 0)
 	if taskErr != nil {
-		return xerrors.Errorf("failed to open file %q: %w", localPath, taskErr)
+		return errors.Wrapf(taskErr, "failed to open file %q", localPath)
 	}
 	defer f.Close()
 
@@ -261,12 +267,12 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 				break
 			}
 
-			return xerrors.Errorf("failed to read transfer header from resource server: %w", err)
+			return errors.Wrapf(err, "failed to read transfer header from resource server")
 		}
 
 		err = transferHeader.FromBytes(headerBuffer[:readLen])
 		if err != nil {
-			return xerrors.Errorf("failed to read transfer header from resource server: %w", err)
+			return errors.Wrapf(err, "failed to read transfer header from resource server")
 		}
 
 		if transferHeader.OperationType == int(common.OPER_TYPE_DONE) {
@@ -274,7 +280,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 			logger.Debugf("done downloading file chunk, offset %d, length %d", transferHeader.Offset, transferHeader.Length)
 			break
 		} else if transferHeader.OperationType != int(common.OPER_TYPE_GET_DATA_OBJ) {
-			return xerrors.Errorf("invalid operation type %d received for transfer", transferHeader.OperationType)
+			return errors.Errorf("invalid operation type %d received for transfer", transferHeader.OperationType)
 		}
 
 		logger.Debugf("downloading file chunk, offset %d, length %d", transferHeader.Offset, transferHeader.Length)
@@ -298,7 +304,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 						eof = true
 						cont = false
 					} else {
-						return xerrors.Errorf("failed to read transfer encryption header from resource server: %w", err)
+						return errors.Wrapf(err, "failed to read transfer encryption header from resource server")
 					}
 				}
 
@@ -308,7 +314,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 
 				err = encryptionHeader.FromBytes(encryptionHeaderBuffer[:readLen])
 				if err != nil {
-					return xerrors.Errorf("failed to read transfer encryption header from bytes: %w", err)
+					return errors.Wrapf(err, "failed to read transfer encryption header from bytes")
 				}
 
 				// done reading encryption header
@@ -332,7 +338,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 					// decrypt
 					decryptedDataLen, decErr := conn.Decrypt(encryptionHeader.IV, encryptedDataBuffer[:readLen], dataBuffer)
 					if decErr != nil {
-						return xerrors.Errorf("failed to decrypt data: %w", decErr)
+						return errors.Wrapf(decErr, "failed to decrypt data")
 					}
 
 					//logger.Debugf("decrypted data len %d", decryptedDataLen)
@@ -344,7 +350,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 
 					_, writeErr := f.WriteAt(dataBuffer[:decryptedDataLen], curOffset)
 					if writeErr != nil {
-						return xerrors.Errorf("failed to write data to %q, task %d, offset %d: %w", localPath, taskID, curOffset, writeErr)
+						return errors.Wrapf(writeErr, "failed to write data to %q, task %d, offset %d", localPath, taskID, curOffset)
 					}
 
 					toGet -= int64(decryptedDataLen)
@@ -356,7 +362,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 						eof = true
 						cont = false
 					} else {
-						return xerrors.Errorf("failed to read data %q, task %d, offset %d: %w", handle.Path, taskID, curOffset, err)
+						return errors.Wrapf(err, "failed to read data %q, task %d, offset %d", handle.Path, taskID, curOffset)
 					}
 				}
 
@@ -368,11 +374,11 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 				// read data
 				newOffset, err := f.Seek(curOffset, io.SeekStart)
 				if err != nil {
-					return xerrors.Errorf("failed to seek to offset %d for file %q, task %d: %w", curOffset, localPath, taskID, err)
+					return errors.Wrapf(err, "failed to seek to offset %d for file %q, task %d", curOffset, localPath, taskID)
 				}
 
 				if newOffset != curOffset {
-					return xerrors.Errorf("failed to seek to offset %d for file %q, task %d, new offset %d: %w", curOffset, localPath, taskID, newOffset, err)
+					return errors.Wrapf(err, "failed to seek to offset %d for file %q, task %d, new offset %d", curOffset, localPath, taskID, newOffset)
 				}
 
 				eof := false
@@ -392,7 +398,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 						eof = true
 						cont = false
 					} else {
-						return xerrors.Errorf("failed to read data %q, task %d, offset %d: %w", handle.Path, taskID, curOffset, err)
+						return errors.Wrapf(err, "failed to read data %q, task %d, offset %d", handle.Path, taskID, curOffset)
 					}
 				}
 
@@ -419,18 +425,18 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 
 	conn, err := sess.GetRedirectionConnection(controlConn, handle.RedirectionInfo)
 	if err != nil {
-		return xerrors.Errorf("failed to get connection to resource server: %w", err)
+		return errors.Wrapf(err, "failed to get connection to resource server")
 	}
 
 	err = conn.Connect()
 	if err != nil {
-		return xerrors.Errorf("failed to connect to resource server: %w", err)
+		return errors.Wrapf(err, "failed to connect to resource server")
 	}
 
 	defer conn.Disconnect()
 
 	if conn == nil || !conn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
+		return errors.Errorf("connection is nil or disconnected")
 	}
 
 	conn.Lock()
@@ -438,7 +444,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 
 	f, taskErr := os.OpenFile(localPath, os.O_RDONLY, 0)
 	if taskErr != nil {
-		return xerrors.Errorf("failed to open file %q: %w", localPath, taskErr)
+		return errors.Wrapf(taskErr, "failed to open file %q", localPath)
 	}
 	defer f.Close()
 
@@ -475,12 +481,12 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 				break
 			}
 
-			return xerrors.Errorf("failed to read transfer header from resource server: %w", err)
+			return errors.Wrapf(err, "failed to read transfer header from resource server")
 		}
 
 		err = transferHeader.FromBytes(headerBuffer[:readLen])
 		if err != nil {
-			return xerrors.Errorf("failed to read transfer header from resource server: %w", err)
+			return errors.Wrapf(err, "failed to read transfer header from resource server")
 		}
 
 		if transferHeader.OperationType == int(common.OPER_TYPE_DONE) {
@@ -488,7 +494,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 			logger.Debugf("done uploading file chunk, offset %d, length %d", transferHeader.Offset, transferHeader.Length)
 			break
 		} else if transferHeader.OperationType != int(common.OPER_TYPE_PUT_DATA_OBJ) {
-			return xerrors.Errorf("invalid operation type %d received for transfer", transferHeader.OperationType)
+			return errors.Errorf("invalid operation type %d received for transfer", transferHeader.OperationType)
 		}
 
 		logger.Debugf("uploading file chunk, offset %d, length %d", transferHeader.Offset, transferHeader.Length)
@@ -505,7 +511,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 				encAlg := types.GetEncryptionAlgorithm(encConfig.EncryptionAlgorithm)
 				encIV, err := util.GetEncryptionIV(encAlg)
 				if err != nil {
-					return xerrors.Errorf("failed to get encryption iv: %w", err)
+					return errors.Wrapf(err, "failed to get encryption iv")
 				}
 
 				iv := make([]byte, encKeysize)
@@ -533,7 +539,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 					// encrypt
 					encLen, encErr := conn.Encrypt(iv, dataBuffer[:readLen], encryptedDataBuffer)
 					if encErr != nil {
-						return xerrors.Errorf("failed to encrypt data: %w", encErr)
+						return errors.Wrapf(encErr, "failed to encrypt data")
 					}
 
 					//logger.Debugf("read offset %d, original len %d, encrypted len %d", curOffset, readLen, encLen)
@@ -545,26 +551,26 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 						eof = true
 						cont = false
 					} else {
-						return xerrors.Errorf("failed to read data %q, task %d, offset %d: %w", localPath, taskID, curOffset, err)
+						return errors.Wrapf(err, "failed to read data %q, task %d, offset %d", localPath, taskID, curOffset)
 					}
 				}
 
 				encryptionHeaderBuffer, err := encryptionHeader.GetBytes()
 				if err != nil {
-					return xerrors.Errorf("failed to get bytes from transfer encryption header: %w", err)
+					return errors.Wrapf(err, "failed to get bytes from transfer encryption header")
 				}
 
 				//logger.Debugf("sending encryption header, header len %d, content len %d", len(encryptionHeaderBuffer), encryptionHeader.Length)
 				err = conn.Send(encryptionHeaderBuffer, len(encryptionHeaderBuffer), nil)
 				if err != nil {
-					return xerrors.Errorf("failed to write transfer encryption header to resource server: %w", err)
+					return errors.Wrapf(err, "failed to write transfer encryption header to resource server")
 				}
 
 				//logger.Debugf("sending encrypted data")
 				encryptedDataLen := encryptionHeader.Length - encKeysize
 				writeErr := conn.Send(encryptedDataBuffer, encryptedDataLen, nil)
 				if writeErr != nil {
-					return xerrors.Errorf("failed to write data to %q, task %d, offset %d: %w", handle.Path, taskID, curOffset, writeErr)
+					return errors.Wrapf(writeErr, "failed to write data to %q, task %d, offset %d", handle.Path, taskID, curOffset)
 				}
 
 				//logger.Debugf("sent encrypted data")
@@ -585,11 +591,11 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 				// write data
 				newOffset, err := f.Seek(curOffset, io.SeekStart)
 				if err != nil {
-					return xerrors.Errorf("failed to seek to offset %d for file %q, task %d: %w", curOffset, localPath, taskID, err)
+					return errors.Wrapf(err, "failed to seek to offset %d for file %q, task %d", curOffset, localPath, taskID)
 				}
 
 				if newOffset != curOffset {
-					return xerrors.Errorf("failed to seek to offset %d for file %q, task %d, new offset %d: %w", curOffset, localPath, taskID, newOffset, err)
+					return errors.Wrapf(err, "failed to seek to offset %d for file %q, task %d, new offset %d", curOffset, localPath, taskID, newOffset)
 				}
 
 				eof := false
@@ -609,7 +615,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 						eof = true
 						cont = false
 					} else {
-						return xerrors.Errorf("failed to write data %q, task %d, offset %d: %w", localPath, taskID, transferHeader.Offset, err)
+						return errors.Wrapf(err, "failed to write data %q, task %d, offset %d", localPath, taskID, transferHeader.Offset)
 					}
 				}
 
@@ -656,7 +662,7 @@ func DownloadDataObjectFromResourceServer(sess *session.IRODSSession, dataObject
 
 	controlConn, err := sess.AcquireConnection(true)
 	if err != nil {
-		return xerrors.Errorf("failed to get connection: %w", err)
+		return errors.Wrapf(err, "failed to get connection")
 	}
 
 	controlConnReleased := false
@@ -669,7 +675,7 @@ func DownloadDataObjectFromResourceServer(sess *session.IRODSSession, dataObject
 	}()
 
 	if controlConn == nil || !controlConn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
+		return errors.Errorf("connection is nil or disconnected")
 	}
 
 	handle, err := GetDataObjectRedirectionInfoForGet(controlConn, dataObject, resource, numTasks, keywords)
@@ -704,7 +710,7 @@ func DownloadDataObjectFromResourceServer(sess *session.IRODSSession, dataObject
 	// create an empty file
 	f, err := os.Create(localPath)
 	if err != nil {
-		return xerrors.Errorf("failed to create file %q: %w", localPath, err)
+		return errors.Wrapf(err, "failed to create file %q", localPath)
 	}
 	f.Close()
 
@@ -747,7 +753,7 @@ func DownloadDataObjectFromResourceServer(sess *session.IRODSSession, dataObject
 
 		err = downloadDataObjectChunkFromResourceServer(sess, taskID, controlConn, handle, localPath, blockReadCallback)
 		if err != nil {
-			dnErr := xerrors.Errorf("failed to download data object chunk %q from resource server: %w", dataObject.Path, err)
+			dnErr := errors.Wrapf(err, "failed to download data object chunk %q from resource server", dataObject.Path)
 			errChan <- dnErr
 		}
 	}
@@ -777,7 +783,7 @@ func DownloadDataObjectFromResourceServerWithConnection(sess *session.IRODSSessi
 	})
 
 	if controlConn == nil || !controlConn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
+		return errors.Errorf("connection is nil or disconnected")
 	}
 
 	// use default resource when resource param is empty
@@ -823,7 +829,7 @@ func DownloadDataObjectFromResourceServerWithConnection(sess *session.IRODSSessi
 	// create an empty file
 	f, err := os.Create(localPath)
 	if err != nil {
-		return xerrors.Errorf("failed to create file %q: %w", localPath, err)
+		return errors.Wrapf(err, "failed to create file %q", localPath)
 	}
 	f.Close()
 
@@ -866,7 +872,7 @@ func DownloadDataObjectFromResourceServerWithConnection(sess *session.IRODSSessi
 
 		err = downloadDataObjectChunkFromResourceServer(sess, taskID, controlConn, handle, localPath, blockReadCallback)
 		if err != nil {
-			dnErr := xerrors.Errorf("failed to download data object chunk %q from resource server: %w", dataObject.Path, err)
+			dnErr := errors.Wrapf(err, "failed to download data object chunk %q from resource server", dataObject.Path)
 			errChan <- dnErr
 		}
 	}
@@ -904,7 +910,7 @@ func UploadDataObjectToResourceServer(sess *session.IRODSSession, localPath stri
 
 	stat, err := os.Stat(localPath)
 	if err != nil {
-		return xerrors.Errorf("failed to stat file %q: %w", localPath, err)
+		return errors.Wrapf(err, "failed to stat file %q", localPath)
 	}
 
 	fileLength := stat.Size()
@@ -924,7 +930,7 @@ func UploadDataObjectToResourceServer(sess *session.IRODSSession, localPath stri
 
 	controlConn, err := sess.AcquireConnection(false)
 	if err != nil {
-		return xerrors.Errorf("failed to get connection: %w", err)
+		return errors.Wrapf(err, "failed to get connection")
 	}
 
 	controlConnReleased := false
@@ -937,7 +943,7 @@ func UploadDataObjectToResourceServer(sess *session.IRODSSession, localPath stri
 	}()
 
 	if controlConn == nil || !controlConn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
+		return errors.Errorf("connection is nil or disconnected")
 	}
 
 	handle, err := GetDataObjectRedirectionInfoForPut(controlConn, irodsPath, resource, fileLength, numTasks, keywords)
@@ -1006,7 +1012,7 @@ func UploadDataObjectToResourceServer(sess *session.IRODSSession, localPath stri
 
 		err = uploadDataObjectChunkToResourceServer(sess, taskID, controlConn, handle, localPath, blockWriteCallback)
 		if err != nil {
-			dnErr := xerrors.Errorf("failed to upload data object chunk %q to resource server: %w", localPath, err)
+			dnErr := errors.Wrapf(err, "failed to upload data object chunk %q to resource server", localPath)
 			errChan <- dnErr
 		}
 	}
@@ -1037,7 +1043,7 @@ func UploadDataObjectToResourceServerWithConnection(sess *session.IRODSSession, 
 	})
 
 	if controlConn == nil || !controlConn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
+		return errors.Errorf("connection is nil or disconnected")
 	}
 
 	// use default resource when resource param is empty
@@ -1048,7 +1054,7 @@ func UploadDataObjectToResourceServerWithConnection(sess *session.IRODSSession, 
 
 	stat, err := os.Stat(localPath)
 	if err != nil {
-		return xerrors.Errorf("failed to stat file %q: %w", localPath, err)
+		return errors.Wrapf(err, "failed to stat file %q", localPath)
 	}
 
 	fileLength := stat.Size()
@@ -1125,7 +1131,7 @@ func UploadDataObjectToResourceServerWithConnection(sess *session.IRODSSession, 
 
 		err = uploadDataObjectChunkToResourceServer(sess, taskID, controlConn, handle, localPath, blockWriteCallback)
 		if err != nil {
-			dnErr := xerrors.Errorf("failed to upload data object chunk %q to resource server: %w", localPath, err)
+			dnErr := errors.Wrapf(err, "failed to upload data object chunk %q to resource server", localPath)
 			errChan <- dnErr
 		}
 	}

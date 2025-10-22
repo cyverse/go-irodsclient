@@ -5,10 +5,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/rs/xid"
-	"golang.org/x/xerrors"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -32,7 +32,8 @@ type ConnectionPool struct {
 // NewConnectionPool creates a new ConnectionPool
 func NewConnectionPool(account *types.IRODSAccount, config *ConnectionPoolConfig) (*ConnectionPool, error) {
 	if account == nil {
-		return nil, xerrors.Errorf("account is not set: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return nil, errors.Wrapf(newErr, "account is not set")
 	}
 
 	// use default config if not set
@@ -68,7 +69,7 @@ func NewConnectionPool(account *types.IRODSAccount, config *ConnectionPoolConfig
 
 	err = pool.init()
 	if err != nil {
-		return nil, xerrors.Errorf("failed to init connection pool: %w", err)
+		return nil, errors.Wrapf(err, "failed to init connection pool")
 	}
 
 	go func() {
@@ -209,7 +210,7 @@ func (pool *ConnectionPool) init() error {
 			if pool.config.Metrics != nil {
 				pool.config.Metrics.IncreaseCounterForConnectionPoolFailures(1)
 			}
-			return xerrors.Errorf("failed to connect to irods server: %w", err)
+			return errors.Wrapf(err, "failed to connect to irods server")
 		}
 
 		err = newConn.Connect()
@@ -224,7 +225,7 @@ func (pool *ConnectionPool) init() error {
 				logger.Debugf("adjusted max connections: %d", pool.maxConnectionsReal)
 			}
 
-			return xerrors.Errorf("failed to connect to irods server: %w", err)
+			return errors.Wrapf(err, "failed to connect to irods server")
 		}
 
 		pool.idleConnections.PushBack(newConn)
@@ -304,7 +305,7 @@ func (pool *ConnectionPool) get(new bool) (*connection.IRODSConnection, bool, er
 		if pool.config.Metrics != nil {
 			pool.config.Metrics.IncreaseCounterForConnectionPoolFailures(1)
 		}
-		return nil, false, xerrors.Errorf("failed to connect to irods server: %w", err)
+		return nil, false, errors.Wrapf(err, "failed to connect to irods server")
 	}
 
 	err = newConn.Connect()
@@ -324,7 +325,7 @@ func (pool *ConnectionPool) get(new bool) (*connection.IRODSConnection, bool, er
 			}
 		}
 
-		return nil, false, xerrors.Errorf("failed to connect to irods server: %w", err)
+		return nil, false, errors.Wrapf(err, "failed to connect to irods server")
 	}
 
 	pool.occupiedConnections[newConn] = true
@@ -375,7 +376,7 @@ func (pool *ConnectionPool) Return(conn *connection.IRODSConnection) error {
 		}
 	} else {
 		// cannot find it from occupied map
-		return xerrors.Errorf("failed to find the connection from occupied connection list")
+		return errors.Errorf("failed to find the connection from occupied connection list")
 	}
 
 	if !conn.IsConnected() {

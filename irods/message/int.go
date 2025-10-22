@@ -3,7 +3,7 @@ package message
 import (
 	"encoding/xml"
 
-	"golang.org/x/xerrors"
+	"github.com/cockroachdb/errors"
 )
 
 // IRODSMessageInt stores int message
@@ -23,7 +23,7 @@ func NewIRODSMessageInt(intValue int) (*IRODSMessageInt, error) {
 func (msg *IRODSMessageInt) GetBytes() ([]byte, error) {
 	xmlBytes, err := xml.Marshal(msg)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to marshal irods message to xml: %w", err)
+		return nil, errors.Wrapf(err, "failed to marshal irods message to xml")
 	}
 	return xmlBytes, nil
 }
@@ -32,7 +32,7 @@ func (msg *IRODSMessageInt) GetBytes() ([]byte, error) {
 func (msg *IRODSMessageInt) FromBytes(bytes []byte) error {
 	err := xml.Unmarshal(bytes, msg)
 	if err != nil {
-		return xerrors.Errorf("failed to unmarshal xml to irods message: %w", err)
+		return errors.Wrapf(err, "failed to unmarshal xml to irods message")
 	}
 	return nil
 }

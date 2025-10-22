@@ -1,9 +1,9 @@
 package message
 
 import (
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/types"
-	"golang.org/x/xerrors"
 )
 
 // IRODSMessageReplicateDataObjectResponse stores data object replication response
@@ -23,7 +23,7 @@ func (msg *IRODSMessageReplicateDataObjectResponse) CheckError() error {
 // FromMessage returns struct from IRODSMessage
 func (msg *IRODSMessageReplicateDataObjectResponse) FromMessage(msgIn *IRODSMessage) error {
 	if msgIn.Body == nil {
-		return xerrors.Errorf("empty message body")
+		return errors.Errorf("empty message body")
 	}
 
 	msg.Result = int(msgIn.Body.IntInfo)

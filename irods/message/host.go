@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/types"
-	"golang.org/x/xerrors"
 )
 
 // IRODSMessageHost stores startup message
@@ -27,12 +27,12 @@ func NewIRODSMessageHost(resource *types.IRODSResource) (*IRODSMessageHost, erro
 	if strings.Contains(resource.Location, ":") {
 		newAddr, portStr, err := net.SplitHostPort(resource.Location)
 		if err != nil {
-			return nil, xerrors.Errorf("failed to split host port: %w", err)
+			return nil, errors.Wrapf(err, "failed to split host port")
 		}
 
 		port, err = strconv.Atoi(portStr)
 		if err != nil {
-			return nil, xerrors.Errorf("failed to convert ascii %q to int: %w", portStr, err)
+			return nil, errors.Wrapf(err, "failed to convert ascii %q to int", portStr)
 		}
 
 		addr = newAddr
@@ -49,7 +49,7 @@ func NewIRODSMessageHost(resource *types.IRODSResource) (*IRODSMessageHost, erro
 func (msg *IRODSMessageHost) GetBytes() ([]byte, error) {
 	xmlBytes, err := xml.Marshal(msg)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to marshal irods message to xml: %w", err)
+		return nil, errors.Wrapf(err, "failed to marshal irods message to xml")
 	}
 	return xmlBytes, nil
 }
@@ -58,7 +58,7 @@ func (msg *IRODSMessageHost) GetBytes() ([]byte, error) {
 func (msg *IRODSMessageHost) FromBytes(bytes []byte) error {
 	err := xml.Unmarshal(bytes, msg)
 	if err != nil {
-		return xerrors.Errorf("failed to unmarshal xml to irods message: %w", err)
+		return errors.Wrapf(err, "failed to unmarshal xml to irods message")
 	}
 	return nil
 }

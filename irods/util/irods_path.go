@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"golang.org/x/xerrors"
+	"github.com/cockroachdb/errors"
 )
 
 // GetCorrectIRODSPath corrects the path
@@ -51,14 +51,14 @@ func GetIRODSPathFileName(p string) string {
 // GetIRODSZone returns the zone of the path
 func GetIRODSZone(p string) (string, error) {
 	if len(p) == 0 || p[0] != '/' {
-		return "", xerrors.Errorf("cannot extract Zone from path %q", p)
+		return "", errors.Errorf("cannot extract Zone from path %q", p)
 	}
 
 	parts := strings.Split(p[1:], "/")
 	if len(parts) >= 1 {
 		return parts[0], nil
 	}
-	return "", xerrors.Errorf("cannot extract Zone from path %q", p)
+	return "", errors.Errorf("cannot extract Zone from path %q", p)
 }
 
 // GetIRODSPathDepth returns depth of the path
@@ -115,7 +115,7 @@ func GetRelativeIRODSPath(base string, target string) (string, error) {
 
 	rel, err := filepath.Rel(osBase, osTarget)
 	if err != nil {
-		return "", xerrors.Errorf("failed to calculate relative path from %q to %q: %w", osBase, osTarget, err)
+		return "", errors.Wrapf(err, "failed to calculate relative path from %q to %q", osBase, osTarget)
 	}
 	return filepath.ToSlash(rel), nil
 }

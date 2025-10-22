@@ -4,18 +4,18 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/message"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
-	"golang.org/x/xerrors"
 )
 
 // GetResource returns a resource for the name
 func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSResource, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -40,31 +40,36 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 	err := conn.Request(query, &queryResult, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, xerrors.Errorf("failed to find the resource for name %q: %w", name, types.NewResourceNotFoundError(name))
+			newErr := errors.Join(err, types.NewResourceNotFoundError(name))
+			return nil, errors.Wrapf(newErr, "failed to find the resource for name %q", name)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_RESOURCE {
-			return nil, xerrors.Errorf("failed to find the resource for name %q: %w", name, types.NewResourceNotFoundError(name))
+			newErr := errors.Join(err, types.NewResourceNotFoundError(name))
+			return nil, errors.Wrapf(newErr, "failed to find the resource for name %q", name)
 		}
 
-		return nil, xerrors.Errorf("failed to receive a resource query result message: %w", err)
+		return nil, errors.Wrapf(err, "failed to receive a resource query result message")
 	}
 
 	err = queryResult.CheckError()
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return nil, xerrors.Errorf("failed to find the resource for name %q: %w", name, types.NewResourceNotFoundError(name))
+			newErr := errors.Join(err, types.NewResourceNotFoundError(name))
+			return nil, errors.Wrapf(newErr, "failed to find the resource for name %q", name)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_RESOURCE {
-			return nil, xerrors.Errorf("failed to find the resource for name %q: %w", name, types.NewResourceNotFoundError(name))
+			newErr := errors.Join(err, types.NewResourceNotFoundError(name))
+			return nil, errors.Wrapf(newErr, "failed to find the resource for name %q", name)
 		}
 
-		return nil, xerrors.Errorf("received a data resource query error: %w", err)
+		return nil, errors.Wrapf(err, "received a data resource query error")
 	}
 
 	if queryResult.RowCount == 0 {
-		return nil, xerrors.Errorf("failed to find the resource for name %q: %w", name, types.NewResourceNotFoundError(name))
+		newErr := types.NewResourceNotFoundError(name)
+		return nil, errors.Wrapf(newErr, "failed to find the resource for name %q", name)
 	}
 
 	if queryResult.AttributeCount > len(queryResult.SQLResult) {
-		return nil, xerrors.Errorf("failed to receive resource attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+		return nil, errors.Errorf("failed to receive resource attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 	}
 
 	resource := &types.IRODSResource{}
@@ -72,7 +77,7 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 	for attr := 0; attr < queryResult.AttributeCount; attr++ {
 		sqlResult := queryResult.SQLResult[attr]
 		if len(sqlResult.Values) != queryResult.RowCount {
-			return nil, xerrors.Errorf("failed to receive resource rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+			return nil, errors.Errorf("failed to receive resource rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 		}
 
 		value := sqlResult.Values[0]
@@ -81,7 +86,7 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 		case int(common.ICAT_COLUMN_R_RESC_ID):
 			objID, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse resource id %q: %w", value, err)
+				return nil, errors.Wrapf(err, "failed to parse resource id %q", value)
 			}
 			resource.RescID = objID
 		case int(common.ICAT_COLUMN_R_RESC_NAME):
@@ -101,13 +106,13 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 		case int(common.ICAT_COLUMN_R_CREATE_TIME):
 			cT, err := util.GetIRODSDateTime(value)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
+				return nil, errors.Wrapf(err, "failed to parse create time %q", value)
 			}
 			resource.CreateTime = cT
 		case int(common.ICAT_COLUMN_R_MODIFY_TIME):
 			mT, err := util.GetIRODSDateTime(value)
 			if err != nil {
-				return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
+				return nil, errors.Wrapf(err, "failed to parse modify time %q", value)
 			}
 			resource.ModifyTime = mT
 		default:
@@ -121,7 +126,7 @@ func GetResource(conn *connection.IRODSConnection, name string) (*types.IRODSRes
 // ListResources lists resources
 func ListResources(conn *connection.IRODSConnection) ([]*types.IRODSResource, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -152,10 +157,10 @@ func ListResources(conn *connection.IRODSConnection) ([]*types.IRODSResource, er
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_RESOURCE {
-				return nil, xerrors.Errorf("failed to list the resource: %w", err)
+				return nil, errors.Wrapf(err, "failed to list the resource")
 			}
 
-			return nil, xerrors.Errorf("failed to receive a resource query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a resource query result message")
 		}
 
 		err = queryResult.CheckError()
@@ -164,10 +169,10 @@ func ListResources(conn *connection.IRODSConnection) ([]*types.IRODSResource, er
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_RESOURCE {
-				return nil, xerrors.Errorf("failed to list the resource: %w", err)
+				return nil, errors.Wrapf(err, "failed to list the resource")
 			}
 
-			return nil, xerrors.Errorf("received a data resource query error: %w", err)
+			return nil, errors.Wrapf(err, "received a data resource query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -175,7 +180,7 @@ func ListResources(conn *connection.IRODSConnection) ([]*types.IRODSResource, er
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive resource attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive resource attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedResources := make([]*types.IRODSResource, queryResult.RowCount)
@@ -183,7 +188,7 @@ func ListResources(conn *connection.IRODSConnection) ([]*types.IRODSResource, er
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive resource rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive resource rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -209,7 +214,7 @@ func ListResources(conn *connection.IRODSConnection) ([]*types.IRODSResource, er
 				case int(common.ICAT_COLUMN_R_RESC_ID):
 					objID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse resource id %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse resource id %q", value)
 					}
 					pagenatedResources[row].RescID = objID
 				case int(common.ICAT_COLUMN_R_RESC_NAME):
@@ -229,13 +234,13 @@ func ListResources(conn *connection.IRODSConnection) ([]*types.IRODSResource, er
 				case int(common.ICAT_COLUMN_R_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse create time %q", value)
 					}
 					pagenatedResources[row].CreateTime = cT
 				case int(common.ICAT_COLUMN_R_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse modify time %q", value)
 					}
 					pagenatedResources[row].ModifyTime = mT
 				default:
@@ -259,7 +264,7 @@ func ListResources(conn *connection.IRODSConnection) ([]*types.IRODSResource, er
 // metadata.AVUID is ignored
 func AddResourceMeta(conn *connection.IRODSConnection, name string, metadata *types.IRODSMeta) error {
 	if conn == nil || !conn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
+		return errors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -271,12 +276,14 @@ func AddResourceMeta(conn *connection.IRODSConnection, name string, metadata *ty
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return xerrors.Errorf("failed to find the resource for name %q: %w", name, types.NewResourceNotFoundError(name))
+			newErr := errors.Join(err, types.NewResourceNotFoundError(name))
+			return errors.Wrapf(newErr, "failed to find the resource for name %q", name)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_RESOURCE {
-			return xerrors.Errorf("failed to find the resource for name %q: %w", name, types.NewResourceNotFoundError(name))
+			newErr := errors.Join(err, types.NewResourceNotFoundError(name))
+			return errors.Wrapf(newErr, "failed to find the resource for name %q", name)
 		}
 
-		return xerrors.Errorf("received an add data resource meta error: %w", err)
+		return errors.Wrapf(err, "received an add data resource meta error")
 	}
 	return nil
 }
@@ -285,7 +292,7 @@ func AddResourceMeta(conn *connection.IRODSConnection, name string, metadata *ty
 // The metadata AVU is selected on basis of AVUID if it is supplied, otherwise on basis of Name, Value and Units.
 func DeleteResourceMeta(conn *connection.IRODSConnection, name string, metadata *types.IRODSMeta) error {
 	if conn == nil || !conn.IsConnected() {
-		return xerrors.Errorf("connection is nil or disconnected")
+		return errors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -306,12 +313,14 @@ func DeleteResourceMeta(conn *connection.IRODSConnection, name string, metadata 
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND {
-			return xerrors.Errorf("failed to find the resource for name %q: %w", name, types.NewResourceNotFoundError(name))
+			newErr := errors.Join(err, types.NewResourceNotFoundError(name))
+			return errors.Wrapf(newErr, "failed to find the resource for name %q", name)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_RESOURCE {
-			return xerrors.Errorf("failed to find the resource for name %q: %w", name, types.NewResourceNotFoundError(name))
+			newErr := errors.Join(err, types.NewResourceNotFoundError(name))
+			return errors.Wrapf(newErr, "failed to find the resource for name %q", name)
 		}
 
-		return xerrors.Errorf("received a delete data resource meta error: %w", err)
+		return errors.Wrapf(err, "received a delete data resource meta error")
 	}
 	return nil
 }
@@ -319,7 +328,7 @@ func DeleteResourceMeta(conn *connection.IRODSConnection, name string, metadata 
 // ListResourceMeta returns all metadata for the resource
 func ListResourceMeta(conn *connection.IRODSConnection, name string) ([]*types.IRODSMeta, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	// lock the connection
@@ -348,10 +357,11 @@ func ListResourceMeta(conn *connection.IRODSConnection, name string) ([]*types.I
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_RESOURCE {
-				return nil, xerrors.Errorf("failed to find the resource for name %q: %w", name, types.NewResourceNotFoundError(name))
+				newErr := errors.Join(err, types.NewResourceNotFoundError(name))
+				return nil, errors.Wrapf(newErr, "failed to find the resource for name %q", name)
 			}
 
-			return nil, xerrors.Errorf("failed to receive a resource metadata query result message: %w", err)
+			return nil, errors.Wrapf(err, "failed to receive a resource metadata query result message")
 		}
 
 		err = queryResult.CheckError()
@@ -360,10 +370,11 @@ func ListResourceMeta(conn *connection.IRODSConnection, name string) ([]*types.I
 				// empty
 				break
 			} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_RESOURCE {
-				return nil, xerrors.Errorf("failed to find the resource for name %q: %w", name, types.NewResourceNotFoundError(name))
+				newErr := errors.Join(err, types.NewResourceNotFoundError(name))
+				return nil, errors.Wrapf(newErr, "failed to find the resource for name %q", name)
 			}
 
-			return nil, xerrors.Errorf("received a resource metadata query error: %w", err)
+			return nil, errors.Wrapf(err, "received a resource metadata query error")
 		}
 
 		if queryResult.RowCount == 0 {
@@ -371,7 +382,7 @@ func ListResourceMeta(conn *connection.IRODSConnection, name string) ([]*types.I
 		}
 
 		if queryResult.AttributeCount > len(queryResult.SQLResult) {
-			return nil, xerrors.Errorf("failed to receive resource metadata attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
+			return nil, errors.Errorf("failed to receive resource metadata attributes - requires %d, but received %d attributes", queryResult.AttributeCount, len(queryResult.SQLResult))
 		}
 
 		pagenatedMetas := make([]*types.IRODSMeta, queryResult.RowCount)
@@ -379,7 +390,7 @@ func ListResourceMeta(conn *connection.IRODSConnection, name string) ([]*types.I
 		for attr := 0; attr < queryResult.AttributeCount; attr++ {
 			sqlResult := queryResult.SQLResult[attr]
 			if len(sqlResult.Values) != queryResult.RowCount {
-				return nil, xerrors.Errorf("failed to receive resource metadata rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
+				return nil, errors.Errorf("failed to receive resource metadata rows - requires %d, but received %d attributes", queryResult.RowCount, len(sqlResult.Values))
 			}
 
 			for row := 0; row < queryResult.RowCount; row++ {
@@ -401,7 +412,7 @@ func ListResourceMeta(conn *connection.IRODSConnection, name string) ([]*types.I
 				case int(common.ICAT_COLUMN_META_RESC_ATTR_ID):
 					avuID, err := strconv.ParseInt(value, 10, 64)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse resource metadata id %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse resource metadata id %q", value)
 					}
 					pagenatedMetas[row].AVUID = avuID
 				case int(common.ICAT_COLUMN_META_RESC_ATTR_NAME):
@@ -413,13 +424,13 @@ func ListResourceMeta(conn *connection.IRODSConnection, name string) ([]*types.I
 				case int(common.ICAT_COLUMN_META_RESC_CREATE_TIME):
 					cT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse create time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse create time %q", value)
 					}
 					pagenatedMetas[row].CreateTime = cT
 				case int(common.ICAT_COLUMN_META_RESC_MODIFY_TIME):
 					mT, err := util.GetIRODSDateTime(value)
 					if err != nil {
-						return nil, xerrors.Errorf("failed to parse modify time %q: %w", value, err)
+						return nil, errors.Wrapf(err, "failed to parse modify time %q", value)
 					}
 					pagenatedMetas[row].ModifyTime = mT
 				default:
@@ -449,7 +460,7 @@ func AddChildToResource(conn *connection.IRODSConnection, parent string, child s
 
 	err := conn.RequestAndCheck(req, &message.IRODSMessageAdminResponse{}, nil, conn.GetOperationTimeout())
 	if err != nil {
-		return xerrors.Errorf("received add child to resc error: %w", err)
+		return errors.Wrapf(err, "received add child to resc error")
 	}
 	return nil
 }

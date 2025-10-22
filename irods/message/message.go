@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/xml"
 
-	"golang.org/x/xerrors"
+	"github.com/cockroachdb/errors"
 )
 
 // MessageType is a message type
@@ -56,7 +56,7 @@ func MakeIRODSMessageHeader(messageType MessageType, messageLen uint32, errorLen
 func (header *IRODSMessageHeader) GetBytes() ([]byte, error) {
 	xmlBytes, err := xml.Marshal(header)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to marshal irods message to xml: %w", err)
+		return nil, errors.Wrapf(err, "failed to marshal irods message to xml")
 	}
 	return xmlBytes, nil
 }
@@ -65,7 +65,7 @@ func (header *IRODSMessageHeader) GetBytes() ([]byte, error) {
 func (header *IRODSMessageHeader) FromBytes(bytes []byte) error {
 	err := xml.Unmarshal(bytes, header)
 	if err != nil {
-		return xerrors.Errorf("failed to unmarshal xml to irods message: %w", err)
+		return errors.Wrapf(err, "failed to unmarshal xml to irods message")
 	}
 	return nil
 }
@@ -76,21 +76,21 @@ func (body *IRODSMessageBody) GetBytes() ([]byte, error) {
 	if body.Message != nil {
 		_, err := messageBuffer.Write(body.Message)
 		if err != nil {
-			return nil, xerrors.Errorf("failed to write to message buffer: %w", err)
+			return nil, errors.Wrapf(err, "failed to write to message buffer")
 		}
 	}
 
 	if body.Error != nil {
 		_, err := messageBuffer.Write(body.Error)
 		if err != nil {
-			return nil, xerrors.Errorf("failed to write to message buffer: %w", err)
+			return nil, errors.Wrapf(err, "failed to write to message buffer")
 		}
 	}
 
 	if body.Bs != nil {
 		_, err := messageBuffer.Write(body.Bs)
 		if err != nil {
-			return nil, xerrors.Errorf("failed to write to message buffer: %w", err)
+			return nil, errors.Wrapf(err, "failed to write to message buffer")
 		}
 	}
 
@@ -103,14 +103,14 @@ func (body *IRODSMessageBody) GetBytesWithoutBS() ([]byte, error) {
 	if body.Message != nil {
 		_, err := messageBuffer.Write(body.Message)
 		if err != nil {
-			return nil, xerrors.Errorf("failed to write to message buffer: %w", err)
+			return nil, errors.Wrapf(err, "failed to write to message buffer")
 		}
 	}
 
 	if body.Error != nil {
 		_, err := messageBuffer.Write(body.Error)
 		if err != nil {
-			return nil, xerrors.Errorf("failed to write to message buffer: %w", err)
+			return nil, errors.Wrapf(err, "failed to write to message buffer")
 		}
 	}
 
@@ -120,11 +120,11 @@ func (body *IRODSMessageBody) GetBytesWithoutBS() ([]byte, error) {
 // FromBytes returns struct from bytes
 func (body *IRODSMessageBody) FromBytes(header *IRODSMessageHeader, bodyBytes []byte, bsBytes []byte) error {
 	if len(bodyBytes) < (int(header.MessageLen) + int(header.ErrorLen)) {
-		return xerrors.Errorf("bodyBytes given is too short to be parsed")
+		return errors.Errorf("bodyBytes given is too short to be parsed")
 	}
 
 	if len(bsBytes) < int(header.BsLen) {
-		return xerrors.Errorf("bsBytes given is too short to be parsed")
+		return errors.Errorf("bsBytes given is too short to be parsed")
 	}
 
 	offset := 0

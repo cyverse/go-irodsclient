@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"encoding/xml"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/common"
-	"golang.org/x/xerrors"
 )
 
 // IRODSMessageCloseDataObjectReplicaRequest stores data object replica close request
@@ -39,7 +39,7 @@ func NewIRODSMessageCloseDataObjectReplicaRequest(desc int, sendNotification boo
 func (msg *IRODSMessageCloseDataObjectReplicaRequest) GetBytes() ([]byte, error) {
 	jsonBody, err := json.Marshal(msg)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to marshal irods message to json: %w", err)
+		return nil, errors.Wrapf(err, "failed to marshal irods message to json")
 	}
 
 	jsonBodyBin := base64.StdEncoding.EncodeToString(jsonBody)
@@ -51,7 +51,7 @@ func (msg *IRODSMessageCloseDataObjectReplicaRequest) GetBytes() ([]byte, error)
 
 	xmlBytes, err := xml.Marshal(binBytesBuf)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to marshal irods message to xml: %w", err)
+		return nil, errors.Wrapf(err, "failed to marshal irods message to xml")
 	}
 	return xmlBytes, nil
 }
@@ -61,17 +61,17 @@ func (msg *IRODSMessageCloseDataObjectReplicaRequest) FromBytes(bytes []byte) er
 	binBytesBuf := IRODSMessageBinBytesBuf{}
 	err := xml.Unmarshal(bytes, &binBytesBuf)
 	if err != nil {
-		return xerrors.Errorf("failed to marshal irods message to xml: %w", err)
+		return errors.Wrapf(err, "failed to marshal irods message to xml")
 	}
 
 	jsonBody, err := base64.StdEncoding.DecodeString(binBytesBuf.Data)
 	if err != nil {
-		return xerrors.Errorf("failed to decode base64 data: %w", err)
+		return errors.Wrapf(err, "failed to decode base64 data")
 	}
 
 	err = json.Unmarshal(jsonBody, msg)
 	if err != nil {
-		return xerrors.Errorf("failed to unmarshal json to irods message: %w", err)
+		return errors.Wrapf(err, "failed to unmarshal json to irods message")
 	}
 	return nil
 }
@@ -80,7 +80,7 @@ func (msg *IRODSMessageCloseDataObjectReplicaRequest) FromBytes(bytes []byte) er
 func (msg *IRODSMessageCloseDataObjectReplicaRequest) GetMessage() (*IRODSMessage, error) {
 	bytes, err := msg.GetBytes()
 	if err != nil {
-		return nil, xerrors.Errorf("failed to get bytes from irods message: %w", err)
+		return nil, errors.Wrapf(err, "failed to get bytes from irods message")
 	}
 
 	msgBody := IRODSMessageBody{
@@ -93,7 +93,7 @@ func (msg *IRODSMessageCloseDataObjectReplicaRequest) GetMessage() (*IRODSMessag
 
 	msgHeader, err := msgBody.BuildHeader()
 	if err != nil {
-		return nil, xerrors.Errorf("failed to build header from irods message: %w", err)
+		return nil, errors.Wrapf(err, "failed to build header from irods message")
 	}
 
 	return &IRODSMessage{

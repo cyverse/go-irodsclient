@@ -3,7 +3,7 @@ package message
 import (
 	"encoding/xml"
 
-	"golang.org/x/xerrors"
+	"github.com/cockroachdb/errors"
 )
 
 // IRODSMessageSSLSettings stores ssl settings
@@ -28,7 +28,7 @@ func NewIRODSMessageSSLSettings(algorithm string, keySize int, saltSize int, has
 func (msg *IRODSMessageSSLSettings) GetBytes() ([]byte, error) {
 	xmlBytes, err := xml.Marshal(msg)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to marshal irods message to xml: %w", err)
+		return nil, errors.Wrapf(err, "failed to marshal irods message to xml")
 	}
 	return xmlBytes, nil
 }
@@ -37,7 +37,7 @@ func (msg *IRODSMessageSSLSettings) GetBytes() ([]byte, error) {
 func (msg *IRODSMessageSSLSettings) FromBytes(bytes []byte) error {
 	err := xml.Unmarshal(bytes, msg)
 	if err != nil {
-		return xerrors.Errorf("failed to unmarshal xml to irods message: %w", err)
+		return errors.Wrapf(err, "failed to unmarshal xml to irods message")
 	}
 	return nil
 }
@@ -61,7 +61,7 @@ func (msg *IRODSMessageSSLSettings) GetMessage() (*IRODSMessage, error) {
 // FromMessage returns struct from IRODSMessage
 func (msg *IRODSMessageSSLSettings) FromMessage(msgIn *IRODSMessage) error {
 	if msgIn.Body == nil {
-		return xerrors.Errorf("empty message body")
+		return errors.Errorf("empty message body")
 	}
 
 	msg.EncryptionAlgorithm = string(msgIn.Header.Type)

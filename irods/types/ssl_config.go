@@ -3,13 +3,12 @@ package types
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
 	"os"
 	"strings"
 
+	"github.com/cockroachdb/errors"
 	"github.com/hashicorp/go-rootcerts"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/xerrors"
 )
 
 // SSLVerifyServer defines SSL Verify Server options
@@ -37,7 +36,7 @@ func GetSSLVerifyServer(verifyServer string) (SSLVerifyServer, error) {
 		sslVerifyServer = SSLVerifyServerNone
 	default:
 		sslVerifyServer = SSLVerifyServerNone
-		err = fmt.Errorf("cannot parse string %q", verifyServer)
+		err = errors.Errorf("cannot parse string %q", verifyServer)
 	}
 
 	return sslVerifyServer, err
@@ -75,10 +74,11 @@ func (config *IRODSSSLConfig) LoadCACert(ignoreWrongFile bool) (*x509.CertPool, 
 				if ignoreWrongFile {
 					logger.Debugf("CA Certificate File %q does not exist, ignoring.", config.CACertificateFile)
 				} else {
-					return nil, xerrors.Errorf("CA Certificate File %q error: %w", config.CACertificateFile, NewFileNotFoundError(config.CACertificateFile))
+					newErr := NewFileNotFoundError(config.CACertificateFile)
+					return nil, errors.Wrapf(newErr, "CA Certificate File %q error", config.CACertificateFile)
 				}
 			} else {
-				return nil, xerrors.Errorf("CA Certificate File %q error: %w", config.CACertificateFile, err)
+				return nil, errors.Wrapf(err, "CA Certificate File %q error", config.CACertificateFile)
 			}
 		}
 	}
@@ -89,12 +89,13 @@ func (config *IRODSSSLConfig) LoadCACert(ignoreWrongFile bool) (*x509.CertPool, 
 		if err != nil {
 			if os.IsNotExist(err) {
 				if ignoreWrongFile {
-					return nil, xerrors.Errorf("CA Certificate Path %q error: %w", config.CACertificatePath, NewFileNotFoundError(config.CACertificatePath))
+					newErr := NewFileNotFoundError(config.CACertificatePath)
+					return nil, errors.Wrapf(newErr, "CA Certificate Path %q error", config.CACertificatePath)
 				} else {
 					logger.Debugf("CA Certificate Path %q does not exist, ignoring.", config.CACertificatePath)
 				}
 			} else {
-				return nil, xerrors.Errorf("CA Certificate Path %q error: %w", config.CACertificatePath, err)
+				return nil, errors.Wrapf(err, "CA Certificate Path %q error", config.CACertificatePath)
 			}
 		}
 	}
@@ -106,7 +107,7 @@ func (config *IRODSSSLConfig) LoadCACert(ignoreWrongFile bool) (*x509.CertPool, 
 
 	certPool, err := rootcerts.LoadCACerts(certConfig)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to load CA Certificate file: %w", err)
+		return nil, errors.Wrapf(err, "failed to load CA Certificate file")
 	}
 
 	return certPool, nil
@@ -185,7 +186,7 @@ func (config *IRODSSSLConfig) Validate() error {
 	//	// check file exists
 	//	_, err := os.Stat(config.CACertificateFile)
 	//	if err != nil {
-	//		return xerrors.Errorf("CA Certificate File %q does not exist: %w", config.CACertificateFile, err)
+	//		return errors.Wrapf(err, "CA Certificate File %q does not exist", config.CACertificateFile)
 	//	}
 	//}
 
@@ -193,29 +194,34 @@ func (config *IRODSSSLConfig) Validate() error {
 	//	// check file exists
 	//	_, err := os.Stat(config.CACertificatePath)
 	//	if err != nil {
-	//		return xerrors.Errorf("CA Certificate Path %q does not exist: %w", config.CACertificatePath, err)
+	//		return errors.Wrapf(err, "CA Certificate Path %q does not exist", config.CACertificatePath)
 	//	}
 	//}
 
 	if config.EncryptionKeySize <= 0 {
-		return xerrors.Errorf("invalid encryption key size")
+		newErr := NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "invalid encryption key size")
 	}
 
 	if len(config.EncryptionAlgorithm) == 0 {
-		return xerrors.Errorf("empty encryption algorithm")
+		newErr := NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "empty encryption algorithm")
 	}
 
 	if config.EncryptionSaltSize <= 0 {
-		return xerrors.Errorf("invalid encryption salt size")
+		newErr := NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "invalid encryption salt size")
 	}
 
 	if config.EncryptionNumHashRounds <= 0 {
-		return xerrors.Errorf("invalid encryption number of hash rounds")
+		newErr := NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "invalid encryption number of hash rounds")
 	}
 
 	_, err := GetSSLVerifyServer(string(config.VerifyServer))
 	if err != nil {
-		return xerrors.Errorf("failed to validate SSL verify server: %w", err)
+		newErr := errors.Join(err, NewConnectionConfigError(nil))
+		return errors.Wrapf(newErr, "failed to validate SSL verify server")
 	}
 
 	return nil

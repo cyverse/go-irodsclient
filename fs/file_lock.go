@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"golang.org/x/xerrors"
+	"github.com/cockroachdb/errors"
 )
 
 // this is a file lock managed by go-irodsclient. Not same as fs file lock
@@ -69,7 +69,7 @@ func (mgr *FileLocks) UnlockFiles(paths []string) error {
 
 			if lock.references <= 0 {
 				mgr.mutex.Unlock()
-				return xerrors.Errorf("file lock for path %q has invalid references %d", path, lock.references)
+				return errors.Errorf("file lock for path %q has invalid references %d", path, lock.references)
 			}
 
 			lock.references--
@@ -79,7 +79,7 @@ func (mgr *FileLocks) UnlockFiles(paths []string) error {
 			}
 		} else {
 			mgr.mutex.Unlock()
-			return xerrors.Errorf("file lock for path %q does not exist", path)
+			return errors.Errorf("file lock for path %q does not exist", path)
 		}
 	}
 
@@ -155,12 +155,12 @@ func (mgr *FileLocks) Unlock(path string) error {
 		fileLock = lock
 	} else {
 		mgr.mutex.Unlock()
-		return xerrors.Errorf("file lock for path %q does not exist", path)
+		return errors.Errorf("file lock for path %q does not exist", path)
 	}
 
 	if fileLock.references <= 0 {
 		mgr.mutex.Unlock()
-		return xerrors.Errorf("file lock for path %q has invalid references %d", path, fileLock.references)
+		return errors.Errorf("file lock for path %q has invalid references %d", path, fileLock.references)
 	}
 
 	fileLock.references--
@@ -186,12 +186,12 @@ func (mgr *FileLocks) RUnlock(path string) error {
 		fileLock = lock
 	} else {
 		mgr.mutex.Unlock()
-		return xerrors.Errorf("file lock for path %q does not exist", path)
+		return errors.Errorf("file lock for path %q does not exist", path)
 	}
 
 	if fileLock.references <= 0 {
 		mgr.mutex.Unlock()
-		return xerrors.Errorf("file lock for path %q has invalid references %d", path, fileLock.references)
+		return errors.Errorf("file lock for path %q has invalid references %d", path, fileLock.references)
 	}
 
 	fileLock.references--

@@ -4,11 +4,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/metrics"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/xerrors"
 )
 
 // TransactionFailureHandler is an handler that is called when transaction operation fails
@@ -39,7 +39,8 @@ type IRODSSession struct {
 // NewIRODSSession create a IRODSSession
 func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*IRODSSession, error) {
 	if account == nil {
-		return nil, xerrors.Errorf("account is not set: %w", types.NewConnectionConfigError(nil))
+		newErr := types.NewConnectionConfigError(nil)
+		return nil, errors.Wrapf(newErr, "account is not set")
 	}
 
 	// use default config if not set
@@ -95,7 +96,7 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 		sess.lastConnectionError = err
 		sess.lastConnectionErrorTime = time.Now()
 
-		return nil, xerrors.Errorf("failed to create connection pool: %w", err)
+		return nil, errors.Wrapf(err, "failed to create connection pool")
 	}
 	sess.connectionPool = pool
 
@@ -236,7 +237,7 @@ func (sess *IRODSSession) endTransaction(conn *connection.IRODSConnection) error
 		}
 	}
 
-	return xerrors.Errorf("failed to commit/rollback transaction")
+	return errors.Errorf("failed to commit/rollback transaction")
 }
 
 func (sess *IRODSSession) createConnectionFromPool(new bool, wait bool) (*connection.IRODSConnection, error) {
@@ -272,7 +273,7 @@ func (sess *IRODSSession) acquireConnection(new bool, allowShared bool, wait boo
 		logger.WithError(err).Debug("failed to get a connection from the pool, the pool is full")
 
 		if !allowShared {
-			return nil, xerrors.Errorf("failed to get a connection from the pool, the pool is full: %w", err)
+			return nil, errors.Wrapf(err, "failed to get a connection from the pool, the pool is full")
 		}
 
 		// fall below
@@ -311,7 +312,7 @@ func (sess *IRODSSession) acquireConnection(new bool, allowShared bool, wait boo
 
 	if minShareConn == nil {
 		sess.metrics.IncreaseCounterForConnectionPoolFailures(1)
-		return nil, xerrors.Errorf("failed to get a shared connection, too many connections created")
+		return nil, errors.Errorf("failed to get a shared connection, too many connections created")
 	}
 
 	// update
@@ -329,7 +330,7 @@ func (sess *IRODSSession) AcquireConnection(allowShared bool) (*connection.IRODS
 	// return last error
 	pendingErr := sess.getPendingError()
 	if pendingErr != nil {
-		return nil, xerrors.Errorf("failed to get a connection from the pool because pending error is found: %w", pendingErr)
+		return nil, errors.Wrapf(pendingErr, "failed to get a connection from the pool because pending error is found")
 	}
 
 	conn, err := sess.acquireConnection(false, allowShared, sess.config.WaitConnection)
@@ -348,7 +349,7 @@ func (sess *IRODSSession) AcquireNewConnection(allowShared bool) (*connection.IR
 	// return last error
 	pendingErr := sess.getPendingError()
 	if pendingErr != nil {
-		return nil, xerrors.Errorf("failed to get a connection from the pool because pending error is found: %w", pendingErr)
+		return nil, errors.Wrapf(pendingErr, "failed to get a connection from the pool because pending error is found")
 	}
 
 	conn, err := sess.acquireConnection(true, allowShared, sess.config.WaitConnection)
@@ -367,7 +368,7 @@ func (sess *IRODSSession) AcquireConnectionsMulti(number int, allowShared bool) 
 	// return last error
 	pendingErr := sess.getPendingError()
 	if pendingErr != nil {
-		return nil, xerrors.Errorf("failed to get a connection from the pool because pending error is found: %w", pendingErr)
+		return nil, errors.Wrapf(pendingErr, "failed to get a connection from the pool because pending error is found")
 	}
 
 	poolFull := false
@@ -432,7 +433,7 @@ func (sess *IRODSSession) returnConnection(conn *connection.IRODSConnection) err
 
 			err := sess.connectionPool.Return(conn)
 			if err != nil {
-				return xerrors.Errorf("failed to return an idle connection: %w", err)
+				return errors.Wrapf(err, "failed to return an idle connection")
 			}
 		} else {
 			sess.sharedConnections[conn] = share

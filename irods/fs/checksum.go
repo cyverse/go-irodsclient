@@ -1,17 +1,17 @@
 package fs
 
 import (
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/message"
 	"github.com/cyverse/go-irodsclient/irods/types"
-	"golang.org/x/xerrors"
 )
 
 // GetDataObjectChecksum returns a data object checksum for the path
 func GetDataObjectChecksum(conn *connection.IRODSConnection, path string, resource string) (*types.IRODSChecksum, error) {
 	if conn == nil || !conn.IsConnected() {
-		return nil, xerrors.Errorf("connection is nil or disconnected")
+		return nil, errors.Errorf("connection is nil or disconnected")
 	}
 
 	metrics := conn.GetMetrics()
@@ -34,17 +34,19 @@ func GetDataObjectChecksum(conn *connection.IRODSConnection, path string, resour
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {
 		if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
-			return nil, xerrors.Errorf("failed to find the data object for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return nil, errors.Wrapf(newErr, "failed to find the data object for path %q", path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
-			return nil, xerrors.Errorf("failed to find the collection for path %q: %w", path, types.NewFileNotFoundError(path))
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return nil, errors.Wrapf(newErr, "failed to find the collection for path %q", path)
 		}
 
-		return nil, xerrors.Errorf("failed to get data object checksum: %w", err)
+		return nil, errors.Wrapf(err, "failed to get data object checksum")
 	}
 
 	checksum, err := types.CreateIRODSChecksum(response.Checksum)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to create iRODS checksum: %w", err)
+		return nil, errors.Wrapf(err, "failed to create iRODS checksum")
 	}
 
 	return checksum, nil

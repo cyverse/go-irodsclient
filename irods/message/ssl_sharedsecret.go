@@ -1,7 +1,7 @@
 package message
 
 import (
-	"golang.org/x/xerrors"
+	"github.com/cockroachdb/errors"
 )
 
 const (
@@ -33,7 +33,7 @@ func (msg *IRODSMessageSSLSharedSecret) GetMessage() (*IRODSMessage, error) {
 
 	msgHeader, err := msgBody.BuildHeader()
 	if err != nil {
-		return nil, xerrors.Errorf("failed to build header from irods message: %w", err)
+		return nil, errors.Wrapf(err, "failed to build header from irods message")
 	}
 
 	return &IRODSMessage{
@@ -45,7 +45,7 @@ func (msg *IRODSMessageSSLSharedSecret) GetMessage() (*IRODSMessage, error) {
 // FromMessage returns struct from IRODSMessage
 func (msg *IRODSMessageSSLSharedSecret) FromMessage(msgIn *IRODSMessage) error {
 	if msgIn.Body == nil {
-		return xerrors.Errorf("empty message body")
+		return errors.Errorf("empty message body")
 	}
 
 	msg.SharedSecret = msgIn.Body.Message

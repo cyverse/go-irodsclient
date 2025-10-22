@@ -4,9 +4,9 @@ import (
 	"io"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/message"
-	"golang.org/x/xerrors"
 )
 
 // Request is an interface for calling iRODS RPC.
@@ -69,7 +69,7 @@ func (conn *IRODSConnection) RequestWithTrackerCallBack(request Request, respons
 		if conn.config.Metrics != nil {
 			conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 		}
-		return xerrors.Errorf("failed to make a request message: %w", err)
+		return errors.Wrapf(err, "failed to make a request message")
 	}
 
 	requestTimeout := time.Duration(0)
@@ -85,7 +85,7 @@ func (conn *IRODSConnection) RequestWithTrackerCallBack(request Request, respons
 			conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 		}
 
-		return xerrors.Errorf("failed to send a request message: %w", err)
+		return errors.Wrapf(err, "failed to send a request message")
 	}
 
 	// Server responds with results
@@ -99,7 +99,7 @@ func (conn *IRODSConnection) RequestWithTrackerCallBack(request Request, respons
 		if err == io.EOF {
 			return err
 		}
-		return xerrors.Errorf("failed to receive a response message: %w", err)
+		return errors.Wrapf(err, "failed to receive a response message")
 	}
 
 	//logger.Debugf("response: %#v", responseMessage)
@@ -112,7 +112,7 @@ func (conn *IRODSConnection) RequestWithTrackerCallBack(request Request, respons
 			conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 		}
 
-		return xerrors.Errorf("failed to parse response message: %w", err)
+		return errors.Wrapf(err, "failed to parse response message")
 	}
 
 	return nil
@@ -165,7 +165,7 @@ func (conn *IRODSConnection) RequestAsyncWithTrackerCallBack(rrChan chan Request
 					conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 				}
 
-				lastErr = xerrors.Errorf("failed to send a request message: %w", err)
+				lastErr = errors.Wrapf(err, "failed to send a request message")
 				pair.Error = lastErr
 				waitResponseChan <- pair
 				continue
@@ -210,7 +210,7 @@ func (conn *IRODSConnection) RequestAsyncWithTrackerCallBack(rrChan chan Request
 				if err == io.EOF {
 					lastErr = err
 				} else {
-					lastErr = xerrors.Errorf("failed to receive a response message: %w", err)
+					lastErr = errors.Wrapf(err, "failed to receive a response message")
 				}
 
 				pair.Error = lastErr
@@ -225,7 +225,7 @@ func (conn *IRODSConnection) RequestAsyncWithTrackerCallBack(rrChan chan Request
 					conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 				}
 
-				lastErr = xerrors.Errorf("failed to parse response message: %w", err)
+				lastErr = errors.Wrapf(err, "failed to parse response message")
 				pair.Error = lastErr
 				outputPair <- pair
 				continue
@@ -258,7 +258,7 @@ func (conn *IRODSConnection) RequestWithoutResponse(request Request, timeout *Re
 		if conn.config.Metrics != nil {
 			conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 		}
-		return xerrors.Errorf("failed to send a request message: %w", err)
+		return errors.Wrapf(err, "failed to send a request message")
 	}
 
 	return nil
@@ -281,14 +281,14 @@ func (conn *IRODSConnection) RequestAndCheckWithTrackerCallBack(request Request,
 func (conn *IRODSConnection) getRequestMessage(request Request) (*message.IRODSMessage, error) {
 	requestMessage, err := request.GetMessage()
 	if err != nil {
-		return nil, xerrors.Errorf("failed to make a request message: %w", err)
+		return nil, errors.Wrapf(err, "failed to make a request message")
 	}
 
 	xmlCorrector := request.GetXMLCorrector()
 	if xmlCorrector != nil {
 		err := xmlCorrector(requestMessage, conn.useNewXML())
 		if err != nil {
-			return nil, xerrors.Errorf("failed to corrext XML message: %w", err)
+			return nil, errors.Wrapf(err, "failed to correct XML message")
 		}
 	}
 
@@ -300,13 +300,13 @@ func (conn *IRODSConnection) getResponse(responseMessage *message.IRODSMessage, 
 	if xmlCorrector != nil {
 		err := xmlCorrector(responseMessage, conn.useNewXML())
 		if err != nil {
-			return xerrors.Errorf("failed to corrext XML message: %w", err)
+			return errors.Wrapf(err, "failed to correct XML message")
 		}
 	}
 
 	err := response.FromMessage(responseMessage)
 	if err != nil {
-		return xerrors.Errorf("failed to parse a response message: %w", err)
+		return errors.Wrapf(err, "failed to parse a response message")
 	}
 
 	return nil
