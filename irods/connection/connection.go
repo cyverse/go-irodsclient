@@ -6,17 +6,13 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"net"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/cyverse/go-irodsclient/irods/auth"
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/message"
 	"github.com/cyverse/go-irodsclient/irods/metrics"
@@ -135,7 +131,11 @@ func (conn *IRODSConnection) SupportParallelUpload() bool {
 	return conn.serverVersion.HasHigherVersionThan(4, 2, 9)
 }
 
-func (conn *IRODSConnection) requreNewPamAuth() bool {
+func (conn *IRODSConnection) requireNewAuthFramework() bool {
+	return conn.serverVersion.HasHigherVersionThan(4, 3, 0)
+}
+
+func (conn *IRODSConnection) requireNewPamAuth() bool {
 	return conn.serverVersion.HasHigherVersionThan(4, 3, 0)
 }
 
@@ -293,40 +293,50 @@ func (conn *IRODSConnection) connectInternal() error {
 
 	switch conn.account.AuthenticationScheme {
 	case types.AuthSchemeNative:
-		err = conn.loginNative()
-	case types.AuthSchemeGSI:
-		err = conn.loginGSI()
-	case types.AuthSchemePAM, types.AuthSchemePAMPassword:
-		if len(conn.account.PAMToken) > 0 {
-			err = conn.loginPAMWithToken()
+		if conn.requireNewAuthFramework() {
+			err = conn.loginNativePlugin()
 		} else {
-			err = conn.loginPAMWithPassword()
-			if err != nil {
-				return errors.Wrapf(err, "failed to login to irods using PAM authentication")
+			err = conn.loginNativeLegacy()
+		}
+	case types.AuthSchemePAM, types.AuthSchemePAMPassword:
+		if conn.requireNewAuthFramework() {
+			if len(conn.account.PAMToken) > 0 {
+				err = conn.loginPAMWithTokenPlugin()
+			} else {
+				err = conn.loginPAMWithPasswordPlugin()
 			}
-
-			// reconnect when success
-			_ = conn.logout()
-			conn.disconnectNow()
-
-			// connect TCP
-			err = conn.connectTCP()
-			if err != nil {
-				return err
-			}
-
-			_, err = conn.startup()
-			if err != nil {
-				connErr := errors.Wrapf(err, "failed to startup an iRODS connection to server %q and port %d", conn.account.Host, conn.account.Port)
-				_ = conn.logout()
-				_ = conn.disconnectNow()
-				if conn.config.Metrics != nil {
-					conn.config.Metrics.IncreaseCounterForConnectionFailures(1)
+		} else {
+			if len(conn.account.PAMToken) > 0 {
+				err = conn.loginPAMWithTokenLegacy()
+			} else {
+				err = conn.loginPAMWithPasswordLegacy()
+				if err != nil {
+					return errors.Wrapf(err, "failed to login to irods using PAM authentication")
 				}
-				return connErr
-			}
 
-			err = conn.loginPAMWithToken()
+				// reconnect when success
+				_ = conn.logout()
+				conn.disconnectNow()
+
+				// connect TCP
+				err = conn.connectTCP()
+				if err != nil {
+					return err
+				}
+
+				_, err = conn.startup()
+				if err != nil {
+					connErr := errors.Wrapf(err, "failed to startup an iRODS connection to server %q and port %d", conn.account.Host, conn.account.Port)
+					_ = conn.logout()
+					_ = conn.disconnectNow()
+					if conn.config.Metrics != nil {
+						conn.config.Metrics.IncreaseCounterForConnectionFailures(1)
+					}
+					return connErr
+				}
+
+				err = conn.loginPAMWithTokenLegacy()
+			}
 		}
 	default:
 		newErr := types.NewConnectionConfigError(conn.account)
@@ -538,138 +548,61 @@ func (conn *IRODSConnection) sslStartup() error {
 	return nil
 }
 
-func (conn *IRODSConnection) login(password string) error {
-	// authenticate
-	timeout := conn.GetOperationTimeout()
-
-	authRequest := message.NewIRODSMessageAuthRequest()
-	authChallenge := message.IRODSMessageAuthChallengeResponse{}
-	err := conn.RequestAndCheck(authRequest, &authChallenge, nil, timeout)
-	if err != nil {
-		newErr := errors.Join(err, types.NewAuthError(conn.account))
-		return errors.Wrapf(newErr, "failed to receive authentication challenge message body")
-	}
-
-	challengeBytes, err := authChallenge.GetChallenge()
-	if err != nil {
-		newErr := errors.Join(err, types.NewAuthError(conn.account))
-		return errors.Wrapf(newErr, "failed to get authentication challenge")
-	}
-
-	// save client signature
-	conn.clientSignature = conn.createClientSignature(challengeBytes)
-
-	encodedPassword := auth.GenerateAuthResponse(challengeBytes, password)
-
-	authResponse := message.NewIRODSMessageAuthResponse(encodedPassword, conn.account.ProxyUser, conn.account.ProxyZone)
-	authResult := message.IRODSMessageAuthResult{}
-	err = conn.RequestAndCheck(authResponse, &authResult, nil, timeout)
-	if err != nil {
-		newErr := errors.Join(err, types.NewAuthError(conn.account))
-		return errors.Wrapf(newErr, "received irods authentication error")
-	}
-	return nil
-}
-
-func (conn *IRODSConnection) loginNative() error {
+func (conn *IRODSConnection) loginNativeLegacy() error {
 	logger := log.WithFields(log.Fields{})
+	logger.Debug("Logging in using legacy native authentication method")
 
-	logger.Debug("Logging in using native authentication method")
-	return conn.login(conn.account.Password)
+	return AuthenticateNative(conn, conn.account.Password)
 }
 
-func (conn *IRODSConnection) loginGSI() error {
-	newErr := types.NewAuthError(conn.account)
-	return errors.Wrapf(newErr, "GSI login is not yet implemented")
-}
-
-func (conn *IRODSConnection) getSafePAMPassword(password string) string {
-	// For certain characters in the pam password, if they need escaping with '\' then do so.
-	replacer := strings.NewReplacer("@", "\\@", "=", "\\=", "&", "\\&", ";", "\\;")
-	return replacer.Replace(password)
-}
-
-func (conn *IRODSConnection) loginPAMWithPassword() error {
+func (conn *IRODSConnection) loginNativePlugin() error {
 	logger := log.WithFields(log.Fields{})
+	logger.Debug("Logging in using native authentication method with plugin")
 
-	logger.Debug("Logging in using pam authentication method")
+	plugin := NewNativeAuthPlugin()
+	authContext := NewIRODSAuthContext()
+	authContext.Set("password", conn.account.Password)
+	authContext.Set(AUTH_TTL_KEY, "0")
 
-	timeout := conn.GetOperationTimeout()
+	return AuthenticateClient(conn, plugin, authContext)
+}
 
-	// Check whether ssl has already started, if not, start ssl.
-	if _, ok := conn.socket.(*tls.Conn); !ok {
-		newErr := types.NewConnectionError()
-		return errors.Wrapf(newErr, "connection should be using SSL")
-	}
-
-	ttl := conn.account.PamTTL
-	if ttl < 0 {
-		ttl = 0 // server decides
-	}
-
-	pamPassword := conn.getSafePAMPassword(conn.account.Password)
-
-	userKV := fmt.Sprintf("a_user=%s", conn.account.ProxyUser)
-	passwordKV := fmt.Sprintf("a_pw=%s", pamPassword)
-	ttlKV := fmt.Sprintf("a_ttl=%s", strconv.Itoa(ttl))
-
-	authContext := strings.Join([]string{userKV, passwordKV, ttlKV}, ";")
-
-	useDedicatedPAMApi := true
-	if conn.requreNewPamAuth() {
-		useDedicatedPAMApi = strings.ContainsAny(pamPassword, ";=") || len(authContext) >= 1024+64
-	}
-
-	// authenticate
-	pamToken := ""
-
-	if useDedicatedPAMApi {
-		logger.Debugf("use dedicated PAM api")
-
-		pamAuthRequest := message.NewIRODSMessagePamAuthRequest(conn.account.ProxyUser, conn.account.Password, ttl)
-		pamAuthResponse := message.IRODSMessagePamAuthResponse{}
-		err := conn.RequestAndCheck(pamAuthRequest, &pamAuthResponse, nil, timeout)
-		if err != nil {
-			newErr := errors.Join(err, types.NewAuthError(conn.account))
-			return errors.Wrapf(newErr, "failed to receive a PAM token")
-		}
-
-		pamToken = pamAuthResponse.GeneratedPassword
-	} else {
-		logger.Debugf("use auth plugin api: scheme %q", string(types.AuthSchemePAM))
-
-		pamAuthRequest := message.NewIRODSMessageAuthPluginRequest(string(types.AuthSchemePAM), authContext)
-		pamAuthResponse := message.IRODSMessageAuthPluginResponse{}
-		err := conn.RequestAndCheck(pamAuthRequest, &pamAuthResponse, nil, timeout)
-		if err != nil {
-			newErr := errors.Join(err, types.NewAuthError(conn.account))
-			return errors.Wrapf(newErr, "failed to receive a PAM token")
-		}
-
-		pamToken = string(pamAuthResponse.GeneratedPassword)
-	}
-
-	// save irods generated password for possible future use
-	conn.account.PAMToken = pamToken
+func (conn *IRODSConnection) loginPAMWithPasswordLegacy() error {
+	logger := log.WithFields(log.Fields{})
+	logger.Debug("Logging in using legacy pam authentication method")
 
 	// we do not login here.
 	// connection will be disconnected and reconnected afterword
-	return nil
+	return AuthenticatePAMWithPassword(conn, conn.account.Password)
 }
 
-func (conn *IRODSConnection) loginPAMWithToken() error {
+func (conn *IRODSConnection) loginPAMWithPasswordPlugin() error {
 	logger := log.WithFields(log.Fields{})
+	logger.Debug("Logging in using pam authentication method with plugin")
 
-	logger.Debug("Logging in using pam authentication method")
+	plugin := NewPAMPasswordAuthPlugin(conn.isSSLSocket)
+	authContext := NewIRODSAuthContext()
 
-	// Check whether ssl has already started, if not, start ssl.
-	if _, ok := conn.socket.(*tls.Conn); !ok {
-		newErr := types.NewConnectionError()
-		return errors.Wrapf(newErr, "connection should be using SSL")
-	}
+	return AuthenticateClient(conn, plugin, authContext)
+}
 
-	// retry native auth with generated password
-	return conn.login(conn.account.PAMToken)
+func (conn *IRODSConnection) loginPAMWithTokenLegacy() error {
+	logger := log.WithFields(log.Fields{})
+	logger.Debug("Logging in using legacy pam authentication method")
+
+	return AuthenticatePAMWithToken(conn, conn.account.PAMToken)
+}
+
+func (conn *IRODSConnection) loginPAMWithTokenPlugin() error {
+	logger := log.WithFields(log.Fields{})
+	logger.Debug("Logging in using pam authentication method with plugin")
+
+	plugin := NewNativeAuthPlugin()
+	authContext := NewIRODSAuthContext()
+	authContext.Set("password", conn.account.PAMToken)
+	authContext.Set(AUTH_TTL_KEY, "0")
+
+	return AuthenticateClient(conn, plugin, authContext)
 }
 
 // logout sends logout
@@ -1203,14 +1136,4 @@ func (conn *IRODSConnection) RawBind(socket net.Conn) {
 // GetMetrics returns metrics
 func (conn *IRODSConnection) GetMetrics() *metrics.IRODSMetrics {
 	return conn.config.Metrics
-}
-
-// createClientSignature creates a client signature from auth challenge
-func (conn *IRODSConnection) createClientSignature(challenge []byte) string {
-	if len(challenge) > 16 {
-		challenge = challenge[:16]
-	}
-
-	signature := hex.EncodeToString(challenge)
-	return signature
 }
