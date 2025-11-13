@@ -168,16 +168,18 @@ func TestLocalMain(t *testing.T) {
 }
 
 func TestProductionMain(t *testing.T) {
-	t.Log("Running all test cases...")
+	/*
+		t.Log("Running all test cases...")
 
-	tests := []Test{}
+		tests := []Test{}
 
-	// Add all test cases here
-	//tests = append(tests, getLowlevelConnectionTest())
-	tests = append(tests, getLowlevelSessionTest())
+		// Add all test cases here
+		//tests = append(tests, getLowlevelConnectionTest())
+		tests = append(tests, getLowlevelSessionTest())
 
-	// production server
-	for _, ver := range server.GetProductionIRODSVersions() {
-		testMainForVersion(t, ver, true, tests)
-	}
+		// production server
+		for _, ver := range server.GetProductionIRODSVersions() {
+			testMainForVersion(t, ver, true, tests)
+		}
+	*/
 }

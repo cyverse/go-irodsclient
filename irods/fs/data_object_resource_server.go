@@ -702,9 +702,9 @@ func DownloadDataObjectFromResourceServer(sess *session.IRODSSession, dataObject
 		return DownloadDataObjectParallel(sess, dataObject, resource, localPath, numTasks, keywords, transferCallback)
 	}
 
-	numTasks = handle.Threads
-
 	logger.Debugf("Redirect to resource: threads %d, addr %q, port %d, window size %d, cookie %d", handle.Threads, handle.RedirectionInfo.Host, handle.RedirectionInfo.Port, handle.RedirectionInfo.WindowSize, handle.RedirectionInfo.Cookie)
+
+	numTasks = handle.Threads
 	// get from portal
 
 	// create an empty file
@@ -758,7 +758,7 @@ func DownloadDataObjectFromResourceServer(sess *session.IRODSSession, dataObject
 		}
 	}
 
-	for i := 0; i < handle.Threads; i++ {
+	for i := 0; i < numTasks; i++ {
 		taskWaitGroup.Add(1)
 
 		go downloadTask(i)
@@ -821,9 +821,9 @@ func DownloadDataObjectFromResourceServerWithConnection(sess *session.IRODSSessi
 		return DownloadDataObjectWithConnection(controlConn, dataObject, resource, localPath, keywords, transferCallback)
 	}
 
-	numTasks = handle.Threads
-
 	logger.Debugf("Redirect to resource: threads %d, addr %q, port %d, window size %d, cookie %d", handle.Threads, handle.RedirectionInfo.Host, handle.RedirectionInfo.Port, handle.RedirectionInfo.WindowSize, handle.RedirectionInfo.Cookie)
+
+	numTasks = handle.Threads
 	// get from portal
 
 	// create an empty file
@@ -877,7 +877,7 @@ func DownloadDataObjectFromResourceServerWithConnection(sess *session.IRODSSessi
 		}
 	}
 
-	for i := 0; i < handle.Threads; i++ {
+	for i := 0; i < numTasks; i++ {
 		taskWaitGroup.Add(1)
 
 		go downloadTask(i)
@@ -971,13 +971,15 @@ func UploadDataObjectToResourceServer(sess *session.IRODSSession, localPath stri
 	}
 
 	logger.Debugf("Redirect to resource: threads %d, addr %q, port %d, window size %d, cookie %d", handle.Threads, handle.RedirectionInfo.Host, handle.RedirectionInfo.Port, handle.RedirectionInfo.WindowSize, handle.RedirectionInfo.Cookie)
+
+	numTasks = handle.Threads
 	// put to portal
 
-	errChan := make(chan error, handle.Threads)
+	errChan := make(chan error, numTasks)
 	taskWaitGroup := sync.WaitGroup{}
 
-	currentBytesUploaded := make([]int64, handle.Threads)
-	bytesUploaded := make([]int64, handle.Threads)
+	currentBytesUploaded := make([]int64, numTasks)
+	bytesUploaded := make([]int64, numTasks)
 	totalBytesUploaded := int64(0)
 	if transferCallback != nil {
 		transferCallback("upload", totalBytesUploaded, fileLength)
@@ -1017,7 +1019,7 @@ func UploadDataObjectToResourceServer(sess *session.IRODSSession, localPath stri
 		}
 	}
 
-	for i := 0; i < handle.Threads; i++ {
+	for i := 0; i < numTasks; i++ {
 		taskWaitGroup.Add(1)
 
 		go uploadTask(i)
@@ -1083,7 +1085,7 @@ func UploadDataObjectToResourceServerWithConnection(sess *session.IRODSSession, 
 	defer CompleteDataObjectRedirection(controlConn, handle)
 
 	if handle.Threads <= 0 || handle.RedirectionInfo == nil {
-		logger.Debugf("failed to get redirection info for data object, switch to UploadDataObject", irodsPath)
+		logger.Debugf("failed to get redirection info for data object %q, switch to UploadDataObject", irodsPath)
 		return UploadDataObjectWithConnection(controlConn, localPath, irodsPath, resource, replicate, keywords, transferCallback)
 	}
 
@@ -1095,8 +1097,8 @@ func UploadDataObjectToResourceServerWithConnection(sess *session.IRODSSession, 
 	errChan := make(chan error, numTasks)
 	taskWaitGroup := sync.WaitGroup{}
 
-	currentBytesUploaded := make([]int64, handle.Threads)
-	bytesUploaded := make([]int64, handle.Threads)
+	currentBytesUploaded := make([]int64, numTasks)
+	bytesUploaded := make([]int64, numTasks)
 	totalBytesUploaded := int64(0)
 	if transferCallback != nil {
 		transferCallback("upload", totalBytesUploaded, fileLength)
@@ -1136,7 +1138,7 @@ func UploadDataObjectToResourceServerWithConnection(sess *session.IRODSSession, 
 		}
 	}
 
-	for i := 0; i < handle.Threads; i++ {
+	for i := 0; i < numTasks; i++ {
 		taskWaitGroup.Add(1)
 
 		go uploadTask(i)

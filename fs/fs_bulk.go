@@ -2,6 +2,7 @@ package fs
 
 import (
 	"bytes"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"time"
@@ -109,7 +110,7 @@ func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath 
 		fileTransferResult.LocalCheckSum = hash
 
 		if !bytes.Equal(entry.CheckSum, hash) {
-			return fileTransferResult, errors.Errorf("checksum verification failed, download failed")
+			return fileTransferResult, errors.Errorf("checksum verification failed, download failed (%s vs %s)", hex.EncodeToString(entry.CheckSum), hex.EncodeToString(hash))
 		}
 	}
 
@@ -195,7 +196,7 @@ func (fs *FileSystem) DownloadFileWithConnection(conn *connection.IRODSConnectio
 		fileTransferResult.LocalCheckSum = hash
 
 		if !bytes.Equal(entry.CheckSum, hash) {
-			return fileTransferResult, errors.Errorf("checksum verification failed, download failed")
+			return fileTransferResult, errors.Errorf("checksum verification failed, download failed (%s vs %s)", hex.EncodeToString(entry.CheckSum), hex.EncodeToString(hash))
 		}
 	}
 
@@ -281,7 +282,7 @@ func (fs *FileSystem) DownloadFileResumable(irodsPath string, resource string, l
 		fileTransferResult.LocalCheckSum = hash
 
 		if !bytes.Equal(entry.CheckSum, hash) {
-			return fileTransferResult, errors.Errorf("checksum verification failed, download failed")
+			return fileTransferResult, errors.Errorf("checksum verification failed, download failed (%s vs %s)", hex.EncodeToString(entry.CheckSum), hex.EncodeToString(hash))
 		}
 	}
 
@@ -367,7 +368,7 @@ func (fs *FileSystem) DownloadFileResumableWithConnection(conn *connection.IRODS
 		fileTransferResult.LocalCheckSum = hash
 
 		if !bytes.Equal(entry.CheckSum, hash) {
-			return fileTransferResult, errors.Errorf("checksum verification failed, download failed")
+			return fileTransferResult, errors.Errorf("checksum verification failed, download failed (%s vs %s)", hex.EncodeToString(entry.CheckSum), hex.EncodeToString(hash))
 		}
 	}
 
@@ -427,7 +428,7 @@ func (fs *FileSystem) DownloadFileToBuffer(irodsPath string, resource string, bu
 		fileTransferResult.LocalCheckSum = hash
 
 		if !bytes.Equal(entry.CheckSum, hash) {
-			return fileTransferResult, errors.Errorf("checksum verification failed, download failed")
+			return fileTransferResult, errors.Errorf("checksum verification failed, download failed (%s vs %s)", hex.EncodeToString(entry.CheckSum), hex.EncodeToString(hash))
 		}
 	}
 
@@ -487,7 +488,7 @@ func (fs *FileSystem) DownloadFileToBufferWithConnection(conn *connection.IRODSC
 		fileTransferResult.LocalCheckSum = hash
 
 		if !bytes.Equal(entry.CheckSum, hash) {
-			return fileTransferResult, errors.Errorf("checksum verification failed, download failed")
+			return fileTransferResult, errors.Errorf("checksum verification failed, download failed (%s vs %s)", hex.EncodeToString(entry.CheckSum), hex.EncodeToString(hash))
 		}
 	}
 
@@ -573,7 +574,7 @@ func (fs *FileSystem) DownloadFileParallel(irodsPath string, resource string, lo
 		fileTransferResult.LocalCheckSum = hash
 
 		if !bytes.Equal(entry.CheckSum, hash) {
-			return fileTransferResult, errors.Errorf("checksum verification failed, download failed")
+			return fileTransferResult, errors.Errorf("checksum verification failed, download failed (%s vs %s)", hex.EncodeToString(entry.CheckSum), hex.EncodeToString(hash))
 		}
 	}
 
@@ -659,7 +660,7 @@ func (fs *FileSystem) DownloadFileParallelWithConnections(conns []*connection.IR
 		fileTransferResult.LocalCheckSum = hash
 
 		if !bytes.Equal(entry.CheckSum, hash) {
-			return fileTransferResult, errors.Errorf("checksum verification failed, download failed")
+			return fileTransferResult, errors.Errorf("checksum verification failed, download failed (%s vs %s)", hex.EncodeToString(entry.CheckSum), hex.EncodeToString(hash))
 		}
 	}
 
@@ -745,7 +746,7 @@ func (fs *FileSystem) DownloadFileParallelResumable(irodsPath string, resource s
 		fileTransferResult.LocalCheckSum = hash
 
 		if !bytes.Equal(entry.CheckSum, hash) {
-			return fileTransferResult, errors.Errorf("checksum verification failed, download failed")
+			return fileTransferResult, errors.Errorf("checksum verification failed, download failed (%s vs %s)", hex.EncodeToString(entry.CheckSum), hex.EncodeToString(hash))
 		}
 	}
 
@@ -831,7 +832,7 @@ func (fs *FileSystem) DownloadFileParallelResumableWithConnections(conns []*conn
 		fileTransferResult.LocalCheckSum = hash
 
 		if !bytes.Equal(entry.CheckSum, hash) {
-			return fileTransferResult, errors.Errorf("checksum verification failed, download failed")
+			return fileTransferResult, errors.Errorf("checksum verification failed, download failed (%s vs %s)", hex.EncodeToString(entry.CheckSum), hex.EncodeToString(hash))
 		}
 	}
 
@@ -910,7 +911,7 @@ func (fs *FileSystem) DownloadFileRedirectToResource(irodsPath string, resource 
 		fileTransferResult.LocalCheckSum = hash
 
 		if !bytes.Equal(entry.CheckSum, hash) {
-			return fileTransferResult, errors.Errorf("checksum verification failed, download failed")
+			return fileTransferResult, errors.Errorf("checksum verification failed, download failed (%s vs %s)", hex.EncodeToString(entry.CheckSum), hex.EncodeToString(hash))
 		}
 	}
 
@@ -989,7 +990,7 @@ func (fs *FileSystem) DownloadFileRedirectToResourceWithConnection(controlConn *
 		fileTransferResult.LocalCheckSum = hash
 
 		if !bytes.Equal(entry.CheckSum, hash) {
-			return fileTransferResult, errors.Errorf("checksum verification failed, download failed")
+			return fileTransferResult, errors.Errorf("checksum verification failed, download failed (%s vs %s)", hex.EncodeToString(entry.CheckSum), hex.EncodeToString(hash))
 		}
 	}
 
@@ -999,7 +1000,7 @@ func (fs *FileSystem) DownloadFileRedirectToResourceWithConnection(controlConn *
 }
 
 // UploadFile uploads a local file to irods
-func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource string, replicate bool, checksum bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
+func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource string, replicate bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
 	localSrcPath := util.GetCorrectLocalPath(localPath)
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
@@ -1058,11 +1059,9 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 	fileTransferResult.IRODSPath = irodsFilePath
 
 	keywords := map[common.KeyWord]string{}
-	if checksum {
-		keywords[common.REG_CHKSUM_KW] = ""
-	}
-
 	if verifyChecksum {
+		keywords[common.REG_CHKSUM_KW] = ""
+
 		// verify checksum
 		alg := types.ChecksumAlgorithmUnknown
 		if entry != nil && entry.CheckSumAlgorithm != types.ChecksumAlgorithmUnknown {
@@ -1103,7 +1102,7 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 	fileTransferResult.IRODSSize = entry.Size
 
 	if verifyChecksum {
-		if len(fileTransferResult.LocalCheckSumAlgorithm) > 0 && fileTransferResult.LocalCheckSumAlgorithm != entry.CheckSumAlgorithm {
+		if len(entry.CheckSum) > 0 && len(fileTransferResult.LocalCheckSumAlgorithm) > 0 && fileTransferResult.LocalCheckSumAlgorithm != entry.CheckSumAlgorithm {
 			// different algorithm was used
 			_, hash, err := fs.calculateLocalFileHash(localSrcPath, entry.CheckSumAlgorithm, transferCallback)
 			if err != nil {
@@ -1114,7 +1113,7 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 			fileTransferResult.LocalCheckSum = hash
 
 			if !bytes.Equal(entry.CheckSum, hash) {
-				return fileTransferResult, errors.Errorf("checksum verification failed, upload failed")
+				return fileTransferResult, errors.Errorf("checksum verification failed, upload failed (%s vs %s)", hex.EncodeToString(entry.CheckSum), hex.EncodeToString(hash))
 			}
 		}
 	}
@@ -1125,7 +1124,7 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 }
 
 // UploadFileWithConnection uploads a local file to irods
-func (fs *FileSystem) UploadFileWithConnection(conn *connection.IRODSConnection, localPath string, irodsPath string, resource string, replicate bool, checksum bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
+func (fs *FileSystem) UploadFileWithConnection(conn *connection.IRODSConnection, localPath string, irodsPath string, resource string, replicate bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
 	localSrcPath := util.GetCorrectLocalPath(localPath)
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
@@ -1184,11 +1183,9 @@ func (fs *FileSystem) UploadFileWithConnection(conn *connection.IRODSConnection,
 	fileTransferResult.IRODSPath = irodsFilePath
 
 	keywords := map[common.KeyWord]string{}
-	if checksum {
-		keywords[common.REG_CHKSUM_KW] = ""
-	}
-
 	if verifyChecksum {
+		keywords[common.REG_CHKSUM_KW] = ""
+
 		// verify checksum
 		alg := types.ChecksumAlgorithmUnknown
 		if entry != nil && entry.CheckSumAlgorithm != types.ChecksumAlgorithmUnknown {
@@ -1229,7 +1226,7 @@ func (fs *FileSystem) UploadFileWithConnection(conn *connection.IRODSConnection,
 	fileTransferResult.IRODSSize = entry.Size
 
 	if verifyChecksum {
-		if len(fileTransferResult.LocalCheckSumAlgorithm) > 0 && fileTransferResult.LocalCheckSumAlgorithm != entry.CheckSumAlgorithm {
+		if len(entry.CheckSum) > 0 && len(fileTransferResult.LocalCheckSumAlgorithm) > 0 && fileTransferResult.LocalCheckSumAlgorithm != entry.CheckSumAlgorithm {
 			// different algorithm was used
 			_, hash, err := fs.calculateLocalFileHash(localSrcPath, entry.CheckSumAlgorithm, transferCallback)
 			if err != nil {
@@ -1240,7 +1237,7 @@ func (fs *FileSystem) UploadFileWithConnection(conn *connection.IRODSConnection,
 			fileTransferResult.LocalCheckSum = hash
 
 			if !bytes.Equal(entry.CheckSum, hash) {
-				return fileTransferResult, errors.Errorf("checksum verification failed, upload failed")
+				return fileTransferResult, errors.Errorf("checksum verification failed, upload failed (%s vs %s)", hex.EncodeToString(entry.CheckSum), hex.EncodeToString(hash))
 			}
 		}
 	}
@@ -1251,7 +1248,7 @@ func (fs *FileSystem) UploadFileWithConnection(conn *connection.IRODSConnection,
 }
 
 // UploadFileFromBuffer uploads buffer data to irods
-func (fs *FileSystem) UploadFileFromBuffer(buffer *bytes.Buffer, irodsPath string, resource string, replicate bool, checksum bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
+func (fs *FileSystem) UploadFileFromBuffer(buffer *bytes.Buffer, irodsPath string, resource string, replicate bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
 	irodsFilePath := irodsDestPath
@@ -1292,11 +1289,9 @@ func (fs *FileSystem) UploadFileFromBuffer(buffer *bytes.Buffer, irodsPath strin
 	fileTransferResult.IRODSPath = irodsFilePath
 
 	keywords := map[common.KeyWord]string{}
-	if checksum {
-		keywords[common.REG_CHKSUM_KW] = ""
-	}
-
 	if verifyChecksum {
+		keywords[common.REG_CHKSUM_KW] = ""
+
 		// verify checksum
 		alg := types.ChecksumAlgorithmUnknown
 		if entry != nil && entry.CheckSumAlgorithm != types.ChecksumAlgorithmUnknown {
@@ -1337,7 +1332,7 @@ func (fs *FileSystem) UploadFileFromBuffer(buffer *bytes.Buffer, irodsPath strin
 	fileTransferResult.IRODSSize = entry.Size
 
 	if verifyChecksum {
-		if len(fileTransferResult.LocalCheckSumAlgorithm) > 0 && fileTransferResult.LocalCheckSumAlgorithm != entry.CheckSumAlgorithm {
+		if len(entry.CheckSum) > 0 && len(fileTransferResult.LocalCheckSumAlgorithm) > 0 && fileTransferResult.LocalCheckSumAlgorithm != entry.CheckSumAlgorithm {
 			// different algorithm was used
 			_, hash, err := fs.calculateBufferHash(buffer, entry.CheckSumAlgorithm, transferCallback)
 			if err != nil {
@@ -1348,7 +1343,7 @@ func (fs *FileSystem) UploadFileFromBuffer(buffer *bytes.Buffer, irodsPath strin
 			fileTransferResult.LocalCheckSum = hash
 
 			if !bytes.Equal(entry.CheckSum, hash) {
-				return fileTransferResult, errors.Errorf("checksum verification failed, upload failed")
+				return fileTransferResult, errors.Errorf("checksum verification failed, upload failed (%s vs %s)", hex.EncodeToString(entry.CheckSum), hex.EncodeToString(hash))
 			}
 		}
 	}
@@ -1359,7 +1354,7 @@ func (fs *FileSystem) UploadFileFromBuffer(buffer *bytes.Buffer, irodsPath strin
 }
 
 // UploadFileFromBufferWithConnection uploads buffer data to irods
-func (fs *FileSystem) UploadFileFromBufferWithConnection(conn *connection.IRODSConnection, buffer *bytes.Buffer, irodsPath string, resource string, replicate bool, checksum bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
+func (fs *FileSystem) UploadFileFromBufferWithConnection(conn *connection.IRODSConnection, buffer *bytes.Buffer, irodsPath string, resource string, replicate bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
 	irodsFilePath := irodsDestPath
@@ -1400,11 +1395,9 @@ func (fs *FileSystem) UploadFileFromBufferWithConnection(conn *connection.IRODSC
 	fileTransferResult.IRODSPath = irodsFilePath
 
 	keywords := map[common.KeyWord]string{}
-	if checksum {
-		keywords[common.REG_CHKSUM_KW] = ""
-	}
-
 	if verifyChecksum {
+		keywords[common.REG_CHKSUM_KW] = ""
+
 		// verify checksum
 		alg := types.ChecksumAlgorithmUnknown
 		if entry != nil && entry.CheckSumAlgorithm != types.ChecksumAlgorithmUnknown {
@@ -1445,7 +1438,7 @@ func (fs *FileSystem) UploadFileFromBufferWithConnection(conn *connection.IRODSC
 	fileTransferResult.IRODSSize = entry.Size
 
 	if verifyChecksum {
-		if len(fileTransferResult.LocalCheckSumAlgorithm) > 0 && fileTransferResult.LocalCheckSumAlgorithm != entry.CheckSumAlgorithm {
+		if len(entry.CheckSum) > 0 && len(fileTransferResult.LocalCheckSumAlgorithm) > 0 && fileTransferResult.LocalCheckSumAlgorithm != entry.CheckSumAlgorithm {
 			// different algorithm was used
 			_, hash, err := fs.calculateBufferHash(buffer, entry.CheckSumAlgorithm, transferCallback)
 			if err != nil {
@@ -1456,7 +1449,7 @@ func (fs *FileSystem) UploadFileFromBufferWithConnection(conn *connection.IRODSC
 			fileTransferResult.LocalCheckSum = hash
 
 			if !bytes.Equal(entry.CheckSum, hash) {
-				return fileTransferResult, errors.Errorf("checksum verification failed, upload failed")
+				return fileTransferResult, errors.Errorf("checksum verification failed, upload failed (%s vs %s)", hex.EncodeToString(entry.CheckSum), hex.EncodeToString(hash))
 			}
 		}
 	}
@@ -1467,7 +1460,7 @@ func (fs *FileSystem) UploadFileFromBufferWithConnection(conn *connection.IRODSC
 }
 
 // UploadFileParallel uploads a local file to irods in parallel
-func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, resource string, taskNum int, replicate bool, checksum bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
+func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, resource string, taskNum int, replicate bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
 	localSrcPath := util.GetCorrectLocalPath(localPath)
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
@@ -1526,11 +1519,9 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 	fileTransferResult.IRODSPath = irodsFilePath
 
 	keywords := map[common.KeyWord]string{}
-	if checksum {
-		keywords[common.REG_CHKSUM_KW] = ""
-	}
-
 	if verifyChecksum {
+		keywords[common.REG_CHKSUM_KW] = ""
+
 		// verify checksum
 		alg := types.ChecksumAlgorithmUnknown
 		if entry != nil && entry.CheckSumAlgorithm != types.ChecksumAlgorithmUnknown {
@@ -1571,7 +1562,7 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 	fileTransferResult.IRODSSize = entry.Size
 
 	if verifyChecksum {
-		if len(fileTransferResult.LocalCheckSumAlgorithm) > 0 && fileTransferResult.LocalCheckSumAlgorithm != entry.CheckSumAlgorithm {
+		if len(entry.CheckSum) > 0 && len(fileTransferResult.LocalCheckSumAlgorithm) > 0 && fileTransferResult.LocalCheckSumAlgorithm != entry.CheckSumAlgorithm {
 			// different algorithm was used
 			_, hash, err := fs.calculateLocalFileHash(localSrcPath, entry.CheckSumAlgorithm, transferCallback)
 			if err != nil {
@@ -1582,7 +1573,7 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 			fileTransferResult.LocalCheckSum = hash
 
 			if !bytes.Equal(entry.CheckSum, hash) {
-				return fileTransferResult, errors.Errorf("checksum verification failed, upload failed")
+				return fileTransferResult, errors.Errorf("checksum verification failed, upload failed (%s vs %s)", hex.EncodeToString(entry.CheckSum), hex.EncodeToString(hash))
 			}
 		}
 	}
@@ -1593,7 +1584,7 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 }
 
 // UploadFileParallelWithConnections uploads a local file to irods in parallel
-func (fs *FileSystem) UploadFileParallelWithConnections(conns []*connection.IRODSConnection, localPath string, irodsPath string, resource string, taskNum int, replicate bool, checksum bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
+func (fs *FileSystem) UploadFileParallelWithConnections(conns []*connection.IRODSConnection, localPath string, irodsPath string, resource string, taskNum int, replicate bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
 	localSrcPath := util.GetCorrectLocalPath(localPath)
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
@@ -1652,11 +1643,9 @@ func (fs *FileSystem) UploadFileParallelWithConnections(conns []*connection.IROD
 	fileTransferResult.IRODSPath = irodsFilePath
 
 	keywords := map[common.KeyWord]string{}
-	if checksum {
-		keywords[common.REG_CHKSUM_KW] = ""
-	}
-
 	if verifyChecksum {
+		keywords[common.REG_CHKSUM_KW] = ""
+
 		// verify checksum
 		alg := types.ChecksumAlgorithmUnknown
 		if entry != nil && entry.CheckSumAlgorithm != types.ChecksumAlgorithmUnknown {
@@ -1697,7 +1686,7 @@ func (fs *FileSystem) UploadFileParallelWithConnections(conns []*connection.IROD
 	fileTransferResult.IRODSSize = entry.Size
 
 	if verifyChecksum {
-		if len(fileTransferResult.LocalCheckSumAlgorithm) > 0 && fileTransferResult.LocalCheckSumAlgorithm != entry.CheckSumAlgorithm {
+		if len(entry.CheckSum) > 0 && len(fileTransferResult.LocalCheckSumAlgorithm) > 0 && fileTransferResult.LocalCheckSumAlgorithm != entry.CheckSumAlgorithm {
 			// different algorithm was used
 			_, hash, err := fs.calculateLocalFileHash(localSrcPath, entry.CheckSumAlgorithm, transferCallback)
 			if err != nil {
@@ -1708,7 +1697,7 @@ func (fs *FileSystem) UploadFileParallelWithConnections(conns []*connection.IROD
 			fileTransferResult.LocalCheckSum = hash
 
 			if !bytes.Equal(entry.CheckSum, hash) {
-				return fileTransferResult, errors.Errorf("checksum verification failed, upload failed")
+				return fileTransferResult, errors.Errorf("checksum verification failed, upload failed (%s vs %s)", hex.EncodeToString(entry.CheckSum), hex.EncodeToString(hash))
 			}
 		}
 	}
@@ -1719,7 +1708,7 @@ func (fs *FileSystem) UploadFileParallelWithConnections(conns []*connection.IROD
 }
 
 // UploadFileRedirectToResource uploads a file from local to resource server in parallel
-func (fs *FileSystem) UploadFileRedirectToResource(localPath string, irodsPath string, resource string, taskNum int, replicate bool, checksum bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
+func (fs *FileSystem) UploadFileRedirectToResource(localPath string, irodsPath string, resource string, taskNum int, replicate bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
 	localSrcPath := util.GetCorrectLocalPath(localPath)
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
@@ -1778,11 +1767,9 @@ func (fs *FileSystem) UploadFileRedirectToResource(localPath string, irodsPath s
 	fileTransferResult.IRODSPath = irodsFilePath
 
 	keywords := map[common.KeyWord]string{}
-	if checksum {
-		keywords[common.REG_CHKSUM_KW] = ""
-	}
-
 	if verifyChecksum {
+		keywords[common.REG_CHKSUM_KW] = ""
+
 		// verify checksum
 		alg := types.ChecksumAlgorithmUnknown
 		if entry != nil && entry.CheckSumAlgorithm != types.ChecksumAlgorithmUnknown {
@@ -1823,7 +1810,7 @@ func (fs *FileSystem) UploadFileRedirectToResource(localPath string, irodsPath s
 	fileTransferResult.IRODSSize = entry.Size
 
 	if verifyChecksum {
-		if len(fileTransferResult.LocalCheckSumAlgorithm) > 0 && fileTransferResult.LocalCheckSumAlgorithm != entry.CheckSumAlgorithm {
+		if len(entry.CheckSum) > 0 && len(fileTransferResult.LocalCheckSumAlgorithm) > 0 && fileTransferResult.LocalCheckSumAlgorithm != entry.CheckSumAlgorithm {
 			// different algorithm was used
 			_, hash, err := fs.calculateLocalFileHash(localSrcPath, entry.CheckSumAlgorithm, transferCallback)
 			if err != nil {
@@ -1834,7 +1821,7 @@ func (fs *FileSystem) UploadFileRedirectToResource(localPath string, irodsPath s
 			fileTransferResult.LocalCheckSum = hash
 
 			if !bytes.Equal(entry.CheckSum, hash) {
-				return fileTransferResult, errors.Errorf("checksum verification failed, upload failed")
+				return fileTransferResult, errors.Errorf("checksum verification failed, upload failed (%s vs %s)", hex.EncodeToString(entry.CheckSum), hex.EncodeToString(hash))
 			}
 		}
 	}
@@ -1845,7 +1832,7 @@ func (fs *FileSystem) UploadFileRedirectToResource(localPath string, irodsPath s
 }
 
 // UploadFileRedirectToResourceWithConnection uploads a file from local to resource server in parallel
-func (fs *FileSystem) UploadFileRedirectToResourceWithConnection(controlConn *connection.IRODSConnection, localPath string, irodsPath string, resource string, taskNum int, replicate bool, checksum bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
+func (fs *FileSystem) UploadFileRedirectToResourceWithConnection(controlConn *connection.IRODSConnection, localPath string, irodsPath string, resource string, taskNum int, replicate bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
 	localSrcPath := util.GetCorrectLocalPath(localPath)
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
@@ -1904,11 +1891,9 @@ func (fs *FileSystem) UploadFileRedirectToResourceWithConnection(controlConn *co
 	fileTransferResult.IRODSPath = irodsFilePath
 
 	keywords := map[common.KeyWord]string{}
-	if checksum {
-		keywords[common.REG_CHKSUM_KW] = ""
-	}
-
 	if verifyChecksum {
+		keywords[common.REG_CHKSUM_KW] = ""
+
 		// verify checksum
 		alg := types.ChecksumAlgorithmUnknown
 		if entry != nil && entry.CheckSumAlgorithm != types.ChecksumAlgorithmUnknown {
@@ -1949,7 +1934,7 @@ func (fs *FileSystem) UploadFileRedirectToResourceWithConnection(controlConn *co
 	fileTransferResult.IRODSSize = entry.Size
 
 	if verifyChecksum {
-		if len(fileTransferResult.LocalCheckSumAlgorithm) > 0 && fileTransferResult.LocalCheckSumAlgorithm != entry.CheckSumAlgorithm {
+		if len(entry.CheckSum) > 0 && len(fileTransferResult.LocalCheckSumAlgorithm) > 0 && fileTransferResult.LocalCheckSumAlgorithm != entry.CheckSumAlgorithm {
 			// different algorithm was used
 			_, hash, err := fs.calculateLocalFileHash(localSrcPath, entry.CheckSumAlgorithm, transferCallback)
 			if err != nil {
@@ -1960,7 +1945,7 @@ func (fs *FileSystem) UploadFileRedirectToResourceWithConnection(controlConn *co
 			fileTransferResult.LocalCheckSum = hash
 
 			if !bytes.Equal(entry.CheckSum, hash) {
-				return fileTransferResult, errors.Errorf("checksum verification failed, upload failed")
+				return fileTransferResult, errors.Errorf("checksum verification failed, upload failed (%s vs %s)", hex.EncodeToString(entry.CheckSum), hex.EncodeToString(hash))
 			}
 		}
 	}
