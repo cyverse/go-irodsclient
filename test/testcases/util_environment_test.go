@@ -24,9 +24,10 @@ func utilEnvironmentTest(t *testing.T, test *Test) {
 
 func testSaveAndLoadEnvironment(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
 
-	account := server.GetAccountCopy()
+	account, err := server.GetAccount()
+	FailError(t, err)
 
 	// save
 	envMgr, err := config.NewICommandsEnvironmentManager()
@@ -61,9 +62,10 @@ func testSaveAndLoadEnvironment(t *testing.T) {
 
 func testSaveAndLoadSession(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
 
-	account := server.GetAccountCopy()
+	account, err := server.GetAccount()
+	FailError(t, err)
 
 	// save
 	envMgr, err := config.NewICommandsEnvironmentManager()
@@ -105,9 +107,10 @@ func testSaveAndLoadSession(t *testing.T) {
 
 func testLoadFilePaths(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
 
-	account := server.GetAccountCopy()
+	account, err := server.GetAccount()
+	FailError(t, err)
 
 	envMgr, err := config.NewICommandsEnvironmentManager()
 	FailError(t, err)

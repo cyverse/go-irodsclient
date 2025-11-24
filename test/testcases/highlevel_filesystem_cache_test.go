@@ -21,7 +21,8 @@ func highlevelFilesystemCacheTest(t *testing.T, test *Test) {
 
 func testMakeDirCacheEvent(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
+
 	filesystem, err := server.GetFileSystem()
 	FailError(t, err)
 	defer filesystem.Release()
@@ -35,7 +36,8 @@ func testMakeDirCacheEvent(t *testing.T) {
 
 	filesystem.AddCacheEventHandler(eventHandler)
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	for i := 0; i < 10; i++ {
 		newDir := fmt.Sprintf("%s/cache_test_dir_%d", homeDir, i)

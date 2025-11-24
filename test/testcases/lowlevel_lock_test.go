@@ -23,7 +23,8 @@ func lowlevelLockTest(t *testing.T, test *Test) {
 
 func testLockDataObject(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
+
 	session, err := server.GetSession()
 	FailError(t, err)
 	defer session.Release()
@@ -36,7 +37,8 @@ func testLockDataObject(t *testing.T) {
 	FailError(t, err)
 	defer session.ReturnConnection(conn2)
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	// create
 	newDataObjectFilename := "locktest.bin"

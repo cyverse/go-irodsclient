@@ -21,9 +21,10 @@ func lowlevelProcessTest(t *testing.T, test *Test) {
 
 func testProcessStat(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
 
-	account := server.GetAccountCopy()
+	account, err := server.GetAccount()
+	FailError(t, err)
 
 	conn, err := connection.NewIRODSConnection(account, server.GetConnectionConfig())
 	FailError(t, err)

@@ -3,9 +3,9 @@ package server
 import (
 	"context"
 	"fmt"
-	"path/filepath"
-	"runtime"
-	"sync"
+	"net"
+	"os"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	irods_fs "github.com/cyverse/go-irodsclient/fs"
@@ -17,109 +17,50 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/compose"
 )
 
-type IRODSTestServer struct {
-	Version           IRODSTestServerVersion
-	DockerComposePath string
-	Account           *types.IRODSAccount
-	AddressResolver   func(address string) string
-	terminateChan     chan bool
-	terminateWait     *sync.WaitGroup
+type IRODSServer struct {
+	serverInfo    IRODSServerInfo
+	dockerCompose *compose.DockerCompose
 }
 
-func getComposeFilePath(version IRODSTestServerVersion) (string, error) {
-	_, currentFile, _, ok := runtime.Caller(0)
-	if !ok {
-		return "", errors.Errorf("failed to get current file path")
+func GetTestIRODSServerInfos() []IRODSServerInfo {
+	return TestIRODSServerInfos
+}
+
+func GetProductionIRODSServerInfos() []IRODSServerInfo {
+	return ProductionIRODSServerInfos
+}
+
+func NewIRODSServer(serverInfo IRODSServerInfo) *IRODSServer {
+	return &IRODSServer{
+		serverInfo: serverInfo,
 	}
-
-	currentDir := filepath.Dir(currentFile)
-
-	return fmt.Sprintf("%s/irods_%s/docker-compose.yml", currentDir, string(version)), nil
 }
 
-func getTestIRODSServerAccount() (*types.IRODSAccount, error) {
-	account, err := types.CreateIRODSAccount(testServerHost, testServerPort, testServerAdminUser, testServerZone, types.AuthSchemeNative, testServerAdminPassword, testServerResource)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create irods account")
-	}
-
-	account.ClientServerNegotiation = false
-
-	return account, nil
-}
-
-func getProductionIRODSServerAccount() (*types.IRODSAccount, error) {
-	account, err := types.CreateIRODSAccount(productionServerHost, productionServerPort, productionServerAdminUser, productionServerZone, types.AuthSchemeNative, productionServerAdminPassword, productionServerResource)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create irods account")
-	}
-
-	account.ClientServerNegotiation = false
-
-	return account, nil
-}
-
-func irodsServerAddressResolver(address string) string {
-	return testServerHost
-}
-
-func GetTestIRODSVersions() []IRODSTestServerVersion {
-	return Test_IRODS_Versions
-}
-
-func GetProductionIRODSVersions() []IRODSTestServerVersion {
-	return Production_IRODS_Versions
-}
-
-func NewTestIRODSServer(version IRODSTestServerVersion) (*IRODSTestServer, error) {
-	composePath, err := getComposeFilePath(version)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get compose file path")
-	}
-
-	account, err := getTestIRODSServerAccount()
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get iRODS test server account")
-	}
-
-	return &IRODSTestServer{
-		Version:           version,
-		DockerComposePath: composePath,
-		Account:           account,
-		AddressResolver:   irodsServerAddressResolver,
-		terminateChan:     make(chan bool),
-		terminateWait:     &sync.WaitGroup{},
-	}, nil
-}
-
-func NewProductionIRODSServer(version IRODSTestServerVersion) (*IRODSTestServer, error) {
-	account, err := getProductionIRODSServerAccount()
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get production iRODS server account")
-	}
-
-	return &IRODSTestServer{
-		Version:           version,
-		DockerComposePath: "",
-		Account:           account,
-		AddressResolver:   nil,
-		terminateChan:     make(chan bool),
-		terminateWait:     &sync.WaitGroup{},
-	}, nil
-}
-
-func (server *IRODSTestServer) Start() error {
+func (server *IRODSServer) Start() error {
 	logger := log.WithFields(log.Fields{})
 
-	if len(server.DockerComposePath) == 0 {
+	if !server.serverInfo.RequireCompose() {
 		// Production server
-		logger.Infof("Using production iRODS server %q", server.Version)
+		err := server.waitForPortToOpen(60 * time.Second)
+		if err != nil {
+			return errors.Wrapf(err, "failed checking port for iRODS server %q", server.serverInfo.Name)
+		}
 		return nil
 	}
 
-	logger.Infof("Starting iRODS test server %q", server.Version)
+	logger.Infof("Starting local iRODS server %q", server.serverInfo.Name)
 
-	comp, err := compose.NewDockerCompose(server.DockerComposePath)
+	// disable ryuk
+	os.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true")
+
+	composeFilePath, err := server.serverInfo.GetComposeFilePath()
+	if err != nil {
+		return errors.Wrapf(err, "failed to get compose file path")
+	}
+
+	logger.Infof("Using compose file: %s", composeFilePath)
+
+	comp, err := compose.NewDockerCompose(composeFilePath)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create docker compose")
 	}
@@ -129,88 +70,151 @@ func (server *IRODSTestServer) Start() error {
 
 	err = comp.Up(ctx, compose.WithRecreate(api.RecreateForce), compose.Wait(true))
 	if err != nil {
-		return errors.Wrapf(err, "failed to start iRODS test server")
+		return errors.Wrapf(err, "failed to start local iRODS server %q", server.serverInfo.Name)
 	}
 
-	server.terminateWait.Add(1)
+	server.dockerCompose = comp
 
-	logger.Infof("Started iRODS test server %q", server.Version)
+	// wait
+	err = server.waitForPortToOpen(60 * time.Second)
+	if err != nil {
+		return errors.Wrapf(err, "failed while waiting for port to open for iRODS server %q", server.serverInfo.Name)
+	}
 
-	go func() {
-		<-server.terminateChan
-		logger.Infof("Stopping iRODS test server %q", server.Version)
-
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		err = comp.Down(ctx, compose.RemoveOrphans(true))
-		if err != nil {
-			logger.Error(errors.Wrapf(err, "failed to stop iRODS test server"))
-		}
-
-		server.terminateWait.Done()
-
-		logger.Infof("Stopped iRODS test server %q", server.Version)
-	}()
+	logger.Infof("Started local iRODS server %q", server.serverInfo.Name)
 
 	return nil
 }
 
-func (server *IRODSTestServer) Stop() {
-	if len(server.DockerComposePath) > 0 {
-		server.terminateChan <- true
-		server.terminateWait.Wait()
+func (server *IRODSServer) Stop() error {
+	logger := log.WithFields(log.Fields{})
+
+	if server.dockerCompose != nil {
+		logger.Infof("Stopping local iRODS server %q", server.serverInfo.Name)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		err := server.dockerCompose.Down(ctx, compose.RemoveOrphans(true), compose.RemoveVolumes(true))
+		if err != nil {
+			logger.Error(errors.Wrapf(err, "failed to stop local iRODS server %q", server.serverInfo.Name))
+		}
+
+		// wait
+		err = server.waitForPortToClose(60 * time.Second)
+		if err != nil {
+			logger.Error(errors.Wrapf(err, "failed while waiting for port to close for iRODS server %q", server.serverInfo.Name))
+			return err
+		}
+
+		logger.Infof("Stopped local iRODS server %q", server.serverInfo.Name)
+	}
+	return nil
+}
+
+func (server *IRODSServer) waitForPortToOpen(timeout time.Duration) error {
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	timeoutChan := time.After(timeout)
+
+	for {
+		select {
+		case <-timeoutChan:
+			return fmt.Errorf("timeout waiting for port %d to open", server.serverInfo.Port)
+		case <-ticker.C:
+			conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", server.serverInfo.Host, server.serverInfo.Port), 1*time.Second)
+			if err == nil {
+				// connection succeeded, port is open
+				conn.Close()
+				return nil
+			}
+
+			// connection failed = port is not open yet
+		}
 	}
 }
 
-func (server *IRODSTestServer) GetVersion() IRODSTestServerVersion {
-	return server.Version
+func (server *IRODSServer) waitForPortToClose(timeout time.Duration) error {
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	timeoutChan := time.After(timeout)
+
+	for {
+		select {
+		case <-timeoutChan:
+			return fmt.Errorf("timeout waiting for port %d to close", server.serverInfo.Port)
+		case <-ticker.C:
+			conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", server.serverInfo.Host, server.serverInfo.Port), 1*time.Second)
+			if err != nil {
+				// connection failed = port is closed
+				return nil
+			}
+			// connection succeeded, port is still open
+			conn.Close()
+		}
+	}
 }
 
-func (server *IRODSTestServer) GetAccount() *types.IRODSAccount {
-	return server.Account
+func (server *IRODSServer) GetInfo() IRODSServerInfo {
+	return server.serverInfo
 }
 
-func (server *IRODSTestServer) GetAccountCopy() *types.IRODSAccount {
-	accountCpy := *server.Account
-	return &accountCpy
+func (server *IRODSServer) GetAccount() (*types.IRODSAccount, error) {
+	account, err := server.serverInfo.GetAccount()
+	if err != nil {
+		return nil, err
+	}
+	return account, nil
 }
 
-func (server *IRODSTestServer) GetApplicationName() string {
+func (server *IRODSServer) GetApplicationName() string {
 	return "go-irodsclient-test"
 }
 
-func (server *IRODSTestServer) GetConnectionConfig() *connection.IRODSConnectionConfig {
+func (server *IRODSServer) GetConnectionConfig() *connection.IRODSConnectionConfig {
 	return &connection.IRODSConnectionConfig{
 		ApplicationName: server.GetApplicationName(),
 	}
 }
 
-func (server *IRODSTestServer) GetFileSystemConfig() *irods_fs.FileSystemConfig {
+func (server *IRODSServer) GetFileSystemConfig() *irods_fs.FileSystemConfig {
 	fsConfig := irods_fs.NewFileSystemConfig(server.GetApplicationName())
-	fsConfig.AddressResolver = server.AddressResolver
+	if server.serverInfo.UseAddressResolver {
+		fsConfig.AddressResolver = server.serverInfo.AddressResolver
+	}
 	return fsConfig
 }
 
-func (server *IRODSTestServer) GetSessionConfig() *session.IRODSSessionConfig {
+func (server *IRODSServer) GetSessionConfig() *session.IRODSSessionConfig {
 	fsConfig := server.GetFileSystemConfig()
 	return fsConfig.ToIOSessionConfig()
 }
 
-func (server *IRODSTestServer) GetSession() (*session.IRODSSession, error) {
-	account := server.GetAccountCopy()
+func (server *IRODSServer) GetSession() (*session.IRODSSession, error) {
+	account, err := server.GetAccount()
+	if err != nil {
+		return nil, err
+	}
 	sessionConfig := server.GetSessionConfig()
 
 	return session.NewIRODSSession(account, sessionConfig)
 }
 
-func (server *IRODSTestServer) GetFileSystem() (*irods_fs.FileSystem, error) {
-	account := server.GetAccountCopy()
+func (server *IRODSServer) GetFileSystem() (*irods_fs.FileSystem, error) {
+	account, err := server.GetAccount()
+	if err != nil {
+		return nil, err
+	}
 	fsConfig := server.GetFileSystemConfig()
 	return irods_fs.NewFileSystem(account, fsConfig)
 }
 
-func (server *IRODSTestServer) GetHomeDir() string {
-	account := server.GetAccountCopy()
-	return account.GetHomeDirPath()
+func (server *IRODSServer) GetHomeDir() (string, error) {
+	account, err := server.GetAccount()
+	if err != nil {
+		return "", err
+	}
+	return account.GetHomeDirPath(), nil
 }

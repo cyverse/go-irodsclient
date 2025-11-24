@@ -25,7 +25,7 @@ func lowlevelSessionTest(t *testing.T, test *Test) {
 
 func testSession(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
 
 	sess, err := server.GetSession()
 	FailError(t, err)
@@ -35,7 +35,8 @@ func testSession(t *testing.T) {
 	conn, err := sess.AcquireConnection(true)
 	FailError(t, err)
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	collection, err := fs.GetCollection(conn, homeDir)
 	FailError(t, err)
@@ -49,13 +50,14 @@ func testSession(t *testing.T) {
 
 func testMaxConnectionsShared(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
 
 	sess, err := server.GetSession()
 	FailError(t, err)
 	defer sess.Release()
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	connections := []*connection.IRODSConnection{}
 
@@ -90,13 +92,14 @@ func testMaxConnectionsShared(t *testing.T) {
 
 func testMaxConnectionsNotShared(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
 
 	sess, err := server.GetSession()
 	FailError(t, err)
 	defer sess.Release()
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	config := sess.GetConfig()
 	connections, err := sess.AcquireConnectionsMulti(15, false)
@@ -124,7 +127,7 @@ func testMaxConnectionsNotShared(t *testing.T) {
 
 func testConnectionMetrics(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
 
 	sess, err := server.GetSession()
 	FailError(t, err)
@@ -138,7 +141,8 @@ func testConnectionMetrics(t *testing.T) {
 		assert.Equal(t, uint64(0), metrics.GetConnectionsOccupied())
 	}
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	connections := []*connection.IRODSConnection{}
 

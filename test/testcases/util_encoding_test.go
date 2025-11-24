@@ -37,7 +37,7 @@ func testScramble(t *testing.T) {
 
 func testClientSignature(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
 
 	sess, err := server.GetSession()
 	FailError(t, err)

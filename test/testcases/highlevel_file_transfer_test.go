@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/cyverse/go-irodsclient/fs"
-	test_server "github.com/cyverse/go-irodsclient/test/server"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -29,13 +28,15 @@ func highlevelFileTransferTest(t *testing.T, test *Test) {
 
 func testUploadAndDownload(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
+	serverInfo := server.GetInfo()
 
 	filesystem, err := server.GetFileSystem()
 	FailError(t, err)
 	defer filesystem.Release()
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	for i := 0; i < 3; i++ {
 		// gen large file
@@ -62,7 +63,7 @@ func testUploadAndDownload(t *testing.T) {
 		newLocalPath := t.TempDir() + fmt.Sprintf("/new_test_large_file_%d.bin", i)
 		// turn compareChecksum off, not generated synchronously in v4.2.8
 		compareChecksum := true
-		if test.currentVersion == test_server.IRODS_4_2_8 {
+		if serverInfo.Version == "4.2.8" {
 			compareChecksum = false
 		}
 		_, err = filesystem.DownloadFile(irodsPath, "", newLocalPath, compareChecksum, nil)
@@ -84,13 +85,15 @@ func testUploadAndDownload(t *testing.T) {
 
 func testUploadAndDownloadOverwrite(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
+	serverInfo := server.GetInfo()
 
 	filesystem, err := server.GetFileSystem()
 	FailError(t, err)
 	defer filesystem.Release()
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	filename := "test_large_file.bin"
 	newLocalPath := t.TempDir() + "/new_test_large_file.bin"
@@ -117,7 +120,7 @@ func testUploadAndDownloadOverwrite(t *testing.T) {
 
 		// turn compareChecksum off, not generated synchronously in v4.2.8
 		compareChecksum := true
-		if test.currentVersion == test_server.IRODS_4_2_8 {
+		if serverInfo.Version == "4.2.8" {
 			compareChecksum = false
 		}
 		_, err = filesystem.DownloadFile(irodsPath, "", newLocalPath, compareChecksum, nil)
@@ -139,13 +142,15 @@ func testUploadAndDownloadOverwrite(t *testing.T) {
 
 func testUploadAndDownloadParallel(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
+	serverInfo := server.GetInfo()
 
 	filesystem, err := server.GetFileSystem()
 	FailError(t, err)
 	defer filesystem.Release()
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	for i := 0; i < 3; i++ {
 		// gen large file
@@ -172,7 +177,7 @@ func testUploadAndDownloadParallel(t *testing.T) {
 		newLocalPath := t.TempDir() + fmt.Sprintf("/new_test_large_file_%d.bin", i)
 		// turn compareChecksum off, not generated synchronously in v4.2.8
 		compareChecksum := true
-		if test.currentVersion == test_server.IRODS_4_2_8 {
+		if serverInfo.Version == "4.2.8" {
 			compareChecksum = false
 		}
 		_, err = filesystem.DownloadFileParallel(irodsPath, "", newLocalPath, 0, compareChecksum, nil)
@@ -194,13 +199,15 @@ func testUploadAndDownloadParallel(t *testing.T) {
 
 func testUploadAndDownloadParallelOverwrite(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
+	serverInfo := server.GetInfo()
 
 	filesystem, err := server.GetFileSystem()
 	FailError(t, err)
 	defer filesystem.Release()
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	filename := "test_large_file.bin"
 	newLocalPath := t.TempDir() + "/new_test_large_file.bin"
@@ -227,7 +234,7 @@ func testUploadAndDownloadParallelOverwrite(t *testing.T) {
 
 		// turn compareChecksum off, not generated synchronously in v4.2.8
 		compareChecksum := true
-		if test.currentVersion == test_server.IRODS_4_2_8 {
+		if serverInfo.Version == "4.2.8" {
 			compareChecksum = false
 		}
 		_, err = filesystem.DownloadFileParallel(irodsPath, "", newLocalPath, 0, compareChecksum, nil)
@@ -249,13 +256,15 @@ func testUploadAndDownloadParallelOverwrite(t *testing.T) {
 
 func testUploadAndDownloadRedirectToResource(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
+	serverInfo := server.GetInfo()
 
 	filesystem, err := server.GetFileSystem()
 	FailError(t, err)
 	defer filesystem.Release()
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	for i := 0; i < 3; i++ {
 		// gen large file
@@ -282,7 +291,7 @@ func testUploadAndDownloadRedirectToResource(t *testing.T) {
 		newLocalPath := t.TempDir() + fmt.Sprintf("/new_test_large_file_%d.bin", i)
 		// turn compareChecksum off, not generated synchronously in v4.2.8
 		compareChecksum := true
-		if test.currentVersion == test_server.IRODS_4_2_8 {
+		if serverInfo.Version == "4.2.8" {
 			compareChecksum = false
 		}
 		_, err = filesystem.DownloadFileRedirectToResource(irodsPath, "", newLocalPath, 0, compareChecksum, nil)
@@ -304,13 +313,15 @@ func testUploadAndDownloadRedirectToResource(t *testing.T) {
 
 func testUploadAndDownloadRedirectToResourceOverwrite(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
+	serverInfo := server.GetInfo()
 
 	filesystem, err := server.GetFileSystem()
 	FailError(t, err)
 	defer filesystem.Release()
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	filename := "test_large_file.bin"
 	newLocalPath := t.TempDir() + "/new_test_large_file.bin"
@@ -337,7 +348,7 @@ func testUploadAndDownloadRedirectToResourceOverwrite(t *testing.T) {
 
 		// turn compareChecksum off, not generated synchronously in v4.2.8
 		compareChecksum := true
-		if test.currentVersion == test_server.IRODS_4_2_8 {
+		if serverInfo.Version == "4.2.8" {
 			compareChecksum = false
 		}
 		_, err = filesystem.DownloadFileRedirectToResource(irodsPath, "", newLocalPath, 0, compareChecksum, nil)
@@ -359,13 +370,15 @@ func testUploadAndDownloadRedirectToResourceOverwrite(t *testing.T) {
 
 func testUploadAndDownload1000sRedirectToResource(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
+	serverInfo := server.GetInfo()
 
 	filesystem, err := server.GetFileSystem()
 	FailError(t, err)
 	defer filesystem.Release()
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	for i := 0; i < 3; i++ {
 		// gen large file
@@ -392,7 +405,7 @@ func testUploadAndDownload1000sRedirectToResource(t *testing.T) {
 		newLocalPath := t.TempDir() + fmt.Sprintf("/new_test_large_file_%d.bin", i)
 		// turn compareChecksum off, not generated synchronously in v4.2.8
 		compareChecksum := true
-		if test.currentVersion == test_server.IRODS_4_2_8 {
+		if serverInfo.Version == "4.2.8" {
 			compareChecksum = false
 		}
 		_, err = filesystem.DownloadFileRedirectToResource(irodsPath, "", newLocalPath, 0, compareChecksum, nil)

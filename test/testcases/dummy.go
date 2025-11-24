@@ -69,7 +69,7 @@ func CreateLocalTestFile(t *testing.T, name string, size int64) (string, error) 
 	return tempPath, nil
 }
 
-func CreateSampleFilesAndDirs(t *testing.T, server *server.IRODSTestServer, dest string, numFiles int, numDirs int) ([]string, []string, error) {
+func CreateSampleFilesAndDirs(t *testing.T, server *server.IRODSServer, dest string, numFiles int, numDirs int) ([]string, []string, error) {
 	fs, err := server.GetFileSystem()
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "failed to create a new filesystem")

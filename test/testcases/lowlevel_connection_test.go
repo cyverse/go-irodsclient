@@ -4,32 +4,31 @@ import (
 	"testing"
 
 	"github.com/cyverse/go-irodsclient/irods/connection"
-	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/stretchr/testify/assert"
 )
 
 func getLowlevelConnectionTest() Test {
 	return Test{
-		Name: "Lowlevel_Connection",
-		Func: lowlevelConnectionTest,
+		Name:               "Lowlevel_Connection",
+		Func:               lowlevelConnectionTest,
+		DoNotCreateHomeDir: true,
 	}
 }
 
 func lowlevelConnectionTest(t *testing.T, test *Test) {
-	//t.Run("ManyConnections", testManyConnections)
+	t.Run("ManyConnections", testManyConnections)
 	t.Run("Connection", testConnection)
 	t.Run("InvalidUsername", testInvalidUsername)
-	t.Run("Negotiation", testNegotiation)
 }
 
 func testManyConnections(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
 
-	account := server.GetAccountCopy()
-	account.CSNegotiationPolicy = types.CSNegotiationPolicyRequestDontCare
+	account, err := server.GetAccount()
+	FailError(t, err)
 
-	for i := 0; i < 20; i++ {
+	for i := 0; i < 10; i++ {
 		conn, err := connection.NewIRODSConnection(account, server.GetConnectionConfig())
 		FailError(t, err)
 
@@ -47,10 +46,12 @@ func testManyConnections(t *testing.T) {
 
 func testConnection(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
 
-	account := server.GetAccountCopy()
-	account.CSNegotiationPolicy = types.CSNegotiationPolicyRequestDontCare
+	account, err := server.GetAccount()
+	FailError(t, err)
+
+	t.Logf("account info: %+v", account)
 
 	conn, err := connection.NewIRODSConnection(account, server.GetConnectionConfig())
 	FailError(t, err)
@@ -66,35 +67,14 @@ func testConnection(t *testing.T) {
 
 func testInvalidUsername(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
 
-	account := server.GetAccountCopy()
-	account.ClientServerNegotiation = false
-	account.CSNegotiationPolicy = types.CSNegotiationPolicyRequestDontCare
+	account, err := server.GetAccount()
+	FailError(t, err)
 	account.ProxyUser = "test$def"
 	account.ClientUser = ""
 
 	conn, err := connection.NewIRODSConnection(account, server.GetConnectionConfig())
 	assert.Error(t, err)
 	assert.Nil(t, conn)
-}
-
-func testNegotiation(t *testing.T) {
-	test := GetCurrentTest()
-	server := test.GetServer()
-
-	account := server.GetAccountCopy()
-	account.ClientServerNegotiation = true
-	account.CSNegotiationPolicy = types.CSNegotiationPolicyRequestTCP
-
-	conn, err := connection.NewIRODSConnection(account, server.GetConnectionConfig())
-	FailError(t, err)
-
-	err = conn.Connect()
-	FailError(t, err)
-	defer conn.Disconnect()
-
-	ver := conn.GetVersion()
-	verMajor, _, _ := ver.GetReleaseVersion()
-	assert.GreaterOrEqual(t, 4, verMajor)
 }

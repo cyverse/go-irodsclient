@@ -23,13 +23,14 @@ func highlevelTicketTest(t *testing.T, test *Test) {
 
 func testCreateAndRemoveTickets(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
 
 	filesystem, err := server.GetFileSystem()
 	FailError(t, err)
 	defer filesystem.Release()
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	files, dirs, err := CreateSampleFilesAndDirs(t, server, homeDir, 3, 3)
 	FailError(t, err)
@@ -99,13 +100,14 @@ func testCreateAndRemoveTickets(t *testing.T) {
 
 func testUpdateTicket(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
 
 	filesystem, err := server.GetFileSystem()
 	FailError(t, err)
 	defer filesystem.Release()
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	files, dirs, err := CreateSampleFilesAndDirs(t, server, homeDir, 3, 3)
 	FailError(t, err)

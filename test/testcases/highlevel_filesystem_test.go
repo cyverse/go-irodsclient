@@ -37,12 +37,14 @@ func highlevelFilesystemTest(t *testing.T, test *Test) {
 
 func testMakeDir(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
+
 	filesystem, err := server.GetFileSystem()
 	FailError(t, err)
 	defer filesystem.Release()
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	for i := 0; i < 10; i++ {
 		newDir := fmt.Sprintf("%s/test_dir_%d", homeDir, i)
@@ -92,12 +94,14 @@ func testMakeDir(t *testing.T) {
 
 func testMakeDirRecurse(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
+
 	filesystem, err := server.GetFileSystem()
 	FailError(t, err)
 	defer filesystem.Release()
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	newDir := fmt.Sprintf("%s/make_dir_recurse", homeDir)
 
@@ -137,12 +141,14 @@ func testMakeDirRecurse(t *testing.T) {
 
 func testUploadAndDeleteDir(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
+
 	filesystem, err := server.GetFileSystem()
 	FailError(t, err)
 	defer filesystem.Release()
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	fileSize := int64(100 * 1024 * 1024) // 100MB
 	localPath, err := CreateLocalTestFile(t, "test_file_", fileSize)
@@ -178,12 +184,14 @@ func testUploadAndDeleteDir(t *testing.T) {
 
 func testListDirectory(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
+
 	filesystem, err := server.GetFileSystem()
 	FailError(t, err)
 	defer filesystem.Release()
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	files, dirs, err := CreateSampleFilesAndDirs(t, server, homeDir, 5, 5)
 	FailError(t, err)
@@ -221,12 +229,14 @@ func testListDirectory(t *testing.T) {
 
 func testSearchByMeta(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
+
 	filesystem, err := server.GetFileSystem()
 	FailError(t, err)
 	defer filesystem.Release()
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	// set 1
 	files1, dirs1, err := CreateSampleFilesAndDirs(t, server, homeDir, 3, 3)
@@ -301,13 +311,17 @@ func testSearchByMeta(t *testing.T) {
 
 func testListACLs(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
-	account := server.GetAccountCopy()
+	server := test.GetCurrentServer()
+
+	account, err := server.GetAccount()
+	FailError(t, err)
+
 	filesystem, err := server.GetFileSystem()
 	FailError(t, err)
 	defer filesystem.Release()
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	files, dirs, err := CreateSampleFilesAndDirs(t, server, homeDir, 5, 5)
 	FailError(t, err)
@@ -344,12 +358,14 @@ func testListACLs(t *testing.T) {
 
 func testCreateStat(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
+
 	filesystem, err := server.GetFileSystem()
 	FailError(t, err)
 	defer filesystem.Release()
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	filename := "testcreate.bin"
 	irodsPath := homeDir + "/" + filename
@@ -405,12 +421,14 @@ func testCreateStat(t *testing.T) {
 
 func testSpecialCharInFilename(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
+
 	filesystem, err := server.GetFileSystem()
 	FailError(t, err)
 	defer filesystem.Release()
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	specialCharacters := []string{
 		"!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "-", "_",
@@ -469,12 +487,14 @@ func testSpecialCharInFilename(t *testing.T) {
 
 func testWriteRename(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
+
 	filesystem, err := server.GetFileSystem()
 	FailError(t, err)
 	defer filesystem.Release()
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	filename := "testwrite.bin"
 	irodsPath := homeDir + "/" + filename
@@ -530,12 +550,14 @@ func testWriteRename(t *testing.T) {
 
 func testWriteRenameDir(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
+
 	filesystem, err := server.GetFileSystem()
 	FailError(t, err)
 	defer filesystem.Release()
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	dirName := "testdir"
 	testDirPath := homeDir + "/" + dirName
@@ -606,12 +628,14 @@ func testWriteRenameDir(t *testing.T) {
 
 func testRemoveClose(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
+
 	filesystem, err := server.GetFileSystem()
 	FailError(t, err)
 	defer filesystem.Release()
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	filename := "testremove.bin"
 	irodsPath := homeDir + "/" + filename

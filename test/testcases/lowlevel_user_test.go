@@ -27,7 +27,8 @@ func lowlevelUserTest(t *testing.T, test *Test) {
 
 func testCreateAndRemoveUser(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
+
 	session, err := server.GetSession()
 	FailError(t, err)
 	defer session.Release()
@@ -36,7 +37,8 @@ func testCreateAndRemoveUser(t *testing.T) {
 	FailError(t, err)
 	defer session.ReturnConnection(conn)
 
-	account := server.GetAccountCopy()
+	account, err := server.GetAccount()
+	FailError(t, err)
 
 	// create
 	testUsername := "testuser1"
@@ -64,7 +66,9 @@ func testCreateAndRemoveUser(t *testing.T) {
 	assert.Equal(t, types.IRODSUserRodsUser, myUser.Type)
 
 	// login test
-	userAccount := server.GetAccountCopy()
+	userAccount, err := server.GetAccount()
+	FailError(t, err)
+
 	userAccount.ClientUser = testUsername
 	userAccount.ProxyUser = testUsername
 	userAccount.Password = testPassword
@@ -98,7 +102,8 @@ func testCreateAndRemoveUser(t *testing.T) {
 
 func testCreateUserWithSpecialCharacterPasswords(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
+
 	session, err := server.GetSession()
 	FailError(t, err)
 	defer session.Release()
@@ -107,7 +112,8 @@ func testCreateUserWithSpecialCharacterPasswords(t *testing.T) {
 	FailError(t, err)
 	defer session.ReturnConnection(conn)
 
-	account := server.GetAccountCopy()
+	account, err := server.GetAccount()
+	FailError(t, err)
 
 	// create
 	specialCharacters := []string{
@@ -145,7 +151,9 @@ func testCreateUserWithSpecialCharacterPasswords(t *testing.T) {
 		assert.Equal(t, types.IRODSUserRodsUser, myUser.Type)
 
 		// login test
-		userAccount := server.GetAccountCopy()
+		userAccount, err := server.GetAccount()
+		FailError(t, err)
+
 		userAccount.ClientUser = testUsername
 		userAccount.ProxyUser = testUsername
 		userAccount.Password = testPassword
@@ -173,7 +181,8 @@ func testCreateUserWithSpecialCharacterPasswords(t *testing.T) {
 
 func testAddAndRemoveGroupMembers(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
+
 	session, err := server.GetSession()
 	FailError(t, err)
 	defer session.Release()
@@ -182,7 +191,8 @@ func testAddAndRemoveGroupMembers(t *testing.T) {
 	FailError(t, err)
 	defer session.ReturnConnection(conn)
 
-	account := server.GetAccountCopy()
+	account, err := server.GetAccount()
+	FailError(t, err)
 
 	// create
 	testGroupName := "testgroup2"
@@ -301,7 +311,8 @@ func testAddAndRemoveGroupMembers(t *testing.T) {
 
 func testListUsersByType(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
+
 	session, err := server.GetSession()
 	FailError(t, err)
 	defer session.Release()
@@ -310,7 +321,8 @@ func testListUsersByType(t *testing.T) {
 	FailError(t, err)
 	defer session.ReturnConnection(conn)
 
-	account := server.GetAccountCopy()
+	account, err := server.GetAccount()
+	FailError(t, err)
 
 	users, err := fs.ListUsersByType(conn, types.IRODSUserRodsUser, account.ClientZone)
 	FailError(t, err)

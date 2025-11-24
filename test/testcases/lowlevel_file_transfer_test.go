@@ -25,7 +25,7 @@ func lowlevelFileTransferTest(t *testing.T, test *Test) {
 
 func testUpload(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
 
 	sess, err := server.GetSession()
 	FailError(t, err)
@@ -34,7 +34,8 @@ func testUpload(t *testing.T) {
 	conn, err := sess.AcquireConnection(true)
 	FailError(t, err)
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	// gen large file
 	filename := "test_large_file.bin"
@@ -88,7 +89,8 @@ func testUpload(t *testing.T) {
 
 func testParallelUploadAndDownload(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
+
 	session, err := server.GetSession()
 	FailError(t, err)
 	defer session.Release()
@@ -97,7 +99,8 @@ func testParallelUploadAndDownload(t *testing.T) {
 	FailError(t, err)
 	defer session.ReturnConnection(conn)
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	// gen very large file
 	filename := "test_large_file.bin"
@@ -159,7 +162,8 @@ func testParallelUploadAndDownload(t *testing.T) {
 
 func testParallelUploadAndDownloadWithConnections(t *testing.T) {
 	test := GetCurrentTest()
-	server := test.GetServer()
+	server := test.GetCurrentServer()
+
 	session, err := server.GetSession()
 	FailError(t, err)
 	defer session.Release()
@@ -168,7 +172,8 @@ func testParallelUploadAndDownloadWithConnections(t *testing.T) {
 	FailError(t, err)
 	defer session.ReturnConnection(conn)
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
 
 	// gen very large file
 	filename := "test_large_file.bin"

@@ -374,13 +374,7 @@ func (conn *IRODSConnection) startup() (*types.IRODSVersion, error) {
 	// Send a startup message
 	startup := message.NewIRODSMessageStartupPack(conn.account, conn.config.ApplicationName, conn.requiresCSNegotiation())
 
-	if conn.requiresCSNegotiation() {
-		err := conn.RequestWithoutResponse(startup, timeout)
-		if err != nil {
-			newErr := errors.Join(err, types.NewConnectionError())
-			return nil, errors.Wrapf(newErr, "failed to send startup")
-		}
-	} else {
+	if !conn.requiresCSNegotiation() {
 		// no cs negotiation
 		version := message.IRODSMessageVersion{}
 		err := conn.Request(startup, &version, nil, timeout)
@@ -397,6 +391,13 @@ func (conn *IRODSConnection) startup() (*types.IRODSVersion, error) {
 		}
 
 		return version.GetVersion(), nil
+	}
+
+	// cs negotiation
+	err := conn.RequestWithoutResponse(startup, timeout)
+	if err != nil {
+		newErr := errors.Join(err, types.NewConnectionError())
+		return nil, errors.Wrapf(newErr, "failed to send startup")
 	}
 
 	// cs negotiation response

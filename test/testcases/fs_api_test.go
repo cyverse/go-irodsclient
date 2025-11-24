@@ -44,8 +44,6 @@ func testPrepareSamplesForFSAPI(t *testing.T) {
 func testGetIRODSCollection(t *testing.T) {
 	account := GetIRODSTestServerAccount()
 
-	account.ClientServerNegotiation = false
-
 	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
 	FailError(t, err)
@@ -62,8 +60,6 @@ func testGetIRODSCollection(t *testing.T) {
 
 func testListIRODSCollections(t *testing.T) {
 	account := GetIRODSTestServerAccount()
-
-	account.ClientServerNegotiation = false
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
@@ -89,8 +85,6 @@ func testListIRODSCollections(t *testing.T) {
 func testListIRODSCollectionMeta(t *testing.T) {
 	account := GetIRODSTestServerAccount()
 
-	account.ClientServerNegotiation = false
-
 	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
 	FailError(t, err)
@@ -108,8 +102,6 @@ func testListIRODSCollectionMeta(t *testing.T) {
 
 func testListIRODSCollectionAccess(t *testing.T) {
 	account := GetIRODSTestServerAccount()
-
-	account.ClientServerNegotiation = false
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
@@ -130,7 +122,7 @@ func testListIRODSCollectionAccess(t *testing.T) {
 func testListIRODSDataObjects(t *testing.T) {
 	account := GetIRODSTestServerAccount()
 
-	account.ClientServerNegotiation = false
+	 = false
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
@@ -165,8 +157,6 @@ func testListIRODSDataObjects(t *testing.T) {
 
 func testListIRODSDataObjectsMasterReplica(t *testing.T) {
 	account := GetIRODSTestServerAccount()
-
-	account.ClientServerNegotiation = false
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
@@ -204,7 +194,7 @@ func testListIRODSDataObjectsMasterReplica(t *testing.T) {
 func testGetIRODSDataObject(t *testing.T) {
 	account := GetIRODSTestServerAccount()
 
-	account.ClientServerNegotiation = false
+	 = false
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
@@ -240,7 +230,7 @@ func testGetIRODSDataObject(t *testing.T) {
 func testGetIRODSDataObjectMasterReplica(t *testing.T) {
 	account := GetIRODSTestServerAccount()
 
-	account.ClientServerNegotiation = false
+	 = false
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
@@ -277,7 +267,7 @@ func testGetIRODSDataObjectMasterReplica(t *testing.T) {
 func testListIRODSDataObjectMeta(t *testing.T) {
 	account := GetIRODSTestServerAccount()
 
-	account.ClientServerNegotiation = false
+	 = false
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
@@ -307,7 +297,7 @@ func testListIRODSDataObjectMeta(t *testing.T) {
 func testListIRODSDataObjectAccess(t *testing.T) {
 	account := GetIRODSTestServerAccount()
 
-	account.ClientServerNegotiation = false
+	 = false
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
@@ -338,7 +328,7 @@ func testListIRODSDataObjectAccess(t *testing.T) {
 func testCreateDeleteIRODSCollection(t *testing.T) {
 	account := GetIRODSTestServerAccount()
 
-	account.ClientServerNegotiation = false
+	 = false
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
@@ -380,7 +370,7 @@ func testCreateDeleteIRODSCollection(t *testing.T) {
 func testCreateMoveDeleteIRODSCollection(t *testing.T) {
 	account := GetIRODSTestServerAccount()
 
-	account.ClientServerNegotiation = false
+	 = false
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
@@ -433,7 +423,7 @@ func testCreateMoveDeleteIRODSCollection(t *testing.T) {
 func testCreateDeleteIRODSDataObject(t *testing.T) {
 	account := GetIRODSTestServerAccount()
 
-	account.ClientServerNegotiation = false
+	 = false
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
@@ -481,7 +471,7 @@ func testCreateDeleteIRODSDataObject(t *testing.T) {
 func testReadWriteIRODSDataObject(t *testing.T) {
 	account := GetIRODSTestServerAccount()
 
-	account.ClientServerNegotiation = false
+	 = false
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
@@ -534,7 +524,7 @@ func testReadWriteIRODSDataObject(t *testing.T) {
 func testReadWriteIRODSDataObjectWithSingleConnection(t *testing.T) {
 	account := GetIRODSTestServerAccount()
 
-	account.ClientServerNegotiation = false
+	 = false
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
@@ -606,7 +596,7 @@ func testReadWriteIRODSDataObjectWithSingleConnection(t *testing.T) {
 func testMixedReadWriteIRODSDataObjectWithSingleConnection(t *testing.T) {
 	account := GetIRODSTestServerAccount()
 
-	account.ClientServerNegotiation = false
+	 = false
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
@@ -700,7 +690,7 @@ func testMixedReadWriteIRODSDataObjectWithSingleConnection(t *testing.T) {
 func testTruncateIRODSDataObject(t *testing.T) {
 	account := GetIRODSTestServerAccount()
 
-	account.ClientServerNegotiation = false
+	 = false
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
@@ -756,7 +746,7 @@ func testTruncateIRODSDataObject(t *testing.T) {
 func testListIRODSGroupMembers(t *testing.T) {
 	account := GetIRODSTestServerAccount()
 
-	account.ClientServerNegotiation = false
+	 = false
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
@@ -781,7 +771,7 @@ func testListIRODSGroupMembers(t *testing.T) {
 func testSearchDataObjectsByMeta(t *testing.T) {
 	account := GetIRODSTestServerAccount()
 
-	account.ClientServerNegotiation = false
+	 = false
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
@@ -807,7 +797,7 @@ func testSearchDataObjectsByMeta(t *testing.T) {
 func testSearchDataObjectsByMetaWildcard(t *testing.T) {
 	account := GetIRODSTestServerAccount()
 
-	account.ClientServerNegotiation = false
+	 = false
 
 	conn := connection.NewIRODSConnection(account, 300*time.Second, GetTestApplicationName())
 	err := conn.Connect()
@@ -839,7 +829,7 @@ func testSearchDataObjectsByMetaWildcard(t *testing.T) {
 func testParallelUploadAndDownloadDataObject(t *testing.T) {
 	account := GetIRODSTestServerAccount()
 
-	account.ClientServerNegotiation = false
+	 = false
 
 	sessionConfig := GetTestSessionConfig()
 

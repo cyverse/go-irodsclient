@@ -12,53 +12,57 @@ import (
 )
 
 type Test struct {
-	Name           string
-	Func           func(t *testing.T, test *Test)
-	testHomeName   string
-	Versions       []server.IRODSTestServerVersion // if empty, run for all versions
-	server         *server.IRODSTestServer
-	currentVersion server.IRODSTestServerVersion
+	Name               string
+	Func               func(t *testing.T, test *Test)
+	DoNotCreateHomeDir bool
+	Versions           []string // if empty, run for all versions
+
+	// runtime info
+	currentTestHomename string
+	currentServer       *server.IRODSServer
 }
 
-func (test *Test) GetTestHomeDir() string {
-	return path.Join(test.server.GetHomeDir(), test.testHomeName)
+func (test *Test) GetTestHomeDir() (string, error) {
+	homeDir, err := test.currentServer.GetHomeDir()
+	if err != nil {
+		log.Errorf("Failed to get home directory: %+v", err)
+		return "", errors.Wrapf(err, "failed to get home directory")
+	}
+
+	return path.Join(homeDir, test.currentTestHomename), nil
 }
 
 func (test *Test) MakeTestHomeDir() error {
-	logger := log.WithFields(log.Fields{})
-
-	fs, err := test.server.GetFileSystem()
+	fs, err := test.currentServer.GetFileSystem()
 	if err != nil {
 		return errors.Wrapf(err, "failed to create a new filesystem")
 	}
 	defer fs.Release()
 
-	homeDir := test.GetTestHomeDir()
+	homeDir, err := test.GetTestHomeDir()
+	if err != nil {
+		return errors.Wrapf(err, "failed to get test home directory")
+	}
 
 	err = fs.MakeDir(homeDir, true)
 	if err != nil {
 		return errors.Wrapf(err, "failed to make a home directory %q", homeDir)
 	}
 
-	logger.Infof("Created test home directory: %s", homeDir)
-
 	return nil
 }
 
-func (test *Test) GetServer() *server.IRODSTestServer {
-	return test.server
+func (test *Test) GetCurrentServer() *server.IRODSServer {
+	return test.currentServer
 }
 
-func (test *Test) GetCurrentVersion() server.IRODSTestServerVersion {
-	return test.currentVersion
-}
-
-func checkRunForVersion(testFunc Test, version server.IRODSTestServerVersion) bool {
-	if len(testFunc.Versions) == 0 {
+func (test *Test) checkRunForVersion(version string) bool {
+	// if version is not specified, run for all versions
+	if len(test.Versions) == 0 {
 		return true
 	}
 
-	for _, v := range testFunc.Versions {
+	for _, v := range test.Versions {
 		if v == version {
 			return true
 		}
@@ -67,11 +71,20 @@ func checkRunForVersion(testFunc Test, version server.IRODSTestServerVersion) bo
 	return false
 }
 
-func FailError(t *testing.T, err error) {
-	if err != nil {
-		t.Errorf("%+v", err)
-		t.FailNow()
+func (test *Test) ResetForTest(server *server.IRODSServer) error {
+	// setup new UUID as home name
+	test.currentTestHomename = makeTestUUID()
+	test.currentServer = server
+
+	// create home directory
+	if !test.DoNotCreateHomeDir {
+		err := test.MakeTestHomeDir()
+		if err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
 func makeTestUUID() string {
@@ -86,45 +99,27 @@ func GetCurrentTest() *Test {
 	return currentTest
 }
 
-func testMainForVersion(t *testing.T, ver server.IRODSTestServerVersion, production bool, tests []Test) {
-	t.Logf("Testing for version: %s", ver)
+func testMainForServer(t *testing.T, server *server.IRODSServer, tests []Test) {
+	serverInfo := server.GetInfo()
+	t.Logf("Testing for server %q", serverInfo.Name)
 
-	verFunc := func(t *testing.T) {
-		var irodsServer *server.IRODSTestServer
-		var err error
-		if production {
-			// production server
-			irodsServer, err = server.NewProductionIRODSServer(ver)
-			FailError(t, err)
-		} else {
-			// test server
-			irodsServer, err = server.NewTestIRODSServer(ver)
-			FailError(t, err)
-		}
-		FailError(t, err)
-
-		err = irodsServer.Start()
+	testFunc := func(t *testing.T) {
+		err := server.Start()
 		FailError(t, err)
 
 		defer func() {
-			if irodsServer != nil {
-				irodsServer.Stop()
-				currentTest = nil
-			}
+			server.Stop()
+			currentTest = nil
 		}()
 
 		// run here
 		for _, test := range tests {
-			if checkRunForVersion(test, ver) {
+			if test.checkRunForVersion(serverInfo.Version) {
+				// update current
 				currentTest = &test
 
 				// setup
-				test.testHomeName = makeTestUUID()
-				test.server = irodsServer
-				test.currentVersion = ver
-
-				// create home directory
-				err = test.MakeTestHomeDir()
+				err = test.ResetForTest(server)
 				FailError(t, err)
 
 				testFunc := func(t *testing.T) {
@@ -136,7 +131,7 @@ func testMainForVersion(t *testing.T, ver server.IRODSTestServerVersion, product
 		}
 	}
 
-	t.Run(string(ver), verFunc)
+	t.Run(serverInfo.Name, testFunc)
 }
 
 func TestLocalMain(t *testing.T) {
@@ -162,8 +157,10 @@ func TestLocalMain(t *testing.T) {
 	tests = append(tests, getHighlevelTicketTest())
 
 	// local test servers
-	for _, ver := range server.GetTestIRODSVersions() {
-		testMainForVersion(t, ver, false, tests)
+	for _, serverInfo := range server.GetTestIRODSServerInfos() {
+		server := server.NewIRODSServer(serverInfo)
+
+		testMainForServer(t, server, tests)
 	}
 }
 
