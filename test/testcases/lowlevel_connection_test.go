@@ -40,7 +40,7 @@ func testManyConnections(t *testing.T) {
 		verMajor, _, _ := ver.GetReleaseVersion()
 		assert.GreaterOrEqual(t, 4, verMajor)
 
-		t.Logf("Connection %d: %s", i, conn.GetVersion().APIVersion)
+		t.Logf("Connection %d: %s %s", i, conn.GetVersion().ReleaseVersion, conn.GetVersion().APIVersion)
 	}
 }
 
