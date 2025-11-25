@@ -13,6 +13,7 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
 	"github.com/rs/xid"
+	log "github.com/sirupsen/logrus"
 )
 
 // FileSystem provides a file-system like interface
@@ -90,9 +91,14 @@ func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName strin
 
 // Release releases all resources
 func (fs *FileSystem) Release() {
+	logger := log.WithFields(log.Fields{})
+
 	handles := fs.fileHandleMap.PopAll()
 	for _, handle := range handles {
-		handle.Close()
+		err := handle.Close()
+		if err != nil {
+			logger.Error(err)
+		}
 	}
 
 	fs.cacheEventHandlerMap.Release()

@@ -16,7 +16,8 @@ func AuthenticateNative(conn *IRODSConnection, password string) error {
 	authChallenge := message.IRODSMessageAuthChallengeResponse{}
 	err := conn.RequestAndCheck(authRequest, &authChallenge, nil, timeout)
 	if err != nil {
-		return errors.Join(err, types.NewAuthFlowError("failed to receive authentication challenge message body"))
+		newErr := errors.Join(err, types.NewAuthError(conn.account))
+		return errors.Wrapf(newErr, "failed to receive authentication challenge message body")
 	}
 
 	challengeBytes, err := authChallenge.GetChallenge()

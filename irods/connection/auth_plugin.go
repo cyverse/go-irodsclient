@@ -175,6 +175,20 @@ func (ctx *IRODSAuthContext) GetCopy() *IRODSAuthContext {
 	return copy
 }
 
+func (ctx *IRODSAuthContext) GetRedacted() *IRODSAuthContext {
+	copy := NewIRODSAuthContext()
+	ctx.CopyTo(copy)
+
+	// redact password
+	for k := range copy.context {
+		if k == AUTH_PASSWORD_KEY || k == "password" {
+			copy.context[k] = "REDACTED"
+		}
+	}
+
+	return copy
+}
+
 type IRODSAuthPluginOperationFunc func(conn *IRODSConnection, requestContext *IRODSAuthContext) (*IRODSAuthContext, error)
 
 type IRODSAuthPlugin interface {

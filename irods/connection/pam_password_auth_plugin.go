@@ -75,9 +75,13 @@ func (plugin *PAMPasswordAuthPlugin) clientRequest(conn *IRODSConnection, reques
 
 	responseContext.Set(AUTH_NEXT_OPERATION, PAM_PASSWORD_AUTH_PERFORM_NATIVE_AUTH)
 
-	if !responseContext.Has("request_result") {
+	requestResult, ok := responseContext.GetString("request_result")
+	if !ok {
 		return nil, errors.Wrapf(types.NewAuthError(conn.account), "missing request result in PAM password auth response")
 	}
+
+	// store PAM token in the account for future use
+	conn.account.PAMToken = requestResult
 
 	return responseContext, nil
 }
@@ -89,7 +93,11 @@ func (plugin *PAMPasswordAuthPlugin) performNativeAuth(conn *IRODSConnection, re
 	responseContext.Remove(AUTH_PASSWORD_KEY)
 
 	input := NewIRODSAuthContext()
-	requestResult, _ := responseContext.GetString("request_result")
+	requestResult, ok := responseContext.GetString("request_result")
+	if !ok {
+		return nil, errors.Wrapf(types.NewAuthError(conn.account), "missing request result in PAM password auth response")
+	}
+
 	input.Set("password", requestResult)
 
 	nativeAuthPlugin := NewNativeAuthPlugin()

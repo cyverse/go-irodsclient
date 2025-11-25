@@ -9,7 +9,6 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/types"
-	log "github.com/sirupsen/logrus"
 )
 
 // IRODSMessageNewAuthPluginResponse stores new authentication plugin response
@@ -28,8 +27,6 @@ func (msg *IRODSMessageNewAuthPluginResponse) CheckError() error {
 
 // FromMessage returns struct from IRODSMessage
 func (msg *IRODSMessageNewAuthPluginResponse) FromMessage(msgIn *IRODSMessage) error {
-	logger := log.WithFields(log.Fields{})
-
 	if msgIn.Header == nil {
 		return errors.Errorf("empty message header")
 	}
@@ -55,8 +52,6 @@ func (msg *IRODSMessageNewAuthPluginResponse) FromMessage(msgIn *IRODSMessage) e
 	if nullIndex >= 0 {
 		dataJson = dataJson[:nullIndex]
 	}
-
-	logger.Errorf("new auth plugin response data: %s", string(dataJson))
 
 	err = json.Unmarshal(dataJson, &msg.AuthContext)
 	if err != nil {

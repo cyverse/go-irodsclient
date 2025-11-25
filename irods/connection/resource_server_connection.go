@@ -87,29 +87,37 @@ func (conn *IRODSResourceServerConnection) GetServerInfo() *types.IRODSRedirecti
 }
 
 // SetWriteTimeout sets write timeout
-func (conn *IRODSResourceServerConnection) SetWriteTimeout(timeout time.Duration) {
+func (conn *IRODSResourceServerConnection) SetWriteTimeout(timeout time.Duration) error {
 	if conn.socket == nil {
-		return
+		return errors.Errorf("socket is not created")
 	}
 
 	if !conn.locked {
-		return
+		return errors.Errorf("connection is not locked")
 	}
 
-	conn.socket.SetWriteDeadline(time.Now().Add(timeout))
+	err := conn.socket.SetWriteDeadline(time.Now().Add(timeout))
+	if err != nil {
+		return errors.Wrapf(err, "failed to set write deadline")
+	}
+	return nil
 }
 
 // SetReadTimeout sets read timeout
-func (conn *IRODSResourceServerConnection) SetReadTimeout(timeout time.Duration) {
+func (conn *IRODSResourceServerConnection) SetReadTimeout(timeout time.Duration) error {
 	if conn.socket == nil {
-		return
+		return errors.Errorf("socket is not created")
 	}
 
 	if !conn.locked {
-		return
+		return errors.Errorf("connection is not locked")
 	}
 
-	conn.socket.SetReadDeadline(time.Now().Add(timeout))
+	err := conn.socket.SetReadDeadline(time.Now().Add(timeout))
+	if err != nil {
+		return errors.Wrapf(err, "failed to set read deadline")
+	}
+	return nil
 }
 
 // IsConnected returns if the connection is live
@@ -135,11 +143,25 @@ func (conn *IRODSResourceServerConnection) setSocketOpt(socket net.Conn, bufferS
 
 	if tcpSocket, ok := socket.(*net.TCPConn); ok {
 		// TCP socket
-		tcpSocket.SetNoDelay(true)
+		err := tcpSocket.SetNoDelay(true)
+		if err != nil {
+			logger.Errorf("failed to set no delay: %+v", err)
+		}
 
-		tcpSocket.SetKeepAlive(true)
-		tcpSocket.SetKeepAlivePeriod(15 * time.Second) // 15 seconds
-		tcpSocket.SetLinger(5)                         // 5 seconds
+		err = tcpSocket.SetKeepAlive(true)
+		if err != nil {
+			logger.Errorf("failed to set keep alive: %+v", err)
+		}
+
+		err = tcpSocket.SetKeepAlivePeriod(15 * time.Second) // 15 seconds
+		if err != nil {
+			logger.Errorf("failed to set keep alive period: %+v", err)
+		}
+
+		err = tcpSocket.SetLinger(5) // 5 seconds
+		if err != nil {
+			logger.Errorf("failed to set linger: %+v", err)
+		}
 
 		// TCP buffer size
 		if bufferSize > 0 {
@@ -270,7 +292,7 @@ func (conn *IRODSResourceServerConnection) socketFail() {
 		conn.config.Metrics.IncreaseCounterForConnectionFailures(1)
 	}
 
-	conn.disconnectNow()
+	_ = conn.disconnectNow()
 }
 
 // Send sends data
@@ -289,7 +311,10 @@ func (conn *IRODSResourceServerConnection) SendWithTrackerCallBack(buffer []byte
 	}
 
 	if timeout != nil {
-		conn.SetWriteTimeout(*timeout)
+		err := conn.SetWriteTimeout(*timeout)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set write timeout")
+		}
 	}
 
 	err := util.WriteBytesWithTrackerCallBack(conn.socket, buffer, size, callback)
@@ -320,7 +345,10 @@ func (conn *IRODSResourceServerConnection) SendFromReader(src io.Reader, size in
 	}
 
 	if timeout != nil {
-		conn.SetWriteTimeout(*timeout)
+		err := conn.SetWriteTimeout(*timeout)
+		if err != nil {
+			return 0, errors.Wrapf(err, "failed to set write timeout")
+		}
 	}
 
 	copyLen, err := io.CopyN(conn.socket, src, size)
@@ -360,7 +388,10 @@ func (conn *IRODSResourceServerConnection) RecvWithTrackerCallBack(buffer []byte
 	}
 
 	if timeout != nil {
-		conn.SetReadTimeout(*timeout)
+		err := conn.SetReadTimeout(*timeout)
+		if err != nil {
+			return 0, errors.Wrapf(err, "failed to set read timeout")
+		}
 	}
 
 	readLen, err := util.ReadBytesWithTrackerCallBack(conn.socket, buffer, size, callback)
@@ -373,7 +404,7 @@ func (conn *IRODSResourceServerConnection) RecvWithTrackerCallBack(buffer []byte
 	if err != nil {
 		if err == io.EOF {
 			conn.lastSuccessfulAccess = time.Now()
-			conn.disconnectNow()
+			_ = conn.disconnectNow()
 			return readLen, io.EOF
 		}
 
@@ -397,7 +428,10 @@ func (conn *IRODSResourceServerConnection) RecvToWriter(writer io.Writer, size i
 	}
 
 	if timeout != nil {
-		conn.SetReadTimeout(*timeout)
+		err := conn.SetReadTimeout(*timeout)
+		if err != nil {
+			return 0, errors.Wrapf(err, "failed to set read timeout")
+		}
 	}
 
 	copyLen, err := io.CopyN(writer, conn.socket, size)
@@ -410,7 +444,7 @@ func (conn *IRODSResourceServerConnection) RecvToWriter(writer io.Writer, size i
 	if err != nil {
 		if err == io.EOF {
 			conn.lastSuccessfulAccess = time.Now()
-			conn.disconnectNow()
+			_ = conn.disconnectNow()
 			return copyLen, io.EOF
 		}
 

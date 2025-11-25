@@ -59,7 +59,7 @@ func (plugin *NativeAuthPlugin) establishContext(conn *IRODSConnection, requestC
 
 	// Compute the client signature and store it in the connection
 	conn.clientSignature = plugin.generateClientSignature([]byte(requestResult))
-	log.Debugf("client signature = [%s]", conn.clientSignature)
+	logger.Debugf("client signature = %q", conn.clientSignature)
 
 	// if the anonymous user is used, no need to append password
 	password, _ := requestContext.GetString("password")

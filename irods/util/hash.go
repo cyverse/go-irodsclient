@@ -95,7 +95,9 @@ func HashLocalFileWithAlgorithm(sourcePath string, hashAlg hash.Hash, processCal
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to open file %q", sourcePath)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	totalSize := stat.Size()
 	var calculatedBytes int64 = 0

@@ -441,7 +441,7 @@ func (sess *IRODSSession) returnConnection(conn *connection.IRODSConnection) err
 	} else {
 		// unknown connection
 		if conn.IsConnected() {
-			conn.Disconnect()
+			_ = conn.Disconnect()
 		}
 	}
 
@@ -490,7 +490,7 @@ func (sess *IRODSSession) DiscardConnection(conn *connection.IRODSConnection) {
 	} else {
 		// unknown connection
 		if conn.IsConnected() {
-			conn.Disconnect()
+			_ = conn.Disconnect()
 		}
 	}
 }

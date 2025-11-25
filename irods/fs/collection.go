@@ -630,7 +630,10 @@ func DeleteCollection(conn *connection.IRODSConnection, path string, recurse boo
 			return errors.Wrapf(err, "failed to receive a collection deletion response message")
 		}
 
-		response.FromMessage(responseMessageReply)
+		err = response.FromMessage(responseMessageReply)
+		if err != nil {
+			return errors.Wrapf(err, "failed to parse a collection deletion response message")
+		}
 	}
 
 	return nil

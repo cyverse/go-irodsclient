@@ -20,15 +20,15 @@ func AuthenticateClient(conn *IRODSConnection, authPlugin IRODSAuthPlugin, reque
 	requestContext.Set("scheme", authPlugin.GetName())
 	requestContext.Set(AUTH_NEXT_OPERATION, nextOp)
 
-	logger.Debugf("initial context: %v", requestContext)
-
 	for {
+		logger.Debugf("server request context: %v", requestContext.GetRedacted())
+
 		responseContext, err := authPlugin.Execute(conn, nextOp, requestContext)
 		if err != nil {
 			return errors.Join(err, types.NewAuthFlowError("authentication plugin execution failed"))
 		}
 
-		logger.Debugf("server response context: %v", responseContext)
+		logger.Debugf("server response context: %v", responseContext.GetRedacted())
 
 		if conn.IsLoggedIn() {
 			break
