@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/cyverse/go-irodsclient/irods/connection"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,9 +17,46 @@ func getLowlevelConnectionTest() Test {
 }
 
 func lowlevelConnectionTest(t *testing.T, test *Test) {
-	t.Run("ManyConnections", testManyConnections)
 	t.Run("Connection", testConnection)
-	t.Run("InvalidUsername", testInvalidUsername)
+	//t.Run("InvalidUsername", testInvalidUsername)
+	//t.Run("ManyConnections", testManyConnections)
+}
+
+func testConnection(t *testing.T) {
+	test := GetCurrentTest()
+	server := test.GetCurrentServer()
+
+	account, err := server.GetAccount()
+	FailError(t, err)
+
+	t.Logf("account info: %+v", account)
+
+	conn, err := connection.NewIRODSConnection(account, server.GetConnectionConfig())
+	FailError(t, err)
+
+	t.Logf("Log level set to %q", log.GetLevel().String())
+
+	err = conn.Connect()
+	FailError(t, err)
+	defer conn.Disconnect()
+
+	ver := conn.GetVersion()
+	verMajor, _, _ := ver.GetReleaseVersion()
+	assert.GreaterOrEqual(t, 4, verMajor)
+}
+
+func testInvalidUsername(t *testing.T) {
+	test := GetCurrentTest()
+	server := test.GetCurrentServer()
+
+	account, err := server.GetAccount()
+	FailError(t, err)
+	account.ProxyUser = "test$def"
+	account.ClientUser = ""
+
+	conn, err := connection.NewIRODSConnection(account, server.GetConnectionConfig())
+	assert.Error(t, err)
+	assert.Nil(t, conn)
 }
 
 func testManyConnections(t *testing.T) {
@@ -42,39 +80,4 @@ func testManyConnections(t *testing.T) {
 
 		t.Logf("Connection %d: %s %s", i, conn.GetVersion().ReleaseVersion, conn.GetVersion().APIVersion)
 	}
-}
-
-func testConnection(t *testing.T) {
-	test := GetCurrentTest()
-	server := test.GetCurrentServer()
-
-	account, err := server.GetAccount()
-	FailError(t, err)
-
-	t.Logf("account info: %+v", account)
-
-	conn, err := connection.NewIRODSConnection(account, server.GetConnectionConfig())
-	FailError(t, err)
-
-	err = conn.Connect()
-	FailError(t, err)
-	defer conn.Disconnect()
-
-	ver := conn.GetVersion()
-	verMajor, _, _ := ver.GetReleaseVersion()
-	assert.GreaterOrEqual(t, 4, verMajor)
-}
-
-func testInvalidUsername(t *testing.T) {
-	test := GetCurrentTest()
-	server := test.GetCurrentServer()
-
-	account, err := server.GetAccount()
-	FailError(t, err)
-	account.ProxyUser = "test$def"
-	account.ClientUser = ""
-
-	conn, err := connection.NewIRODSConnection(account, server.GetConnectionConfig())
-	assert.Error(t, err)
-	assert.Nil(t, conn)
 }

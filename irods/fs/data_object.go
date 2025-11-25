@@ -2337,11 +2337,8 @@ func WriteDataObjectAsyncWithTrackerCallBack(conn *connection.IRODSConnection, h
 		},
 	}
 
-	for {
-		if returnErr != nil {
-			break
-		}
-
+	returnErr = nil
+	for returnErr == nil {
 		//buffer := make([]byte, common.ReadWriteBufferSize)
 		bufferPtr := bufPool.Get().(*[]byte)
 		buffer := *bufferPtr

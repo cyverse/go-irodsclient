@@ -126,6 +126,10 @@ type AuthError struct {
 
 // NewAuthError creates an error for auth
 func NewAuthError(config *IRODSAccount) error {
+	if config == nil {
+		return &AuthError{}
+	}
+
 	return &AuthError{
 		Config: config.GetRedacted(),
 	}
@@ -133,6 +137,10 @@ func NewAuthError(config *IRODSAccount) error {
 
 // Error returns error message
 func (err *AuthError) Error() string {
+	if err.Config == nil {
+		return "authentication error"
+	}
+
 	return fmt.Sprintf("authentication error (auth scheme: %q, proxy username: %q, client username: %q, client zone: %q)", err.Config.AuthenticationScheme, err.Config.ProxyUser, err.Config.ClientUser, err.Config.ClientZone)
 }
 

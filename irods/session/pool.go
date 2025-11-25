@@ -144,14 +144,14 @@ func (pool *ConnectionPool) Release() {
 
 		idleConnObj := pool.idleConnections.Remove(elem)
 		if idleConn, ok := idleConnObj.(*connection.IRODSConnection); ok {
-			idleConn.Disconnect()
+			_ = idleConn.Disconnect()
 		}
 
 		pool.callCallbacks()
 	}
 
 	for occupiedConn := range pool.occupiedConnections {
-		occupiedConn.Disconnect()
+		_ = occupiedConn.Disconnect()
 	}
 
 	// clear
@@ -259,7 +259,7 @@ func (pool *ConnectionPool) get(new bool) (*connection.IRODSConnection, bool, er
 				idleConnObj := pool.idleConnections.Remove(elem)
 				if idleConn, ok := idleConnObj.(*connection.IRODSConnection); ok {
 					if idleConn.IsConnected() {
-						idleConn.Disconnect()
+						_ = idleConn.Disconnect()
 					}
 				}
 
@@ -388,7 +388,7 @@ func (pool *ConnectionPool) Return(conn *connection.IRODSConnection) error {
 	// do not return if the connection is too old
 	now := time.Now()
 	if conn.GetCreationTime().Add(pool.config.Lifespan).Before(now) {
-		conn.Disconnect()
+		_ = conn.Disconnect()
 		pool.waitCond.Broadcast()
 		logger.Debug("Returning and destroying an old connection")
 		return nil
@@ -407,7 +407,7 @@ func (pool *ConnectionPool) Return(conn *connection.IRODSConnection) error {
 			pool.callCallbacks()
 
 			if idleConn, ok := idleConnObj.(*connection.IRODSConnection); ok {
-				idleConn.Disconnect()
+				_ = idleConn.Disconnect()
 			}
 		}
 	}
@@ -433,7 +433,7 @@ func (pool *ConnectionPool) Discard(conn *connection.IRODSConnection) {
 	}
 
 	if conn.IsConnected() {
-		conn.Disconnect()
+		_ = conn.Disconnect()
 	}
 
 	pool.waitCond.Broadcast()

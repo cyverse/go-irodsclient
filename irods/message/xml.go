@@ -261,7 +261,8 @@ func correctXMLResponseForPassword(in []byte, newXML bool) ([]byte, error) {
 		// check utf8 characters for validity
 		default:
 			if !isValidUTF8Char(buf[0]) {
-				out.WriteString(fmt.Sprintf("0x%x", buf[:1]))
+				//out.WriteString(fmt.Sprintf("0x%x", buf[:1]))
+				fmt.Fprintf(out, "0x%x", buf[:1])
 			} else {
 				out.Write(buf[:1])
 			}

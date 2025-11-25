@@ -144,6 +144,7 @@ func stripPkcs7(data []byte, blockSize int) ([]byte, error) {
 	return data[:len(data)-padLen], nil
 }
 
+//nolint:all
 func encryptAES256CBC(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
@@ -156,6 +157,7 @@ func encryptAES256CBC(key []byte, iv []byte, source []byte, dest []byte) (int, e
 	return len(source), nil
 }
 
+//nolint:all
 func decryptAES256CBC(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
@@ -168,6 +170,7 @@ func decryptAES256CBC(key []byte, iv []byte, source []byte, dest []byte) (int, e
 	return len(source), nil
 }
 
+//nolint:all
 func encryptAES256CTR(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
@@ -180,6 +183,7 @@ func encryptAES256CTR(key []byte, iv []byte, source []byte, dest []byte) (int, e
 	return len(source), nil
 }
 
+//nolint:all
 func decryptAES256CTR(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
@@ -192,6 +196,7 @@ func decryptAES256CTR(key []byte, iv []byte, source []byte, dest []byte) (int, e
 	return len(source), nil
 }
 
+//nolint:all
 func encryptAES256CFB(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
@@ -204,6 +209,7 @@ func encryptAES256CFB(key []byte, iv []byte, source []byte, dest []byte) (int, e
 	return len(source), nil
 }
 
+//nolint:all
 func decryptAES256CFB(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
@@ -216,6 +222,7 @@ func decryptAES256CFB(key []byte, iv []byte, source []byte, dest []byte) (int, e
 	return len(source), nil
 }
 
+//nolint:all
 func encryptAES256OFB(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
@@ -228,6 +235,7 @@ func encryptAES256OFB(key []byte, iv []byte, source []byte, dest []byte) (int, e
 	return len(source), nil
 }
 
+//nolint:all
 func decryptAES256OFB(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
@@ -240,6 +248,7 @@ func decryptAES256OFB(key []byte, iv []byte, source []byte, dest []byte) (int, e
 	return len(source), nil
 }
 
+//nolint:all
 func encryptDES256CBC(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := des.NewCipher([]byte(key))
 	if err != nil {
@@ -252,6 +261,7 @@ func encryptDES256CBC(key []byte, iv []byte, source []byte, dest []byte) (int, e
 	return len(source), nil
 }
 
+//nolint:all
 func decryptDES256CBC(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := des.NewCipher([]byte(key))
 	if err != nil {
@@ -264,6 +274,7 @@ func decryptDES256CBC(key []byte, iv []byte, source []byte, dest []byte) (int, e
 	return len(source), nil
 }
 
+//nolint:all
 func encryptDES256CTR(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := des.NewCipher([]byte(key))
 	if err != nil {
@@ -276,6 +287,7 @@ func encryptDES256CTR(key []byte, iv []byte, source []byte, dest []byte) (int, e
 	return len(source), nil
 }
 
+//nolint:all
 func decryptDES256CTR(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := des.NewCipher([]byte(key))
 	if err != nil {
@@ -288,6 +300,7 @@ func decryptDES256CTR(key []byte, iv []byte, source []byte, dest []byte) (int, e
 	return len(source), nil
 }
 
+//nolint:all
 func encryptDES256CFB(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := des.NewCipher([]byte(key))
 	if err != nil {
@@ -300,6 +313,7 @@ func encryptDES256CFB(key []byte, iv []byte, source []byte, dest []byte) (int, e
 	return len(source), nil
 }
 
+//nolint:all
 func decryptDES256CFB(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := des.NewCipher([]byte(key))
 	if err != nil {
@@ -312,6 +326,7 @@ func decryptDES256CFB(key []byte, iv []byte, source []byte, dest []byte) (int, e
 	return len(source), nil
 }
 
+//nolint:all
 func encryptDES256OFB(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := des.NewCipher([]byte(key))
 	if err != nil {
@@ -324,6 +339,7 @@ func encryptDES256OFB(key []byte, iv []byte, source []byte, dest []byte) (int, e
 	return len(source), nil
 }
 
+//nolint:all
 func decryptDES256OFB(key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	block, err := des.NewCipher([]byte(key))
 	if err != nil {

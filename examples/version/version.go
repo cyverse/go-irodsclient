@@ -13,7 +13,7 @@ import (
 func main() {
 	logger := log.WithFields(log.Fields{})
 
-	logger.Logger.SetLevel(log.DebugLevel)
+	log.SetLevel(log.DebugLevel)
 
 	// Parse cli parameters
 	flag.Parse()
@@ -46,7 +46,9 @@ func main() {
 		logger.Error(err)
 		panic(err)
 	}
-	defer conn.Disconnect()
+	defer func() {
+		_ = conn.Disconnect()
+	}()
 
 	ver := conn.GetVersion()
 

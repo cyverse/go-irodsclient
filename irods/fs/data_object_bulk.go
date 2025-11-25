@@ -65,7 +65,9 @@ func UploadDataObjectFromBuffer(sess *session.IRODSSession, buffer *bytes.Buffer
 		return errors.Wrapf(err, "failed to get connection")
 	}
 
-	defer sess.ReturnConnection(conn)
+	defer func() {
+		_ = sess.ReturnConnection(conn)
+	}()
 
 	if conn == nil || !conn.IsConnected() {
 		return errors.Errorf("connection is nil or disconnected")
@@ -89,10 +91,14 @@ func UploadDataObjectFromBuffer(sess *session.IRODSSession, buffer *bytes.Buffer
 		transferCallback("upload", fileLength, fileLength)
 	}
 
-	CloseDataObject(conn, handle)
+	closeErr := CloseDataObject(conn, handle)
 
 	if writeErr != nil {
 		return writeErr
+	}
+
+	if closeErr != nil {
+		return closeErr
 	}
 
 	// replicate
@@ -138,10 +144,14 @@ func UploadDataObjectFromBufferWithConnection(conn *connection.IRODSConnection, 
 		transferCallback("upload", fileLength, fileLength)
 	}
 
-	CloseDataObject(conn, handle)
+	closeErr := CloseDataObject(conn, handle)
 
 	if writeErr != nil {
 		return writeErr
+	}
+
+	if closeErr != nil {
+		return closeErr
 	}
 
 	// replicate
@@ -184,7 +194,9 @@ func UploadDataObject(sess *session.IRODSSession, localPath string, irodsPath st
 		return errors.Wrapf(err, "failed to get connection")
 	}
 
-	defer sess.ReturnConnection(conn)
+	defer func() {
+		_ = sess.ReturnConnection(conn)
+	}()
 
 	if conn == nil || !conn.IsConnected() {
 		return errors.Errorf("connection is nil or disconnected")
@@ -194,7 +206,9 @@ func UploadDataObject(sess *session.IRODSSession, localPath string, irodsPath st
 	if err != nil {
 		return errors.Wrapf(err, "failed to open file %q", localPath)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	// open a new file
 	handle, err := CreateDataObject(conn, irodsPath, resource, "w+", true, keywords)
@@ -242,10 +256,14 @@ func UploadDataObject(sess *session.IRODSSession, localPath string, irodsPath st
 		}
 	}
 
-	CloseDataObject(conn, handle)
+	closeErr := CloseDataObject(conn, handle)
 
 	if writeErr != nil {
 		return writeErr
+	}
+
+	if closeErr != nil {
+		return closeErr
 	}
 
 	// replicate
@@ -291,7 +309,9 @@ func UploadDataObjectWithConnection(conn *connection.IRODSConnection, localPath 
 	if err != nil {
 		return errors.Wrapf(err, "failed to open file %q", localPath)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	// open a new file
 	handle, err := CreateDataObject(conn, irodsPath, resource, "w+", true, keywords)
@@ -339,10 +359,14 @@ func UploadDataObjectWithConnection(conn *connection.IRODSConnection, localPath 
 		}
 	}
 
-	CloseDataObject(conn, handle)
+	closeErr := CloseDataObject(conn, handle)
 
 	if writeErr != nil {
 		return writeErr
+	}
+
+	if closeErr != nil {
+		return closeErr
 	}
 
 	// replicate
@@ -414,7 +438,10 @@ func UploadDataObjectParallel(sess *session.IRODSSession, localPath string, irod
 	// if we have only one connection, use serial upload
 	if len(connections) == 1 {
 		// only one is available
-		sess.ReturnConnection(connections[0])
+		err := sess.ReturnConnection(connections[0])
+		if err != nil {
+			return errors.Wrapf(err, "failed to return connection")
+		}
 
 		return UploadDataObject(sess, localPath, irodsPath, resource, replicate, keywords, transferCallback)
 	}
@@ -422,7 +449,9 @@ func UploadDataObjectParallel(sess *session.IRODSSession, localPath string, irod
 	controlConn := connections[0]
 	transferConns := connections[1:]
 
-	defer sess.ReturnConnection(controlConn)
+	defer func() {
+		_ = sess.ReturnConnection(controlConn)
+	}()
 
 	for _, conn := range connections {
 		if conn == nil || !conn.IsConnected() {
@@ -446,7 +475,10 @@ func UploadDataObjectParallel(sess *session.IRODSSession, localPath string, irod
 
 	replicaToken, resourceHierarchy, err := GetReplicaAccessInfo(controlConn, handle)
 	if err != nil {
-		CloseDataObject(controlConn, handle)
+		closeErr := CloseDataObject(controlConn, handle)
+		if closeErr != nil {
+			return closeErr
+		}
 		return err
 	}
 
@@ -496,7 +528,9 @@ func UploadDataObjectParallel(sess *session.IRODSSession, localPath string, irod
 			errChan <- errors.Wrapf(taskErr, "failed to open file %q", localPath)
 			return
 		}
-		defer f.Close()
+		defer func() {
+			_ = f.Close()
+		}()
 
 		taskNewOffset, taskErr := SeekDataObject(transferConn, taskHandle, taskOffset, types.SeekSet)
 		if taskErr != nil {
@@ -567,7 +601,7 @@ func UploadDataObjectParallel(sess *session.IRODSSession, localPath string, irod
 	taskWaitGroup.Wait()
 
 	if len(errChan) > 0 {
-		CloseDataObject(controlConn, handle)
+		_ = CloseDataObject(controlConn, handle)
 		return <-errChan
 	}
 
@@ -650,7 +684,7 @@ func UploadDataObjectParallelWithConnections(conns []*connection.IRODSConnection
 
 	replicaToken, resourceHierarchy, err := GetReplicaAccessInfo(controlConn, handle)
 	if err != nil {
-		CloseDataObject(controlConn, handle)
+		_ = CloseDataObject(controlConn, handle)
 		return err
 	}
 
@@ -696,7 +730,9 @@ func UploadDataObjectParallelWithConnections(conns []*connection.IRODSConnection
 			errChan <- errors.Wrapf(taskErr, "failed to open file %q", localPath)
 			return
 		}
-		defer f.Close()
+		defer func() {
+			_ = f.Close()
+		}()
 
 		taskNewOffset, taskErr := SeekDataObject(transferConn, taskHandle, taskOffset, types.SeekSet)
 		if taskErr != nil {
@@ -767,7 +803,7 @@ func UploadDataObjectParallelWithConnections(conns []*connection.IRODSConnection
 	taskWaitGroup.Wait()
 
 	if len(errChan) > 0 {
-		CloseDataObject(controlConn, handle)
+		_ = CloseDataObject(controlConn, handle)
 		return <-errChan
 	}
 
@@ -807,7 +843,9 @@ func DownloadDataObjectToBuffer(sess *session.IRODSSession, dataObject *types.IR
 		return errors.Wrapf(err, "failed to get connection")
 	}
 
-	defer sess.ReturnConnection(conn)
+	defer func() {
+		_ = sess.ReturnConnection(conn)
+	}()
 
 	if conn == nil || !conn.IsConnected() {
 		return errors.Errorf("connection is nil or disconnected")
@@ -817,7 +855,9 @@ func DownloadDataObjectToBuffer(sess *session.IRODSSession, dataObject *types.IR
 	if err != nil {
 		return errors.Wrapf(err, "failed to open data object %q", dataObject.Path)
 	}
-	defer CloseDataObject(conn, handle)
+	defer func() {
+		_ = CloseDataObject(conn, handle)
+	}()
 
 	totalBytesDownloaded := int64(0)
 	if transferCallback != nil {
@@ -881,7 +921,9 @@ func DownloadDataObjectToBufferWithConnection(conn *connection.IRODSConnection, 
 	if err != nil {
 		return errors.Wrapf(err, "failed to open data object %q", dataObject.Path)
 	}
-	defer CloseDataObject(conn, handle)
+	defer func() {
+		_ = CloseDataObject(conn, handle)
+	}()
 
 	totalBytesDownloaded := int64(0)
 	if transferCallback != nil {
@@ -974,7 +1016,10 @@ func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IR
 		if err != nil {
 			return errors.Wrapf(err, "failed to create file %q", localPath)
 		}
-		f.Close()
+		err = f.Close()
+		if err != nil {
+			return errors.Wrapf(err, "failed to close file %q", localPath)
+		}
 		return nil
 	}
 
@@ -1014,7 +1059,10 @@ func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IR
 	if err != nil {
 		return errors.Wrapf(err, "failed to create file %q", localPath)
 	}
-	f.Close()
+	err = f.Close()
+	if err != nil {
+		return errors.Wrapf(err, "failed to close file %q", localPath)
+	}
 
 	errChan := make(chan error, numTasks)
 	taskWaitGroup := sync.WaitGroup{}
@@ -1042,7 +1090,7 @@ func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IR
 
 		// close transfer connection after use
 		defer func() {
-			sess.ReturnConnection(transferConn)
+			_ = sess.ReturnConnection(transferConn)
 			taskWaitGroup.Done()
 		}()
 
@@ -1051,7 +1099,9 @@ func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IR
 			errChan <- errors.Wrapf(openErr, "failed to open file %q", localPath)
 			return
 		}
-		defer f.Close()
+		defer func() {
+			_ = f.Close()
+		}()
 
 		lastOffset := int64(taskOffset)
 
@@ -1088,7 +1138,7 @@ func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IR
 
 			defer func() {
 				if !attemptConn.IsSocketFailed() && attemptConn.IsConnected() {
-					CloseDataObject(attemptConn, attemptHandle)
+					_ = CloseDataObject(attemptConn, attemptHandle)
 				}
 			}()
 
@@ -1239,7 +1289,10 @@ func DownloadDataObjectParallelWithConnections(conns []*connection.IRODSConnecti
 		if err != nil {
 			return errors.Wrapf(err, "failed to create file %q", localPath)
 		}
-		f.Close()
+		err = f.Close()
+		if err != nil {
+			return errors.Wrapf(err, "failed to close file %q", localPath)
+		}
 		return nil
 	}
 
@@ -1253,7 +1306,10 @@ func DownloadDataObjectParallelWithConnections(conns []*connection.IRODSConnecti
 	if err != nil {
 		return errors.Wrapf(err, "failed to create file %q", localPath)
 	}
-	f.Close()
+	err = f.Close()
+	if err != nil {
+		return errors.Wrapf(err, "failed to close file %q", localPath)
+	}
 
 	errChan := make(chan error, numTasks)
 	taskWaitGroup := sync.WaitGroup{}
@@ -1286,7 +1342,9 @@ func DownloadDataObjectParallelWithConnections(conns []*connection.IRODSConnecti
 			errChan <- errors.Wrapf(openErr, "failed to open file %q", localPath)
 			return
 		}
-		defer f.Close()
+		defer func() {
+			_ = f.Close()
+		}()
 
 		lastOffset := int64(taskOffset)
 
@@ -1323,7 +1381,7 @@ func DownloadDataObjectParallelWithConnections(conns []*connection.IRODSConnecti
 
 			defer func() {
 				if !attemptConn.IsSocketFailed() && attemptConn.IsConnected() {
-					CloseDataObject(attemptConn, attemptHandle)
+					_ = CloseDataObject(attemptConn, attemptHandle)
 				}
 			}()
 
@@ -1466,7 +1524,10 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 		if err != nil {
 			return errors.Wrapf(err, "failed to create file %q", localPath)
 		}
-		f.Close()
+		err = f.Close()
+		if err != nil {
+			return errors.Wrapf(err, "failed to close file %q", localPath)
+		}
 		return nil
 	}
 
@@ -1523,7 +1584,10 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 	if err != nil {
 		return errors.Wrapf(err, "failed to create file %q", localPath)
 	}
-	f.Close()
+	err = f.Close()
+	if err != nil {
+		return errors.Wrapf(err, "failed to close file %q", localPath)
+	}
 
 	errChan := make(chan error, numTasks)
 	taskWaitGroup := sync.WaitGroup{}
@@ -1551,7 +1615,7 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 
 		// close transfer connection after use
 		defer func() {
-			sess.ReturnConnection(transferConn)
+			_ = sess.ReturnConnection(transferConn)
 			taskWaitGroup.Done()
 		}()
 
@@ -1560,7 +1624,9 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 			errChan <- errors.Wrapf(openErr, "failed to open file %q", localPath)
 			return
 		}
-		defer f.Close()
+		defer func() {
+			_ = f.Close()
+		}()
 
 		// find last failure point
 		transferStatus := transferStatusLocal.GetStatus()
@@ -1609,7 +1675,7 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 
 			defer func() {
 				if !attemptConn.IsSocketFailed() && attemptConn.IsConnected() {
-					CloseDataObject(attemptConn, attemptHandle)
+					_ = CloseDataObject(attemptConn, attemptHandle)
 				}
 			}()
 
@@ -1730,7 +1796,7 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 	taskWaitGroup.Wait()
 
 	if len(errChan) > 0 {
-		transferStatusLocal.CloseStatusFile()
+		_ = transferStatusLocal.CloseStatusFile()
 		return <-errChan
 	}
 
@@ -1780,7 +1846,10 @@ func DownloadDataObjectParallelResumableWithConnections(conns []*connection.IROD
 		if err != nil {
 			return errors.Wrapf(err, "failed to create file %q", localPath)
 		}
-		f.Close()
+		err = f.Close()
+		if err != nil {
+			return errors.Wrapf(err, "failed to close file %q", localPath)
+		}
 		return nil
 	}
 
@@ -1811,7 +1880,10 @@ func DownloadDataObjectParallelResumableWithConnections(conns []*connection.IROD
 	if err != nil {
 		return errors.Wrapf(err, "failed to create file %q", localPath)
 	}
-	f.Close()
+	err = f.Close()
+	if err != nil {
+		return errors.Wrapf(err, "failed to close file %q", localPath)
+	}
 
 	errChan := make(chan error, numTasks)
 	taskWaitGroup := sync.WaitGroup{}
@@ -1844,7 +1916,9 @@ func DownloadDataObjectParallelResumableWithConnections(conns []*connection.IROD
 			errChan <- errors.Wrapf(openErr, "failed to open file %q", localPath)
 			return
 		}
-		defer f.Close()
+		defer func() {
+			_ = f.Close()
+		}()
 
 		// find last failure point
 		transferStatus := transferStatusLocal.GetStatus()
@@ -1893,7 +1967,7 @@ func DownloadDataObjectParallelResumableWithConnections(conns []*connection.IROD
 
 			defer func() {
 				if !attemptConn.IsSocketFailed() && attemptConn.IsConnected() {
-					CloseDataObject(attemptConn, attemptHandle)
+					_ = CloseDataObject(attemptConn, attemptHandle)
 				}
 			}()
 
@@ -2014,7 +2088,7 @@ func DownloadDataObjectParallelResumableWithConnections(conns []*connection.IROD
 	taskWaitGroup.Wait()
 
 	if len(errChan) > 0 {
-		transferStatusLocal.CloseStatusFile()
+		_ = transferStatusLocal.CloseStatusFile()
 		return <-errChan
 	}
 

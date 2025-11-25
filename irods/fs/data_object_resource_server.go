@@ -220,7 +220,9 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 		return errors.Wrapf(err, "failed to connect to resource server")
 	}
 
-	defer conn.Disconnect()
+	defer func() {
+		_ = conn.Disconnect()
+	}()
 
 	if conn == nil || !conn.IsConnected() {
 		return errors.Errorf("connection is nil or disconnected")
@@ -233,7 +235,9 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 	if taskErr != nil {
 		return errors.Wrapf(taskErr, "failed to open file %q", localPath)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	// encConfig may be nil
 	encConfig := controlConn.GetAccount().SSLConfiguration
@@ -290,7 +294,10 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 
 		for toGet > 0 {
 			// set timeout
-			conn.SetReadTimeout(timeout.ResponseTimeout)
+			err := conn.SetReadTimeout(timeout.ResponseTimeout)
+			if err != nil {
+				return errors.Wrapf(err, "failed to set read timeout")
+			}
 
 			// read encryption header
 			if controlConn.IsSSL() {
@@ -433,7 +440,9 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 		return errors.Wrapf(err, "failed to connect to resource server")
 	}
 
-	defer conn.Disconnect()
+	defer func() {
+		_ = conn.Disconnect()
+	}()
 
 	if conn == nil || !conn.IsConnected() {
 		return errors.Errorf("connection is nil or disconnected")
@@ -446,7 +455,9 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 	if taskErr != nil {
 		return errors.Wrapf(taskErr, "failed to open file %q", localPath)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	// encConfig may be nil
 	encConfig := controlConn.GetAccount().SSLConfiguration
@@ -503,7 +514,10 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 		curOffset := transferHeader.Offset
 		for toPut > 0 {
 			// set timeout
-			conn.SetWriteTimeout(timeout.RequestTimeout)
+			err := conn.SetWriteTimeout(timeout.RequestTimeout)
+			if err != nil {
+				return errors.Wrapf(err, "failed to set write timeout")
+			}
 
 			// read encryption header
 			if controlConn.IsSSL() {
@@ -670,7 +684,7 @@ func DownloadDataObjectFromResourceServer(sess *session.IRODSSession, dataObject
 	defer func() {
 		if !controlConnReleased {
 			// close control connection here
-			sess.ReturnConnection(controlConn)
+			_ = sess.ReturnConnection(controlConn)
 		}
 	}()
 
@@ -681,7 +695,7 @@ func DownloadDataObjectFromResourceServer(sess *session.IRODSSession, dataObject
 	handle, err := GetDataObjectRedirectionInfoForGet(controlConn, dataObject, resource, numTasks, keywords)
 	if err != nil {
 		// close control connection
-		sess.ReturnConnection(controlConn)
+		_ = sess.ReturnConnection(controlConn)
 		controlConnReleased = true
 
 		logger.WithError(err).Debug("failed to get redirection info for data object, switch to DownloadDataObjectParallel")
@@ -690,11 +704,13 @@ func DownloadDataObjectFromResourceServer(sess *session.IRODSSession, dataObject
 
 	logger.Debugf("download data object in parallel (redirect-to-resource), size(%d), threads(%d)", dataObject.Size, numTasks)
 
-	defer CompleteDataObjectRedirection(controlConn, handle)
+	defer func() {
+		_ = CompleteDataObjectRedirection(controlConn, handle)
+	}()
 
 	if handle.Threads <= 0 || handle.RedirectionInfo == nil {
 		// close control connection
-		sess.ReturnConnection(controlConn)
+		_ = sess.ReturnConnection(controlConn)
 		controlConnReleased = true
 
 		logger.Debug("failed to get redirection info for data object, switch to DownloadDataObjectParallel")
@@ -712,7 +728,10 @@ func DownloadDataObjectFromResourceServer(sess *session.IRODSSession, dataObject
 	if err != nil {
 		return errors.Wrapf(err, "failed to create file %q", localPath)
 	}
-	f.Close()
+	err = f.Close()
+	if err != nil {
+		return errors.Wrapf(err, "failed to close file %q", localPath)
+	}
 
 	errChan := make(chan error, numTasks)
 	taskWaitGroup := sync.WaitGroup{}
@@ -814,7 +833,9 @@ func DownloadDataObjectFromResourceServerWithConnection(sess *session.IRODSSessi
 
 	logger.Debugf("download data object in parallel (redirect-to-resource), size(%d), threads(%d)", dataObject.Size, numTasks)
 
-	defer CompleteDataObjectRedirection(controlConn, handle)
+	defer func() {
+		_ = CompleteDataObjectRedirection(controlConn, handle)
+	}()
 
 	if handle.Threads <= 0 || handle.RedirectionInfo == nil {
 		logger.Debugf("failed to get redirection info for data object, switch to DownloadDataObject")
@@ -831,7 +852,10 @@ func DownloadDataObjectFromResourceServerWithConnection(sess *session.IRODSSessi
 	if err != nil {
 		return errors.Wrapf(err, "failed to create file %q", localPath)
 	}
-	f.Close()
+	err = f.Close()
+	if err != nil {
+		return errors.Wrapf(err, "failed to close file %q", localPath)
+	}
 
 	errChan := make(chan error, numTasks)
 	taskWaitGroup := sync.WaitGroup{}
@@ -938,7 +962,7 @@ func UploadDataObjectToResourceServer(sess *session.IRODSSession, localPath stri
 	defer func() {
 		if !controlConnReleased {
 			// close control connection here
-			sess.ReturnConnection(controlConn)
+			_ = sess.ReturnConnection(controlConn)
 		}
 	}()
 
@@ -949,7 +973,7 @@ func UploadDataObjectToResourceServer(sess *session.IRODSSession, localPath stri
 	handle, err := GetDataObjectRedirectionInfoForPut(controlConn, irodsPath, resource, fileLength, numTasks, keywords)
 	if err != nil {
 		// close control connection
-		sess.ReturnConnection(controlConn)
+		_ = sess.ReturnConnection(controlConn)
 		controlConnReleased = true
 
 		logger.WithError(err).Debug("failed to get redirection info for data object, switch to UploadDataObjctParallel")
@@ -958,11 +982,13 @@ func UploadDataObjectToResourceServer(sess *session.IRODSSession, localPath stri
 
 	logger.Debugf("upload data object in parallel (redirect-to-resource), size(%d), threads(%d)", fileLength, numTasks)
 
-	defer CompleteDataObjectRedirection(controlConn, handle)
+	defer func() {
+		_ = CompleteDataObjectRedirection(controlConn, handle)
+	}()
 
 	if handle.Threads <= 0 || handle.RedirectionInfo == nil {
 		// close control connection
-		sess.ReturnConnection(controlConn)
+		_ = sess.ReturnConnection(controlConn)
 		controlConnReleased = true
 
 		logger.Debugf("failed to get redirection info for data object %q, switch to UploadDataObjectParallel", irodsPath)
@@ -1082,7 +1108,9 @@ func UploadDataObjectToResourceServerWithConnection(sess *session.IRODSSession, 
 
 	logger.Debugf("upload data object in parallel (redirect-to-resource), size(%d), threads(%d)", fileLength, numTasks)
 
-	defer CompleteDataObjectRedirection(controlConn, handle)
+	defer func() {
+		_ = CompleteDataObjectRedirection(controlConn, handle)
+	}()
 
 	if handle.Threads <= 0 || handle.RedirectionInfo == nil {
 		logger.Debugf("failed to get redirection info for data object %q, switch to UploadDataObject", irodsPath)
