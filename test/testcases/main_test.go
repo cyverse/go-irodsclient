@@ -108,7 +108,9 @@ func testMainForServer(t *testing.T, server *server.IRODSServer, tests []Test) {
 		FailError(t, err)
 
 		defer func() {
-			server.Stop()
+			err = server.Stop()
+			FailError(t, err)
+
 			currentTest = nil
 		}()
 

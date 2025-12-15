@@ -84,7 +84,7 @@ func testUpload(t *testing.T) {
 	err = fs.DeleteDataObject(conn, irodsPath, true)
 	FailError(t, err)
 
-	sess.ReturnConnection(conn)
+	_ = sess.ReturnConnection(conn)
 }
 
 func testParallelUploadAndDownload(t *testing.T) {
@@ -97,7 +97,9 @@ func testParallelUploadAndDownload(t *testing.T) {
 
 	conn, err := session.AcquireConnection(true)
 	FailError(t, err)
-	defer session.ReturnConnection(conn)
+	defer func() {
+		_ = session.ReturnConnection(conn)
+	}()
 
 	homeDir, err := test.GetTestHomeDir()
 	FailError(t, err)
@@ -170,7 +172,9 @@ func testParallelUploadAndDownloadWithConnections(t *testing.T) {
 
 	conn, err := session.AcquireConnection(true)
 	FailError(t, err)
-	defer session.ReturnConnection(conn)
+	defer func() {
+		_ = session.ReturnConnection(conn)
+	}()
 
 	homeDir, err := test.GetTestHomeDir()
 	FailError(t, err)
@@ -200,7 +204,9 @@ func testParallelUploadAndDownloadWithConnections(t *testing.T) {
 	}
 
 	conns, err := session.AcquireConnectionsMulti(5, false)
-	defer session.ReturnConnectionsMulti(conns)
+	defer func() {
+		_ = session.ReturnConnectionsMulti(conns)
+	}()
 
 	err = fs.UploadDataObjectParallelWithConnections(conns, localPath, irodsPath, "", false, nil, transferCallBack)
 	FailError(t, err)

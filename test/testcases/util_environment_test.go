@@ -38,7 +38,8 @@ func testSaveAndLoadEnvironment(t *testing.T) {
 	tempPath := t.TempDir()
 	envFilePath := filepath.Join(tempPath, "irods_environment.json")
 
-	envMgr.SetEnvironmentFilePath(envFilePath)
+	err = envMgr.SetEnvironmentFilePath(envFilePath)
+	FailError(t, err)
 
 	err = envMgr.SaveEnvironment()
 	FailError(t, err)
@@ -47,7 +48,8 @@ func testSaveAndLoadEnvironment(t *testing.T) {
 	envMgr2, err := config.NewICommandsEnvironmentManager()
 	FailError(t, err)
 
-	envMgr2.SetEnvironmentFilePath(envFilePath)
+	err = envMgr2.SetEnvironmentFilePath(envFilePath)
+	FailError(t, err)
 
 	err = envMgr2.Load()
 	FailError(t, err)
@@ -76,7 +78,8 @@ func testSaveAndLoadSession(t *testing.T) {
 	tempPath := t.TempDir()
 	envFilePath := filepath.Join(tempPath, "irods_environment.json")
 
-	envMgr.SetEnvironmentFilePath(envFilePath)
+	err = envMgr.SetEnvironmentFilePath(envFilePath)
+	FailError(t, err)
 
 	// set working data in session
 	envMgr.Session.CurrentWorkingDir = "/test/working/dir"
@@ -91,9 +94,11 @@ func testSaveAndLoadSession(t *testing.T) {
 	envMgr2, err := config.NewICommandsEnvironmentManager()
 	FailError(t, err)
 
-	envMgr2.SetEnvironmentFilePath(envFilePath)
+	err = envMgr2.SetEnvironmentFilePath(envFilePath)
+	FailError(t, err)
 
-	envMgr2.Load()
+	err = envMgr2.Load()
+	FailError(t, err)
 
 	env2 := envMgr2.Environment
 	assert.Equal(t, account.Host, env2.Host)

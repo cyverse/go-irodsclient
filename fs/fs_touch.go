@@ -9,7 +9,7 @@ import (
 )
 
 // Touch creates an empty file or update timestamp
-func (fs *FileSystem) Touch(irodsPath string, resource string, noCreate bool) error {
+func (fs *FileSystem) Touch(irodsPath string, resource string, noCreate bool, replicaNumber *int, referencePath string, secondsSinceEpoch *int) error {
 	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
 	conn, err := fs.metadataSession.AcquireConnection(true)
@@ -22,7 +22,7 @@ func (fs *FileSystem) Touch(irodsPath string, resource string, noCreate bool) er
 	if err != nil {
 		if types.IsFileNotFoundError(err) {
 			// create
-			err = fs.touchInternal(conn, entry, irodsCorrectPath, resource, noCreate)
+			err = fs.touchInternal(conn, entry, irodsCorrectPath, resource, noCreate, replicaNumber, referencePath, secondsSinceEpoch)
 			if err != nil {
 				return err
 			}
@@ -33,7 +33,7 @@ func (fs *FileSystem) Touch(irodsPath string, resource string, noCreate bool) er
 		return err
 	}
 
-	err = fs.touchInternal(conn, entry, irodsCorrectPath, resource, noCreate)
+	err = fs.touchInternal(conn, entry, irodsCorrectPath, resource, noCreate, replicaNumber, referencePath, secondsSinceEpoch)
 	if err != nil {
 		return err
 	}
@@ -47,14 +47,19 @@ func (fs *FileSystem) Touch(irodsPath string, resource string, noCreate bool) er
 	return nil
 }
 
-func (fs *FileSystem) touchInternal(conn *connection.IRODSConnection, entry *Entry, irodsPath string, resource string, noCreate bool) error {
-	err := irods_fs.Touch(conn, irodsPath, resource, noCreate)
+func (fs *FileSystem) touchInternal(conn *connection.IRODSConnection, entry *Entry, irodsPath string, resource string, noCreate bool, replicaNumber *int, referencePath string, secondsSinceEpoch *int) error {
+	err := irods_fs.Touch(conn, irodsPath, resource, noCreate, replicaNumber, referencePath, secondsSinceEpoch)
 	if err != nil {
 		if !types.IsAPINotSupportedError(err) {
 			return err
 		}
 	} else {
 		return nil
+	}
+
+	if len(referencePath) > 0 || secondsSinceEpoch != nil {
+		// cannot emulate these options
+		return types.NewAPINotSupportedError(common.TOUCH_APN)
 	}
 
 	// not supported
@@ -100,17 +105,19 @@ func (fs *FileSystem) touchInternal(conn *connection.IRODSConnection, entry *Ent
 		}
 	}
 
-	// create
-	keywords := map[common.KeyWord]string{}
-	handle, err := irods_fs.CreateDataObject(conn, irodsPath, resource, "w", true, keywords)
-	if err != nil {
-		return err
-	}
+	if !noCreate {
+		// create
+		keywords := map[common.KeyWord]string{}
+		handle, err := irods_fs.CreateDataObject(conn, irodsPath, resource, "w", true, keywords)
+		if err != nil {
+			return err
+		}
 
-	// close
-	err = irods_fs.CloseDataObject(conn, handle)
-	if err != nil {
-		return err
+		// close
+		err = irods_fs.CloseDataObject(conn, handle)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

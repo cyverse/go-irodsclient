@@ -48,7 +48,9 @@ func CreateLocalTestFile(t *testing.T, name string, size int64) (string, error) 
 
 	tempPath := f.Name()
 
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	remaining := size
 	for remaining > 0 {
@@ -59,7 +61,11 @@ func CreateLocalTestFile(t *testing.T, name string, size int64) (string, error) 
 
 		writeLen, err := f.Write(dataBuf[:copyLen])
 		if err != nil {
-			os.Remove(tempPath)
+			removeErr := os.Remove(tempPath)
+			if removeErr != nil {
+				newErr := errors.Join(err, removeErr)
+				return "", errors.Wrapf(newErr, "failed to remove a local test file %q after write error", tempPath)
+			}
 			return "", err
 		}
 

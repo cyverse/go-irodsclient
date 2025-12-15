@@ -35,7 +35,9 @@ func testCreateAndRemoveUser(t *testing.T) {
 
 	conn, err := session.AcquireConnection(true)
 	FailError(t, err)
-	defer session.ReturnConnection(conn)
+	defer func() {
+		_ = session.ReturnConnection(conn)
+	}()
 
 	account, err := server.GetAccount()
 	FailError(t, err)
@@ -78,7 +80,9 @@ func testCreateAndRemoveUser(t *testing.T) {
 
 	err = conn.Connect()
 	FailError(t, err)
-	defer conn.Disconnect()
+	defer func() {
+		_ = conn.Disconnect()
+	}()
 
 	// delete
 	err = fs.RemoveUser(conn, testUsername, account.ClientZone, types.IRODSUserRodsUser)
@@ -97,7 +101,7 @@ func testCreateAndRemoveUser(t *testing.T) {
 
 	err = userConn.Connect()
 	assert.Error(t, err)
-	userConn.Disconnect()
+	_ = userConn.Disconnect()
 }
 
 func testCreateUserWithSpecialCharacterPasswords(t *testing.T) {
@@ -110,7 +114,9 @@ func testCreateUserWithSpecialCharacterPasswords(t *testing.T) {
 
 	conn, err := session.AcquireConnection(true)
 	FailError(t, err)
-	defer session.ReturnConnection(conn)
+	defer func() {
+		_ = session.ReturnConnection(conn)
+	}()
 
 	account, err := server.GetAccount()
 	FailError(t, err)
@@ -163,7 +169,8 @@ func testCreateUserWithSpecialCharacterPasswords(t *testing.T) {
 
 		err = userConn.Connect()
 		FailError(t, err)
-		userConn.Disconnect()
+		err = userConn.Disconnect()
+		FailError(t, err)
 
 		// delete
 		err = fs.RemoveUser(conn, testUsername, account.ClientZone, types.IRODSUserRodsUser)
@@ -189,7 +196,9 @@ func testAddAndRemoveGroupMembers(t *testing.T) {
 
 	conn, err := session.AcquireConnection(true)
 	FailError(t, err)
-	defer session.ReturnConnection(conn)
+	defer func() {
+		_ = session.ReturnConnection(conn)
+	}()
 
 	account, err := server.GetAccount()
 	FailError(t, err)
@@ -319,7 +328,9 @@ func testListUsersByType(t *testing.T) {
 
 	conn, err := session.AcquireConnection(true)
 	FailError(t, err)
-	defer session.ReturnConnection(conn)
+	defer func() {
+		_ = session.ReturnConnection(conn)
+	}()
 
 	account, err := server.GetAccount()
 	FailError(t, err)

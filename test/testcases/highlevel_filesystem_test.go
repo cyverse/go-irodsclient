@@ -108,7 +108,9 @@ func testMakeDirRecurse(t *testing.T) {
 	// get side connection
 	conn, err := filesystem.GetMetadataConnection(true)
 	FailError(t, err)
-	defer filesystem.ReturnMetadataConnection(conn)
+	defer func() {
+		_ = filesystem.ReturnMetadataConnection(conn)
+	}()
 
 	// stat first
 	dirStat, err := filesystem.StatDir(newDir)

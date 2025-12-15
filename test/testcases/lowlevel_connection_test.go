@@ -18,8 +18,8 @@ func getLowlevelConnectionTest() Test {
 
 func lowlevelConnectionTest(t *testing.T, test *Test) {
 	t.Run("Connection", testConnection)
-	//t.Run("InvalidUsername", testInvalidUsername)
-	//t.Run("ManyConnections", testManyConnections)
+	t.Run("InvalidUsername", testInvalidUsername)
+	t.Run("ManyConnections", testManyConnections)
 }
 
 func testConnection(t *testing.T) {
@@ -38,7 +38,9 @@ func testConnection(t *testing.T) {
 
 	err = conn.Connect()
 	FailError(t, err)
-	defer conn.Disconnect()
+	defer func() {
+		_ = conn.Disconnect()
+	}()
 
 	ver := conn.GetVersion()
 	verMajor, _, _ := ver.GetReleaseVersion()
@@ -72,7 +74,9 @@ func testManyConnections(t *testing.T) {
 
 		err = conn.Connect()
 		FailError(t, err)
-		defer conn.Disconnect()
+		defer func() {
+			_ = conn.Disconnect()
+		}()
 
 		ver := conn.GetVersion()
 		verMajor, _, _ := ver.GetReleaseVersion()

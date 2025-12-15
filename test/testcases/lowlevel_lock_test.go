@@ -31,11 +31,15 @@ func testLockDataObject(t *testing.T) {
 
 	conn1, err := session.AcquireConnection(true)
 	FailError(t, err)
-	defer session.ReturnConnection(conn1)
+	defer func() {
+		_ = session.ReturnConnection(conn1)
+	}()
 
 	conn2, err := session.AcquireConnection(true)
 	FailError(t, err)
-	defer session.ReturnConnection(conn2)
+	defer func() {
+		_ = session.ReturnConnection(conn2)
+	}()
 
 	homeDir, err := test.GetTestHomeDir()
 	FailError(t, err)

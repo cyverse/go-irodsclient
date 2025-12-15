@@ -136,7 +136,8 @@ func testUpdateTicket(t *testing.T) {
 
 	// update - expiration time
 	for _, ticket := range tickets {
-		filesystem.ModifyTicketExpirationTime(ticket.Name, time.Now().Add(1*time.Hour))
+		err = filesystem.ModifyTicketExpirationTime(ticket.Name, time.Now().Add(1*time.Hour))
+		FailError(t, err)
 	}
 
 	tickets, err = filesystem.ListTickets()
@@ -149,7 +150,8 @@ func testUpdateTicket(t *testing.T) {
 
 	// clear - expiration time
 	for _, ticket := range tickets {
-		filesystem.ClearTicketExpirationTime(ticket.Name)
+		err = filesystem.ClearTicketExpirationTime(ticket.Name)
+		FailError(t, err)
 	}
 
 	tickets, err = filesystem.ListTickets()
@@ -161,9 +163,12 @@ func testUpdateTicket(t *testing.T) {
 
 	// update - limit
 	for _, ticket := range tickets {
-		filesystem.ModifyTicketUseLimit(ticket.Name, 100)
-		filesystem.ModifyTicketWriteByteLimit(ticket.Name, 101)
-		filesystem.ModifyTicketWriteFileLimit(ticket.Name, 102)
+		err = filesystem.ModifyTicketUseLimit(ticket.Name, 100)
+		FailError(t, err)
+		err = filesystem.ModifyTicketWriteByteLimit(ticket.Name, 101)
+		FailError(t, err)
+		err = filesystem.ModifyTicketWriteFileLimit(ticket.Name, 102)
+		FailError(t, err)
 	}
 
 	tickets, err = filesystem.ListTickets()
@@ -177,9 +182,12 @@ func testUpdateTicket(t *testing.T) {
 
 	// clear - limit
 	for _, ticket := range tickets {
-		filesystem.ClearTicketUseLimit(ticket.Name)
-		filesystem.ClearTicketWriteByteLimit(ticket.Name)
-		filesystem.ClearTicketWriteFileLimit(ticket.Name)
+		err = filesystem.ClearTicketUseLimit(ticket.Name)
+		FailError(t, err)
+		err = filesystem.ClearTicketWriteByteLimit(ticket.Name)
+		FailError(t, err)
+		err = filesystem.ClearTicketWriteFileLimit(ticket.Name)
+		FailError(t, err)
 	}
 
 	tickets, err = filesystem.ListTickets()

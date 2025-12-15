@@ -9,7 +9,7 @@ import (
 )
 
 // Touch create an empty data object or update timestamp for the path
-func Touch(conn *connection.IRODSConnection, path string, resource string, noCreate bool) error {
+func Touch(conn *connection.IRODSConnection, path string, resource string, noCreate bool, replicaNumber *int, referencePath string, secondsSinceEpoch *int) error {
 	if conn == nil || !conn.IsConnected() {
 		return errors.Errorf("connection is nil or disconnected")
 	}
@@ -19,12 +19,34 @@ func Touch(conn *connection.IRODSConnection, path string, resource string, noCre
 	defer conn.Unlock()
 
 	// use default resource when resource param is empty
-	if len(resource) == 0 {
-		account := conn.GetAccount()
-		resource = account.DefaultResource
+	//if len(resource) == 0 {
+	//	account := conn.GetAccount()
+	//	resource = account.DefaultResource
+	//}
+
+	request := message.NewIRODSMessageTouchRequest(path)
+	if noCreate {
+		request.SetNoCreate(noCreate)
 	}
 
-	request := message.NewIRODSMessageTouchRequest(path, noCreate, resource)
+	if replicaNumber != nil {
+		replicaNumberVal := *replicaNumber
+		request.SetReplicaNumber(replicaNumberVal)
+	}
+
+	if replicaNumber != nil && len(resource) > 0 {
+		request.SetLeafResourceName(resource)
+	}
+
+	if len(referencePath) > 0 {
+		request.SetReference(referencePath)
+	}
+
+	if len(referencePath) == 0 && secondsSinceEpoch != nil {
+		secondsSinceEpochVal := *secondsSinceEpoch
+		request.SetSecondsSinceEpoch(secondsSinceEpochVal)
+	}
+
 	response := message.IRODSMessageTouchResponse{}
 	err := conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
 	if err != nil {

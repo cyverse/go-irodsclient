@@ -51,7 +51,10 @@ func (server *IRODSServer) Start() error {
 	logger.Infof("Starting local iRODS server %q", server.serverInfo.Name)
 
 	// disable ryuk
-	os.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true")
+	err := os.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true")
+	if err != nil {
+		return errors.Wrapf(err, "failed to set environment variable TESTCONTAINERS_RYUK_DISABLED")
+	}
 
 	composeFilePath, err := server.serverInfo.GetComposeFilePath()
 	if err != nil {
@@ -124,12 +127,15 @@ func (server *IRODSServer) waitForPortToOpen(timeout time.Duration) error {
 	for {
 		select {
 		case <-timeoutChan:
-			return fmt.Errorf("timeout waiting for port %d to open", server.serverInfo.Port)
+			return errors.Errorf("timeout waiting for port %d to open", server.serverInfo.Port)
 		case <-ticker.C:
 			conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", server.serverInfo.Host, server.serverInfo.Port), 1*time.Second)
 			if err == nil {
 				// connection succeeded, port is open
-				conn.Close()
+				err = conn.Close()
+				if err != nil {
+					return errors.Wrapf(err, "failed to close test connection for port %d", server.serverInfo.Port)
+				}
 				return nil
 			}
 
@@ -147,7 +153,7 @@ func (server *IRODSServer) waitForPortToClose(timeout time.Duration) error {
 	for {
 		select {
 		case <-timeoutChan:
-			return fmt.Errorf("timeout waiting for port %d to close", server.serverInfo.Port)
+			return errors.Errorf("timeout waiting for port %d to close", server.serverInfo.Port)
 		case <-ticker.C:
 			conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", server.serverInfo.Host, server.serverInfo.Port), 1*time.Second)
 			if err != nil {
@@ -155,7 +161,10 @@ func (server *IRODSServer) waitForPortToClose(timeout time.Duration) error {
 				return nil
 			}
 			// connection succeeded, port is still open
-			conn.Close()
+			err = conn.Close()
+			if err != nil {
+				return errors.Wrapf(err, "failed to close test connection for port %d", server.serverInfo.Port)
+			}
 		}
 	}
 }

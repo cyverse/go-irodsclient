@@ -31,7 +31,9 @@ func testProcessStat(t *testing.T) {
 
 	err = conn.Connect()
 	FailError(t, err)
-	defer conn.Disconnect()
+	defer func() {
+		_ = conn.Disconnect()
+	}()
 
 	processes, err := fs.StatProcess(conn, "", "")
 	FailError(t, err)

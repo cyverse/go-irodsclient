@@ -16,23 +16,33 @@ type IRODSMessageTouchRequest struct {
 }
 
 // NewIRODSMessageTouchRequest creates a IRODSMessageTouchRequest message
-func NewIRODSMessageTouchRequest(path string, noCreate bool, resource string) *IRODSMessageTouchRequest {
-	return &IRODSMessageTouchRequest{
+func NewIRODSMessageTouchRequest(path string) *IRODSMessageTouchRequest {
+	request := &IRODSMessageTouchRequest{
 		Path:    path,
 		Options: map[string]interface{}{},
 	}
+
+	return request
+}
+
+func (msg *IRODSMessageTouchRequest) SetNoCreate(noCreate bool) {
+	msg.Options["no_create"] = noCreate
 }
 
 func (msg *IRODSMessageTouchRequest) SetReplicaNumber(replica int) {
 	msg.Options["replica_number"] = replica
 }
 
-func (msg *IRODSMessageTouchRequest) SetSecondsSinceEpoch(seconds int) {
-	msg.Options["seconds_since_epoch"] = seconds
+func (msg *IRODSMessageTouchRequest) SetLeafResourceName(resource string) {
+	msg.Options["leaf_resource_name"] = resource
 }
 
 func (msg *IRODSMessageTouchRequest) SetReference(reference string) {
 	msg.Options["reference"] = reference
+}
+
+func (msg *IRODSMessageTouchRequest) SetSecondsSinceEpoch(seconds int) {
+	msg.Options["seconds_since_epoch"] = seconds
 }
 
 // GetBytes returns byte array
