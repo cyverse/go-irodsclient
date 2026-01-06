@@ -241,9 +241,6 @@ func UploadDataObject(sess *session.IRODSSession, localPath string, irodsPath st
 			}
 
 			totalBytesUploaded += int64(bytesRead)
-			if transferCallback != nil {
-				transferCallback("upload", totalBytesUploaded, fileLength)
-			}
 		}
 
 		if readErr != nil {
@@ -344,9 +341,6 @@ func UploadDataObjectWithConnection(conn *connection.IRODSConnection, localPath 
 			}
 
 			totalBytesUploaded += int64(bytesRead)
-			if transferCallback != nil {
-				transferCallback("upload", totalBytesUploaded, fileLength)
-			}
 		}
 
 		if readErr != nil {
@@ -884,9 +878,6 @@ func DownloadDataObjectToBuffer(sess *session.IRODSSession, dataObject *types.IR
 			}
 
 			atomic.AddInt64(&totalBytesDownloaded, int64(bytesRead))
-			if transferCallback != nil {
-				transferCallback("download", atomic.LoadInt64(&totalBytesDownloaded), dataObject.Size)
-			}
 		}
 
 		if readErr != nil {
@@ -950,9 +941,6 @@ func DownloadDataObjectToBufferWithConnection(conn *connection.IRODSConnection, 
 			}
 
 			atomic.AddInt64(&totalBytesDownloaded, int64(bytesRead))
-			if transferCallback != nil {
-				transferCallback("download", atomic.LoadInt64(&totalBytesDownloaded), dataObject.Size)
-			}
 		}
 
 		if readErr != nil {
@@ -1179,10 +1167,6 @@ func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IR
 					atomic.AddInt64(&bytesDownloaded[taskID], int64(bytesRead))
 
 					calcProgress()
-
-					if transferCallback != nil {
-						transferCallback("download", atomic.LoadInt64(&totalBytesDownloaded), dataObject.Size)
-					}
 
 					taskRemain -= int64(bytesRead)
 					lastOffset += int64(bytesRead)
@@ -1422,10 +1406,6 @@ func DownloadDataObjectParallelWithConnections(conns []*connection.IRODSConnecti
 					atomic.AddInt64(&bytesDownloaded[taskID], int64(bytesRead))
 
 					calcProgress()
-
-					if transferCallback != nil {
-						transferCallback("download", atomic.LoadInt64(&totalBytesDownloaded), dataObject.Size)
-					}
 
 					taskRemain -= int64(bytesRead)
 					lastOffset += int64(bytesRead)
@@ -1725,10 +1705,6 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 					}
 					transferStatusLocal.WriteStatus(transferStatusEntry) //nolint
 
-					if transferCallback != nil {
-						transferCallback("download", atomic.LoadInt64(&totalBytesDownloaded), dataObject.Size)
-					}
-
 					taskRemain -= int64(bytesRead)
 					lastOffset += int64(bytesRead)
 				}
@@ -2016,10 +1992,6 @@ func DownloadDataObjectParallelResumableWithConnections(conns []*connection.IROD
 						CompletedLength: (taskLength - taskRemain) + int64(bytesRead),
 					}
 					transferStatusLocal.WriteStatus(transferStatusEntry) //nolint
-
-					if transferCallback != nil {
-						transferCallback("download", atomic.LoadInt64(&totalBytesDownloaded), dataObject.Size)
-					}
 
 					taskRemain -= int64(bytesRead)
 					lastOffset += int64(bytesRead)
