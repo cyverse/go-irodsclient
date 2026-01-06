@@ -28,10 +28,23 @@ func main() {
 	inputPath := args[0]
 
 	// Read account configuration from YAML file
-	cfg, err := config.NewConfigFromYAMLFile(config.GetDefaultConfig(), "account.yml")
-	if err != nil {
-		logger.Error(err)
-		panic(err)
+	cfg := config.GetDefaultConfig()
+
+	stat, err := os.Stat("account.yml")
+	if err == nil && !stat.IsDir() {
+		filecfg, err := config.NewConfigFromYAMLFile(cfg, "account.yml")
+		if err != nil {
+			logger.Error(err)
+			panic(err)
+		}
+
+		cfg = filecfg
+	}
+
+	// Read account configuration from ENV file
+	envcfg, err := config.NewConfigFromEnv(cfg)
+	if err == nil {
+		cfg = envcfg
 	}
 
 	account := cfg.ToIRODSAccount()
@@ -47,13 +60,13 @@ func main() {
 
 	defer filesystem.Release()
 
-	stat, err := filesystem.Stat(inputPath)
+	entry, err := filesystem.Stat(inputPath)
 	if err != nil {
 		logger.Error(err)
 		panic(err)
 	}
 
-	if stat.Type == fs.DirectoryEntry {
+	if entry.Type == fs.DirectoryEntry {
 		inherit, err := filesystem.GetDirACLInheritance(inputPath)
 		if err != nil {
 			logger.Error(err)

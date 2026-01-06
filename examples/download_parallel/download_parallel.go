@@ -30,10 +30,23 @@ func main() {
 	destPath := args[1]
 
 	// Read account configuration from YAML file
-	cfg, err := config.NewConfigFromYAMLFile(config.GetDefaultConfig(), "account.yml")
-	if err != nil {
-		logger.Error(err)
-		panic(err)
+	cfg := config.GetDefaultConfig()
+
+	stat, err := os.Stat("account.yml")
+	if err == nil && !stat.IsDir() {
+		filecfg, err := config.NewConfigFromYAMLFile(cfg, "account.yml")
+		if err != nil {
+			logger.Error(err)
+			panic(err)
+		}
+
+		cfg = filecfg
+	}
+
+	// Read account configuration from ENV file
+	envcfg, err := config.NewConfigFromEnv(cfg)
+	if err == nil {
+		cfg = envcfg
 	}
 
 	account := cfg.ToIRODSAccount()
