@@ -11,7 +11,7 @@ import (
 const (
 	ApplicationNameDefault string        = "go-irodsclient"
 	ConnectTimeoutDefault  time.Duration = 30 * time.Second // 30 seconds
-	TcpBufferSizeDefault   int           = 4 * 1024 * 1024
+	TcpBufferSizeDefault   int           = 0                // use system default
 
 	OperationTimeoutDefault     time.Duration = 1 * time.Minute
 	LongOperationTimeoutDefault time.Duration = 5 * time.Minute
@@ -52,7 +52,7 @@ func (connConfig *IRODSConnectionConfig) fillDefaults() {
 	}
 
 	if connConfig.TcpBufferSize < 0 {
-		connConfig.TcpBufferSize = TcpBufferSizeDefault
+		connConfig.TcpBufferSize = 0
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/connection"
+	"github.com/cyverse/go-irodsclient/irods/system"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/rs/xid"
 
@@ -51,6 +52,18 @@ func NewConnectionPool(account *types.IRODSAccount, config *ConnectionPoolConfig
 	err = config.Validate()
 	if err != nil {
 		return nil, err
+	}
+
+	// get default tcp buffer size
+	if config.TcpBufferSize <= 0 {
+		suggestedBufferSize, setBuffer, err := system.GetTCPBufferSize()
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get system suggested buffer size")
+		}
+
+		if setBuffer {
+			config.TcpBufferSize = suggestedBufferSize
+		}
 	}
 
 	pool := &ConnectionPool{

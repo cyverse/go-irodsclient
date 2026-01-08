@@ -480,7 +480,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 
 	var dataBuffer []byte
 	var encryptedDataBuffer []byte
-	dataBufferSize := sess.GetConfig().TcpBufferSize
+	dataBufferSize := common.ReadWriteBufferSize
 
 	timeout := controlConn.GetOperationTimeout()
 

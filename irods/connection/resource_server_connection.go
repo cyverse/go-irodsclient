@@ -165,6 +165,8 @@ func (conn *IRODSResourceServerConnection) setSocketOpt(socket net.Conn, bufferS
 
 		// TCP buffer size
 		if bufferSize > 0 {
+			logger.Infof("setting tcp buffer size to %d", bufferSize)
+
 			sockErr := tcpSocket.SetReadBuffer(bufferSize)
 			if sockErr != nil {
 				sockBuffErr := errors.Wrapf(sockErr, "failed to set tcp read buffer size %d", bufferSize)
