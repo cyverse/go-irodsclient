@@ -110,8 +110,8 @@ func (server *IRODSServer) Stop() error {
 			return err
 		}
 
-		// give another 5 sec to cleanup
-		time.Sleep(5 * time.Second)
+		// give another 30 sec to cleanup
+		time.Sleep(30 * time.Second)
 
 		logger.Infof("Stopped local iRODS server %q", server.serverInfo.Name)
 	}

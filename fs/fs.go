@@ -307,11 +307,12 @@ func (fs *FileSystem) List(irodsPath string) ([]*Entry, error) {
 }
 
 func (fs *FileSystem) SearchUnixWildcard(pathUnixWildcard string) ([]*Entry, error) {
-	conn, err := fs.metadataSession.AcquireConnection(true)
+	// we use ioSession to acquire connection as it make take a long time
+	conn, err := fs.ioSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
-	defer fs.metadataSession.ReturnConnection(conn) //nolint
+	defer fs.ioSession.ReturnConnection(conn) //nolint
 
 	results := []*Entry{}
 
@@ -337,11 +338,12 @@ func (fs *FileSystem) SearchUnixWildcard(pathUnixWildcard string) ([]*Entry, err
 }
 
 func (fs *FileSystem) SearchDirUnixWildcard(pathUnixWildcard string) ([]*Entry, error) {
-	conn, err := fs.metadataSession.AcquireConnection(true)
+	// we use ioSession to acquire connection as it make take a long time
+	conn, err := fs.ioSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
-	defer fs.metadataSession.ReturnConnection(conn) //nolint
+	defer fs.ioSession.ReturnConnection(conn) //nolint
 
 	results := []*Entry{}
 
@@ -358,11 +360,12 @@ func (fs *FileSystem) SearchDirUnixWildcard(pathUnixWildcard string) ([]*Entry, 
 }
 
 func (fs *FileSystem) SearchFileUnixWildcard(pathUnixWildcard string) ([]*Entry, error) {
-	conn, err := fs.metadataSession.AcquireConnection(true)
+	// we use ioSession to acquire connection as it make take a long time
+	conn, err := fs.ioSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
 	}
-	defer fs.metadataSession.ReturnConnection(conn) //nolint
+	defer fs.ioSession.ReturnConnection(conn) //nolint
 
 	results := []*Entry{}
 
@@ -382,11 +385,12 @@ func (fs *FileSystem) SearchFileUnixWildcard(pathUnixWildcard string) ([]*Entry,
 func (fs *FileSystem) RemoveDir(irodsPath string, recurse bool, force bool) error {
 	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
-	conn, err := fs.metadataSession.AcquireConnection(true)
+	// we use ioSession to acquire connection as it make take a long time
+	conn, err := fs.ioSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn) //nolint
+	defer fs.ioSession.ReturnConnection(conn) //nolint
 
 	err = irods_fs.DeleteCollection(conn, irodsCorrectPath, recurse, force)
 	if err != nil {
@@ -406,11 +410,12 @@ func (fs *FileSystem) RemoveDir(irodsPath string, recurse bool, force bool) erro
 func (fs *FileSystem) RemoveFile(irodsPath string, force bool) error {
 	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
-	conn, err := fs.metadataSession.AcquireConnection(true)
+	// we use ioSession to acquire connection as it make take a long time
+	conn, err := fs.ioSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn) //nolint
+	defer fs.ioSession.ReturnConnection(conn) //nolint
 
 	// if file handle is opened, wg
 	wg := util.NewTimeoutWaitGroup()
@@ -464,11 +469,12 @@ func (fs *FileSystem) RenameDirToDir(srcPath string, destPath string) error {
 	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
 	irodsDestPath := util.GetCorrectIRODSPath(destPath)
 
-	conn, err := fs.metadataSession.AcquireConnection(true)
+	// we use ioSession to acquire connection as it make take a long time
+	conn, err := fs.ioSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn) //nolint
+	defer fs.ioSession.ReturnConnection(conn) //nolint
 
 	// preprocess
 	handles, err := fs.preprocessRenameFileHandleForDir(irodsSrcPath)
@@ -514,11 +520,12 @@ func (fs *FileSystem) RenameFileToFile(srcPath string, destPath string) error {
 	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
 	irodsDestPath := util.GetCorrectIRODSPath(destPath)
 
-	conn, err := fs.metadataSession.AcquireConnection(true)
+	// we use ioSession to acquire connection as it make take a long time
+	conn, err := fs.ioSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn) //nolint
+	defer fs.ioSession.ReturnConnection(conn) //nolint
 
 	// preprocess
 	handles, err := fs.preprocessRenameFileHandle(irodsSrcPath)
@@ -666,11 +673,12 @@ func (fs *FileSystem) postprocessRenameFileHandleForDir(handles []*FileHandle, c
 func (fs *FileSystem) MakeDir(irodsPath string, recurse bool) error {
 	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
-	conn, err := fs.metadataSession.AcquireConnection(true)
+	// we use ioSession to acquire connection as it make take a long time
+	conn, err := fs.ioSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn) //nolint
+	defer fs.ioSession.ReturnConnection(conn) //nolint
 
 	dirEntry, err := fs.StatDir(irodsPath)
 	if err == nil {
@@ -714,11 +722,12 @@ func (fs *FileSystem) CopyFileToFile(srcPath string, destPath string, force bool
 	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
 	irodsDestPath := util.GetCorrectIRODSPath(destPath)
 
-	conn, err := fs.metadataSession.AcquireConnection(true)
+	// we use ioSession to acquire connection as it make take a long time
+	conn, err := fs.ioSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn) //nolint
+	defer fs.ioSession.ReturnConnection(conn) //nolint
 
 	err = irods_fs.CopyDataObject(conn, irodsSrcPath, irodsDestPath, force)
 	if err != nil {
@@ -738,11 +747,12 @@ func (fs *FileSystem) TruncateFile(irodsPath string, size int64) error {
 		size = 0
 	}
 
-	conn, err := fs.metadataSession.AcquireConnection(true)
+	// we use ioSession to acquire connection as it make take a long time
+	conn, err := fs.ioSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn) //nolint
+	defer fs.ioSession.ReturnConnection(conn) //nolint
 
 	err = irods_fs.TruncateDataObject(conn, irodsCorrectPath, size)
 	if err != nil {
@@ -758,11 +768,12 @@ func (fs *FileSystem) TruncateFile(irodsPath string, size int64) error {
 func (fs *FileSystem) ReplicateFile(irodsPath string, resource string, update bool) error {
 	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
-	conn, err := fs.metadataSession.AcquireConnection(true)
+	// we use ioSession to acquire connection as it make take a long time
+	conn, err := fs.ioSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn) //nolint
+	defer fs.ioSession.ReturnConnection(conn) //nolint
 
 	err = irods_fs.ReplicateDataObject(conn, irodsCorrectPath, resource, update, false)
 	if err != nil {

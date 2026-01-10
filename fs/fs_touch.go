@@ -10,13 +10,14 @@ import (
 
 // Touch creates an empty file or update timestamp
 func (fs *FileSystem) Touch(irodsPath string, resource string, noCreate bool, replicaNumber *int, referencePath string, secondsSinceEpoch *int) error {
+	// we use ioSession to acquire connection as it make take a long time
 	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
 
-	conn, err := fs.metadataSession.AcquireConnection(true)
+	conn, err := fs.ioSession.AcquireConnection(true)
 	if err != nil {
 		return err
 	}
-	defer fs.metadataSession.ReturnConnection(conn) //nolint
+	defer fs.ioSession.ReturnConnection(conn) //nolint
 
 	entry, err := fs.Stat(irodsCorrectPath)
 	if err != nil {
