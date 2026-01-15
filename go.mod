@@ -20,6 +20,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go/modules/compose v0.40.0
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb
+	golang.org/x/sys v0.37.0
 	golang.org/x/term v0.36.0
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -197,7 +198,6 @@ require (
 	golang.org/x/net v0.45.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/sync v0.17.0 // indirect
-	golang.org/x/sys v0.37.0 // indirect
 	golang.org/x/text v0.30.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250528174236-200df99c418a // indirect

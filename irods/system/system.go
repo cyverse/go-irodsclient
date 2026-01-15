@@ -1,5 +1,7 @@
 package system
 
+import "github.com/cockroachdb/errors"
+
 const (
 	// user data chunk size for network transfer (4MB)
 	chunkSize = 4 * 1024 * 1024
@@ -24,7 +26,7 @@ func GetNetworkConfig() (*NetConfig, error) {
 func GetTCPBufferSize() (int, bool, error) {
 	netConfig, err := getNetworkConfig()
 	if err != nil {
-		return 0, false, err
+		return 0, false, errors.Wrapf(err, "failed to get system suggested buffer size")
 	}
 
 	if netConfig.CoreWmemMax <= 0 && netConfig.TcpWmemMax <= 0 {

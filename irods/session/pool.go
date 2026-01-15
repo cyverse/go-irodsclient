@@ -32,6 +32,19 @@ type ConnectionPool struct {
 
 // NewConnectionPool creates a new ConnectionPool
 func NewConnectionPool(account *types.IRODSAccount, config *ConnectionPoolConfig) (*ConnectionPool, error) {
+	logger := log.WithFields(log.Fields{
+		"application_name":       config.ApplicationName,
+		"initial_cap":            config.InitialCap,
+		"max_idle":               config.MaxIdle,
+		"max_cap":                config.MaxCap,
+		"lifespan":               config.Lifespan,
+		"idle_timeout":           config.IdleTimeout,
+		"connect_timeout":        config.ConnectTimeout,
+		"operation_timeout":      config.OperationTimeout,
+		"long_operation_timeout": config.LongOperationTimeout,
+		"tcp_buffer_size":        config.TcpBufferSize,
+	})
+
 	if account == nil {
 		newErr := types.NewConnectionConfigError(nil)
 		return nil, errors.Wrapf(newErr, "account is not set")
@@ -51,6 +64,7 @@ func NewConnectionPool(account *types.IRODSAccount, config *ConnectionPoolConfig
 	config.fillDefaults()
 	err = config.Validate()
 	if err != nil {
+		logger.Error(err)
 		return nil, err
 	}
 
@@ -58,11 +72,12 @@ func NewConnectionPool(account *types.IRODSAccount, config *ConnectionPoolConfig
 	if config.TcpBufferSize <= 0 {
 		suggestedBufferSize, setBuffer, err := system.GetTCPBufferSize()
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get system suggested buffer size")
-		}
-
-		if setBuffer {
-			config.TcpBufferSize = suggestedBufferSize
+			logger.WithError(err).Infof("failed to get system suggested buffer size. Use default.")
+			// use default buffer size
+		} else {
+			if setBuffer && suggestedBufferSize > 0 {
+				config.TcpBufferSize = suggestedBufferSize
+			}
 		}
 	}
 
