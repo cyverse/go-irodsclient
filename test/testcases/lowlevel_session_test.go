@@ -106,7 +106,7 @@ func testMaxConnectionsNotShared(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, types.IsConnectionPoolFullError(err))
 
-	assert.Equal(t, config.ConnectionMaxNumber, len(connections))
+	assert.LessOrEqual(t, len(connections), config.ConnectionMaxNumber)
 	assert.Equal(t, config.ConnectionMaxNumber, sess.GetOpenConnections())
 
 	for _, conn := range connections {

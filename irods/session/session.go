@@ -240,8 +240,8 @@ func (sess *IRODSSession) endTransaction(conn *connection.IRODSConnection) error
 	return errors.Errorf("failed to commit/rollback transaction")
 }
 
-func (sess *IRODSSession) createConnectionFromPool(new bool, wait bool) (*connection.IRODSConnection, error) {
-	conn, _, err := sess.connectionPool.Get(new, wait)
+func (sess *IRODSSession) createConnectionFromPool(new bool, noConnect bool, wait bool) (*connection.IRODSConnection, error) {
+	conn, _, err := sess.connectionPool.Get(new, noConnect, wait)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +249,7 @@ func (sess *IRODSSession) createConnectionFromPool(new bool, wait bool) (*connec
 	return conn, nil
 }
 
-func (sess *IRODSSession) acquireConnection(new bool, allowShared bool, wait bool) (*connection.IRODSConnection, error) {
+func (sess *IRODSSession) acquireConnection(new bool, allowShared bool, noConnect bool, wait bool) (*connection.IRODSConnection, error) {
 	logger := log.WithFields(log.Fields{
 		"new":          new,
 		"allow_shared": allowShared,
@@ -261,7 +261,7 @@ func (sess *IRODSSession) acquireConnection(new bool, allowShared bool, wait boo
 	}
 
 	// try to get it from the pool
-	conn, err := sess.createConnectionFromPool(new, wait)
+	conn, err := sess.createConnectionFromPool(new, noConnect, wait)
 	if err != nil {
 		if !types.IsConnectionPoolFullError(err) {
 			// fail
@@ -287,8 +287,11 @@ func (sess *IRODSSession) acquireConnection(new bool, allowShared bool, wait boo
 		}
 
 		if !sess.supportParallelUploadSet {
-			sess.supportParallelUpload = conn.SupportParallelUpload()
-			sess.supportParallelUploadSet = true
+			if conn.IsConnected() {
+				// check parallel upload
+				sess.supportParallelUpload = conn.SupportParallelUpload()
+				sess.supportParallelUploadSet = true
+			}
 		}
 
 		return conn, nil
@@ -333,7 +336,7 @@ func (sess *IRODSSession) AcquireConnection(allowShared bool) (*connection.IRODS
 		return nil, errors.Wrapf(pendingErr, "failed to get a connection from the pool because pending error is found")
 	}
 
-	conn, err := sess.acquireConnection(false, allowShared, sess.config.WaitConnection)
+	conn, err := sess.acquireConnection(false, allowShared, false, sess.config.WaitConnection)
 	if err != nil {
 		return nil, err
 	}
@@ -352,7 +355,7 @@ func (sess *IRODSSession) AcquireNewConnection(allowShared bool) (*connection.IR
 		return nil, errors.Wrapf(pendingErr, "failed to get a connection from the pool because pending error is found")
 	}
 
-	conn, err := sess.acquireConnection(true, allowShared, sess.config.WaitConnection)
+	conn, err := sess.acquireConnection(true, allowShared, false, sess.config.WaitConnection)
 	if err != nil {
 		return nil, err
 	}
@@ -382,19 +385,60 @@ func (sess *IRODSSession) AcquireConnectionsMulti(number int, allowShared bool) 
 
 	connections := []*connection.IRODSConnection{}
 	for i := 0; i < requestedNum; i++ {
-		conn, err := sess.acquireConnection(false, allowShared, sess.config.WaitConnection)
+		// this does not return connection fully connected
+		conn, err := sess.acquireConnection(false, allowShared, true, false)
 		if err != nil {
 			// return current connections
+			if types.IsConnectionPoolFullError(err) {
+				poolFull = true
+				break
+			}
+
 			return connections, err
 		}
 
 		connections = append(connections, conn)
 	}
 
-	if poolFull {
-		return connections, types.NewConnectionPoolFullError(number, maxConns)
+	newConnections := []*connection.IRODSConnection{}
+	var connError error
+	wait := sync.WaitGroup{}
+	for _, conn := range connections {
+		if !conn.IsConnected() {
+			// new connection that needs to connect
+			wait.Add(1)
+
+			go func() {
+				defer wait.Done()
+
+				err := conn.Connect()
+				if err != nil {
+					connError = errors.Wrapf(err, "failed to connect to iRODS server")
+
+					// discard
+					sess.connectionPool.Discard(conn)
+					return
+				}
+
+				newConnections = append(newConnections, conn)
+			}()
+		} else {
+			newConnections = append(newConnections, conn)
+		}
 	}
-	return connections, nil
+
+	wait.Wait()
+
+	var fullErr error
+	if poolFull {
+		fullErr = types.NewConnectionPoolFullError(number, maxConns)
+	}
+
+	if connError != nil {
+		return newConnections, errors.Join(connError, fullErr)
+	}
+
+	return newConnections, fullErr
 }
 
 func (sess *IRODSSession) returnConnection(conn *connection.IRODSConnection) error {
@@ -523,7 +567,7 @@ func (sess *IRODSSession) SupportParallelUpload() bool {
 	}
 
 	if !sess.supportParallelUploadSet {
-		conn, _, err := sess.connectionPool.Get(false, true)
+		conn, _, err := sess.connectionPool.Get(false, false, true)
 		if err != nil {
 			if !types.IsConnectionPoolFullError(err) {
 				sess.lastConnectionError = err

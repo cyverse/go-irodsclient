@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/cyverse/go-irodsclient/irods/connection"
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -29,12 +28,8 @@ func testConnection(t *testing.T) {
 	account, err := server.GetAccount()
 	FailError(t, err)
 
-	t.Logf("account info: %+v", account)
-
 	conn, err := connection.NewIRODSConnection(account, server.GetConnectionConfig())
 	FailError(t, err)
-
-	t.Logf("Log level set to %q", log.GetLevel().String())
 
 	err = conn.Connect()
 	FailError(t, err)

@@ -264,7 +264,7 @@ func (pool *ConnectionPool) init() error {
 	return nil
 }
 
-func (pool *ConnectionPool) get(new bool) (*connection.IRODSConnection, bool, error) {
+func (pool *ConnectionPool) get(new bool, noConnect bool) (*connection.IRODSConnection, bool, error) {
 	logger := log.WithFields(log.Fields{
 		"new": new,
 	})
@@ -336,24 +336,26 @@ func (pool *ConnectionPool) get(new bool) (*connection.IRODSConnection, bool, er
 		return nil, false, errors.Wrapf(err, "failed to connect to irods server")
 	}
 
-	err = newConn.Connect()
-	if err != nil {
-		if pool.config.Metrics != nil {
-			pool.config.Metrics.IncreaseCounterForConnectionPoolFailures(1)
-		}
-
-		if types.IsConnectionError(err) {
-			// rejected?
-			pool.maxConnectionsReal = len(pool.occupiedConnections) + pool.idleConnections.Len()
-
-			pool.callCallbacks()
-			if pool.maxConnectionsReal > 0 {
-				logger.Debugf("adjusted max connections: %d", pool.maxConnectionsReal)
-				return nil, false, types.NewConnectionPoolFullError(len(pool.occupiedConnections), maxConn)
+	if !noConnect {
+		err = newConn.Connect()
+		if err != nil {
+			if pool.config.Metrics != nil {
+				pool.config.Metrics.IncreaseCounterForConnectionPoolFailures(1)
 			}
-		}
 
-		return nil, false, errors.Wrapf(err, "failed to connect to irods server")
+			if types.IsConnectionError(err) {
+				// rejected?
+				pool.maxConnectionsReal = len(pool.occupiedConnections) + pool.idleConnections.Len()
+
+				pool.callCallbacks()
+				if pool.maxConnectionsReal > 0 {
+					logger.Debugf("adjusted max connections: %d", pool.maxConnectionsReal)
+					return nil, false, types.NewConnectionPoolFullError(len(pool.occupiedConnections), maxConn)
+				}
+			}
+
+			return nil, false, errors.Wrapf(err, "failed to connect to irods server")
+		}
 	}
 
 	pool.occupiedConnections[newConn] = true
@@ -370,12 +372,12 @@ func (pool *ConnectionPool) get(new bool) (*connection.IRODSConnection, bool, er
 
 // Get gets a new or an idle connection out of the pool
 // the boolean return value indicates if the returned connection is new (True) or existing idle (False)
-func (pool *ConnectionPool) Get(new bool, wait bool) (*connection.IRODSConnection, bool, error) {
+func (pool *ConnectionPool) Get(new bool, noConnect bool, wait bool) (*connection.IRODSConnection, bool, error) {
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
 
 	for {
-		conn, newConn, err := pool.get(new)
+		conn, newConn, err := pool.get(new, noConnect)
 		if err != nil && types.IsConnectionPoolFullError(err) && wait {
 			// if the pool is full and wait is true, wait for a while
 			pool.waitCond.Wait()

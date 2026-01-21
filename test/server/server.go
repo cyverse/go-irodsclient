@@ -110,8 +110,8 @@ func (server *IRODSServer) Stop() error {
 			return err
 		}
 
-		// give another 30 sec to cleanup
-		time.Sleep(30 * time.Second)
+		// give another 10 sec to cleanup
+		time.Sleep(10 * time.Second)
 
 		logger.Infof("Stopped local iRODS server %q", server.serverInfo.Name)
 	}
@@ -136,7 +136,32 @@ func (server *IRODSServer) waitForPortToOpen(timeout time.Duration) error {
 				if err != nil {
 					return errors.Wrapf(err, "failed to close test connection for port %d", server.serverInfo.Port)
 				}
-				return nil
+
+				// try irods connection
+				acc, err := server.GetAccount()
+				if err != nil {
+					return errors.Wrapf(err, "failed to get irods account")
+				}
+
+				connConf := &connection.IRODSConnectionConfig{
+					ConnectTimeout:       10 * time.Second,
+					OperationTimeout:     30 * time.Second,
+					LongOperationTimeout: 60 * time.Second,
+					ApplicationName:      server.GetApplicationName(),
+				}
+
+				newConn, err := connection.NewIRODSConnection(acc, connConf)
+				if err != nil {
+					return errors.Wrapf(err, "failed to create irods connection")
+				}
+
+				err = newConn.Connect()
+				if err == nil {
+					newConn.Disconnect()
+					return nil
+				}
+
+				// connection failed, continue waiting
 			}
 
 			// connection failed = port is not open yet
