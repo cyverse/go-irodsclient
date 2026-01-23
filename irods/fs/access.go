@@ -134,7 +134,9 @@ func ListCollectionAccesses(conn *connection.IRODSConnection, path string) ([]*t
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
-		query := message.NewIRODSMessageQuerySpecificRequest("ShowCollAcls", []string{path}, common.MaxQueryRows, continueIndex, 0, 0)
+		sql := "select distinct R_USER_MAIN.user_name, R_USER_MAIN.zone_name, R_TOKN_MAIN.token_name, R_USER_MAIN.user_type_name from R_USER_MAIN, R_TOKN_MAIN, R_OBJT_ACCESS, R_COLL_MAIN where R_OBJT_ACCESS.object_id = R_COLL_MAIN.coll_id AND R_COLL_MAIN.coll_name = ? AND R_TOKN_MAIN.token_namespace = 'access_type' AND R_USER_MAIN.user_id = R_OBJT_ACCESS.user_id AND R_OBJT_ACCESS.access_type_id = R_TOKN_MAIN.token_id"
+
+		query := message.NewIRODSMessageQuerySpecificRequest(sql, []string{path}, common.MaxQueryRows, continueIndex, 0, 0)
 		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
 
 		queryResult := message.IRODSMessageQueryResponse{}
@@ -466,15 +468,23 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, collPath st
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
-		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
-		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
-		query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
-		query.AddSelect(common.ICAT_COLUMN_COLL_ACCESS_NAME, 1)
-		query.AddSelect(common.ICAT_COLUMN_USER_NAME, 1)
-		query.AddSelect(common.ICAT_COLUMN_USER_ZONE, 1)
-		query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
+		sql := "select disctinct R_COLL_MAIN.coll_name, R_TOKN_MAIN.token_name, R_USER_MAIN.user_name, R_USER_MAIN.zone_name, R_USER_MAIN.user_type_name from R_COLL_MAIN, R_TOKN_MAIN, R_USER_MAIN, R_OBJT_ACCESS where R_COLL_MAIN.parent_coll_name = ? AND R_USER_MAIN.user_id = R_OBJT_ACCESS.user_id AND R_OBJT_ACCESS.access_type_id = R_TOKN_MAIN.token_id AND R_COLL_MAIN.coll_id = R_OBJT_ACCESS.object_id order by R_COLL_MAIN.coll_name"
 
-		query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_PARENT_NAME, collPath)
+		query := message.NewIRODSMessageQuerySpecificRequest(sql, []string{collPath}, common.MaxQueryRows, continueIndex, 0, 0)
+		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
+
+		/*
+			// this has a bug - it omits collections without data objects in them
+			query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
+			query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
+			query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
+			query.AddSelect(common.ICAT_COLUMN_COLL_ACCESS_NAME, 1)
+			query.AddSelect(common.ICAT_COLUMN_USER_NAME, 1)
+			query.AddSelect(common.ICAT_COLUMN_USER_ZONE, 1)
+			query.AddSelect(common.ICAT_COLUMN_USER_TYPE, 1)
+
+			query.AddEqualStringCondition(common.ICAT_COLUMN_COLL_PARENT_NAME, collPath)
+		*/
 
 		queryResult := message.IRODSMessageQueryResponse{}
 		err := conn.Request(query, &queryResult, nil, conn.GetLongResponseOperationTimeout())
