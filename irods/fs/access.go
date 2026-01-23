@@ -447,7 +447,29 @@ func ListDataObjectAccessesWithoutCollection(conn *connection.IRODSConnection, d
 }
 
 // ListAccessesForSubCollections returns collection accesses for subcollections in the given path
+// instead of using ListAccessesForSubCollectionsOld which has a bug that omits collections without data objects
+// loop over all subcollections and call ListCollectionAccesses for each collection
 func ListAccessesForSubCollections(conn *connection.IRODSConnection, collPath string) ([]*types.IRODSAccess, error) {
+	collections, err := ListSubCollections(conn, collPath)
+	if err != nil {
+		return nil, err
+	}
+
+	accesses := []*types.IRODSAccess{}
+	for _, coll := range collections {
+		collAccesses, err := ListCollectionAccesses(conn, coll.Path)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get access for collection %q", coll.Path)
+		}
+
+		accesses = append(accesses, collAccesses...)
+	}
+
+	return accesses, nil
+}
+
+/*
+func ListAccessesForSubCollectionsOld(conn *connection.IRODSConnection, collPath string) ([]*types.IRODSAccess, error) {
 	if conn == nil || !conn.IsConnected() {
 		return nil, errors.Errorf("connection is nil or disconnected")
 	}
@@ -466,6 +488,7 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, collPath st
 	continueQuery := true
 	continueIndex := 0
 	for continueQuery {
+		// this omits collections without data objects in them due to a bug
 		query := message.NewIRODSMessageQueryRequest(common.MaxQueryRows, continueIndex, 0, 0)
 		query.AddKeyVal(common.ZONE_KW, conn.GetAccount().ClientZone)
 		query.AddSelect(common.ICAT_COLUMN_COLL_NAME, 1)
@@ -560,6 +583,7 @@ func ListAccessesForSubCollections(conn *connection.IRODSConnection, collPath st
 
 	return accesses, nil
 }
+*/
 
 // ListAccessesForDataObjectsInCollection returns data object accesses for data objects in the given path
 func ListAccessesForDataObjectsInCollection(conn *connection.IRODSConnection, collPath string) ([]*types.IRODSAccess, error) {
