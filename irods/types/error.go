@@ -1,9 +1,9 @@
 package types
 
 import (
-	"errors"
 	"fmt"
 
+	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/common"
 )
 
@@ -45,7 +45,8 @@ func (err *ConnectionConfigError) ToString() string {
 
 // IsConnectionConfigError evaluates if the given error is connection config error
 func IsConnectionConfigError(err error) bool {
-	return errors.Is(err, &ConnectionConfigError{})
+	var connectionConfigErr *ConnectionConfigError
+	return errors.As(err, &connectionConfigErr)
 }
 
 // ResourceServerConnectionConfigError contains resource server connection config error information
@@ -86,7 +87,8 @@ func (err *ResourceServerConnectionConfigError) ToString() string {
 
 // IsResourceServerConnectionConfigError evaluates if the given error is resource server connection config error
 func IsResourceServerConnectionConfigError(err error) bool {
-	return errors.Is(err, &ResourceServerConnectionConfigError{})
+	var resourceServerConnectionConfigErr *ResourceServerConnectionConfigError
+	return errors.As(err, &resourceServerConnectionConfigErr)
 }
 
 // ConnectionError contains connection error information
@@ -116,7 +118,8 @@ func (err *ConnectionError) ToString() string {
 
 // IsConnectionError evaluates if the given error is connection error
 func IsConnectionError(err error) bool {
-	return errors.Is(err, &ConnectionError{})
+	var connectionErr *ConnectionError
+	return errors.As(err, &connectionErr)
 }
 
 // AuthError contains auth error information
@@ -157,7 +160,8 @@ func (err *AuthError) ToString() string {
 
 // IsAuthError evaluates if the given error is authentication failure
 func IsAuthError(err error) bool {
-	return errors.Is(err, &AuthError{})
+	var authErr *AuthError
+	return errors.As(err, &authErr)
 }
 
 // AuthOperationNotFoundError contains auth operation not found error information
@@ -190,7 +194,8 @@ func (err *AuthOperationNotFoundError) ToString() string {
 
 // IsAuthOperationNotFoundError evaluates if the given error is auth operation not found error
 func IsAuthOperationNotFoundError(err error) bool {
-	return errors.Is(err, &AuthOperationNotFoundError{})
+	var authOperationNotFoundErr *AuthOperationNotFoundError
+	return errors.As(err, &authOperationNotFoundErr)
 }
 
 // AuthFlowError contains auth flow error information
@@ -223,7 +228,8 @@ func (err *AuthFlowError) ToString() string {
 
 // IsAuthFlowError evaluates if the given error is auth flow error
 func IsAuthFlowError(err error) bool {
-	return errors.Is(err, &AuthFlowError{})
+	var authFlowErr *AuthFlowError
+	return errors.As(err, &authFlowErr)
 }
 
 // ConnectionPoolFullError contains connection pool full error information
@@ -258,7 +264,8 @@ func (err *ConnectionPoolFullError) ToString() string {
 
 // IsConnectionPoolFullError evaluates if the given error is connection full error
 func IsConnectionPoolFullError(err error) bool {
-	return errors.Is(err, &ConnectionPoolFullError{})
+	var connectionPoolFullErr *ConnectionPoolFullError
+	return errors.As(err, &connectionPoolFullErr)
 }
 
 // CollectionNotEmptyError contains collection not empty error information
@@ -291,7 +298,8 @@ func (err *CollectionNotEmptyError) ToString() string {
 
 // IsCollectionNotEmptyError evaluates if the given error is collection not empty error
 func IsCollectionNotEmptyError(err error) bool {
-	return errors.Is(err, &CollectionNotEmptyError{})
+	var collectionNotEmptyErr *CollectionNotEmptyError
+	return errors.As(err, &collectionNotEmptyErr)
 }
 
 // FileNotFoundError contains file not found error information
@@ -324,7 +332,8 @@ func (err *FileNotFoundError) ToString() string {
 
 // IsFileNotFoundError checks if the given error is FileNotFoundError
 func IsFileNotFoundError(err error) bool {
-	return errors.Is(err, &FileNotFoundError{})
+	var fileNotFoundErr *FileNotFoundError
+	return errors.As(err, &fileNotFoundErr)
 }
 
 // ResourceNotFoundError contains resource not found error information
@@ -357,7 +366,8 @@ func (err *ResourceNotFoundError) ToString() string {
 
 // IsResourceNotFoundError checks if the given error is ResourceNotFoundError
 func IsResourceNotFoundError(err error) bool {
-	return errors.Is(err, &ResourceNotFoundError{})
+	var resourceNotFoundErr *ResourceNotFoundError
+	return errors.As(err, &resourceNotFoundErr)
 }
 
 // FileAlreadyExistError contains file already exist error information
@@ -390,7 +400,8 @@ func (err *FileAlreadyExistError) ToString() string {
 
 // IsFileAlreadyExistError checks if the given error is FileAlreadyExistError
 func IsFileAlreadyExistError(err error) bool {
-	return errors.Is(err, &FileAlreadyExistError{})
+	var fileAlreadyExistErr *FileAlreadyExistError
+	return errors.As(err, &fileAlreadyExistErr)
 }
 
 // TicketNotFoundError contains ticket not found error information
@@ -423,7 +434,8 @@ func (err *TicketNotFoundError) ToString() string {
 
 // IsTicketNotFoundError checks if the given error is TicketNotFoundError
 func IsTicketNotFoundError(err error) bool {
-	return errors.Is(err, &TicketNotFoundError{})
+	var ticketNotFoundErr *TicketNotFoundError
+	return errors.As(err, &ticketNotFoundErr)
 }
 
 // UserNotFoundError contains user not found error information
@@ -456,7 +468,8 @@ func (err *UserNotFoundError) ToString() string {
 
 // IsUserNotFoundError checks if the given error is UserNotFoundError
 func IsUserNotFoundError(err error) bool {
-	return errors.Is(err, &UserNotFoundError{})
+	var userNotFoundErr *UserNotFoundError
+	return errors.As(err, &userNotFoundErr)
 }
 
 // APINotSupportedError contains api not supported error information
@@ -489,7 +502,8 @@ func (err *APINotSupportedError) ToString() string {
 
 // IsAPINotSupportedError checks if the given error is APINotSupportedError
 func IsAPINotSupportedError(err error) bool {
-	return errors.Is(err, &APINotSupportedError{})
+	var apiNotSupportedErr *APINotSupportedError
+	return errors.As(err, &apiNotSupportedErr)
 }
 
 // IRODSError contains irods error information
@@ -543,7 +557,8 @@ func (err *IRODSError) ToString() string {
 
 // IsIRODSError checks if the given error is IRODSError
 func IsIRODSError(err error) bool {
-	return errors.Is(err, &IRODSError{})
+	var irodsErr *IRODSError
+	return errors.As(err, &irodsErr)
 }
 
 // GetIRODSErrorCode returns iRODS error code if the error is iRODSError
