@@ -62,6 +62,7 @@ type Config struct {
 	PAMToken      string `json:"irods_pam_token,omitempty" yaml:"irods_pam_token,omitempty" envconfig:"IRODS_PAM_TOKEN"`
 	PAMTTL        int    `json:"irods_pam_ttl,omitempty" yaml:"irods_pam_ttl,omitempty" envconfig:"IRODS_PAM_TTL"`
 	SSLServerName string `json:"irods_ssl_server_name,omitempty" yaml:"irods_ssl_server_name,omitempty" envconfig:"IRODS_SSL_SERVER_NAME"`
+	WebDAVBaseURL string `json:"irods_webdav_base_url,omitempty" yaml:"irods_webdav_base_url,omitempty" envconfig:"IRODS_WEBDAV_BASE_URL"`
 
 	// not used
 	GSIServerDN string `json:"irods_gsi_server_dn,omitempty" yaml:"irods_gsi_server_dn,omitempty" envconfig:"IRODS_GSI_SERVER_DN"`
@@ -84,6 +85,7 @@ func GetDefaultConfig() *Config {
 		SSLCACertificateFile:    "",
 		SSLCACertificatePath:    "",
 		SSLVerifyServer:         SSLVerifyServerDefault,
+		WebDAVBaseURL:           "",
 	}
 }
 
