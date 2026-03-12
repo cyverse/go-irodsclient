@@ -28,7 +28,7 @@ func (fs *FileSystem) Touch(irodsPath string, resource string, noCreate bool, re
 				return err
 			}
 
-			fs.invalidateCacheForFileCreate(irodsCorrectPath)
+			fs.InvalidateCacheForFileCreate(irodsCorrectPath)
 			return nil
 		}
 		return err
@@ -40,9 +40,9 @@ func (fs *FileSystem) Touch(irodsPath string, resource string, noCreate bool, re
 	}
 
 	if entry.IsDir() {
-		fs.invalidateCacheForDirUpdate(irodsCorrectPath)
+		fs.InvalidateCacheForDirUpdate(irodsCorrectPath)
 	} else {
-		fs.invalidateCacheForFileUpdate(irodsCorrectPath)
+		fs.InvalidateCacheForFileUpdate(irodsCorrectPath)
 	}
 
 	return nil

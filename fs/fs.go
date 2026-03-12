@@ -158,6 +158,10 @@ func (fs *FileSystem) GetOpenConnections() int {
 	return fs.ioSession.GetOpenConnections() + fs.metadataSession.GetOpenConnections()
 }
 
+func (fs *FileSystem) GetCachePropagation() *FileSystemCachePropagation {
+	return fs.cachePropagation
+}
+
 // GetServerVersion returns server version info
 func (fs *FileSystem) GetServerVersion() (*types.IRODSVersion, error) {
 	conn, err := fs.metadataSession.AcquireConnection(true)
@@ -395,13 +399,13 @@ func (fs *FileSystem) RemoveDir(irodsPath string, recurse bool, force bool) erro
 	err = irods_fs.DeleteCollection(conn, irodsCorrectPath, recurse, force)
 	if err != nil {
 		if types.IsFileNotFoundError(err) {
-			fs.invalidateCacheForFileRemove(irodsCorrectPath)
+			fs.InvalidateCacheForFileRemove(irodsCorrectPath)
 			fs.cachePropagation.PropagateFileRemove(irodsCorrectPath)
 		}
 		return err
 	}
 
-	fs.invalidateCacheForDirRemove(irodsCorrectPath, recurse)
+	fs.InvalidateCacheForDirRemove(irodsCorrectPath, recurse)
 	fs.cachePropagation.PropagateDirRemove(irodsCorrectPath)
 	return nil
 }
@@ -438,13 +442,13 @@ func (fs *FileSystem) RemoveFile(irodsPath string, force bool) error {
 	err = irods_fs.DeleteDataObject(conn, irodsCorrectPath, force)
 	if err != nil {
 		if types.IsFileNotFoundError(err) {
-			fs.invalidateCacheForFileRemove(irodsCorrectPath)
+			fs.InvalidateCacheForFileRemove(irodsCorrectPath)
 			fs.cachePropagation.PropagateFileRemove(irodsCorrectPath)
 		}
 		return err
 	}
 
-	fs.invalidateCacheForFileRemove(irodsCorrectPath)
+	fs.InvalidateCacheForFileRemove(irodsCorrectPath)
 	fs.cachePropagation.PropagateFileRemove(irodsCorrectPath)
 	return nil
 }
@@ -487,9 +491,9 @@ func (fs *FileSystem) RenameDirToDir(srcPath string, destPath string) error {
 		return err
 	}
 
-	fs.invalidateCacheForDirRemove(irodsSrcPath, true)
+	fs.InvalidateCacheForDirRemove(irodsSrcPath, true)
 	fs.cachePropagation.PropagateDirRemove(irodsSrcPath)
-	fs.invalidateCacheForDirCreate(irodsDestPath)
+	fs.InvalidateCacheForDirCreate(irodsDestPath)
 	fs.cachePropagation.PropagateDirCreate(irodsDestPath)
 
 	// postprocess
@@ -539,9 +543,9 @@ func (fs *FileSystem) RenameFileToFile(srcPath string, destPath string) error {
 		return err
 	}
 
-	fs.invalidateCacheForFileRemove(irodsSrcPath)
+	fs.InvalidateCacheForFileRemove(irodsSrcPath)
 	fs.cachePropagation.PropagateFileRemove(irodsSrcPath)
-	fs.invalidateCacheForFileCreate(irodsDestPath)
+	fs.InvalidateCacheForFileCreate(irodsDestPath)
 	fs.cachePropagation.PropagateFileCreate(irodsDestPath)
 
 	// postprocess
@@ -696,7 +700,7 @@ func (fs *FileSystem) MakeDir(irodsPath string, recurse bool) error {
 		return err
 	}
 
-	fs.invalidateCacheForDirCreate(irodsCorrectPath)
+	fs.InvalidateCacheForDirCreate(irodsCorrectPath)
 	fs.cachePropagation.PropagateDirCreate(irodsCorrectPath)
 	fs.cache.AddDirCache(irodsCorrectPath, []string{})
 	return nil
@@ -734,7 +738,7 @@ func (fs *FileSystem) CopyFileToFile(srcPath string, destPath string, force bool
 		return err
 	}
 
-	fs.invalidateCacheForFileCreate(irodsDestPath)
+	fs.InvalidateCacheForFileCreate(irodsDestPath)
 	fs.cachePropagation.PropagateFileCreate(irodsDestPath)
 	return nil
 }
@@ -759,7 +763,7 @@ func (fs *FileSystem) TruncateFile(irodsPath string, size int64) error {
 		return err
 	}
 
-	fs.invalidateCacheForFileUpdate(irodsCorrectPath)
+	fs.InvalidateCacheForFileUpdate(irodsCorrectPath)
 	fs.cachePropagation.PropagateFileUpdate(irodsCorrectPath)
 	return nil
 }
@@ -780,7 +784,7 @@ func (fs *FileSystem) ReplicateFile(irodsPath string, resource string, update bo
 		return err
 	}
 
-	fs.invalidateCacheForFileUpdate(irodsCorrectPath)
+	fs.InvalidateCacheForFileUpdate(irodsCorrectPath)
 	fs.cachePropagation.PropagateFileUpdate(irodsCorrectPath)
 	return nil
 }
@@ -892,7 +896,7 @@ func (fs *FileSystem) CreateFile(irodsPath string, resource string, mode string)
 	}
 
 	fs.fileHandleMap.Add(fileHandle)
-	fs.invalidateCacheForFileCreate(irodsCorrectPath)
+	fs.InvalidateCacheForFileCreate(irodsCorrectPath)
 	fs.cachePropagation.PropagateFileCreate(irodsCorrectPath)
 
 	return fileHandle, nil

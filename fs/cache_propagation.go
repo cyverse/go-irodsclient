@@ -48,15 +48,15 @@ func (propagation *FileSystemCachePropagation) Release() {
 func (propagation *FileSystemCachePropagation) handle(path string, eventType FilesystemCacheEventType) {
 	switch eventType {
 	case FilesystemCacheFileCreateEvent:
-		propagation.filesystem.invalidateCacheForFileCreate(path)
+		propagation.filesystem.InvalidateCacheForFileCreate(path)
 	case FilesystemCacheFileRemoveEvent:
-		propagation.filesystem.invalidateCacheForFileRemove(path)
+		propagation.filesystem.InvalidateCacheForFileRemove(path)
 	case FilesystemCacheFileUpdateEvent:
-		propagation.filesystem.invalidateCacheForFileUpdate(path)
+		propagation.filesystem.InvalidateCacheForFileUpdate(path)
 	case FilesystemCacheDirCreateEvent:
-		propagation.filesystem.invalidateCacheForDirCreate(path)
+		propagation.filesystem.InvalidateCacheForDirCreate(path)
 	case FilesystemCacheDirRemoveEvent:
-		propagation.filesystem.invalidateCacheForDirRemove(path, true)
+		propagation.filesystem.InvalidateCacheForDirRemove(path, true)
 	case FilesystemCacheDirExtractEvent:
 		propagation.filesystem.invalidateCacheForDirExtract(path)
 	default:

@@ -103,7 +103,7 @@ func (handle *FileHandle) Close() error {
 	handle.filesystem.fileHandleMap.Remove(handle.id)
 
 	if handle.IsWriteMode() {
-		handle.filesystem.invalidateCacheForFileUpdate(handle.entry.Path)
+		handle.filesystem.InvalidateCacheForFileUpdate(handle.entry.Path)
 		handle.filesystem.cachePropagation.PropagateFileUpdate(handle.entry.Path)
 	}
 
@@ -312,7 +312,7 @@ func (handle *FileHandle) preprocessRename() error {
 	err := irods_fs.CloseDataObject(handle.connection, handle.irodsFileHandle)
 
 	if handle.IsWriteMode() {
-		handle.filesystem.invalidateCacheForFileUpdate(handle.entry.Path)
+		handle.filesystem.InvalidateCacheForFileUpdate(handle.entry.Path)
 		handle.filesystem.cachePropagation.PropagateFileUpdate(handle.entry.Path)
 	}
 

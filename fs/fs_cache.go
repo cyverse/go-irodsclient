@@ -48,8 +48,8 @@ func (fs *FileSystem) invalidateCacheForRemoveInternal(path string, recurse bool
 	fs.cache.RemoveDirCache(path)
 }
 
-// invalidateCacheForDirCreate invalidates cache for creation of the given dir
-func (fs *FileSystem) invalidateCacheForDirCreate(path string) {
+// InvalidateCacheForDirCreate invalidates cache for creation of the given dir
+func (fs *FileSystem) InvalidateCacheForDirCreate(path string) {
 	fs.cache.RemoveNegativeEntryCache(path)
 
 	// parent dir's entry also changes
@@ -66,8 +66,8 @@ func (fs *FileSystem) invalidateCacheForDirCreate(path string) {
 	fs.cacheEventHandlerMap.SendDirCreateEvent(path)
 }
 
-// invalidateCacheForDirUpdate invalidates cache for update of the given dir
-func (fs *FileSystem) invalidateCacheForDirUpdate(path string) {
+// InvalidateCacheForDirUpdate invalidates cache for update of the given dir
+func (fs *FileSystem) InvalidateCacheForDirUpdate(path string) {
 	fs.cache.RemoveNegativeEntryCache(path)
 	fs.cache.RemoveEntryCache(path)
 
@@ -77,8 +77,8 @@ func (fs *FileSystem) invalidateCacheForDirUpdate(path string) {
 	fs.cacheEventHandlerMap.SendDirCreateEvent(path)
 }
 
-// invalidateCacheForFileUpdate invalidates cache for update on the given file
-func (fs *FileSystem) invalidateCacheForFileUpdate(path string) {
+// InvalidateCacheForFileUpdate invalidates cache for update on the given file
+func (fs *FileSystem) InvalidateCacheForFileUpdate(path string) {
 	fs.cache.RemoveNegativeEntryCache(path)
 	fs.cache.RemoveEntryCache(path)
 
@@ -88,8 +88,8 @@ func (fs *FileSystem) invalidateCacheForFileUpdate(path string) {
 	fs.cacheEventHandlerMap.SendFileUpdateEvent(path)
 }
 
-// invalidateCacheForDirRemove invalidates cache for removal of the given dir
-func (fs *FileSystem) invalidateCacheForDirRemove(path string, recurse bool) {
+// InvalidateCacheForDirRemove invalidates cache for removal of the given dir
+func (fs *FileSystem) InvalidateCacheForDirRemove(path string, recurse bool) {
 	var entry *Entry
 	if recurse {
 		entry = fs.cache.GetEntryCache(path)
@@ -186,8 +186,8 @@ func (fs *FileSystem) invalidateCacheForDirExtract(path string) {
 	fs.cacheEventHandlerMap.SendDirCreateEvent(path)
 }
 
-// invalidateCacheForFileCreate invalidates cache for creation of the given file
-func (fs *FileSystem) invalidateCacheForFileCreate(path string) {
+// InvalidateCacheForFileCreate invalidates cache for creation of the given file
+func (fs *FileSystem) InvalidateCacheForFileCreate(path string) {
 	fs.cache.RemoveNegativeEntryCache(path)
 
 	// parent dir's entry also changes
@@ -204,8 +204,8 @@ func (fs *FileSystem) invalidateCacheForFileCreate(path string) {
 	fs.cacheEventHandlerMap.SendFileCreateEvent(path)
 }
 
-// invalidateCacheForFileRemove invalidates cache for removal of the given file
-func (fs *FileSystem) invalidateCacheForFileRemove(path string) {
+// InvalidateCacheForFileRemove invalidates cache for removal of the given file
+func (fs *FileSystem) InvalidateCacheForFileRemove(path string) {
 	fs.cache.AddNegativeEntryCache(path)
 	fs.cache.RemoveEntryCache(path)
 	fs.cache.RemoveAclCache(path)
