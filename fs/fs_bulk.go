@@ -1000,7 +1000,7 @@ func (fs *FileSystem) DownloadFileRedirectToResourceWithConnection(controlConn *
 }
 
 // UploadFile uploads a local file to irods
-func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource string, replicate bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
+func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource string, replicate bool, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
 	localSrcPath := util.GetCorrectLocalPath(localPath)
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
@@ -1035,21 +1035,11 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 			localFileName := filepath.Base(localSrcPath)
 			irodsFilePath = util.MakeIRODSPath(irodsDestPath, localFileName)
 		} else {
-			if fs.IsTicketAccess() {
-				// ticket does not support removing a file
-				if stat.Size() < entry.Size {
-					if !ignoreOverwriteError {
-						return fileTransferResult, errors.Errorf("failed to overwrite a file %q with a smaller file", irodsDestPath)
-					}
-				}
-
-				// try to overwrite the file
-			} else {
-				err = fs.RemoveFile(irodsDestPath, true)
+			// if file exists, truncate the file to the target size
+			if stat.Size() < entry.Size {
+				err := fs.prepareOverwriteFile(irodsDestPath, stat.Size())
 				if err != nil {
-					if !ignoreOverwriteError {
-						return fileTransferResult, errors.Wrapf(err, "failed to remove data object %q for overwrite", irodsDestPath)
-					}
+					return fileTransferResult, errors.Wrapf(err, "failed to prepare data object %q for overwrite", irodsDestPath)
 				}
 			}
 		}
@@ -1089,8 +1079,15 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 		return fileTransferResult, err
 	}
 
-	fs.InvalidateCacheForFileCreate(irodsFilePath)
-	fs.cachePropagation.PropagateFileCreate(irodsFilePath)
+	if entry == nil {
+		// create
+		fs.InvalidateCacheForFileCreate(irodsFilePath)
+		fs.cachePropagation.PropagateFileCreate(irodsFilePath)
+	} else {
+		// ovewrite update
+		fs.InvalidateCacheForFileUpdate(irodsFilePath)
+		fs.cachePropagation.PropagateFileUpdate(irodsFilePath)
+	}
 
 	entry, err = fs.Stat(irodsFilePath)
 	if err != nil {
@@ -1124,7 +1121,7 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 }
 
 // UploadFileWithConnection uploads a local file to irods
-func (fs *FileSystem) UploadFileWithConnection(conn *connection.IRODSConnection, localPath string, irodsPath string, resource string, replicate bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
+func (fs *FileSystem) UploadFileWithConnection(conn *connection.IRODSConnection, localPath string, irodsPath string, resource string, replicate bool, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
 	localSrcPath := util.GetCorrectLocalPath(localPath)
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
@@ -1159,21 +1156,11 @@ func (fs *FileSystem) UploadFileWithConnection(conn *connection.IRODSConnection,
 			localFileName := filepath.Base(localSrcPath)
 			irodsFilePath = util.MakeIRODSPath(irodsDestPath, localFileName)
 		} else {
-			if fs.IsTicketAccess() {
-				// ticket does not support removing a file
-				if stat.Size() < entry.Size {
-					if !ignoreOverwriteError {
-						return fileTransferResult, errors.Errorf("failed to overwrite a file %q with a smaller file", irodsDestPath)
-					}
-				}
-
-				// try to overwrite the file
-			} else {
-				err = fs.RemoveFile(irodsDestPath, true)
+			// if file exists, truncate the file to the target size
+			if stat.Size() < entry.Size {
+				err := fs.prepareOverwriteFile(irodsDestPath, stat.Size())
 				if err != nil {
-					if !ignoreOverwriteError {
-						return fileTransferResult, errors.Wrapf(err, "failed to remove data object %q for overwrite", irodsDestPath)
-					}
+					return fileTransferResult, errors.Wrapf(err, "failed to prepare data object %q for overwrite", irodsDestPath)
 				}
 			}
 		}
@@ -1213,8 +1200,15 @@ func (fs *FileSystem) UploadFileWithConnection(conn *connection.IRODSConnection,
 		return fileTransferResult, err
 	}
 
-	fs.InvalidateCacheForFileCreate(irodsFilePath)
-	fs.cachePropagation.PropagateFileCreate(irodsFilePath)
+	if entry == nil {
+		// create
+		fs.InvalidateCacheForFileCreate(irodsFilePath)
+		fs.cachePropagation.PropagateFileCreate(irodsFilePath)
+	} else {
+		// ovewrite update
+		fs.InvalidateCacheForFileUpdate(irodsFilePath)
+		fs.cachePropagation.PropagateFileUpdate(irodsFilePath)
+	}
 
 	entry, err = fs.Stat(irodsFilePath)
 	if err != nil {
@@ -1248,7 +1242,7 @@ func (fs *FileSystem) UploadFileWithConnection(conn *connection.IRODSConnection,
 }
 
 // UploadFileFromBuffer uploads buffer data to irods
-func (fs *FileSystem) UploadFileFromBuffer(buffer *bytes.Buffer, irodsPath string, resource string, replicate bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
+func (fs *FileSystem) UploadFileFromBuffer(buffer *bytes.Buffer, irodsPath string, resource string, replicate bool, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
 	irodsFilePath := irodsDestPath
@@ -1265,21 +1259,11 @@ func (fs *FileSystem) UploadFileFromBuffer(buffer *bytes.Buffer, irodsPath strin
 		if entry.IsDir() {
 			return fileTransferResult, errors.Errorf("invalid entry type %q. Destination must be a file", entry.Type)
 		} else {
-			if fs.IsTicketAccess() {
-				// ticket does not support removing a file
-				if int64(buffer.Len()) < entry.Size {
-					if !ignoreOverwriteError {
-						return fileTransferResult, errors.Errorf("failed to overwrite a file %q with a smaller file", irodsDestPath)
-					}
-				}
-
-				// try to overwrite the file
-			} else {
-				err = fs.RemoveFile(irodsDestPath, true)
+			// if file exists, truncate the file to the target size
+			if int64(buffer.Len()) < entry.Size {
+				err := fs.prepareOverwriteFile(irodsDestPath, int64(buffer.Len()))
 				if err != nil {
-					if !ignoreOverwriteError {
-						return fileTransferResult, errors.Wrapf(err, "failed to remove data object %q for overwrite", irodsDestPath)
-					}
+					return fileTransferResult, errors.Wrapf(err, "failed to prepare data object %q for overwrite", irodsDestPath)
 				}
 			}
 		}
@@ -1319,8 +1303,15 @@ func (fs *FileSystem) UploadFileFromBuffer(buffer *bytes.Buffer, irodsPath strin
 		return fileTransferResult, err
 	}
 
-	fs.InvalidateCacheForFileCreate(irodsFilePath)
-	fs.cachePropagation.PropagateFileCreate(irodsFilePath)
+	if entry == nil {
+		// create
+		fs.InvalidateCacheForFileCreate(irodsFilePath)
+		fs.cachePropagation.PropagateFileCreate(irodsFilePath)
+	} else {
+		// ovewrite update
+		fs.InvalidateCacheForFileUpdate(irodsFilePath)
+		fs.cachePropagation.PropagateFileUpdate(irodsFilePath)
+	}
 
 	entry, err = fs.Stat(irodsFilePath)
 	if err != nil {
@@ -1354,7 +1345,7 @@ func (fs *FileSystem) UploadFileFromBuffer(buffer *bytes.Buffer, irodsPath strin
 }
 
 // UploadFileFromBufferWithConnection uploads buffer data to irods
-func (fs *FileSystem) UploadFileFromBufferWithConnection(conn *connection.IRODSConnection, buffer *bytes.Buffer, irodsPath string, resource string, replicate bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
+func (fs *FileSystem) UploadFileFromBufferWithConnection(conn *connection.IRODSConnection, buffer *bytes.Buffer, irodsPath string, resource string, replicate bool, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
 	irodsFilePath := irodsDestPath
@@ -1371,21 +1362,11 @@ func (fs *FileSystem) UploadFileFromBufferWithConnection(conn *connection.IRODSC
 		if entry.IsDir() {
 			return fileTransferResult, errors.Errorf("invalid entry type %q. Destination must be a file", entry.Type)
 		} else {
-			if fs.IsTicketAccess() {
-				// ticket does not support removing a file
-				if int64(buffer.Len()) < entry.Size {
-					if !ignoreOverwriteError {
-						return fileTransferResult, errors.Errorf("failed to overwrite a file %q with a smaller file", irodsDestPath)
-					}
-				}
-
-				// try to overwrite the file
-			} else {
-				err = fs.RemoveFile(irodsDestPath, true)
+			// if file exists, truncate the file to the target size
+			if int64(buffer.Len()) < entry.Size {
+				err := fs.prepareOverwriteFile(irodsDestPath, int64(buffer.Len()))
 				if err != nil {
-					if !ignoreOverwriteError {
-						return fileTransferResult, errors.Wrapf(err, "failed to remove data object %q for overwrite", irodsDestPath)
-					}
+					return fileTransferResult, errors.Wrapf(err, "failed to prepare data object %q for overwrite", irodsDestPath)
 				}
 			}
 		}
@@ -1425,8 +1406,15 @@ func (fs *FileSystem) UploadFileFromBufferWithConnection(conn *connection.IRODSC
 		return fileTransferResult, err
 	}
 
-	fs.InvalidateCacheForFileCreate(irodsFilePath)
-	fs.cachePropagation.PropagateFileCreate(irodsFilePath)
+	if entry == nil {
+		// create
+		fs.InvalidateCacheForFileCreate(irodsFilePath)
+		fs.cachePropagation.PropagateFileCreate(irodsFilePath)
+	} else {
+		// overwrite update
+		fs.InvalidateCacheForFileUpdate(irodsFilePath)
+		fs.cachePropagation.PropagateFileUpdate(irodsFilePath)
+	}
 
 	entry, err = fs.Stat(irodsFilePath)
 	if err != nil {
@@ -1460,7 +1448,7 @@ func (fs *FileSystem) UploadFileFromBufferWithConnection(conn *connection.IRODSC
 }
 
 // UploadFileParallel uploads a local file to irods in parallel
-func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, resource string, taskNum int, replicate bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
+func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, resource string, taskNum int, replicate bool, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
 	localSrcPath := util.GetCorrectLocalPath(localPath)
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
@@ -1495,21 +1483,11 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 			localFileName := filepath.Base(localSrcPath)
 			irodsFilePath = util.MakeIRODSPath(irodsDestPath, localFileName)
 		} else {
-			if fs.IsTicketAccess() {
-				// ticket does not support removing a file
-				if stat.Size() < entry.Size {
-					if !ignoreOverwriteError {
-						return fileTransferResult, errors.Errorf("failed to overwrite a file %q with a smaller file", irodsDestPath)
-					}
-				}
-
-				// try to overwrite the file
-			} else {
-				err = fs.RemoveFile(irodsDestPath, true)
+			// if file exists, truncate the file to the target size
+			if stat.Size() < entry.Size {
+				err := fs.prepareOverwriteFile(irodsDestPath, stat.Size())
 				if err != nil {
-					if !ignoreOverwriteError {
-						return fileTransferResult, errors.Wrapf(err, "failed to remove data object %q for overwrite", irodsDestPath)
-					}
+					return fileTransferResult, errors.Wrapf(err, "failed to prepare data object %q for overwrite", irodsDestPath)
 				}
 			}
 		}
@@ -1549,8 +1527,15 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 		return fileTransferResult, err
 	}
 
-	fs.InvalidateCacheForFileCreate(irodsFilePath)
-	fs.cachePropagation.PropagateFileCreate(irodsFilePath)
+	if entry == nil {
+		// create
+		fs.InvalidateCacheForFileCreate(irodsFilePath)
+		fs.cachePropagation.PropagateFileCreate(irodsFilePath)
+	} else {
+		// ovewrite update
+		fs.InvalidateCacheForFileUpdate(irodsFilePath)
+		fs.cachePropagation.PropagateFileUpdate(irodsFilePath)
+	}
 
 	entry, err = fs.Stat(irodsFilePath)
 	if err != nil {
@@ -1584,7 +1569,7 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 }
 
 // UploadFileParallelWithConnections uploads a local file to irods in parallel
-func (fs *FileSystem) UploadFileParallelWithConnections(conns []*connection.IRODSConnection, localPath string, irodsPath string, resource string, taskNum int, replicate bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
+func (fs *FileSystem) UploadFileParallelWithConnections(conns []*connection.IRODSConnection, localPath string, irodsPath string, resource string, taskNum int, replicate bool, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
 	localSrcPath := util.GetCorrectLocalPath(localPath)
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
@@ -1619,21 +1604,11 @@ func (fs *FileSystem) UploadFileParallelWithConnections(conns []*connection.IROD
 			localFileName := filepath.Base(localSrcPath)
 			irodsFilePath = util.MakeIRODSPath(irodsDestPath, localFileName)
 		} else {
-			if fs.IsTicketAccess() {
-				// ticket does not support removing a file
-				if stat.Size() < entry.Size {
-					if !ignoreOverwriteError {
-						return fileTransferResult, errors.Errorf("failed to overwrite a file %q with a smaller file", irodsDestPath)
-					}
-				}
-
-				// try to overwrite the file
-			} else {
-				err = fs.RemoveFile(irodsDestPath, true)
+			// if file exists, truncate the file to the target size
+			if stat.Size() < entry.Size {
+				err := fs.prepareOverwriteFile(irodsDestPath, stat.Size())
 				if err != nil {
-					if !ignoreOverwriteError {
-						return fileTransferResult, errors.Wrapf(err, "failed to remove data object %q for overwrite", irodsDestPath)
-					}
+					return fileTransferResult, errors.Wrapf(err, "failed to prepare data object %q for overwrite", irodsDestPath)
 				}
 			}
 		}
@@ -1673,8 +1648,15 @@ func (fs *FileSystem) UploadFileParallelWithConnections(conns []*connection.IROD
 		return fileTransferResult, err
 	}
 
-	fs.InvalidateCacheForFileCreate(irodsFilePath)
-	fs.cachePropagation.PropagateFileCreate(irodsFilePath)
+	if entry == nil {
+		// create
+		fs.InvalidateCacheForFileCreate(irodsFilePath)
+		fs.cachePropagation.PropagateFileCreate(irodsFilePath)
+	} else {
+		// ovewrite update
+		fs.InvalidateCacheForFileUpdate(irodsFilePath)
+		fs.cachePropagation.PropagateFileUpdate(irodsFilePath)
+	}
 
 	entry, err = fs.Stat(irodsFilePath)
 	if err != nil {
@@ -1708,7 +1690,7 @@ func (fs *FileSystem) UploadFileParallelWithConnections(conns []*connection.IROD
 }
 
 // UploadFileRedirectToResource uploads a file from local to resource server in parallel
-func (fs *FileSystem) UploadFileRedirectToResource(localPath string, irodsPath string, resource string, taskNum int, replicate bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
+func (fs *FileSystem) UploadFileRedirectToResource(localPath string, irodsPath string, resource string, taskNum int, replicate bool, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
 	localSrcPath := util.GetCorrectLocalPath(localPath)
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
@@ -1743,21 +1725,11 @@ func (fs *FileSystem) UploadFileRedirectToResource(localPath string, irodsPath s
 			localFileName := filepath.Base(localSrcPath)
 			irodsFilePath = util.MakeIRODSPath(irodsDestPath, localFileName)
 		} else {
-			if fs.IsTicketAccess() {
-				// ticket does not support removing a file
-				if stat.Size() < entry.Size {
-					if !ignoreOverwriteError {
-						return fileTransferResult, errors.Errorf("failed to overwrite a file %q with a smaller file", irodsDestPath)
-					}
-				}
-
-				// try to overwrite the file
-			} else {
-				err = fs.RemoveFile(irodsDestPath, true)
+			// if file exists, truncate the file to the target size
+			if stat.Size() < entry.Size {
+				err := fs.prepareOverwriteFile(irodsDestPath, stat.Size())
 				if err != nil {
-					if !ignoreOverwriteError {
-						return fileTransferResult, errors.Wrapf(err, "failed to remove data object %q for overwrite", irodsDestPath)
-					}
+					return fileTransferResult, errors.Wrapf(err, "failed to prepare data object %q for overwrite", irodsDestPath)
 				}
 			}
 		}
@@ -1797,8 +1769,15 @@ func (fs *FileSystem) UploadFileRedirectToResource(localPath string, irodsPath s
 		return fileTransferResult, err
 	}
 
-	fs.InvalidateCacheForFileCreate(irodsFilePath)
-	fs.cachePropagation.PropagateFileCreate(irodsFilePath)
+	if entry == nil {
+		// create
+		fs.InvalidateCacheForFileCreate(irodsFilePath)
+		fs.cachePropagation.PropagateFileCreate(irodsFilePath)
+	} else {
+		// ovewrite update
+		fs.InvalidateCacheForFileUpdate(irodsFilePath)
+		fs.cachePropagation.PropagateFileUpdate(irodsFilePath)
+	}
 
 	entry, err = fs.Stat(irodsFilePath)
 	if err != nil {
@@ -1832,7 +1811,7 @@ func (fs *FileSystem) UploadFileRedirectToResource(localPath string, irodsPath s
 }
 
 // UploadFileRedirectToResourceWithConnection uploads a file from local to resource server in parallel
-func (fs *FileSystem) UploadFileRedirectToResourceWithConnection(controlConn *connection.IRODSConnection, localPath string, irodsPath string, resource string, taskNum int, replicate bool, verifyChecksum bool, ignoreOverwriteError bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
+func (fs *FileSystem) UploadFileRedirectToResourceWithConnection(controlConn *connection.IRODSConnection, localPath string, irodsPath string, resource string, taskNum int, replicate bool, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
 	localSrcPath := util.GetCorrectLocalPath(localPath)
 	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
 
@@ -1867,21 +1846,11 @@ func (fs *FileSystem) UploadFileRedirectToResourceWithConnection(controlConn *co
 			localFileName := filepath.Base(localSrcPath)
 			irodsFilePath = util.MakeIRODSPath(irodsDestPath, localFileName)
 		} else {
-			if fs.IsTicketAccess() {
-				// ticket does not support removing a file
-				if stat.Size() < entry.Size {
-					if !ignoreOverwriteError {
-						return fileTransferResult, errors.Errorf("failed to overwrite a file %q with a smaller file", irodsDestPath)
-					}
-				}
-
-				// try to overwrite the file
-			} else {
-				err = fs.RemoveFile(irodsDestPath, true)
+			// if file exists, truncate the file to the target size
+			if stat.Size() < entry.Size {
+				err := fs.prepareOverwriteFile(irodsDestPath, stat.Size())
 				if err != nil {
-					if !ignoreOverwriteError {
-						return fileTransferResult, errors.Wrapf(err, "failed to remove data object %q for overwrite", irodsDestPath)
-					}
+					return fileTransferResult, errors.Wrapf(err, "failed to prepare data object %q for overwrite", irodsDestPath)
 				}
 			}
 		}
@@ -1921,8 +1890,15 @@ func (fs *FileSystem) UploadFileRedirectToResourceWithConnection(controlConn *co
 		return fileTransferResult, err
 	}
 
-	fs.InvalidateCacheForFileCreate(irodsFilePath)
-	fs.cachePropagation.PropagateFileCreate(irodsFilePath)
+	if entry == nil {
+		// create
+		fs.InvalidateCacheForFileCreate(irodsFilePath)
+		fs.cachePropagation.PropagateFileCreate(irodsFilePath)
+	} else {
+		// ovewrite update
+		fs.InvalidateCacheForFileUpdate(irodsFilePath)
+		fs.cachePropagation.PropagateFileUpdate(irodsFilePath)
+	}
 
 	entry, err = fs.Stat(irodsFilePath)
 	if err != nil {
@@ -2003,4 +1979,25 @@ func (fs *FileSystem) calculateBufferHash(buffer *bytes.Buffer, algorithm types.
 	}
 
 	return algorithm, hashBytes, nil
+}
+
+func (fs *FileSystem) prepareOverwriteFile(irodsPath string, size int64) error {
+	err := fs.TruncateFile(irodsPath, size)
+	if err == nil {
+		return nil
+	}
+
+	// failed to truncate
+	// try to remove the file
+	if fs.IsTicketAccess() {
+		// ticket does not support removing a file
+		return errors.Errorf("failed to overwrite a file %q with a smaller file", irodsPath)
+	}
+
+	err = fs.RemoveFile(irodsPath, true)
+	if err != nil {
+		return errors.Wrapf(err, "failed to remove data object %q for overwrite", irodsPath)
+	}
+
+	return nil
 }

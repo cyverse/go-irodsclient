@@ -74,7 +74,7 @@ func main() {
 		fmt.Printf("%s: %d / %d ==> %f%%\n", taskName, processed, total, pt)
 	}
 
-	result, err := filesystem.UploadFileParallel(srcPath, destPath, "", 0, false, true, false, track)
+	result, err := filesystem.UploadFileParallel(srcPath, destPath, "", 0, false, true, track)
 	if err != nil {
 		logger.Error(err)
 		panic(err)

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/types"
+	"github.com/rs/xid"
 )
 
 // EntryType defines types of Entry
@@ -35,6 +36,7 @@ type Entry struct {
 	CheckSumAlgorithm types.ChecksumAlgorithm `json:"checksum_algorithm"`
 	CheckSum          []byte                  `json:"checksum"`
 	IRODSReplicas     []types.IRODSReplica    `json:"replicas,omitempty"`
+	CacheID           string                  `json:"cache_id,omitempty"`
 }
 
 func NewEntryFromCollection(collection *types.IRODSCollection) *Entry {
@@ -52,6 +54,7 @@ func NewEntryFromCollection(collection *types.IRODSCollection) *Entry {
 		CheckSumAlgorithm: types.ChecksumAlgorithmUnknown,
 		CheckSum:          nil,
 		IRODSReplicas:     nil,
+		CacheID:           xid.New().String(),
 	}
 }
 
@@ -85,6 +88,7 @@ func NewEntryFromDataObject(dataobject *types.IRODSDataObject) *Entry {
 		CheckSumAlgorithm: checksumAlgorithm,
 		CheckSum:          checksumString,
 		IRODSReplicas:     replicas,
+		CacheID:           xid.New().String(),
 	}
 }
 
