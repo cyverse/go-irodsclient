@@ -606,6 +606,8 @@ func (conn *IRODSConnection) loginPAMWithPasswordPlugin() error {
 
 	plugin := NewPAMPasswordAuthPlugin(conn.isSSLSocket)
 	authContext := NewIRODSAuthContext()
+	authContext.Set("password", conn.account.Password)
+	authContext.Set(AUTH_TTL_KEY, "0")
 
 	return AuthenticateClient(conn, plugin, authContext)
 }
