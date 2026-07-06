@@ -9,6 +9,7 @@ import (
 
 	"github.com/cockroachdb/errors"
 	irods_fs "github.com/cyverse/go-irodsclient/fs"
+	irods_lowlevel_fs "github.com/cyverse/go-irodsclient/irods/fs"
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/session"
 	"github.com/cyverse/go-irodsclient/irods/types"
@@ -157,8 +158,23 @@ func (server *IRODSServer) waitForPortToOpen(timeout time.Duration) error {
 
 				err = newConn.Connect()
 				if err == nil {
+					// verify the server is fully ready by stat-ing the home collection
+					homeDir, homeDirErr := acc.GetHomeDirPath(), error(nil)
+					if homeDir == "" {
+						homeDirErr = errors.Errorf("home dir path is empty")
+					}
+
+					if homeDirErr == nil {
+						_, homeDirErr = irods_lowlevel_fs.GetCollection(newConn, homeDir)
+					}
+
 					newConn.Disconnect()
-					return nil
+
+					if homeDirErr == nil {
+						return nil
+					}
+
+					// collection stat failed, server not fully ready yet
 				}
 
 				// connection failed, continue waiting

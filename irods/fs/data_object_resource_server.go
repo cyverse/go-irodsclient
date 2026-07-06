@@ -389,7 +389,8 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 				}
 
 				eof := false
-				readLen, err := conn.RecvToWriter(f, toGet, nil)
+				chunkSize := min(toGet, int64(common.ReadWriteBufferSize))
+				readLen, err := conn.RecvToWriter(f, chunkSize, nil)
 				if readLen > 0 {
 					atomic.AddInt64(&totalBytesDownloaded, readLen)
 					if transferCallback != nil {
@@ -546,7 +547,8 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 
 				// read data
 				eof := false
-				readLen, err := f.ReadAt(dataBuffer, curOffset)
+				readSize := min(toPut, int64(dataBufferSize))
+				readLen, err := f.ReadAt(dataBuffer[:readSize], curOffset)
 
 				//logger.Debugf("read offset %d, len %d", curOffset, readLen)
 				if readLen > 0 {
@@ -613,7 +615,8 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 				}
 
 				eof := false
-				putLen, err := conn.SendFromReader(f, toPut, nil)
+				chunkSize := min(toPut, int64(common.ReadWriteBufferSize))
+				putLen, err := conn.SendFromReader(f, chunkSize, nil)
 				if putLen > 0 {
 					atomic.AddInt64(&totalBytesUploaded, putLen)
 					if transferCallback != nil {
