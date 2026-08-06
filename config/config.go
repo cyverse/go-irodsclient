@@ -199,7 +199,7 @@ func NewConfigFromEnv(config *Config) (*Config, error) {
 
 // GetDefaultIRODSConfigPath returns default config path
 func GetDefaultIRODSConfigPath() string {
-	irodsConfigPath, err := util.ExpandHomeDir("~/.irods")
+	irodsConfigPath, err := util.ExpandLocalHomeDir("~/.irods")
 	if err != nil {
 		return ""
 	}

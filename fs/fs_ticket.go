@@ -152,7 +152,7 @@ func (fs *FileSystem) ListTicketUserGroupRestrictions(ticketID int64) ([]string,
 
 // CreateTicket creates a new ticket
 func (fs *FileSystem) CreateTicket(ticketName string, ticketType types.TicketType, path string) error {
-	irodsPath := util.GetCorrectIRODSPath(path)
+	irodsPath := util.CleanIRODSPath(path)
 
 	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {

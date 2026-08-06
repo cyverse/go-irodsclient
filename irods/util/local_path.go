@@ -7,13 +7,13 @@ import (
 	"github.com/cockroachdb/errors"
 )
 
-// GetCorrectLocalPath corrects the path
-func GetCorrectLocalPath(p string) string {
+// CleanLocalPath corrects the path
+func CleanLocalPath(p string) string {
 	return filepath.Clean(p)
 }
 
-// ExpandHomeDir expands ~/
-func ExpandHomeDir(path string) (string, error) {
+// ExpandLocalHomeDir expands ~/
+func ExpandLocalHomeDir(path string) (string, error) {
 	if len(path) == 0 {
 		return "", nil
 	}
@@ -41,8 +41,8 @@ func ExpandHomeDir(path string) (string, error) {
 	return filepath.Abs(path)
 }
 
-// ExistFile checks if file exists
-func ExistFile(path string) bool {
+// ExistLocalFile checks if file exists
+func ExistLocalFile(path string) bool {
 	st, err := os.Stat(path)
 	if err != nil {
 		return false

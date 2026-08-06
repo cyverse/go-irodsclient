@@ -201,7 +201,7 @@ func (fs *FileSystem) GetMetrics() *metrics.IRODSMetrics {
 
 // Stat returns file status
 func (fs *FileSystem) Stat(irodsPath string) (*Entry, error) {
-	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
+	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
 
 	// check if a negative cache for the given path exists
 	if fs.cache.HasNegativeEntryCache(irodsCorrectPath) {
@@ -265,20 +265,20 @@ func (fs *FileSystem) Stat(irodsPath string) (*Entry, error) {
 
 // StatDir returns status of a directory
 func (fs *FileSystem) StatDir(irodsPath string) (*Entry, error) {
-	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
+	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
 
 	return fs.getCollection(irodsCorrectPath)
 }
 
 // StatFile returns status of a file
 func (fs *FileSystem) StatFile(irodsPath string) (*Entry, error) {
-	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
+	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
 
 	return fs.getDataObject(irodsCorrectPath)
 }
 
 func (fs *FileSystem) GetDirStatistics(irodsPath string, recurse bool) (*DirStat, error) {
-	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
+	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
 
 	// we use ioSession to acquire connection as it can take a long time
 	conn, err := fs.ioSession.AcquireConnection(true)
@@ -324,7 +324,7 @@ func (fs *FileSystem) ExistsFile(irodsPath string) bool {
 
 // List lists all file system entries under the given path
 func (fs *FileSystem) List(irodsPath string) ([]*Entry, error) {
-	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
+	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
 	return fs.listEntries(irodsCorrectPath)
 }
 
@@ -405,7 +405,7 @@ func (fs *FileSystem) SearchFileUnixWildcard(pathUnixWildcard string) ([]*Entry,
 
 // RemoveDir deletes a directory
 func (fs *FileSystem) RemoveDir(irodsPath string, recurse bool, force bool) error {
-	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
+	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
 
 	// we use ioSession to acquire connection as it can take a long time
 	conn, err := fs.ioSession.AcquireConnection(true)
@@ -430,7 +430,7 @@ func (fs *FileSystem) RemoveDir(irodsPath string, recurse bool, force bool) erro
 
 // RemoveFile deletes a file
 func (fs *FileSystem) RemoveFile(irodsPath string, force bool) error {
-	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
+	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
 
 	// we use ioSession to acquire connection as it can take a long time
 	conn, err := fs.ioSession.AcquireConnection(true)
@@ -473,8 +473,8 @@ func (fs *FileSystem) RemoveFile(irodsPath string, force bool) error {
 
 // RenameDir renames a dir
 func (fs *FileSystem) RenameDir(srcPath string, destPath string) error {
-	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
-	irodsDestPath := util.GetCorrectIRODSPath(destPath)
+	irodsSrcPath := util.CleanIRODSPath(srcPath)
+	irodsDestPath := util.CleanIRODSPath(destPath)
 
 	destDirPath := irodsDestPath
 	if fs.ExistsDir(irodsDestPath) {
@@ -488,8 +488,8 @@ func (fs *FileSystem) RenameDir(srcPath string, destPath string) error {
 
 // RenameDirToDir renames a dir
 func (fs *FileSystem) RenameDirToDir(srcPath string, destPath string) error {
-	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
-	irodsDestPath := util.GetCorrectIRODSPath(destPath)
+	irodsSrcPath := util.CleanIRODSPath(srcPath)
+	irodsDestPath := util.CleanIRODSPath(destPath)
 
 	// we use ioSession to acquire connection as it can take a long time
 	conn, err := fs.ioSession.AcquireConnection(true)
@@ -524,8 +524,8 @@ func (fs *FileSystem) RenameDirToDir(srcPath string, destPath string) error {
 
 // RenameFile renames a file
 func (fs *FileSystem) RenameFile(srcPath string, destPath string) error {
-	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
-	irodsDestPath := util.GetCorrectIRODSPath(destPath)
+	irodsSrcPath := util.CleanIRODSPath(srcPath)
+	irodsDestPath := util.CleanIRODSPath(destPath)
 
 	destFilePath := irodsDestPath
 	if fs.ExistsDir(irodsDestPath) {
@@ -539,8 +539,8 @@ func (fs *FileSystem) RenameFile(srcPath string, destPath string) error {
 
 // RenameFileToFile renames a file
 func (fs *FileSystem) RenameFileToFile(srcPath string, destPath string) error {
-	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
-	irodsDestPath := util.GetCorrectIRODSPath(destPath)
+	irodsSrcPath := util.CleanIRODSPath(srcPath)
+	irodsDestPath := util.CleanIRODSPath(destPath)
 
 	// we use ioSession to acquire connection as it can take a long time
 	conn, err := fs.ioSession.AcquireConnection(true)
@@ -652,7 +652,7 @@ func (fs *FileSystem) postprocessRenameFileHandleForDir(handles []*FileHandle, c
 		if _, ok := entryMap[handle.entry.Path]; !ok {
 			// mapping not exist
 			// make full destPath
-			relPath, err := util.GetRelativeIRODSPath(srcPath, handle.entry.Path)
+			relPath, err := util.GetIRODSRelativePath(srcPath, handle.entry.Path)
 			if err != nil {
 				errs = append(errs, err)
 			} else {
@@ -693,7 +693,7 @@ func (fs *FileSystem) postprocessRenameFileHandleForDir(handles []*FileHandle, c
 
 // MakeDir creates a directory
 func (fs *FileSystem) MakeDir(irodsPath string, recurse bool) error {
-	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
+	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
 
 	// we use ioSession to acquire connection as it can take a long time
 	conn, err := fs.ioSession.AcquireConnection(true)
@@ -726,8 +726,8 @@ func (fs *FileSystem) MakeDir(irodsPath string, recurse bool) error {
 
 // CopyFile copies a file
 func (fs *FileSystem) CopyFile(srcPath string, destPath string, force bool) error {
-	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
-	irodsDestPath := util.GetCorrectIRODSPath(destPath)
+	irodsSrcPath := util.CleanIRODSPath(srcPath)
+	irodsDestPath := util.CleanIRODSPath(destPath)
 
 	destFilePath := irodsDestPath
 	if fs.ExistsDir(irodsDestPath) {
@@ -741,8 +741,8 @@ func (fs *FileSystem) CopyFile(srcPath string, destPath string, force bool) erro
 
 // CopyFileToFile copies a file
 func (fs *FileSystem) CopyFileToFile(srcPath string, destPath string, force bool) error {
-	irodsSrcPath := util.GetCorrectIRODSPath(srcPath)
-	irodsDestPath := util.GetCorrectIRODSPath(destPath)
+	irodsSrcPath := util.CleanIRODSPath(srcPath)
+	irodsDestPath := util.CleanIRODSPath(destPath)
 
 	// we use ioSession to acquire connection as it can take a long time
 	conn, err := fs.ioSession.AcquireConnection(true)
@@ -763,7 +763,7 @@ func (fs *FileSystem) CopyFileToFile(srcPath string, destPath string, force bool
 
 // TruncateFile truncates a file
 func (fs *FileSystem) TruncateFile(irodsPath string, size int64) error {
-	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
+	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
 
 	if size < 0 {
 		size = 0
@@ -788,7 +788,7 @@ func (fs *FileSystem) TruncateFile(irodsPath string, size int64) error {
 
 // ReplicateFile replicates a file
 func (fs *FileSystem) ReplicateFile(irodsPath string, resource string, update bool) error {
-	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
+	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
 
 	// we use ioSession to acquire connection as it can take a long time
 	conn, err := fs.ioSession.AcquireConnection(true)
@@ -809,7 +809,7 @@ func (fs *FileSystem) ReplicateFile(irodsPath string, resource string, update bo
 
 // OpenFile opens an existing file for read/write
 func (fs *FileSystem) OpenFile(irodsPath string, resource string, mode string) (*FileHandle, error) {
-	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
+	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
 
 	conn, err := fs.ioSession.AcquireConnection(true)
 	if err != nil {
@@ -867,7 +867,7 @@ func (fs *FileSystem) OpenFile(irodsPath string, resource string, mode string) (
 
 // CreateFile opens a new file for write
 func (fs *FileSystem) CreateFile(irodsPath string, resource string, mode string) (*FileHandle, error) {
-	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
+	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
 
 	conn, err := fs.ioSession.AcquireConnection(true)
 	if err != nil {

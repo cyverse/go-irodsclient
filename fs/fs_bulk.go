@@ -35,8 +35,8 @@ type FileTransferResult struct {
 
 // DownloadFile downloads a file to local
 func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath string, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
-	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
-	localDestPath := util.GetCorrectLocalPath(localPath)
+	irodsSrcPath := util.CleanIRODSPath(irodsPath)
+	localDestPath := util.CleanLocalPath(localPath)
 
 	localFilePath := localDestPath
 
@@ -121,8 +121,8 @@ func (fs *FileSystem) DownloadFile(irodsPath string, resource string, localPath 
 
 // DownloadFileWithConnection downloads a file to local
 func (fs *FileSystem) DownloadFileWithConnection(conn *connection.IRODSConnection, irodsPath string, resource string, localPath string, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
-	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
-	localDestPath := util.GetCorrectLocalPath(localPath)
+	irodsSrcPath := util.CleanIRODSPath(irodsPath)
+	localDestPath := util.CleanLocalPath(localPath)
 
 	localFilePath := localDestPath
 
@@ -207,8 +207,8 @@ func (fs *FileSystem) DownloadFileWithConnection(conn *connection.IRODSConnectio
 
 // DownloadFileResumable downloads a file to local with support of transfer resume
 func (fs *FileSystem) DownloadFileResumable(irodsPath string, resource string, localPath string, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
-	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
-	localDestPath := util.GetCorrectLocalPath(localPath)
+	irodsSrcPath := util.CleanIRODSPath(irodsPath)
+	localDestPath := util.CleanLocalPath(localPath)
 
 	localFilePath := localDestPath
 
@@ -293,8 +293,8 @@ func (fs *FileSystem) DownloadFileResumable(irodsPath string, resource string, l
 
 // DownloadFileResumableWithConnection downloads a file to local with support of transfer resume
 func (fs *FileSystem) DownloadFileResumableWithConnection(conn *connection.IRODSConnection, irodsPath string, resource string, localPath string, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
-	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
-	localDestPath := util.GetCorrectLocalPath(localPath)
+	irodsSrcPath := util.CleanIRODSPath(irodsPath)
+	localDestPath := util.CleanLocalPath(localPath)
 
 	localFilePath := localDestPath
 
@@ -379,7 +379,7 @@ func (fs *FileSystem) DownloadFileResumableWithConnection(conn *connection.IRODS
 
 // DownloadFileToBuffer downloads a file to buffer
 func (fs *FileSystem) DownloadFileToBuffer(irodsPath string, resource string, buffer *bytes.Buffer, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
-	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
+	irodsSrcPath := util.CleanIRODSPath(irodsPath)
 
 	fileTransferResult := &FileTransferResult{}
 	fileTransferResult.IRODSPath = irodsSrcPath
@@ -439,7 +439,7 @@ func (fs *FileSystem) DownloadFileToBuffer(irodsPath string, resource string, bu
 
 // DownloadFileToBufferWithConnection downloads a file to buffer
 func (fs *FileSystem) DownloadFileToBufferWithConnection(conn *connection.IRODSConnection, irodsPath string, resource string, buffer *bytes.Buffer, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
-	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
+	irodsSrcPath := util.CleanIRODSPath(irodsPath)
 
 	fileTransferResult := &FileTransferResult{}
 	fileTransferResult.IRODSPath = irodsSrcPath
@@ -499,8 +499,8 @@ func (fs *FileSystem) DownloadFileToBufferWithConnection(conn *connection.IRODSC
 
 // DownloadFileParallel downloads a file to local in parallel
 func (fs *FileSystem) DownloadFileParallel(irodsPath string, resource string, localPath string, taskNum int, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
-	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
-	localDestPath := util.GetCorrectLocalPath(localPath)
+	irodsSrcPath := util.CleanIRODSPath(irodsPath)
+	localDestPath := util.CleanLocalPath(localPath)
 
 	localFilePath := localDestPath
 
@@ -585,8 +585,8 @@ func (fs *FileSystem) DownloadFileParallel(irodsPath string, resource string, lo
 
 // DownloadFileParallelWithConnections downloads a file to local in parallel
 func (fs *FileSystem) DownloadFileParallelWithConnections(conns []*connection.IRODSConnection, irodsPath string, resource string, localPath string, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
-	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
-	localDestPath := util.GetCorrectLocalPath(localPath)
+	irodsSrcPath := util.CleanIRODSPath(irodsPath)
+	localDestPath := util.CleanLocalPath(localPath)
 
 	localFilePath := localDestPath
 
@@ -671,8 +671,8 @@ func (fs *FileSystem) DownloadFileParallelWithConnections(conns []*connection.IR
 
 // DownloadFileParallelResumable downloads a file to local in parallel with support of transfer resume
 func (fs *FileSystem) DownloadFileParallelResumable(irodsPath string, resource string, localPath string, taskNum int, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
-	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
-	localDestPath := util.GetCorrectLocalPath(localPath)
+	irodsSrcPath := util.CleanIRODSPath(irodsPath)
+	localDestPath := util.CleanLocalPath(localPath)
 
 	localFilePath := localDestPath
 
@@ -757,8 +757,8 @@ func (fs *FileSystem) DownloadFileParallelResumable(irodsPath string, resource s
 
 // DownloadFileParallelResumableWithConnections downloads a file to local in parallel with support of transfer resume
 func (fs *FileSystem) DownloadFileParallelResumableWithConnections(conns []*connection.IRODSConnection, irodsPath string, resource string, localPath string, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
-	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
-	localDestPath := util.GetCorrectLocalPath(localPath)
+	irodsSrcPath := util.CleanIRODSPath(irodsPath)
+	localDestPath := util.CleanLocalPath(localPath)
 
 	localFilePath := localDestPath
 
@@ -843,8 +843,8 @@ func (fs *FileSystem) DownloadFileParallelResumableWithConnections(conns []*conn
 
 // DownloadFileRedirectToResource downloads a file from resource to local in parallel
 func (fs *FileSystem) DownloadFileRedirectToResource(irodsPath string, resource string, localPath string, taskNum int, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
-	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
-	localDestPath := util.GetCorrectLocalPath(localPath)
+	irodsSrcPath := util.CleanIRODSPath(irodsPath)
+	localDestPath := util.CleanLocalPath(localPath)
 
 	localFilePath := localDestPath
 
@@ -922,8 +922,8 @@ func (fs *FileSystem) DownloadFileRedirectToResource(irodsPath string, resource 
 
 // DownloadFileRedirectToResourceWithConnection downloads a file from resource to local in parallel
 func (fs *FileSystem) DownloadFileRedirectToResourceWithConnection(controlConn *connection.IRODSConnection, irodsPath string, resource string, localPath string, taskNum int, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
-	irodsSrcPath := util.GetCorrectIRODSPath(irodsPath)
-	localDestPath := util.GetCorrectLocalPath(localPath)
+	irodsSrcPath := util.CleanIRODSPath(irodsPath)
+	localDestPath := util.CleanLocalPath(localPath)
 
 	localFilePath := localDestPath
 
@@ -1001,8 +1001,8 @@ func (fs *FileSystem) DownloadFileRedirectToResourceWithConnection(controlConn *
 
 // UploadFile uploads a local file to irods
 func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource string, replicate bool, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
-	localSrcPath := util.GetCorrectLocalPath(localPath)
-	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
+	localSrcPath := util.CleanLocalPath(localPath)
+	irodsDestPath := util.CleanIRODSPath(irodsPath)
 
 	irodsFilePath := irodsDestPath
 
@@ -1122,8 +1122,8 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 
 // UploadFileWithConnection uploads a local file to irods
 func (fs *FileSystem) UploadFileWithConnection(conn *connection.IRODSConnection, localPath string, irodsPath string, resource string, replicate bool, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
-	localSrcPath := util.GetCorrectLocalPath(localPath)
-	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
+	localSrcPath := util.CleanLocalPath(localPath)
+	irodsDestPath := util.CleanIRODSPath(irodsPath)
 
 	irodsFilePath := irodsDestPath
 
@@ -1243,7 +1243,7 @@ func (fs *FileSystem) UploadFileWithConnection(conn *connection.IRODSConnection,
 
 // UploadFileFromBuffer uploads buffer data to irods
 func (fs *FileSystem) UploadFileFromBuffer(buffer *bytes.Buffer, irodsPath string, resource string, replicate bool, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
-	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
+	irodsDestPath := util.CleanIRODSPath(irodsPath)
 
 	irodsFilePath := irodsDestPath
 
@@ -1346,7 +1346,7 @@ func (fs *FileSystem) UploadFileFromBuffer(buffer *bytes.Buffer, irodsPath strin
 
 // UploadFileFromBufferWithConnection uploads buffer data to irods
 func (fs *FileSystem) UploadFileFromBufferWithConnection(conn *connection.IRODSConnection, buffer *bytes.Buffer, irodsPath string, resource string, replicate bool, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
-	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
+	irodsDestPath := util.CleanIRODSPath(irodsPath)
 
 	irodsFilePath := irodsDestPath
 
@@ -1449,8 +1449,8 @@ func (fs *FileSystem) UploadFileFromBufferWithConnection(conn *connection.IRODSC
 
 // UploadFileParallel uploads a local file to irods in parallel
 func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, resource string, taskNum int, replicate bool, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
-	localSrcPath := util.GetCorrectLocalPath(localPath)
-	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
+	localSrcPath := util.CleanLocalPath(localPath)
+	irodsDestPath := util.CleanIRODSPath(irodsPath)
 
 	irodsFilePath := irodsDestPath
 
@@ -1570,8 +1570,8 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 
 // UploadFileParallelWithConnections uploads a local file to irods in parallel
 func (fs *FileSystem) UploadFileParallelWithConnections(conns []*connection.IRODSConnection, localPath string, irodsPath string, resource string, taskNum int, replicate bool, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
-	localSrcPath := util.GetCorrectLocalPath(localPath)
-	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
+	localSrcPath := util.CleanLocalPath(localPath)
+	irodsDestPath := util.CleanIRODSPath(irodsPath)
 
 	irodsFilePath := irodsDestPath
 
@@ -1691,8 +1691,8 @@ func (fs *FileSystem) UploadFileParallelWithConnections(conns []*connection.IROD
 
 // UploadFileRedirectToResource uploads a file from local to resource server in parallel
 func (fs *FileSystem) UploadFileRedirectToResource(localPath string, irodsPath string, resource string, taskNum int, replicate bool, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
-	localSrcPath := util.GetCorrectLocalPath(localPath)
-	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
+	localSrcPath := util.CleanLocalPath(localPath)
+	irodsDestPath := util.CleanIRODSPath(irodsPath)
 
 	irodsFilePath := irodsDestPath
 
@@ -1812,8 +1812,8 @@ func (fs *FileSystem) UploadFileRedirectToResource(localPath string, irodsPath s
 
 // UploadFileRedirectToResourceWithConnection uploads a file from local to resource server in parallel
 func (fs *FileSystem) UploadFileRedirectToResourceWithConnection(controlConn *connection.IRODSConnection, localPath string, irodsPath string, resource string, taskNum int, replicate bool, verifyChecksum bool, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
-	localSrcPath := util.GetCorrectLocalPath(localPath)
-	irodsDestPath := util.GetCorrectIRODSPath(irodsPath)
+	localSrcPath := util.CleanLocalPath(localPath)
+	irodsDestPath := util.CleanIRODSPath(irodsPath)
 
 	irodsFilePath := irodsDestPath
 

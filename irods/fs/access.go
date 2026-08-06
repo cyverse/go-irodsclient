@@ -412,7 +412,7 @@ func ListDataObjectAccessesWithoutCollection(conn *connection.IRODSConnection, d
 				if pagenatedAccesses[row] == nil {
 					// create a new
 					pagenatedAccesses[row] = &types.IRODSAccess{
-						Path:        util.GetCorrectIRODSPath(dataObjPath),
+						Path:        util.CleanIRODSPath(dataObjPath),
 						UserName:    "",
 						UserZone:    "",
 						AccessLevel: types.IRODSAccessLevelNull,

@@ -11,8 +11,8 @@ import (
 	"github.com/cockroachdb/errors"
 )
 
-// GetCorrectIRODSPath corrects the path
-func GetCorrectIRODSPath(p string) string {
+// CleanIRODSPath corrects the path
+func CleanIRODSPath(p string) string {
 	if p == "" || p == "/" {
 		return "/"
 	}
@@ -82,8 +82,8 @@ func GetIRODSPathDepth(p string) int {
 	return len(pArr) - 1
 }
 
-// GetParentIRODSDirs returns all parent dirs
-func GetParentIRODSDirs(p string) []string {
+// GetIRODSParentDirs returns all parent dirs
+func GetIRODSParentDirs(p string) []string {
 	parents := []string{}
 
 	if p == "/" {
@@ -108,8 +108,8 @@ func GetParentIRODSDirs(p string) []string {
 	return parents
 }
 
-// GetRelativeIRODSPath returns relative path
-func GetRelativeIRODSPath(base string, target string) (string, error) {
+// GetIRODSRelativePath returns relative path
+func GetIRODSRelativePath(base string, target string) (string, error) {
 	osBase := strings.ReplaceAll(base, "/", string(os.PathSeparator))
 	osTarget := strings.ReplaceAll(target, "/", string(os.PathSeparator))
 

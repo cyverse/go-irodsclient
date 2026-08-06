@@ -13,7 +13,7 @@ func (fs *FileSystem) SearchByMeta(metaname string, metavalue string) ([]*Entry,
 
 // ListMetadata lists metadata for the given path
 func (fs *FileSystem) ListMetadata(irodsPath string) ([]*types.IRODSMeta, error) {
-	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
+	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
 
 	// check cache first
 	cachedEntry := fs.cache.GetMetadataCache(irodsCorrectPath)
@@ -50,7 +50,7 @@ func (fs *FileSystem) ListMetadata(irodsPath string) ([]*types.IRODSMeta, error)
 
 // AddMetadata adds a metadata for the path
 func (fs *FileSystem) AddMetadata(irodsPath string, attName string, attValue string, attUnits string) error {
-	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
+	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
 
 	metadata := &types.IRODSMeta{
 		Name:  attName,
@@ -82,7 +82,7 @@ func (fs *FileSystem) AddMetadata(irodsPath string, attName string, attValue str
 
 // DeleteMetadata deletes a metadata for the path
 func (fs *FileSystem) DeleteMetadata(irodsPath string, avuID int64) error {
-	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
+	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
 
 	metadata := &types.IRODSMeta{
 		AVUID: avuID,
@@ -112,7 +112,7 @@ func (fs *FileSystem) DeleteMetadata(irodsPath string, avuID int64) error {
 
 // DeleteMetadataByName deletes a metadata for the path by name
 func (fs *FileSystem) DeleteMetadataByName(irodsPath string, attName string) error {
-	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
+	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
 
 	metadata := &types.IRODSMeta{
 		AVUID: 0,
@@ -143,7 +143,7 @@ func (fs *FileSystem) DeleteMetadataByName(irodsPath string, attName string) err
 
 // DeleteMetadataByAVU deletes a metadata for the path by AVU
 func (fs *FileSystem) DeleteMetadataByAVU(irodsPath string, attName string, attValue string, attUnits string) error {
-	irodsCorrectPath := util.GetCorrectIRODSPath(irodsPath)
+	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
 
 	metadata := &types.IRODSMeta{
 		AVUID: 0,

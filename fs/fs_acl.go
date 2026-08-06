@@ -28,7 +28,7 @@ func (fs *FileSystem) ListACLs(path string) ([]*types.IRODSAccess, error) {
 
 // ListACLsForEntries returns ACLs for entries in a collection
 func (fs *FileSystem) ListACLsForEntries(path string) ([]*types.IRODSAccess, error) {
-	irodsPath := util.GetCorrectIRODSPath(path)
+	irodsPath := util.CleanIRODSPath(path)
 
 	return fs.listACLsForEntries(irodsPath)
 }
@@ -62,7 +62,7 @@ func (fs *FileSystem) ListACLsWithGroupUsers(path string) ([]*types.IRODSAccess,
 
 // GetDirACLInheritance returns ACL inheritance of a directory
 func (fs *FileSystem) GetDirACLInheritance(path string) (*types.IRODSAccessInheritance, error) {
-	irodsPath := util.GetCorrectIRODSPath(path)
+	irodsPath := util.CleanIRODSPath(path)
 
 	// retrieve it
 	conn, err := fs.metadataSession.AcquireConnection(true)
@@ -81,7 +81,7 @@ func (fs *FileSystem) GetDirACLInheritance(path string) (*types.IRODSAccessInher
 
 // ListDirACLs returns ACLs of a directory
 func (fs *FileSystem) ListDirACLs(path string) ([]*types.IRODSAccess, error) {
-	irodsPath := util.GetCorrectIRODSPath(path)
+	irodsPath := util.CleanIRODSPath(path)
 
 	// check cache first
 	cachedAccesses := fs.cache.GetAclCache(irodsPath)
@@ -153,7 +153,7 @@ func (fs *FileSystem) ListDirACLsWithGroupMembers(path string) ([]*types.IRODSAc
 
 // ListFileACLs returns ACLs of a file
 func (fs *FileSystem) ListFileACLs(path string) ([]*types.IRODSAccess, error) {
-	irodsPath := util.GetCorrectIRODSPath(path)
+	irodsPath := util.CleanIRODSPath(path)
 
 	// check cache first
 	cachedAccesses := fs.cache.GetAclCache(irodsPath)

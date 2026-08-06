@@ -8,8 +8,8 @@ import (
 
 // ExtractStructFile extracts a struct file
 func (fs *FileSystem) ExtractStructFile(path string, targetCollection string, resource string, dataType types.DataType, force bool, bulkReg bool) error {
-	irodsPath := util.GetCorrectIRODSPath(path)
-	targetIrodsPath := util.GetCorrectIRODSPath(targetCollection)
+	irodsPath := util.CleanIRODSPath(path)
+	targetIrodsPath := util.CleanIRODSPath(targetCollection)
 
 	// we create a new connection for extraction because iRODS has a bug that does not clear file descriptors, causing SYS_OUT_OF_FILE_DESC error.
 	// create a fresh connection and throw out after use.

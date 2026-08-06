@@ -21,7 +21,7 @@ const (
 
 // GetDefaultEnvironmentDirPath returns default environment dir path
 func GetDefaultEnvironmentDirPath() string {
-	environmentDirPath, err := util.ExpandHomeDir(environmentDirDefault)
+	environmentDirPath, err := util.ExpandLocalHomeDir(environmentDirDefault)
 	if err != nil {
 		environmentDirPath = environmentDirDefault
 	}
@@ -143,7 +143,7 @@ func (manager *ICommandsEnvironmentManager) FromIRODSAccount(account *types.IROD
 
 // SetEnvironmentFilePath sets environment file path
 func (manager *ICommandsEnvironmentManager) SetEnvironmentFilePath(envFilePath string) error {
-	envFilePath, err := util.ExpandHomeDir(envFilePath)
+	envFilePath, err := util.ExpandLocalHomeDir(envFilePath)
 	if err != nil {
 		return errors.Wrapf(err, "failed to expand home dir %q", envFilePath)
 	}
@@ -159,7 +159,7 @@ func (manager *ICommandsEnvironmentManager) SetEnvironmentFilePath(envFilePath s
 
 // SetEnvironmentDirPath sets environment dir path
 func (manager *ICommandsEnvironmentManager) SetEnvironmentDirPath(envDirPath string) error {
-	envDirPath, err := util.ExpandHomeDir(envDirPath)
+	envDirPath, err := util.ExpandLocalHomeDir(envDirPath)
 	if err != nil {
 		return errors.Wrapf(err, "failed to expand home dir %q", envDirPath)
 	}
@@ -178,7 +178,7 @@ func (manager *ICommandsEnvironmentManager) Load() error {
 	logger := log.WithFields(log.Fields{})
 
 	if len(manager.EnvironmentFilePath) > 0 {
-		if util.ExistFile(manager.EnvironmentFilePath) {
+		if util.ExistLocalFile(manager.EnvironmentFilePath) {
 			logger.Debugf("reading icommands configuration file %q", manager.EnvironmentFilePath)
 
 			cfg, err := NewConfigFromFile(GetDefaultConfig(), manager.EnvironmentFilePath)
@@ -196,7 +196,7 @@ func (manager *ICommandsEnvironmentManager) Load() error {
 
 	// read session
 	if len(manager.SessionFilePath) > 0 {
-		if util.ExistFile(manager.SessionFilePath) {
+		if util.ExistLocalFile(manager.SessionFilePath) {
 			logger.Debugf("reading icommands session file %q", manager.SessionFilePath)
 
 			cfg, err := NewConfigFromJSONFile(nil, manager.SessionFilePath)
@@ -210,7 +210,7 @@ func (manager *ICommandsEnvironmentManager) Load() error {
 
 	// read password (.irodsA)
 	if len(manager.PasswordFilePath) > 0 {
-		if util.ExistFile(manager.PasswordFilePath) {
+		if util.ExistLocalFile(manager.PasswordFilePath) {
 			logger.Debugf("reading icommands password file %q", manager.PasswordFilePath)
 
 			obfuscator := NewPasswordObfuscator()
