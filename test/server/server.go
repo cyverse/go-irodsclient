@@ -9,8 +9,8 @@ import (
 
 	"github.com/cockroachdb/errors"
 	irods_fs "github.com/cyverse/go-irodsclient/fs"
-	irods_lowlevel_fs "github.com/cyverse/go-irodsclient/irods/fs"
 	"github.com/cyverse/go-irodsclient/irods/connection"
+	irods_lowlevel_fs "github.com/cyverse/go-irodsclient/irods/fs"
 	"github.com/cyverse/go-irodsclient/irods/session"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/docker/compose/v2/pkg/api"
@@ -237,6 +237,9 @@ func (server *IRODSServer) GetFileSystemConfig() *irods_fs.FileSystemConfig {
 	if server.serverInfo.UseAddressResolver {
 		fsConfig.AddressResolver = server.serverInfo.AddressResolver
 	}
+
+	fsConfig.Cache.Backend.Type = irods_fs.CacheBackendTypeRistretto
+
 	return fsConfig
 }
 
@@ -261,7 +264,6 @@ func (server *IRODSServer) GetFileSystem() (*irods_fs.FileSystem, error) {
 		return nil, err
 	}
 	fsConfig := server.GetFileSystemConfig()
-	// fsConfig.Cache.NoCache = true // disable cache for testing
 
 	return irods_fs.NewFileSystem(account, fsConfig)
 }

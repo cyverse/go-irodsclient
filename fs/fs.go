@@ -66,13 +66,16 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*File
 	ioSession.SetTransactionFailureHandler(ioTransactionFailureHandler)
 	metaSession.SetTransactionFailureHandler(metaTransactionFailureHandler)
 
+	// Generate account ID for cache isolation
+	accountID := GenerateAccountID(account.Host, account.Port, account.ClientUser, account.ClientZone)
+
 	fs := &FileSystem{
 		id:                   xid.New().String(), // generate a new ID
 		account:              account,
 		config:               config,
 		ioSession:            ioSession,
 		metadataSession:      metaSession,
-		cache:                NewFileSystemCache(&config.Cache),
+		cache:                NewFileSystemCache(&config.Cache, accountID),
 		cacheEventHandlerMap: NewFilesystemCacheEventHandlerMap(),
 		fileHandleMap:        NewFileHandleMap(),
 	}

@@ -1,13 +1,12 @@
 package fs
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
-	gocache "github.com/patrickmn/go-cache"
+	log "github.com/sirupsen/logrus"
 )
 
 // MetadataCacheTimeoutSetting defines cache timeout for path
@@ -19,30 +18,36 @@ type MetadataCacheTimeoutSetting struct {
 
 // CacheConfig defines cache config
 type CacheConfig struct {
-	Timeout                 types.Duration                `yaml:"timeout,omitempty" json:"timeout,omitempty"`           // cache timeout
-	CleanupTime             types.Duration                `yaml:"cleanup_time,omitempty" json:"cleanup_time,omitempty"` // cache cleanup time
 	MetadataTimeoutSettings []MetadataCacheTimeoutSetting `yaml:"metadata_timeout_settings,omitempty" json:"metadata_timeout_settings,omitempty"`
-	// determine if we will invalidate parent dir's entry cache
-	// at subdir/file creation/deletion
-	// turn to false to allow short cache inconsistency
-	InvalidateParentEntryCacheImmediately bool `yaml:"invalidate_parent_entry_cache_immediately,omitempty" json:"invalidate_parent_entry_cache_immediately,omitempty"`
 	// for mysql iCAT backend, this should be true.
 	// for postgresql iCAT backend, this can be false.
 	StartNewTransaction bool `yaml:"start_new_transaction,omitempty" json:"start_new_transaction,omitempty"`
-	NoCache             bool `yaml:"no_cache,omitempty" json:"no_cache,omitempty"` // if true, do not use cache
+
+	// Backend configuration for caching (memory, ristretto, redis, none)
+	Backend *CacheBackendConfig `yaml:"backend,omitempty" json:"backend,omitempty"`
 }
 
 // NewDefaultCacheConfig creates a new default CacheConfig
 func NewDefaultCacheConfig() CacheConfig {
 	return CacheConfig{
-		Timeout:                               types.Duration(FileSystemCacheTimeout),
-		CleanupTime:                           types.Duration(FileSystemCacheTimeout),
-		MetadataTimeoutSettings:               []MetadataCacheTimeoutSetting{},
-		InvalidateParentEntryCacheImmediately: true,
-		StartNewTransaction:                   true,
-		NoCache:                               false,
+		MetadataTimeoutSettings: []MetadataCacheTimeoutSetting{},
+		StartNewTransaction:     true,
+		Backend:                 NewDefaultCacheBackendConfig(),
 	}
 }
+
+// Cache namespace names
+const (
+	cacheNamespaceEntry         = "entries"
+	cacheNamespaceNegativeEntry = "negative_entries"
+	cacheNamespaceDir           = "dirs"
+	cacheNamespaceMetadata      = "metadata"
+	cacheNamespaceUser          = "users"
+	cacheNamespaceUserList      = "user_lists"
+	cacheNamespaceGroupMember   = "group_members"
+	cacheNamespaceUserGroup     = "user_groups"
+	cacheNamespaceACL           = "acl"
+)
 
 // FileSystemCache manages filesystem caches
 type FileSystemCache struct {
@@ -50,36 +55,20 @@ type FileSystemCache struct {
 
 	cacheTimeoutPathMap map[string]MetadataCacheTimeoutSetting
 
-	entryCache         *gocache.Cache
-	negativeEntryCache *gocache.Cache
-	dirCache           *gocache.Cache
-	metadataCache      *gocache.Cache
-	userCache          map[string]*gocache.Cache // zone is key
-	userListCache      map[string]*gocache.Cache // zone is key
-	groupMemberCache   map[string]*gocache.Cache // zone is key
-	userGroupCache     map[string]*gocache.Cache // zone is key
-	aclCache           *gocache.Cache
+	// Account information for cache isolation
+	accountID string // hash of (host, account, zone)
+
+	// Cache backend system
+	cacheBackend CacheBackend
 }
 
 // NewFileSystemCache creates a new FileSystemCache
-func NewFileSystemCache(config *CacheConfig) *FileSystemCache {
+// accountID: unique account identifier (typically hash of host:port|account|zone)
+func NewFileSystemCache(config *CacheConfig, accountID string) *FileSystemCache {
 	if config == nil {
 		cacheConfig := NewDefaultCacheConfig()
 		config = &cacheConfig
 	}
-
-	timeout := time.Duration(config.Timeout)
-	cleanupTime := time.Duration(config.CleanupTime)
-
-	entryCache := gocache.New(timeout, cleanupTime)
-	negativeEntryCache := gocache.New(timeout, cleanupTime)
-	dirCache := gocache.New(timeout, cleanupTime)
-	metadataCache := gocache.New(timeout, cleanupTime)
-	userCache := map[string]*gocache.Cache{}
-	userListCache := map[string]*gocache.Cache{}
-	groupUserCache := map[string]*gocache.Cache{}
-	userGroupCache := map[string]*gocache.Cache{}
-	aclCache := gocache.New(timeout, cleanupTime)
 
 	// build a map for quick search
 	cacheTimeoutSettingMap := map[string]MetadataCacheTimeoutSetting{}
@@ -87,21 +76,45 @@ func NewFileSystemCache(config *CacheConfig) *FileSystemCache {
 		cacheTimeoutSettingMap[timeoutSetting.Path] = timeoutSetting
 	}
 
-	return &FileSystemCache{
-		config: config,
-
-		cacheTimeoutPathMap: cacheTimeoutSettingMap,
-
-		entryCache:         entryCache,
-		negativeEntryCache: negativeEntryCache,
-		dirCache:           dirCache,
-		metadataCache:      metadataCache,
-		groupMemberCache:   groupUserCache,
-		userGroupCache:     userGroupCache,
-		userCache:          userCache,
-		userListCache:      userListCache,
-		aclCache:           aclCache,
+	// Initialize cache backend
+	var cacheBackend CacheBackend
+	backendConfig := config.Backend
+	if backendConfig == nil {
+		backendConfig = NewDefaultCacheBackendConfig()
 	}
+
+	factory := NewCacheBackendFactory(backendConfig)
+	backend, err := factory.CreateBackend()
+	if err != nil {
+		logger := log.WithFields(log.Fields{
+			"type": backendConfig.Type,
+		})
+		logger.WithError(err).Warn("failed to create cache backend, falling back to memory backend")
+
+		// Fall back to default memory backend if initialization fails
+		defaultFactory := NewCacheBackendFactory(NewDefaultCacheBackendConfig())
+		fallbackBackend, _ := defaultFactory.CreateBackend()
+		cacheBackend = fallbackBackend
+	} else {
+		cacheBackend = backend
+	}
+
+	return &FileSystemCache{
+		config:              config,
+		cacheTimeoutPathMap: cacheTimeoutSettingMap,
+		accountID:           accountID,
+		cacheBackend:        cacheBackend,
+	}
+}
+
+// getNamespace returns a namespace for the given logical namespace name
+func (cache *FileSystemCache) getNamespace(logicalNamespace string) CacheNamespace {
+	return cache.cacheBackend.GetNamespace(cache.accountID + ":" + logicalNamespace)
+}
+
+// deleteNamespace deletes a namespace
+func (cache *FileSystemCache) deleteNamespace(logicalNamespace string) error {
+	return cache.cacheBackend.DeleteNamespace(cache.accountID + ":" + logicalNamespace)
 }
 
 func (cache *FileSystemCache) getCacheTTLForPath(path string) time.Duration {
@@ -136,64 +149,38 @@ func (cache *FileSystemCache) getCacheTTLForPath(path string) time.Duration {
 
 // AddEntryCache adds an entry cache
 func (cache *FileSystemCache) AddEntryCache(entry *Entry) {
-	if cache.config.NoCache {
-		return
-	}
-
 	ttl := cache.getCacheTTLForPath(entry.Path)
-	cache.entryCache.Set(entry.Path, entry, ttl)
+	ns := cache.getNamespace(cacheNamespaceEntry)
+	_ = ns.Set(entry.Path, entry, ttl)
 }
 
 // RemoveEntryCache removes an entry cache
 func (cache *FileSystemCache) RemoveEntryCache(path string) {
-	if cache.config.NoCache {
-		return
-	}
-
-	cache.entryCache.Delete(path)
+	ns := cache.getNamespace(cacheNamespaceEntry)
+	_ = ns.Delete(path)
 }
 
 // RemoveDirEntryCache removes an entry cache for dir
 func (cache *FileSystemCache) RemoveDirEntryCache(path string, recurse bool) {
-	if cache.config.NoCache {
-		return
-	}
-
-	cache.entryCache.Delete(path)
+	ns := cache.getNamespace(cacheNamespaceEntry)
+	_ = ns.Delete(path)
 
 	if recurse {
 		prefix := strings.TrimSuffix(path, "/") + "/"
-
-		// recursive
-		items := cache.entryCache.Items()
-		for k := range items {
-			if strings.HasPrefix(k, prefix) {
-				// entries under k dir
-				cache.entryCache.Delete(k)
-			}
-		}
+		_ = ns.DeletePrefix(prefix)
 	}
 }
 
 // RemoveParentDirCache removes an entry cache for the parent path of the given path
 func (cache *FileSystemCache) RemoveParentDirEntryCache(path string, recurse bool) {
-	if cache.config.NoCache {
-		return
-	}
-
-	if cache.config.InvalidateParentEntryCacheImmediately {
-		parentPath := util.GetIRODSPathDirname(path)
-		cache.RemoveDirEntryCache(parentPath, recurse)
-	}
+	parentPath := util.GetIRODSPathDirname(path)
+	cache.RemoveDirEntryCache(parentPath, recurse)
 }
 
 // GetEntryCache retrieves an entry cache
 func (cache *FileSystemCache) GetEntryCache(path string) *Entry {
-	if cache.config.NoCache {
-		return nil
-	}
-
-	if entry, exist := cache.entryCache.Get(path); exist {
+	ns := cache.getNamespace(cacheNamespaceEntry)
+	if entry, exist, _ := ns.Get(path); exist {
 		if fsentry, ok := entry.(*Entry); ok {
 			return fsentry
 		}
@@ -203,58 +190,34 @@ func (cache *FileSystemCache) GetEntryCache(path string) *Entry {
 
 // ClearEntryCache clears all entry caches
 func (cache *FileSystemCache) ClearEntryCache() {
-	if cache.config.NoCache {
-		return
-	}
-
-	cache.entryCache.Flush()
+	_ = cache.deleteNamespace(cacheNamespaceEntry)
 }
 
 // AddNegativeEntryCache adds a negative entry cache
 func (cache *FileSystemCache) AddNegativeEntryCache(path string) {
-	if cache.config.NoCache {
-		return
-	}
-
 	ttl := cache.getCacheTTLForPath(path)
-	cache.negativeEntryCache.Set(path, true, ttl)
+	ns := cache.getNamespace(cacheNamespaceNegativeEntry)
+	_ = ns.Set(path, true, ttl)
 }
 
 // RemoveNegativeEntryCache removes a negative entry cache
 func (cache *FileSystemCache) RemoveNegativeEntryCache(path string) {
-	if cache.config.NoCache {
-		return
-	}
-
-	cache.negativeEntryCache.Delete(path)
+	ns := cache.getNamespace(cacheNamespaceNegativeEntry)
+	_ = ns.Delete(path)
 }
 
 // RemoveAllNegativeEntryCacheForPath removes all negative entry caches
 func (cache *FileSystemCache) RemoveAllNegativeEntryCacheForPath(path string) {
-	if cache.config.NoCache {
-		return
-	}
-
-	prefix := fmt.Sprintf("%s/", path)
-	deleteKey := []string{}
-	for k := range cache.negativeEntryCache.Items() {
-		if k == path || strings.HasPrefix(k, prefix) {
-			deleteKey = append(deleteKey, k)
-		}
-	}
-
-	for _, k := range deleteKey {
-		cache.negativeEntryCache.Delete(k)
-	}
+	ns := cache.getNamespace(cacheNamespaceNegativeEntry)
+	_ = ns.Delete(path)
+	prefix := strings.TrimSuffix(path, "/") + "/"
+	_ = ns.DeletePrefix(prefix)
 }
 
 // HasNegativeEntryCache checks the existence of a negative entry cache
 func (cache *FileSystemCache) HasNegativeEntryCache(path string) bool {
-	if cache.config.NoCache {
-		return false
-	}
-
-	if exist, existOk := cache.negativeEntryCache.Get(path); existOk {
+	ns := cache.getNamespace(cacheNamespaceNegativeEntry)
+	if exist, existOk, _ := ns.Get(path); existOk {
 		if bexist, ok := exist.(bool); ok {
 			return bexist
 		}
@@ -264,40 +227,26 @@ func (cache *FileSystemCache) HasNegativeEntryCache(path string) bool {
 
 // ClearNegativeEntryCache clears all negative entry caches
 func (cache *FileSystemCache) ClearNegativeEntryCache() {
-	if cache.config.NoCache {
-		return
-	}
-
-	cache.negativeEntryCache.Flush()
+	_ = cache.deleteNamespace(cacheNamespaceNegativeEntry)
 }
 
 // AddDirCache adds a dir cache
 func (cache *FileSystemCache) AddDirCache(path string, entries []string) {
-	if cache.config.NoCache {
-		return
-	}
-
 	ttl := cache.getCacheTTLForPath(path)
-	cache.dirCache.Set(path, entries, ttl)
+	ns := cache.getNamespace(cacheNamespaceDir)
+	_ = ns.Set(path, entries, ttl)
 }
 
 // RemoveDirCache removes a dir cache
 func (cache *FileSystemCache) RemoveDirCache(path string) {
-	if cache.config.NoCache {
-		return
-	}
-
-	cache.dirCache.Delete(path)
+	ns := cache.getNamespace(cacheNamespaceDir)
+	_ = ns.Delete(path)
 }
 
 // GetDirCache retrives a dir cache
 func (cache *FileSystemCache) GetDirCache(path string) []string {
-	if cache.config.NoCache {
-		return nil
-	}
-
-	data, exist := cache.dirCache.Get(path)
-	if exist {
+	ns := cache.getNamespace(cacheNamespaceDir)
+	if data, exist, _ := ns.Get(path); exist {
 		if entries, ok := data.([]string); ok {
 			return entries
 		}
@@ -307,40 +256,26 @@ func (cache *FileSystemCache) GetDirCache(path string) []string {
 
 // ClearDirCache clears all dir caches
 func (cache *FileSystemCache) ClearDirCache() {
-	if cache.config.NoCache {
-		return
-	}
-
-	cache.dirCache.Flush()
+	_ = cache.deleteNamespace(cacheNamespaceDir)
 }
 
 // AddMetadataCache adds a metadata cache
 func (cache *FileSystemCache) AddMetadataCache(path string, metas []*types.IRODSMeta) {
-	if cache.config.NoCache {
-		return
-	}
-
 	ttl := cache.getCacheTTLForPath(path)
-	cache.metadataCache.Set(path, metas, ttl)
+	ns := cache.getNamespace(cacheNamespaceMetadata)
+	_ = ns.Set(path, metas, ttl)
 }
 
 // RemoveMetadataCache removes a metadata cache
 func (cache *FileSystemCache) RemoveMetadataCache(path string) {
-	if cache.config.NoCache {
-		return
-	}
-
-	cache.metadataCache.Delete(path)
+	ns := cache.getNamespace(cacheNamespaceMetadata)
+	_ = ns.Delete(path)
 }
 
 // GetMetadataCache retrieves a metadata cache
 func (cache *FileSystemCache) GetMetadataCache(path string) []*types.IRODSMeta {
-	if cache.config.NoCache {
-		return nil
-	}
-
-	data, exist := cache.metadataCache.Get(path)
-	if exist {
+	ns := cache.getNamespace(cacheNamespaceMetadata)
+	if data, exist, _ := ns.Get(path); exist {
 		if metas, ok := data.([]*types.IRODSMeta); ok {
 			return metas
 		}
@@ -350,38 +285,17 @@ func (cache *FileSystemCache) GetMetadataCache(path string) []*types.IRODSMeta {
 
 // ClearMetadataCache clears all metadata caches
 func (cache *FileSystemCache) ClearMetadataCache() {
-	if cache.config.NoCache {
-		return
-	}
-
-	cache.metadataCache.Flush()
+	_ = cache.deleteNamespace(cacheNamespaceMetadata)
 }
 
 // AddUserCache adds a user cache (cache of a user)
 func (cache *FileSystemCache) AddUserCache(user *types.IRODSUser) {
-	if cache.config.NoCache {
-		return
-	}
-
-	userCacheForZone := cache.userCache[user.Zone]
-	if userCacheForZone == nil {
-		timeout := time.Duration(cache.config.Timeout)
-		cleanupTime := time.Duration(cache.config.CleanupTime)
-
-		// create cache if not exist
-		userCacheForZone = gocache.New(timeout, cleanupTime)
-		cache.userCache[user.Zone] = userCacheForZone
-	}
-
-	userCacheForZone.Set(user.Name, user, 0)
+	ns := cache.getNamespace(cacheNamespaceUser + ":" + user.Zone)
+	_ = ns.Set(user.Name, user, 0)
 }
 
 // AddUserCacheMulti adds multiple user caches (cache of a user)
 func (cache *FileSystemCache) AddUserCacheMulti(users []*types.IRODSUser) {
-	if cache.config.NoCache {
-		return
-	}
-
 	for _, user := range users {
 		cache.AddUserCache(user)
 	}
@@ -389,341 +303,162 @@ func (cache *FileSystemCache) AddUserCacheMulti(users []*types.IRODSUser) {
 
 // RemoveUserCache removes a user cache (cache of a user)
 func (cache *FileSystemCache) RemoveUserCache(username string, zoneName string) {
-	if cache.config.NoCache {
-		return
-	}
-
-	userCacheForZone := cache.userCache[zoneName]
-	if userCacheForZone == nil {
-		return
-	}
-
-	userCacheForZone.Delete(username)
+	ns := cache.getNamespace(cacheNamespaceUser + ":" + zoneName)
+	_ = ns.Delete(username)
 }
 
 // GetUserCache retrives a user cache (cache of a user)
 func (cache *FileSystemCache) GetUserCache(username string, zoneName string) *types.IRODSUser {
-	if cache.config.NoCache {
-		return nil
-	}
-
-	userCacheForZone := cache.userCache[zoneName]
-	if userCacheForZone == nil {
-		return nil
-	}
-
-	user, exist := userCacheForZone.Get(username)
-	if exist {
-		if user, ok := user.(*types.IRODSUser); ok {
-			return user
+	ns := cache.getNamespace(cacheNamespaceUser + ":" + zoneName)
+	if user, exist, _ := ns.Get(username); exist {
+		if u, ok := user.(*types.IRODSUser); ok {
+			return u
 		}
 	}
-
 	return nil
 }
 
 // ClearUserCacheForZone clears user caches for a zone
 func (cache *FileSystemCache) ClearUserCacheForZone(zoneName string) {
-	if cache.config.NoCache {
-		return
-	}
-
-	userCacheForZone := cache.userCache[zoneName]
-	if userCacheForZone == nil {
-		return
-	}
-
-	userCacheForZone.Flush()
+	_ = cache.deleteNamespace(cacheNamespaceUser + ":" + zoneName)
 }
 
 // ClearAllUserCache clears all user caches
 func (cache *FileSystemCache) ClearAllUserCache() {
-	if cache.config.NoCache {
-		return
-	}
-
-	for _, userCacheForZone := range cache.userCache {
-		userCacheForZone.Flush()
-	}
+	_ = cache.cacheBackend.Clear()
 }
 
 // AddUserListCache adds a user list cache (cache of a list of all user names)
 func (cache *FileSystemCache) AddUserListCache(zoneName string, userType types.IRODSUserType, usernames []string) {
-	if cache.config.NoCache {
-		return
-	}
-	userListCacheForZone := cache.userListCache[zoneName]
-	if userListCacheForZone == nil {
-		timeout := time.Duration(cache.config.Timeout)
-		cleanupTime := time.Duration(cache.config.CleanupTime)
-
-		// create cache if not exist
-		userListCacheForZone = gocache.New(timeout, cleanupTime)
-		cache.userListCache[zoneName] = userListCacheForZone
-	}
-
-	userListCacheForZone.Set(string(userType), usernames, 0)
+	ns := cache.getNamespace(cacheNamespaceUserList + ":" + zoneName)
+	_ = ns.Set(string(userType), usernames, 0)
 }
 
 // RemoveUserListCache removes a user list cache (cache of a list of all users)
 func (cache *FileSystemCache) RemoveUserListCache(zoneName string, userType types.IRODSUserType) {
-	if cache.config.NoCache {
-		return
-	}
-
-	userListCacheForZone := cache.userListCache[zoneName]
-	if userListCacheForZone == nil {
-		return
-	}
-
-	userListCacheForZone.Delete(string(userType))
+	ns := cache.getNamespace(cacheNamespaceUserList + ":" + zoneName)
+	_ = ns.Delete(string(userType))
 }
 
 // GetUserListCache retrives a user list cache (cache of a list of all users)
 func (cache *FileSystemCache) GetUserListCache(zoneName string, userType types.IRODSUserType) []string {
-	if cache.config.NoCache {
-		return nil
-	}
-
-	userListCacheForZone := cache.userListCache[zoneName]
-	if userListCacheForZone == nil {
-		return nil
-	}
-
-	userlist, exist := userListCacheForZone.Get(string(userType))
-	if exist {
-		if user, ok := userlist.([]string); ok {
-			return user
+	ns := cache.getNamespace(cacheNamespaceUserList + ":" + zoneName)
+	if userlist, exist, _ := ns.Get(string(userType)); exist {
+		if u, ok := userlist.([]string); ok {
+			return u
 		}
 	}
-
 	return nil
 }
 
 // ClearUserListCacheForZone clears all user list caches for a zone
 func (cache *FileSystemCache) ClearUserListCacheForZone(zoneName string) {
-	if cache.config.NoCache {
-		return
-	}
-
-	userListCacheForZone := cache.userListCache[zoneName]
-	if userListCacheForZone == nil {
-		return
-	}
-
-	userListCacheForZone.Flush()
+	_ = cache.deleteNamespace(cacheNamespaceUserList + ":" + zoneName)
 }
 
 // ClearAllUserListCache clears all user caches
 func (cache *FileSystemCache) ClearAllUserListCache() {
-	if cache.config.NoCache {
-		return
-	}
-
-	for _, userListCacheForZone := range cache.userListCache {
-		userListCacheForZone.Flush()
-	}
+	_ = cache.cacheBackend.Clear()
 }
 
 // AddGroupMemberCache adds group member (users in a group) cache
 func (cache *FileSystemCache) AddGroupMemberCache(groupName string, zoneName string, usernames []string) {
-	if cache.config.NoCache {
-		return
-	}
-
-	groupMemberCacheForZone := cache.groupMemberCache[zoneName]
-	if groupMemberCacheForZone == nil {
-		timeout := time.Duration(cache.config.Timeout)
-		cleanupTime := time.Duration(cache.config.CleanupTime)
-
-		// create cache if not exist
-		groupMemberCacheForZone = gocache.New(timeout, cleanupTime)
-		cache.groupMemberCache[zoneName] = groupMemberCacheForZone
-	}
-
-	groupMemberCacheForZone.Set(groupName, usernames, 0)
+	ns := cache.getNamespace(cacheNamespaceGroupMember + ":" + zoneName)
+	_ = ns.Set(groupName, usernames, 0)
 }
 
 // RemoveGroupMemberCache removes group users (users in a group) cache
 func (cache *FileSystemCache) RemoveGroupMemberCache(groupName string, zoneName string) {
-	if cache.config.NoCache {
-		return
-	}
-
-	groupMemberCacheForZone := cache.groupMemberCache[zoneName]
-	if groupMemberCacheForZone == nil {
-		return
-	}
-
-	groupMemberCacheForZone.Delete(groupName)
+	ns := cache.getNamespace(cacheNamespaceGroupMember + ":" + zoneName)
+	_ = ns.Delete(groupName)
 }
 
 // GetGroupMemberCache retrives group members (users in a group) cache
 func (cache *FileSystemCache) GetGroupMemberCache(groupName string, zoneName string) []string {
-	if cache.config.NoCache {
-		return nil
-	}
-
-	groupMemberCacheForZone := cache.groupMemberCache[zoneName]
-	if groupMemberCacheForZone == nil {
-		return nil
-	}
-
-	groupMembers, exist := groupMemberCacheForZone.Get(groupName)
-	if exist {
+	ns := cache.getNamespace(cacheNamespaceGroupMember + ":" + zoneName)
+	if groupMembers, exist, _ := ns.Get(groupName); exist {
 		if usernames, ok := groupMembers.([]string); ok {
 			return usernames
 		}
 	}
-
 	return nil
 }
 
 // ClearGroupMembersCacheForZone clears all group members (users in a group) caches for a zone
 func (cache *FileSystemCache) ClearGroupMembersCacheForZone(zoneName string) {
-	if cache.config.NoCache {
-		return
-	}
-
-	groupMemberCacheForZone := cache.groupMemberCache[zoneName]
-	if groupMemberCacheForZone == nil {
-		return
-	}
-
-	groupMemberCacheForZone.Flush()
+	_ = cache.deleteNamespace(cacheNamespaceGroupMember + ":" + zoneName)
 }
 
 // ClearAllGroupMembersCache clears all group members (users in a group) caches
 func (cache *FileSystemCache) ClearAllGroupMembersCache() {
-	if cache.config.NoCache {
-		return
-	}
-
-	for _, groupMemberCacheForZone := range cache.groupMemberCache {
-		groupMemberCacheForZone.Flush()
-	}
+	_ = cache.cacheBackend.Clear()
 }
 
 // AddUserGroupCache adds a user's groups (groups that a user belongs to) cache
 func (cache *FileSystemCache) AddUserGroupCache(zoneName string, username string, groupNames []string) {
-	if cache.config.NoCache {
-		return
-	}
-
-	userGroupCacheForZone := cache.userGroupCache[zoneName]
-	if userGroupCacheForZone == nil {
-		timeout := time.Duration(cache.config.Timeout)
-		cleanupTime := time.Duration(cache.config.CleanupTime)
-
-		// create cache if not exist
-		userGroupCacheForZone = gocache.New(timeout, cleanupTime)
-		cache.userGroupCache[zoneName] = userGroupCacheForZone
-	}
-
-	userGroupCacheForZone.Set(username, groupNames, 0)
+	ns := cache.getNamespace(cacheNamespaceUserGroup + ":" + zoneName)
+	_ = ns.Set(username, groupNames, 0)
 }
 
 // RemoveUserGroupCache removes a user's groups (groups that a user belongs to) cache
 func (cache *FileSystemCache) RemoveUserGroupCache(zoneName string, username string) {
-	if cache.config.NoCache {
-		return
-	}
-
-	userGroupCacheForZone := cache.userGroupCache[zoneName]
-	if userGroupCacheForZone == nil {
-		return
-	}
-
-	userGroupCacheForZone.Delete(username)
+	ns := cache.getNamespace(cacheNamespaceUserGroup + ":" + zoneName)
+	_ = ns.Delete(username)
 }
 
 // GetUserGroupCache retrives a user's groups (groups that a user belongs to) cache
 func (cache *FileSystemCache) GetUserGroupCache(zoneName string, username string) []string {
-	if cache.config.NoCache {
-		return nil
-	}
-
-	userGroupCacheForZone := cache.userGroupCache[zoneName]
-	if userGroupCacheForZone == nil {
-		return nil
-	}
-
-	groupNames, exist := userGroupCacheForZone.Get(username)
-	if exist {
+	ns := cache.getNamespace(cacheNamespaceUserGroup + ":" + zoneName)
+	if groupNames, exist, _ := ns.Get(username); exist {
 		if groups, ok := groupNames.([]string); ok {
 			return groups
 		}
 	}
-
 	return nil
 }
 
 // ClearUserGroupCache clears all user's groups caches for a zone
 func (cache *FileSystemCache) ClearUserGroupCacheForZone(zoneName string) {
-	if cache.config.NoCache {
-		return
-	}
-
-	userGroupCacheForZone := cache.userGroupCache[zoneName]
-	if userGroupCacheForZone == nil {
-		return
-	}
-
-	userGroupCacheForZone.Flush()
+	_ = cache.deleteNamespace(cacheNamespaceUserGroup + ":" + zoneName)
 }
 
 // AddAclCache adds a ACLs cache
 func (cache *FileSystemCache) AddAclCache(path string, accesses []*types.IRODSAccess) {
-	if cache.config.NoCache {
-		return
-	}
-
 	ttl := cache.getCacheTTLForPath(path)
-	cache.aclCache.Set(path, accesses, ttl)
+	ns := cache.getNamespace(cacheNamespaceACL)
+	_ = ns.Set(path, accesses, ttl)
 }
 
 // AddAclCacheMulti adds multiple ACLs caches
 func (cache *FileSystemCache) AddAclCacheMulti(accesses []*types.IRODSAccess) {
-	if cache.config.NoCache {
-		return
-	}
-
 	m := map[string][]*types.IRODSAccess{}
 
 	for _, access := range accesses {
 		if existingAccesses, ok := m[access.Path]; ok {
-			// has it, add
 			existingAccesses = append(existingAccesses, access)
 			m[access.Path] = existingAccesses
 		} else {
-			// create it
 			m[access.Path] = []*types.IRODSAccess{access}
 		}
 	}
 
+	ns := cache.getNamespace(cacheNamespaceACL)
 	for path, access := range m {
 		ttl := cache.getCacheTTLForPath(path)
-		cache.aclCache.Set(path, access, ttl)
+		_ = ns.Set(path, access, ttl)
 	}
 }
 
 // RemoveAclCache removes a ACLs cache
 func (cache *FileSystemCache) RemoveAclCache(path string) {
-	if cache.config.NoCache {
-		return
-	}
-
-	cache.aclCache.Delete(path)
+	ns := cache.getNamespace(cacheNamespaceACL)
+	_ = ns.Delete(path)
 }
 
 // GetAclCache retrives a ACLs cache
 func (cache *FileSystemCache) GetAclCache(path string) []*types.IRODSAccess {
-	if cache.config.NoCache {
-		return nil
-	}
-
-	data, exist := cache.aclCache.Get(path)
-	if exist {
+	ns := cache.getNamespace(cacheNamespaceACL)
+	if data, exist, _ := ns.Get(path); exist {
 		if entries, ok := data.([]*types.IRODSAccess); ok {
 			return entries
 		}
@@ -733,9 +468,5 @@ func (cache *FileSystemCache) GetAclCache(path string) []*types.IRODSAccess {
 
 // ClearAclCache clears all ACLs caches
 func (cache *FileSystemCache) ClearAclCache() {
-	if cache.config.NoCache {
-		return
-	}
-
-	cache.aclCache.Flush()
+	_ = cache.deleteNamespace(cacheNamespaceACL)
 }

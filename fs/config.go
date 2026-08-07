@@ -1,6 +1,8 @@
 package fs
 
 import (
+	"crypto/md5"
+	"fmt"
 	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/session"
@@ -24,11 +26,32 @@ const (
 	FileSystemOperationTimeout time.Duration = session.IRODSSessionOperationTimeoutDefault
 	// FileSystemLongOperationTimeout is a default value of long operation timeout
 	FileSystemLongOperationTimeout time.Duration = session.IRODSSessionLongOperationTimeoutDefault
+
+	// Cache
+	// For go-cache (memory)
 	// FileSystemCacheTimeout is a default value of cache timeout
-	FileSystemCacheTimeout time.Duration = 1 * time.Minute
+	FileSystemCacheTimeout         time.Duration = 1 * time.Minute
+	FileSystemCacheCleanupInterval time.Duration = 5 * time.Minute
+
+	// For Ristretto
+	// FileSystemCacheMaxEntries is a default value of max cache entries
+	FileSystemCacheMaxEntries int64 = 30000
+	// FileSystemCacheMaxCost is a default value of max cache cost
+	FileSystemCacheMaxCost int64 = 30000
+	// FileSystemCacheBufferItems is a default value of cache buffer items
+	FileSystemCacheBufferItems int64 = 128
+	// FileSystemCacheCostPerEntryKB is a default value of cost per KB of entry
+	FileSystemCacheCostPerEntryKB int64 = 1
+
+	// For Redis
+	// FileSystemCachePoolSize is a default value of cache pool size
+	FileSystemCachePoolSize int = 10
+	// FileSystemCacheConnectTimeout is a default value of cache connect timeout
+	FileSystemCacheConnectTimeout time.Duration = 5 * time.Second
+	// FileSystemCacheCommandTimeout is a default value of cache command timeout
+	FileSystemCacheCommandTimeout time.Duration = 3 * time.Second
 
 	// Metadata Connection
-
 	// FileSystemMetadataConnectionInitNumberDefault is a default value of connection init number
 	FileSystemMetadataConnectionInitNumberDefault int = 1
 	// FileSystemMetadataConnectionMaxNumberDefault is a default number of connection max value
@@ -37,7 +60,6 @@ const (
 	FileSystemMetadataConnectionMaxIdleNumberDefault int = 2
 
 	// IO Connection
-
 	// FileSystemIOConnectionInitNumberDefault is a default value of connection init number
 	FileSystemIOConnectionInitNumberDefault int = 0
 	// FileSystemIOConnectionMaxNumberDefault is a default number of connection max value
@@ -155,4 +177,12 @@ func (config *FileSystemConfig) ToIOSessionConfig() *session.IRODSSessionConfig 
 		WaitConnection:            config.IOConnection.WaitConnection,
 		AddressResolver:           config.AddressResolver,
 	}
+}
+
+// GenerateAccountID generates a unique account ID from host, port, account, and zone
+// Used for cache namespace isolation to prevent cross-account data access
+func GenerateAccountID(host string, port int, account, zone string) string {
+	data := fmt.Sprintf("%s:%d|%s|%s", host, port, account, zone)
+	hash := md5.Sum([]byte(data))
+	return fmt.Sprintf("%x", hash)[:16]
 }
