@@ -263,6 +263,53 @@ func (fs *FileSystem) Stat(irodsPath string) (*Entry, error) {
 	return nil, errors.Wrapf(newErr, "failed to find the data object or the collection for path %q", irodsCorrectPath)
 }
 
+// StatFresh returns file status bypassing cache (always fresh from iRODS server)
+// Use this for strong consistency requirements, especially after mutations or across separate FileSystem instances
+func (fs *FileSystem) StatFresh(irodsPath string) (*Entry, error) {
+	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
+
+	conn, err := fs.metadataSession.AcquireConnection(true)
+	if err != nil {
+		return nil, err
+	}
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
+
+	// check dir first
+	dirStat, err := irods_fs.GetCollection(conn, irodsCorrectPath)
+	if err != nil {
+		if !types.IsFileNotFoundError(err) {
+			return nil, err
+		}
+	} else {
+		if dirStat.ID > 0 {
+			entry := NewEntryFromCollection(dirStat)
+			fs.cache.RemoveNegativeEntryCache(irodsCorrectPath)
+			fs.cache.AddEntryCache(entry)
+			return entry, nil
+		}
+	}
+
+	// if it's not dir, check file
+	fileStat, err := irods_fs.GetDataObject(conn, irodsCorrectPath)
+	if err != nil {
+		if !types.IsFileNotFoundError(err) {
+			return nil, err
+		}
+	} else {
+		if fileStat.ID > 0 {
+			entry := NewEntryFromDataObject(fileStat)
+			fs.cache.RemoveNegativeEntryCache(irodsCorrectPath)
+			fs.cache.AddEntryCache(entry)
+			return entry, nil
+		}
+	}
+
+	// not a collection, not a data object
+	fs.cache.AddNegativeEntryCache(irodsCorrectPath)
+	newErr := types.NewFileNotFoundError(irodsCorrectPath)
+	return nil, errors.Wrapf(newErr, "failed to find the data object or the collection for path %q", irodsCorrectPath)
+}
+
 // StatDir returns status of a directory
 func (fs *FileSystem) StatDir(irodsPath string) (*Entry, error) {
 	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
@@ -270,11 +317,27 @@ func (fs *FileSystem) StatDir(irodsPath string) (*Entry, error) {
 	return fs.getCollection(irodsCorrectPath)
 }
 
+// StatDirFresh returns status of a directory bypassing cache (always fresh from iRODS server)
+// Use this for strong consistency requirements, especially after mutations or across separate FileSystem instances
+func (fs *FileSystem) StatDirFresh(irodsPath string) (*Entry, error) {
+	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
+
+	return fs.getCollectionNoCache(irodsCorrectPath)
+}
+
 // StatFile returns status of a file
 func (fs *FileSystem) StatFile(irodsPath string) (*Entry, error) {
 	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
 
 	return fs.getDataObject(irodsCorrectPath)
+}
+
+// StatFileFresh returns status of a file bypassing cache (always fresh from iRODS server)
+// Use this for strong consistency requirements, especially after mutations or across separate FileSystem instances
+func (fs *FileSystem) StatFileFresh(irodsPath string) (*Entry, error) {
+	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
+
+	return fs.getDataObjectNoCache(irodsCorrectPath)
 }
 
 func (fs *FileSystem) GetDirStatistics(irodsPath string, recurse bool) (*DirStat, error) {
@@ -304,9 +367,29 @@ func (fs *FileSystem) Exists(irodsPath string) bool {
 	return entry.ID > 0
 }
 
+// ExistsFresh checks file/directory existence bypassing cache (always fresh from iRODS server)
+// Use this for strong consistency requirements, especially after mutations or across separate FileSystem instances
+func (fs *FileSystem) ExistsFresh(irodsPath string) bool {
+	entry, err := fs.StatFresh(irodsPath)
+	if err != nil {
+		return false
+	}
+	return entry.ID > 0
+}
+
 // ExistsDir checks directory existence
 func (fs *FileSystem) ExistsDir(irodsPath string) bool {
 	entry, err := fs.StatDir(irodsPath)
+	if err != nil {
+		return false
+	}
+	return entry.ID > 0
+}
+
+// ExistsDirFresh checks directory existence bypassing cache (always fresh from iRODS server)
+// Use this for strong consistency requirements, especially after mutations or across separate FileSystem instances
+func (fs *FileSystem) ExistsDirFresh(irodsPath string) bool {
+	entry, err := fs.StatDirFresh(irodsPath)
 	if err != nil {
 		return false
 	}
@@ -322,10 +405,27 @@ func (fs *FileSystem) ExistsFile(irodsPath string) bool {
 	return entry.ID > 0
 }
 
+// ExistsFileFresh checks file existence bypassing cache (always fresh from iRODS server)
+// Use this for strong consistency requirements, especially after mutations or across separate FileSystem instances
+func (fs *FileSystem) ExistsFileFresh(irodsPath string) bool {
+	entry, err := fs.StatFileFresh(irodsPath)
+	if err != nil {
+		return false
+	}
+	return entry.ID > 0
+}
+
 // List lists all file system entries under the given path
 func (fs *FileSystem) List(irodsPath string) ([]*Entry, error) {
 	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
 	return fs.listEntries(irodsCorrectPath)
+}
+
+// ListFresh lists all file system entries under the given path bypassing cache (always fresh from iRODS server)
+// Use this for strong consistency requirements, especially after mutations or across separate FileSystem instances
+func (fs *FileSystem) ListFresh(irodsPath string) ([]*Entry, error) {
+	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
+	return fs.listEntriesNoCache(irodsCorrectPath)
 }
 
 func (fs *FileSystem) SearchUnixWildcard(pathUnixWildcard string) ([]*Entry, error) {
@@ -993,6 +1093,58 @@ func (fs *FileSystem) listEntries(collPath string) ([]*Entry, error) {
 	}
 
 	// otherwise, retrieve it and add it to cache
+	conn, err := fs.metadataSession.AcquireConnection(true)
+	if err != nil {
+		return nil, err
+	}
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
+
+	collections, err := irods_fs.ListSubCollections(conn, collPath)
+	if err != nil {
+		return nil, err
+	}
+
+	entries := []*Entry{}
+
+	for _, coll := range collections {
+		entry := NewEntryFromCollection(coll)
+		entries = append(entries, entry)
+
+		// cache it
+		fs.cache.RemoveNegativeEntryCache(entry.Path)
+		fs.cache.AddEntryCache(entry)
+	}
+
+	dataobjects, err := irods_fs.ListDataObjects(conn, collPath)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, dataobject := range dataobjects {
+		if len(dataobject.Replicas) == 0 {
+			continue
+		}
+
+		entry := NewEntryFromDataObject(dataobject)
+		entries = append(entries, entry)
+
+		// cache it
+		fs.cache.RemoveNegativeEntryCache(entry.Path)
+		fs.cache.AddEntryCache(entry)
+	}
+
+	// cache dir entries
+	dirEntryPaths := []string{}
+	for _, entry := range entries {
+		dirEntryPaths = append(dirEntryPaths, entry.Path)
+	}
+	fs.cache.AddDirCache(collPath, dirEntryPaths)
+
+	return entries, nil
+}
+
+// listEntriesNoCache lists entries in a collection bypassing cache (always fresh from iRODS server)
+func (fs *FileSystem) listEntriesNoCache(collPath string) ([]*Entry, error) {
 	conn, err := fs.metadataSession.AcquireConnection(true)
 	if err != nil {
 		return nil, err
