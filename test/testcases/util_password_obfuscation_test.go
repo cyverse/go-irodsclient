@@ -28,20 +28,20 @@ func testStaticPasswords(t *testing.T) {
 	mypassword := "mypassword_1234_!@#$"
 	encodedPassword := obf.Encode([]byte(mypassword))
 	decodedPassword := obf.Decode(encodedPassword)
-	assert.Equal(t, mypassword, string(decodedPassword))
+	assert.Equal(t, mypassword, string(decodedPassword), "decoded password should match original after encode/decode")
 
 	mypassword = "MicceLecos!@99"
 	encodedPassword = obf.Encode([]byte(mypassword))
 	decodedPassword = obf.Decode(encodedPassword)
 
-	assert.Equal(t, mypassword, string(decodedPassword))
+	assert.Equal(t, mypassword, string(decodedPassword), "decoded password should match original after encode/decode")
 
 	for i := 0; i < 99; i++ {
 		mypassword = fmt.Sprintf("loLLeooelef!@%d", i)
 		encodedPassword := obf.Encode([]byte(mypassword))
 		decodedPassword := obf.Decode(encodedPassword)
 
-		assert.Equal(t, mypassword, string(decodedPassword))
+		assert.Equal(t, mypassword, string(decodedPassword), "decoded password should match original after encode/decode")
 	}
 }
 
@@ -57,6 +57,6 @@ func testRandomPasswords(t *testing.T) {
 		encodedPassword := obf.Encode([]byte(mypassword))
 		decodedPassword := obf.Decode(encodedPassword)
 
-		assert.Equal(t, mypassword, string(decodedPassword))
+		assert.Equal(t, mypassword, string(decodedPassword), "decoded password should match original after encode/decode")
 	}
 }

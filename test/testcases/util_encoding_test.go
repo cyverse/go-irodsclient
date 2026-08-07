@@ -24,15 +24,15 @@ func utilEncodingTest(t *testing.T, test *Test) {
 func testEncoderRing(t *testing.T) {
 	ring := irods_util.GetEncoderRing("def")
 	ringHex := hex.EncodeToString(ring)
-	assert.Equal(t, "5fbabc5bfd2ef4f4d65024d364c3241a71c71aae827a91b654e9de55e62f3cb23840a894e36c7149ddd8963a1b228df43840a894e36c7149ddd8963a1b228df4", ringHex)
+	assert.Equal(t, "5fbabc5bfd2ef4f4d65024d364c3241a71c71aae827a91b654e9de55e62f3cb23840a894e36c7149ddd8963a1b228df43840a894e36c7149ddd8963a1b228df4", ringHex, "generated encoder ring should produce consistent hex value")
 }
 
 func testScramble(t *testing.T) {
 	scrPass1 := irods_util.Scramble(";.ObfV2test_password", "06fed401fb79f864272a421835486736", "", false)
-	assert.Equal(t, ";EBo$tJuoAY_RigHonj-", scrPass1)
+	assert.Equal(t, ";EBo$tJuoAY_RigHonj-", scrPass1, "non-SSL scramble should produce deterministic output")
 
 	scrPass2 := irods_util.Scramble(";.ObfV2test_password", "06fed401fb79f864272a421835486736", "", true)
-	assert.Equal(t, ";E3O&GDl4!&_$3GBd+B\"", scrPass2)
+	assert.Equal(t, ";E3O&GDl4!&_$3GBd+B\"", scrPass2, "SSL scramble should produce different output from non-SSL")
 }
 
 func testClientSignature(t *testing.T) {
@@ -47,5 +47,5 @@ func testClientSignature(t *testing.T) {
 	FailError(t, err)
 
 	signature := conn.GetClientSignature()
-	assert.Equal(t, 32, len(signature))
+	assert.Equal(t, 32, len(signature), "client signature should always be 32 bytes")
 }

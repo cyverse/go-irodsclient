@@ -38,5 +38,5 @@ func testProcessStat(t *testing.T) {
 	processes, err := fs.StatProcess(conn, "", "")
 	FailError(t, err)
 
-	assert.GreaterOrEqual(t, len(processes), 1)
+	assert.GreaterOrEqual(t, len(processes), 1, "should have at least one server process")
 }

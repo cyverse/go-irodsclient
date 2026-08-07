@@ -155,6 +155,7 @@ func TestLocalMain(t *testing.T) {
 	tests = append(tests, getLowlevelFileTransferTest())
 	tests = append(tests, getHighlevelFilesystemTest())
 	tests = append(tests, getHighlevelFilesystemCacheTest())
+	tests = append(tests, getHighlevelFilesystemCacheConsistencyTest())
 	tests = append(tests, getHighlevelFileTransferTest())
 	tests = append(tests, getHighlevelTicketTest())
 

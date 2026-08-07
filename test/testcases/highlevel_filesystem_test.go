@@ -58,7 +58,7 @@ func testMakeDir(t *testing.T) {
 
 		found := false
 		for _, entry := range entries {
-			assert.NotEmpty(t, entry.ID)
+			assert.NotEmpty(t, entry.ID, "directory listing entry should have assigned iRODS ID")
 			if entry.Path == newDir {
 				// okay
 				found = true
@@ -66,10 +66,10 @@ func testMakeDir(t *testing.T) {
 			}
 		}
 
-		assert.True(t, found)
+		assert.True(t, found, "created directory should be found in listing")
 
 		exist := filesystem.ExistsDir(newDir)
-		assert.True(t, exist)
+		assert.True(t, exist, "created directory should exist")
 
 		// delete test
 		err = filesystem.RemoveDir(newDir, true, true)
@@ -80,7 +80,7 @@ func testMakeDir(t *testing.T) {
 
 		found = false
 		for _, entry := range entries {
-			assert.NotEmpty(t, entry.ID)
+			assert.NotEmpty(t, entry.ID, "directory listing entry should have assigned iRODS ID")
 			if entry.Path == newDir {
 				// found removed dir?
 				found = true
@@ -88,7 +88,7 @@ func testMakeDir(t *testing.T) {
 			}
 		}
 
-		assert.False(t, found)
+		assert.False(t, found, "deleted directory should not be in listing")
 	}
 }
 
@@ -114,8 +114,8 @@ func testMakeDirRecurse(t *testing.T) {
 
 	// stat first
 	dirStat, err := filesystem.StatDir(newDir)
-	assert.Nil(t, dirStat)
-	assert.Error(t, err)
+	assert.Nil(t, dirStat, "stat of non-existent directory should return nil")
+	assert.Error(t, err, "stat of non-existent directory should error")
 
 	// make dir using the side connection without cache update
 	err = irods_fs.CreateCollection(conn, newDir, false)
@@ -132,9 +132,9 @@ func testMakeDirRecurse(t *testing.T) {
 	dirStat, err = filesystem.StatDir(newDir)
 	FailError(t, err)
 
-	assert.NotNil(t, dirStat)
-	assert.Equal(t, newDir, dirStat.Path)
-	assert.True(t, dirStat.IsDir())
+	assert.NotNil(t, dirStat, "stat of created directory should not be nil")
+	assert.Equal(t, newDir, dirStat.Path, "stat path result should match requested directory path")
+	assert.True(t, dirStat.IsDir(), "stat should mark created object as directory")
 
 	// remove
 	err = filesystem.RemoveDir(newDir, true, true)
@@ -168,7 +168,7 @@ func testUploadAndDeleteDir(t *testing.T) {
 		FailError(t, err)
 
 		exist := filesystem.ExistsDir(newDir)
-		assert.True(t, exist)
+		assert.True(t, exist, "ExistsDir should confirm created directory exists")
 
 		// upload
 		iRODSPath := fmt.Sprintf("%s/%s", newDir, path.Base(localPath))
@@ -180,7 +180,7 @@ func testUploadAndDeleteDir(t *testing.T) {
 		FailError(t, err)
 
 		exist = filesystem.ExistsDir(newDir)
-		assert.False(t, exist)
+		assert.False(t, exist, "ExistsDir should confirm deleted directory no longer exists")
 	}
 }
 
@@ -216,17 +216,17 @@ func testListDirectory(t *testing.T) {
 	numDirs := 0
 	for _, entry := range entries {
 		if entry.IsDir() {
-			assert.Contains(t, dirs, entry.Path)
+			assert.Contains(t, dirs, entry.Path, "listed directory should be in created directories")
 			numDirs++
 		} else {
-			assert.Contains(t, files, entry.Path)
+			assert.Contains(t, files, entry.Path, "listed file should be in created files")
 			numFiles++
 		}
-		assert.NotEmpty(t, entry.ID)
+		assert.NotEmpty(t, entry.ID, "listing entry should have assigned iRODS ID")
 	}
 
-	assert.Equal(t, len(dirs), numDirs)
-	assert.Equal(t, len(files), numFiles)
+	assert.Equal(t, len(dirs), numDirs, "count of listed directories should match created count")
+	assert.Equal(t, len(files), numFiles, "count of listed files should match created count")
 }
 
 func testSearchByMeta(t *testing.T) {
@@ -298,17 +298,17 @@ func testSearchByMeta(t *testing.T) {
 	numDirs := 0
 	for _, entry := range entries {
 		if entry.IsDir() {
-			assert.Contains(t, dirs1, entry.Path)
+			assert.Contains(t, dirs1, entry.Path, "meta search result directory should be in first set")
 			numDirs++
 		} else {
-			assert.Contains(t, files1, entry.Path)
+			assert.Contains(t, files1, entry.Path, "meta search result file should be in first set")
 			numFiles++
 		}
-		assert.NotEmpty(t, entry.ID)
+		assert.NotEmpty(t, entry.ID, "search result entry should have iRODS ID")
 	}
 
-	assert.Equal(t, len(dirs1), numDirs)
-	assert.Equal(t, len(files1), numFiles)
+	assert.Equal(t, len(dirs1), numDirs, "meta search directory count should match first set")
+	assert.Equal(t, len(files1), numFiles, "meta search file count should match first set")
 }
 
 func testListACLs(t *testing.T) {
@@ -343,18 +343,18 @@ func testListACLs(t *testing.T) {
 		acls, err := filesystem.ListACLsWithGroupUsers(file)
 		FailError(t, err)
 
-		assert.GreaterOrEqual(t, len(acls), 1)
+		assert.GreaterOrEqual(t, len(acls), 1, "file should have at least owner's ACL")
 		foundOwn := false
 		for _, acl := range acls {
 			if acl.UserName == account.ClientUser && acl.UserZone == account.ClientZone {
-				assert.Equal(t, types.IRODSAccessLevelOwner, acl.AccessLevel)
+				assert.Equal(t, types.IRODSAccessLevelOwner, acl.AccessLevel, "owner ACL should grant owner access level")
 				foundOwn = true
 			}
 
-			assert.Equal(t, file, acl.Path)
+			assert.Equal(t, file, acl.Path, "ACL entry path should match queried file path")
 		}
 
-		assert.True(t, foundOwn)
+		assert.True(t, foundOwn, "file creator should have owner ACL entry")
 	}
 }
 
@@ -382,8 +382,8 @@ func testCreateStat(t *testing.T) {
 	stat, err := filesystem.Stat(irodsPath)
 	FailError(t, err)
 
-	assert.NotEmpty(t, stat.ID)
-	assert.Equal(t, fs.FileEntry, stat.Type)
+	assert.NotEmpty(t, stat.ID, "stat result should have assigned iRODS ID")
+	assert.Equal(t, fs.FileEntry, stat.Type, "stat type should indicate file entry")
 
 	// write
 	_, err = fileHandle.Write([]byte(text))
@@ -393,7 +393,7 @@ func testCreateStat(t *testing.T) {
 	err = fileHandle.Close()
 	FailError(t, err)
 
-	assert.True(t, filesystem.Exists(irodsPath))
+	assert.True(t, filesystem.Exists(irodsPath), "created file should exist")
 
 	// read
 	newFileHandle, err := filesystem.OpenFile(irodsPath, "", "r")
@@ -401,24 +401,24 @@ func testCreateStat(t *testing.T) {
 
 	buffer := make([]byte, 1024)
 	readLen, err := newFileHandle.Read(buffer)
-	assert.Equal(t, io.EOF, err)
+	assert.Equal(t, io.EOF, err, "read should reach end of file")
 
 	err = newFileHandle.Close()
 	FailError(t, err)
 
-	assert.Equal(t, text, string(buffer[:readLen]))
+	assert.Equal(t, text, string(buffer[:readLen]), "read bytes should match original written text")
 
 	// stat
 	stat, err = filesystem.Stat(irodsPath)
 	FailError(t, err)
 
-	assert.Equal(t, int64(len(text)), stat.Size)
+	assert.Equal(t, int64(len(text)), stat.Size, "stat size should reflect bytes written")
 
 	// delete
 	err = filesystem.RemoveFile(irodsPath, true)
 	FailError(t, err)
 
-	assert.False(t, filesystem.Exists(irodsPath))
+	assert.False(t, filesystem.Exists(irodsPath), "file should no longer exist after deletion")
 }
 
 func testSpecialCharInFilename(t *testing.T) {
@@ -457,7 +457,7 @@ func testSpecialCharInFilename(t *testing.T) {
 		err = fileHandle.Close()
 		FailError(t, err)
 
-		assert.True(t, filesystem.Exists(irodsPath))
+		assert.True(t, filesystem.Exists(irodsPath), "file with special character in name should exist after creation")
 
 		// read
 		newFileHandle, err := filesystem.OpenFile(irodsPath, "", "r")
@@ -465,25 +465,25 @@ func testSpecialCharInFilename(t *testing.T) {
 
 		buffer := make([]byte, 1024)
 		readLen, err := newFileHandle.Read(buffer)
-		assert.Equal(t, io.EOF, err)
+		assert.Equal(t, io.EOF, err, "read should reach end of file")
 
 		err = newFileHandle.Close()
 		FailError(t, err)
 
-		assert.Equal(t, text, string(buffer[:readLen]))
+		assert.Equal(t, text, string(buffer[:readLen]), "read bytes should match written data")
 
 		// stat
 		stat, err := filesystem.Stat(irodsPath)
 		FailError(t, err)
 
-		assert.Equal(t, filename, stat.Name)
-		assert.Equal(t, int64(len(text)), stat.Size)
+		assert.Equal(t, filename, stat.Name, "stat name should match created filename")
+		assert.Equal(t, int64(len(text)), stat.Size, "stat size should reflect written bytes")
 
 		// delete
 		err = filesystem.RemoveFile(irodsPath, true)
 		FailError(t, err)
 
-		assert.False(t, filesystem.Exists(irodsPath))
+		assert.False(t, filesystem.Exists(irodsPath), "special char file should not exist after deletion")
 	}
 }
 
@@ -527,8 +527,8 @@ func testWriteRename(t *testing.T) {
 	err = fileHandle.Close()
 	FailError(t, err)
 
-	assert.False(t, filesystem.Exists(irodsPath))
-	assert.True(t, filesystem.Exists(newIrodsPath))
+	assert.False(t, filesystem.Exists(irodsPath), "original file path should not exist after rename")
+	assert.True(t, filesystem.Exists(newIrodsPath), "renamed file path should exist after rename")
 
 	// read
 	newFileHandle, err := filesystem.OpenFile(newIrodsPath, "", "r")
@@ -536,18 +536,18 @@ func testWriteRename(t *testing.T) {
 
 	buffer := make([]byte, 1024)
 	readLen, err := newFileHandle.Read(buffer)
-	assert.Equal(t, io.EOF, err)
+	assert.Equal(t, io.EOF, err, "read should reach end of file")
 
 	err = newFileHandle.Close()
 	FailError(t, err)
 
-	assert.Equal(t, text1+text2, string(buffer[:readLen]))
+	assert.Equal(t, text1+text2, string(buffer[:readLen]), "read should return all written data")
 
 	// delete
 	err = filesystem.RemoveFile(newIrodsPath, true)
 	FailError(t, err)
 
-	assert.False(t, filesystem.Exists(newIrodsPath))
+	assert.False(t, filesystem.Exists(newIrodsPath), "renamed file should not exist after deletion")
 }
 
 func testWriteRenameDir(t *testing.T) {
@@ -597,11 +597,11 @@ func testWriteRenameDir(t *testing.T) {
 	err = fileHandle.Close()
 	FailError(t, err)
 
-	assert.False(t, filesystem.Exists(testDirPath))
-	assert.True(t, filesystem.Exists(newTestDirPath))
+	assert.False(t, filesystem.Exists(testDirPath), "original directory path should not exist after rename")
+	assert.True(t, filesystem.Exists(newTestDirPath), "renamed directory path should exist")
 
-	assert.False(t, filesystem.Exists(irodsPath))
-	assert.True(t, filesystem.Exists(newIrodsPath))
+	assert.False(t, filesystem.Exists(irodsPath), "file's original path should not exist after dir rename")
+	assert.True(t, filesystem.Exists(newIrodsPath), "file's new path should exist after dir rename")
 
 	// read
 	newFileHandle, err := filesystem.OpenFile(newIrodsPath, "", "r")
@@ -609,23 +609,23 @@ func testWriteRenameDir(t *testing.T) {
 
 	buffer := make([]byte, 1024)
 	readLen, err := newFileHandle.Read(buffer)
-	assert.Equal(t, io.EOF, err)
+	assert.Equal(t, io.EOF, err, "read should reach end of file")
 
 	err = newFileHandle.Close()
 	FailError(t, err)
 
-	assert.Equal(t, text1+text2, string(buffer[:readLen]))
+	assert.Equal(t, text1+text2, string(buffer[:readLen]), "read should return all accumulated written data")
 
 	// delete
 	err = filesystem.RemoveFile(newIrodsPath, true)
 	FailError(t, err)
 
-	assert.False(t, filesystem.Exists(newIrodsPath))
+	assert.False(t, filesystem.Exists(newIrodsPath), "renamed file should not exist after deletion")
 
 	err = filesystem.RemoveDir(newTestDirPath, true, true)
 	FailError(t, err)
 
-	assert.False(t, filesystem.Exists(newTestDirPath))
+	assert.False(t, filesystem.Exists(newTestDirPath), "renamed directory should not exist after deletion")
 }
 
 func testRemoveClose(t *testing.T) {
@@ -664,5 +664,5 @@ func testRemoveClose(t *testing.T) {
 	err = filesystem.RemoveFile(irodsPath, true)
 	FailError(t, err)
 
-	assert.False(t, filesystem.Exists(irodsPath))
+	assert.False(t, filesystem.Exists(irodsPath), "file should not exist after concurrent close and remove")
 }

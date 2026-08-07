@@ -63,9 +63,9 @@ func testCreateAndRemoveUser(t *testing.T) {
 	myUser, err := fs.GetUser(conn, testUsername, account.ClientZone)
 	FailError(t, err)
 
-	assert.Equal(t, testUsername, myUser.Name)
-	assert.Equal(t, account.ClientZone, myUser.Zone)
-	assert.Equal(t, types.IRODSUserRodsUser, myUser.Type)
+	assert.Equal(t, testUsername, myUser.Name, "retrieved user name should match created user")
+	assert.Equal(t, account.ClientZone, myUser.Zone, "retrieved user zone should match test zone")
+	assert.Equal(t, types.IRODSUserRodsUser, myUser.Type, "retrieved user type should be IRODSUserRodsUser")
 
 	// login test
 	userAccount, err := server.GetAccount()
@@ -100,7 +100,7 @@ func testCreateAndRemoveUser(t *testing.T) {
 	FailError(t, err)
 
 	err = userConn.Connect()
-	assert.Error(t, err)
+	assert.Error(t, err, "connection attempt with deleted user credentials should fail")
 	_ = userConn.Disconnect()
 }
 
@@ -152,9 +152,9 @@ func testCreateUserWithSpecialCharacterPasswords(t *testing.T) {
 		myUser, err := fs.GetUser(conn, testUsername, account.ClientZone)
 		FailError(t, err)
 
-		assert.Equal(t, testUsername, myUser.Name)
-		assert.Equal(t, account.ClientZone, myUser.Zone)
-		assert.Equal(t, types.IRODSUserRodsUser, myUser.Type)
+		assert.Equal(t, testUsername, myUser.Name, "special char password test: user name should match")
+		assert.Equal(t, account.ClientZone, myUser.Zone, "special char password test: user zone should match")
+		assert.Equal(t, types.IRODSUserRodsUser, myUser.Type, "special char password test: user type should be IRODSUserRodsUser")
 
 		// login test
 		userAccount, err := server.GetAccount()
@@ -222,9 +222,9 @@ func testAddAndRemoveGroupMembers(t *testing.T) {
 	myUser, err := fs.GetUser(conn, testUsername, account.ClientZone)
 	FailError(t, err)
 
-	assert.Equal(t, testUsername, myUser.Name)
-	assert.Equal(t, account.ClientZone, myUser.Zone)
-	assert.Equal(t, types.IRODSUserRodsUser, myUser.Type)
+	assert.Equal(t, testUsername, myUser.Name, "group test: created user name should match")
+	assert.Equal(t, account.ClientZone, myUser.Zone, "group test: created user zone should match")
+	assert.Equal(t, types.IRODSUserRodsUser, myUser.Type, "group test: created user type should be IRODSUserRodsUser")
 
 	// create group next
 	_, err = fs.GetUser(conn, testGroupName, account.ClientZone)
@@ -241,9 +241,9 @@ func testAddAndRemoveGroupMembers(t *testing.T) {
 	myGroup, err := fs.GetUser(conn, testGroupName, account.ClientZone)
 	FailError(t, err)
 
-	assert.Equal(t, testGroupName, myGroup.Name)
-	assert.Equal(t, account.ClientZone, myGroup.Zone)
-	assert.Equal(t, types.IRODSUserRodsGroup, myGroup.Type)
+	assert.Equal(t, testGroupName, myGroup.Name, "group test: created group name should match")
+	assert.Equal(t, account.ClientZone, myGroup.Zone, "group test: created group zone should match")
+	assert.Equal(t, types.IRODSUserRodsGroup, myGroup.Type, "group test: created group type should be IRODSUserRodsGroup")
 
 	// add user to group
 	err = fs.AddGroupMember(conn, testGroupName, testUsername, account.ClientZone)
@@ -253,7 +253,7 @@ func testAddAndRemoveGroupMembers(t *testing.T) {
 	groupNames, err := fs.ListUserGroupNames(conn, testUsername, account.ClientZone)
 	FailError(t, err)
 
-	assert.Contains(t, groupNames, testGroupName)
+	assert.Contains(t, groupNames, testGroupName, "user's group list should contain the newly added group")
 
 	// list members
 	users, err := fs.ListGroupMembers(conn, testGroupName, account.ClientZone)
@@ -267,7 +267,7 @@ func testAddAndRemoveGroupMembers(t *testing.T) {
 		}
 	}
 
-	assert.True(t, found)
+	assert.True(t, found, "added user should be found in group members list")
 
 	// remove user from group
 	err = fs.RemoveGroupMember(conn, testGroupName, testUsername, account.ClientZone)
@@ -277,7 +277,7 @@ func testAddAndRemoveGroupMembers(t *testing.T) {
 	groupNames, err = fs.ListUserGroupNames(conn, testUsername, account.ClientZone)
 	FailError(t, err)
 
-	assert.NotContains(t, groupNames, testGroupName)
+	assert.NotContains(t, groupNames, testGroupName, "group should be removed from user's group list")
 
 	// list members
 	users, err = fs.ListGroupMembers(conn, testGroupName, account.ClientZone)
@@ -291,7 +291,7 @@ func testAddAndRemoveGroupMembers(t *testing.T) {
 		}
 	}
 
-	assert.False(t, found)
+	assert.False(t, found, "removed user should not be listed in group members")
 
 	// delete user
 	err = fs.RemoveUser(conn, testUsername, account.ClientZone, types.IRODSUserRodsUser)
@@ -372,7 +372,7 @@ func testListUsersByType(t *testing.T) {
 	}
 
 	// at least there should be one user
-	assert.GreaterOrEqual(t, len(users)+len(admins), 1)
+	assert.GreaterOrEqual(t, len(users)+len(admins), 1, "should have at least one user or admin account")
 	found := false
 	for _, user := range users {
 		if user.Name == account.ProxyUser {
@@ -386,5 +386,5 @@ func testListUsersByType(t *testing.T) {
 			break
 		}
 	}
-	assert.True(t, found)
+	assert.True(t, found, "current proxy user should be found in user or admin lists")
 }

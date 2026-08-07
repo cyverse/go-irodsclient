@@ -39,7 +39,7 @@ func testConnection(t *testing.T) {
 
 	ver := conn.GetVersion()
 	verMajor, _, _ := ver.GetReleaseVersion()
-	assert.GreaterOrEqual(t, 4, verMajor)
+	assert.GreaterOrEqual(t, 4, verMajor, "server version should be 4.x or lower")
 }
 
 func testInvalidUsername(t *testing.T) {
@@ -52,8 +52,8 @@ func testInvalidUsername(t *testing.T) {
 	account.ClientUser = ""
 
 	conn, err := connection.NewIRODSConnection(account, server.GetConnectionConfig())
-	assert.Error(t, err)
-	assert.Nil(t, conn)
+	assert.Error(t, err, "connection with invalid username should fail")
+	assert.Nil(t, conn, "connection should be nil on invalid username error")
 }
 
 func testManyConnections(t *testing.T) {
@@ -75,7 +75,7 @@ func testManyConnections(t *testing.T) {
 
 		ver := conn.GetVersion()
 		verMajor, _, _ := ver.GetReleaseVersion()
-		assert.GreaterOrEqual(t, 4, verMajor)
+		assert.GreaterOrEqual(t, 4, verMajor, "server version should be 4.x or lower for each connection")
 
 		t.Logf("Connection %d: %s %s", i, conn.GetVersion().ReleaseVersion, conn.GetVersion().APIVersion)
 	}

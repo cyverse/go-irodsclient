@@ -108,12 +108,12 @@ func testLockDataObject(t *testing.T) {
 
 	wg.Wait()
 
-	assert.ElementsMatch(t, taskOrder, []int{1, 2, 3, 4, 5, 6, 7, 8})
+	assert.ElementsMatch(t, taskOrder, []int{1, 2, 3, 4, 5, 6, 7, 8}, "lock/unlock operations should contain all required task markers")
 
 	obj, err := fs.GetDataObject(conn1, newDataObjectPath)
 	FailError(t, err)
-	assert.NotEmpty(t, obj.ID)
-	assert.Equal(t, int64(len(writeData)), obj.Size)
+	assert.NotEmpty(t, obj.ID, "data object ID should be assigned after creation")
+	assert.Equal(t, int64(len(writeData)), obj.Size, "written data object size should match written data bytes")
 
 	// delete
 	err = fs.DeleteDataObject(conn1, newDataObjectPath, true)
@@ -128,5 +128,5 @@ func testLockDataObject(t *testing.T) {
 		}
 	}
 
-	assert.True(t, deleted)
+	assert.True(t, deleted, "data object should not be retrievable after deletion")
 }
