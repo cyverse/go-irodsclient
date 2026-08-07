@@ -470,3 +470,10 @@ func (cache *FileSystemCache) GetAclCache(path string) []*types.IRODSAccess {
 func (cache *FileSystemCache) ClearAclCache() {
 	_ = cache.deleteNamespace(cacheNamespaceACL)
 }
+
+// Close closes the cache backend and releases resources
+func (cache *FileSystemCache) Close() {
+	if cache.cacheBackend != nil {
+		cache.cacheBackend.Close()
+	}
+}

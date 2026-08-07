@@ -81,6 +81,14 @@ cache:
 
 ```
 ┌────────────────────────────────────────┐
+│       CacheManager (Singleton)         │ (Per-user cache sharing)
+│  - AcquireCache(config, accountID)     │
+│  - ReleaseCache(accountID)             │
+│  - Reference counting & cleanup       │
+└────────────────────────────────────────┘
+                  │
+                  ↓
+┌────────────────────────────────────────┐
 │          FileSystemCache               │ (High-level API)
 │  - addEntryCache()                     │
 │  - getDirCache()                       │
@@ -102,6 +110,52 @@ cache:
    │(go-cache)  │          │  │      │
    └─────────┘  └──────────┘  └──────┘
 ```
+
+### Key Innovation: CacheManager for Per-User Cache Sharing
+
+**Problem:** Each FileSystem instance created its own independent cache. When a service creates multiple FileSystem instances for the same user (common in request-per-instance patterns), mutations in one instance weren't visible in others.
+
+**Solution: CacheManager Singleton**
+
+```go
+// CacheManager maintains shared caches per user (accountID)
+type CacheManager struct {
+    mu        sync.RWMutex
+    caches    map[accountID] → *FileSystemCache
+    refCounts map[accountID] → int
+}
+
+// Multiple FileSystem instances with same account share cache
+accountID := GenerateAccountID(host, port, user, zone)
+
+// Instance 1
+cache1 := GetCacheManager().AcquireCache(config, accountID)
+refCount: 1
+
+// Instance 2 (same user, same host/port/zone)
+cache2 := GetCacheManager().AcquireCache(config, accountID)
+refCount: 2
+// cache1 == cache2 (same object!)
+
+// When instance 1 releases
+GetCacheManager().ReleaseCache(accountID)
+refCount: 1
+// Cache still exists
+
+// When instance 2 releases
+GetCacheManager().ReleaseCache(accountID)
+refCount: 0
+// Cache closed and removed from manager
+```
+
+**Benefits:**
+- Multiple FileSystem instances with same user share cache
+- Mutations immediately visible across instances (same cache object)
+- Reference counting ensures cleanup
+- Thread-safe via RWMutex
+- Transparent to existing code
+
+---
 
 ### Key Innovation: Namespace-Per-Cache
 
@@ -660,6 +714,7 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*File
 
 ```
 fs/
+├── cache_manager.go              # CacheManager singleton (per-user cache sharing)
 ├── cache_backend.go              # CacheBackend interface, types
 ├── cache_backend_memory.go       # Memory (go-cache) implementation
 ├── cache_backend_ristretto.go    # Ristretto implementation
@@ -668,7 +723,8 @@ fs/
 ├── cache_factory.go              # Factory & validator
 ├── cache_metrics.go              # Metrics collection
 ├── cache.go                      # FileSystemCache (uses backend)
-└── config.go                     # GenerateAccountID(), defaults
+├── config.go                     # GenerateAccountID(), defaults
+└── fs.go                         # FileSystem (uses CacheManager)
 ```
 
 ---

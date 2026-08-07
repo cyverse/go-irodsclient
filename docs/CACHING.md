@@ -19,31 +19,46 @@ The FileSystem maintains several independent caches:
 
 - **Cache TTL**: 1 minute (configurable via `CacheConfig.Timeout`)
 - **Invalidation**: Occurs automatically on mutations within the same FileSystem instance
-- **Propagation**: Events broadcast to other live FileSystem instances
-- **New instances**: Start with empty caches; may observe stale state if server hasn't fully propagated changes
+- **Propagation**: 
+  - **Same user, same process**: Shared cache (CacheManager) → mutations immediately visible
+  - **Different user or process**: May observe stale state until cache expires
+- **Cache sharing**: Multiple FileSystem instances for the same user (same account/host/zone) now share a cache via CacheManager
 
 ## Consistency Modes
 
-### 1. Eventual Consistency (Default)
+### 1. Strong Consistency (Default for Same User)
 
-The default behavior is **eventual consistency** optimized for single-session use or when cache reuse is more valuable than strict post-mutation visibility.
-
-```go
-// Within same FileSystem instance
-filesystem.MakeDir("/path/to/dir", false)
-entry, _ := filesystem.StatDir("/path/to/dir")  // Guaranteed fresh
-```
-
-**However**, across separate FileSystem instances or requests:
+When multiple FileSystem instances are created for the **same user** (account/host/zone), they now share a cache via CacheManager. This provides **strong consistency** automatically:
 
 ```go
 // Request A
 filesystem1.MakeDir("/path/to/dir", false)
 // ... returns success
 
-// Request B (new FileSystem instance)
+// Request B (same user, new FileSystem instance)
+exists := filesystem2.ExistsDir("/path/to/dir")  // GUARANTEED true
+// filesystem1 and filesystem2 share the same cache!
+```
+
+### 2. Eventual Consistency (Different Users or Processes)
+
+Across different users or separate processes, the default behavior is **eventual consistency**:
+
+```go
+// Request A (user1)
+filesystem1.MakeDir("/path/to/dir", false)
+// ... returns success
+
+// Request B (user2, or different process)
 exists := filesystem2.ExistsDir("/path/to/dir")  // May be false briefly
 // Stale state possible until cache expires or server fully propagates
+```
+
+**Within same FileSystem instance:**
+```go
+// Same instance: always fresh after mutation
+filesystem.MakeDir("/path/to/dir", false)
+entry, _ := filesystem.StatDir("/path/to/dir")  // Guaranteed fresh (invalidated in same cache)
 ```
 
 ### 2. Strong Consistency (Fresh-Read Methods)
@@ -59,7 +74,7 @@ entries, err := filesystem.ListFresh(path)
 
 ## Fresh-Read Methods
 
-When you need guaranteed fresh state from the iRODS server, use the `Fresh` variants:
+When you need guaranteed fresh state from the iRODS server, use the `Fresh` variants. These always bypass cache and fetch directly from iRODS.
 
 ### Path Operations
 
@@ -75,29 +90,17 @@ When you need guaranteed fresh state from the iRODS server, use the `Fresh` vari
 
 **Use fresh-read methods when:**
 
-1. **Cross-request consistency** — Reading in a different HTTP request or session after a mutation
+1. **Cross-user or cross-process scenarios** — Different FileSystem instances with different users/accounts
    ```go
-   // POST /api/collections (creates a collection)
-   fs1.MakeDir("/path", false)
+   // User A's request
+   fs_a.MakeDir("/path", false)
    
-   // GET /api/collections/{name} (reads in new request)
-   exists := fs2.ExistsFresh("/path")  // Use fresh read
+   // User B's request (different user/account)
+   exists := fs_b.ExistsFresh("/path")  // Use fresh read
+   // fs_a and fs_b have separate caches (different accountIDs)
    ```
 
-2. **Multi-FileSystem patterns** — Service layers that create one FileSystem per request
-   ```go
-   // Service pattern: one fs per request
-   fs := getFileSystemForRequest()
-   defer fs.Release()
-   
-   err := fs.RemoveFile(path, false)
-   if err == nil {
-       // After mutation, read in same fs is cached (OK)
-       // But for a follow-up request, use fresh-read
-   }
-   ```
-
-3. **Polling or retry loops** — After mutations, waiting for changes to become visible
+2. **Polling or retry loops** — After mutations, waiting for iRODS server propagation
    ```go
    err := fs.MakeDir(path, false)
    if err == nil {
@@ -108,6 +111,16 @@ When you need guaranteed fresh state from the iRODS server, use the `Fresh` vari
            time.Sleep(100 * time.Millisecond)
        }
    }
+   ```
+
+3. **Inter-process visibility** — When separate service processes modify the same path
+   ```go
+   // Process A
+   fs_a.CreateFile("/path/file.txt", "", "w")
+   
+   // Process B (different process, different cache manager)
+   exists := fs_b.ExistsFresh("/path/file.txt")  // Use fresh read
+   // Process B doesn't share cache with Process A
    ```
 
 ### When Regular Methods Are Fine
@@ -162,23 +175,64 @@ config.Cache.InvalidateParentEntryCacheImmediately = true  // Default: true
 // When false, short inconsistency windows allowed
 ```
 
-## Propagation Between Instances
+## Cache Sharing Between Instances
 
-When FileSystem instances are active in the same process, cache invalidation events propagate automatically:
+### Same User (Same Account/Host/Zone)
+
+When FileSystem instances are created for the same user in the same process, they automatically **share the same cache** via CacheManager:
 
 ```go
+account := &types.IRODSAccount{
+    Host: "irod.example.com",
+    Port: 1247,
+    ClientUser: "rods",
+    ClientZone: "tempZone",
+}
+
 fs1, _ := fs.NewFileSystem(account, config)
 fs2, _ := fs.NewFileSystem(account, config)
 
 // Mutation in fs1
 fs1.MakeDir("/path", false)
 
-// fs2 receives invalidation event (async)
-// fs2.cache for /path is cleared
-// Next read in fs2 will fetch fresh state
+// fs2 sees it IMMEDIATELY (same cache object!)
+exists := fs2.Exists("/path")  // true (no fresh-read needed)
 ```
 
-**Limitation**: This only works for FileSystem instances in the same process. Separate services/processes don't share this propagation mechanism.
+**How it works:**
+- Both instances generate same `accountID` from (host, port, user, zone)
+- `GetCacheManager().AcquireCache()` returns same cache for same `accountID`
+- Mutations in one instance immediately visible in the other
+- Reference counting cleans up cache when all instances released
+
+### Different Users or Different Hosts
+
+When FileSystem instances have different accounts/hosts/zones, they have separate caches:
+
+```go
+accountA := &types.IRODSAccount{...user1...}
+accountB := &types.IRODSAccount{...user2...}
+
+fs1, _ := fs.NewFileSystem(accountA, config)
+fs2, _ := fs.NewFileSystem(accountB, config)
+
+// fs1 and fs2 have separate caches (different accountIDs)
+// Mutations in one may not be visible in the other
+```
+
+### Cross-Process Isolation
+
+CacheManager is process-local (not shared across processes):
+
+```go
+// Process A: creates FileSystem
+Process_A: fs1.MakeDir("/path", false)
+Process_A: cache has /path
+
+// Process B: separate cache manager
+Process_B: exists := fs2.Exists("/path")  // May be false (different cache)
+Process_B: should use ExistsFresh() instead
+```
 
 ## Performance vs Consistency Trade-offs
 
@@ -211,26 +265,76 @@ metrics := filesystem.GetMetrics()
 
 ## Recommendations
 
-1. **Default**: Use regular methods (`Stat()`, `List()`, etc.) for performance
-2. **Service layers**: Use `Fresh` variants after mutations that need immediate visibility
-3. **Polling loops**: Use `Fresh` variants in retry logic after mutations
-4. **Critical paths**: Consider reducing `Cache.Timeout` for volatile paths
-5. **New instances**: If creating a fresh FileSystem for a single operation, cache TTL may not matter—consider fresh-read methods
+1. **Same user, same process**: Use regular methods (`Stat()`, `List()`, etc.)
+   - CacheManager ensures shared cache between instances
+   - Mutations immediately visible via shared cache
+   - No need for fresh-read methods
 
-## Related Issues
+2. **Different user or cross-process**: Use `Fresh` variants after mutations
+   - Different users have separate caches (different accountID)
+   - Cross-process caches aren't shared
+   - Fresh-read ensures server state visibility
 
-- Cross-session cache inconsistency: When separate FileSystem instances don't see mutations immediately
-- Negative cache persistence: When a failed lookup is cached, hiding late arrivals
-- TTL mismatch: When different code assumes different cache visibility windows
+3. **Polling/retry loops**: Use `Fresh` variants
+   - Ensures iRODS server state, not cached state
+   - Useful for waiting on server propagation
+
+4. **Performance critical paths**: Use regular methods (cached)
+   - CacheManager already provides same-user consistency
+   - Cache reuse improves throughput
+
+5. **Cache configuration**:
+   - Default TTL (1 minute) is usually sufficient
+   - Reduce TTL for high-volatility paths
+   - Disable caching (`NoCache: true`) for strong consistency everywhere (slower)
+
+## Related Issues and Solutions
+
+### Cross-User Cache Inconsistency
+
+**Issue**: Different FileSystem instances for different users have separate caches
+**Solution**: Use `Fresh` variants when reading across different users/accounts
+```go
+fs_user1.MakeDir("/path", false)
+exists = fs_user2.ExistsFresh("/path")  // Fresh read needed
+```
+
+### Negative Cache Persistence
+
+**Issue**: Failed lookup is cached, hiding late arrivals
+**Solution**: Use `Fresh` variants in polling loops
+```go
+if !fs.ExistsFresh(path) {  // Fresh read checks server
+    time.Sleep(100 * time.Millisecond)
+}
+```
+
+### TTL Mismatch
+
+**Issue**: Different code assumes different cache visibility windows
+**Solution**: Configure per-path TTL or disable cache for volatile paths
+```go
+config.Cache.MetadataTimeoutSettings = []fs.MetadataCacheTimeoutSetting{
+    {Path: "/volatile/path", Timeout: types.Duration(5 * time.Second)},
+}
+```
+
+### Same User, Multiple Instances
+
+**Issue**: ~~Mutations not visible across instances~~ **SOLVED**
+**Solution**: CacheManager automatically shares cache for same user
+- Multiple FileSystem instances for same user share cache
+- Mutations immediately visible (same cache object)
+- No fresh-read workarounds needed for same-user scenarios
 
 ## Examples
 
-### Example 1: REST API Pattern
+### Example 1: REST API Pattern (Same User)
 
 ```go
 // POST /api/create-collection
 func CreateCollection(w http.ResponseWriter, r *http.Request) {
-    fs := getFileSystemForRequest()
+    fs := getFileSystemForRequest(userID)  // Same user throughout
     defer fs.Release()
     
     path := r.FormValue("path")
@@ -241,13 +345,50 @@ func CreateCollection(w http.ResponseWriter, r *http.Request) {
         return
     }
     
-    // Return success with fresh verification
-    exists := fs.ExistsFresh(path)
+    // Next request for same user will see the mutation
+    // (CacheManager shares cache for same user/account)
+    w.WriteHeader(http.StatusCreated)
+}
+
+// GET /api/collections/{name}
+func GetCollection(w http.ResponseWriter, r *http.Request) {
+    fs := getFileSystemForRequest(userID)  // Same user
+    defer fs.Release()
+    
+    path := r.FormValue("path")
+    
+    // Regular Exists() is sufficient (shared cache)
+    exists := fs.Exists(path)
+    
     if exists {
-        w.WriteHeader(http.StatusCreated)
+        w.WriteHeader(http.StatusOK)
     } else {
-        w.WriteHeader(http.StatusInternalServerError)
+        w.WriteHeader(http.StatusNotFound)
     }
+}
+```
+
+### Example 1b: REST API Pattern (Different Users)
+
+```go
+// Cross-user scenario (admin listing user's files)
+func AdminListUserFiles(w http.ResponseWriter, r *http.Request) {
+    adminFS := getFileSystemForRequest(adminID)
+    defer adminFS.Release()
+    
+    userID := r.FormValue("userID")
+    userPath := fmt.Sprintf("/zone/home/%s", userID)
+    
+    // If separate user modified this path, need fresh read
+    // because adminFS and userFS have separate caches
+    entries, err := adminFS.ListFresh(userPath)
+    if err != nil {
+        http.Error(w, err.Error(), 500)
+        return
+    }
+    
+    w.WriteHeader(http.StatusOK)
+    json.NewEncoder(w).Encode(entries)
 }
 ```
 

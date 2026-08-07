@@ -24,6 +24,7 @@ type FileSystem struct {
 	ioSession            *session.IRODSSession
 	metadataSession      *session.IRODSSession
 	cache                *FileSystemCache
+	accountID            string // for cache release
 	cachePropagation     *FileSystemCachePropagation
 	cacheEventHandlerMap *FilesystemCacheEventHandlerMap
 	fileHandleMap        *FileHandleMap
@@ -69,13 +70,17 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*File
 	// Generate account ID for cache isolation
 	accountID := GenerateAccountID(account.Host, account.Port, account.ClientUser, account.ClientZone)
 
+	// Acquire cache from manager (shared across instances with same accountID)
+	cache := GetCacheManager().AcquireCache(&config.Cache, accountID)
+
 	fs := &FileSystem{
 		id:                   xid.New().String(), // generate a new ID
 		account:              account,
 		config:               config,
 		ioSession:            ioSession,
 		metadataSession:      metaSession,
-		cache:                NewFileSystemCache(&config.Cache, accountID),
+		cache:                cache,
+		accountID:            accountID,
 		cacheEventHandlerMap: NewFilesystemCacheEventHandlerMap(),
 		fileHandleMap:        NewFileHandleMap(),
 	}
@@ -109,6 +114,9 @@ func (fs *FileSystem) Release() {
 
 	fs.ioSession.Release()
 	fs.metadataSession.Release()
+
+	// Release cache reference
+	GetCacheManager().ReleaseCache(fs.accountID)
 }
 
 // GetID returns file system instance ID
