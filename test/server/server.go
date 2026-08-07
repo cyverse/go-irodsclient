@@ -238,7 +238,14 @@ func (server *IRODSServer) GetFileSystemConfig() *irods_fs.FileSystemConfig {
 		fsConfig.AddressResolver = server.serverInfo.AddressResolver
 	}
 
-	fsConfig.Cache.Backend.Type = irods_fs.CacheBackendTypeRistretto
+	// Configure cache backend
+	fsConfig.Cache.Backend.Type = irods_fs.CacheBackendType(server.serverInfo.CacheBackendType)
+
+	// Configure Redis if backend is redis
+	if server.serverInfo.CacheBackendType == "redis" && server.serverInfo.RedisAddress != "" {
+		fsConfig.Cache.Backend.Redis = irods_fs.NewDefaultRedisBackendConfig()
+		fsConfig.Cache.Backend.Redis.Address = server.serverInfo.RedisAddress
+	}
 
 	return fsConfig
 }

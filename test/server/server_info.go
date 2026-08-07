@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/cyverse/go-irodsclient/fs"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/pkg/errors"
 )
@@ -16,6 +17,9 @@ const (
 	testServerAdminPassword string = "rods"
 	testServerZone          string = "tempZone"
 	testServerResource      string = "demoResc"
+
+	redisServerHost string = "localhost"
+	redisServerPort int    = 6379
 
 	productionServerHost          string = "data.cyverse.org"
 	productionServerPort          int    = 1247
@@ -41,6 +45,10 @@ type IRODSServerInfo struct {
 	Password string
 	Zone     string
 	Resource string
+
+	// Cache backend configuration
+	CacheBackendType fs.CacheBackendType // "memory", "ristretto", "redis", "none"
+	RedisAddress     string              // for redis backend
 }
 
 func (info *IRODSServerInfo) GetComposeFilePath() (string, error) {
@@ -109,6 +117,8 @@ var (
 			Zone:               testServerZone,
 			Resource:           testServerResource,
 			UseAddressResolver: true,
+
+			CacheBackendType: fs.CacheBackendTypeMemory,
 		},
 		{
 			Name:                "iRODS 4.2.11",
@@ -125,6 +135,8 @@ var (
 			Zone:               testServerZone,
 			Resource:           testServerResource,
 			UseAddressResolver: true,
+
+			CacheBackendType: fs.CacheBackendTypeMemory,
 		},
 		{
 			Name:                "iRODS 4.3.3",
@@ -141,6 +153,8 @@ var (
 			Zone:               testServerZone,
 			Resource:           testServerResource,
 			UseAddressResolver: true,
+
+			CacheBackendType: fs.CacheBackendTypeMemory,
 		},
 		{
 			Name:                "iRODS 4.3.3 PAM",
@@ -157,6 +171,63 @@ var (
 			Zone:               testServerZone,
 			Resource:           testServerResource,
 			UseAddressResolver: true,
+
+			CacheBackendType: fs.CacheBackendTypeMemory,
+		},
+		{
+			Name:                "iRODS 4.3.3 + NoCache",
+			Version:             "4.3.3",
+			AuthScheme:          types.AuthSchemeNative,
+			CSNegotiation:       false,
+			CSNegotiationPolicy: types.CSNegotiationPolicyRequestTCP,
+			ComposeFile:         "irods_4.3.3/docker-compose.yml",
+
+			Host:               testServerHost,
+			Port:               testServerPort,
+			User:               testServerAdminUser,
+			Password:           testServerAdminPassword,
+			Zone:               testServerZone,
+			Resource:           testServerResource,
+			UseAddressResolver: true,
+
+			CacheBackendType: fs.CacheBackendTypeNone,
+		},
+		{
+			Name:                "iRODS 4.3.3 + Ristretto",
+			Version:             "4.3.3",
+			AuthScheme:          types.AuthSchemeNative,
+			CSNegotiation:       false,
+			CSNegotiationPolicy: types.CSNegotiationPolicyRequestTCP,
+			ComposeFile:         "irods_4.3.3/docker-compose.yml",
+
+			Host:               testServerHost,
+			Port:               testServerPort,
+			User:               testServerAdminUser,
+			Password:           testServerAdminPassword,
+			Zone:               testServerZone,
+			Resource:           testServerResource,
+			UseAddressResolver: true,
+
+			CacheBackendType: fs.CacheBackendTypeRistretto,
+		},
+		{
+			Name:                "iRODS 4.3.3 + Redis",
+			Version:             "4.3.3",
+			AuthScheme:          types.AuthSchemeNative,
+			CSNegotiation:       false,
+			CSNegotiationPolicy: types.CSNegotiationPolicyRequestTCP,
+			ComposeFile:         "irods_4.3.3_redis/docker-compose.yml",
+
+			Host:               testServerHost,
+			Port:               testServerPort,
+			User:               testServerAdminUser,
+			Password:           testServerAdminPassword,
+			Zone:               testServerZone,
+			Resource:           testServerResource,
+			UseAddressResolver: true,
+
+			CacheBackendType: fs.CacheBackendTypeRedis,
+			RedisAddress:     redisServerHost + ":" + fmt.Sprintf("%d", redisServerPort),
 		},
 	}
 
@@ -176,6 +247,8 @@ var (
 			Zone:               productionServerZone,
 			Resource:           productionServerResource,
 			UseAddressResolver: false,
+
+			CacheBackendType: "memory",
 		},
 	}
 )
