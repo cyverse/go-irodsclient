@@ -25,7 +25,6 @@ type FileSystem struct {
 	metadataSession      *session.IRODSSession
 	cache                *FileSystemCache
 	accountID            string // for cache release
-	cachePropagation     *FileSystemCachePropagation
 	cacheEventHandlerMap *FilesystemCacheEventHandlerMap
 	fileHandleMap        *FileHandleMap
 }
@@ -85,9 +84,6 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*File
 		fileHandleMap:        NewFileHandleMap(),
 	}
 
-	cachePropagation := NewFileSystemCachePropagation(fs)
-	fs.cachePropagation = cachePropagation
-
 	return fs, nil
 }
 
@@ -110,7 +106,6 @@ func (fs *FileSystem) Release() {
 	}
 
 	fs.cacheEventHandlerMap.Release()
-	fs.cachePropagation.Release()
 
 	fs.ioSession.Release()
 	fs.metadataSession.Release()
@@ -167,10 +162,6 @@ func (fs *FileSystem) ReturnMetadataConnection(conn *connection.IRODSConnection)
 // GetOpenConnections counts current open connections
 func (fs *FileSystem) GetOpenConnections() int {
 	return fs.ioSession.GetOpenConnections() + fs.metadataSession.GetOpenConnections()
-}
-
-func (fs *FileSystem) GetCachePropagation() *FileSystemCachePropagation {
-	return fs.cachePropagation
 }
 
 // GetServerVersion returns server version info
@@ -529,13 +520,11 @@ func (fs *FileSystem) RemoveDir(irodsPath string, recurse bool, force bool) erro
 	if err != nil {
 		if types.IsFileNotFoundError(err) {
 			fs.InvalidateCacheForFileRemove(irodsCorrectPath)
-			fs.cachePropagation.PropagateFileRemove(irodsCorrectPath)
 		}
 		return err
 	}
 
 	fs.InvalidateCacheForDirRemove(irodsCorrectPath, recurse)
-	fs.cachePropagation.PropagateDirRemove(irodsCorrectPath)
 	return nil
 }
 
@@ -572,13 +561,11 @@ func (fs *FileSystem) RemoveFile(irodsPath string, force bool) error {
 	if err != nil {
 		if types.IsFileNotFoundError(err) {
 			fs.InvalidateCacheForFileRemove(irodsCorrectPath)
-			fs.cachePropagation.PropagateFileRemove(irodsCorrectPath)
 		}
 		return err
 	}
 
 	fs.InvalidateCacheForFileRemove(irodsCorrectPath)
-	fs.cachePropagation.PropagateFileRemove(irodsCorrectPath)
 	return nil
 }
 
@@ -621,9 +608,7 @@ func (fs *FileSystem) RenameDirToDir(srcPath string, destPath string) error {
 	}
 
 	fs.InvalidateCacheForDirRemove(irodsSrcPath, true)
-	fs.cachePropagation.PropagateDirRemove(irodsSrcPath)
 	fs.InvalidateCacheForDirCreate(irodsDestPath)
-	fs.cachePropagation.PropagateDirCreate(irodsDestPath)
 
 	// postprocess
 	err = fs.postprocessRenameFileHandleForDir(handles, conn, irodsSrcPath, irodsDestPath)
@@ -673,9 +658,7 @@ func (fs *FileSystem) RenameFileToFile(srcPath string, destPath string) error {
 	}
 
 	fs.InvalidateCacheForFileRemove(irodsSrcPath)
-	fs.cachePropagation.PropagateFileRemove(irodsSrcPath)
 	fs.InvalidateCacheForFileCreate(irodsDestPath)
-	fs.cachePropagation.PropagateFileCreate(irodsDestPath)
 
 	// postprocess
 	err = fs.postprocessRenameFileHandle(handles, conn, irodsDestPath)
@@ -830,7 +813,6 @@ func (fs *FileSystem) MakeDir(irodsPath string, recurse bool) error {
 	}
 
 	fs.InvalidateCacheForDirCreate(irodsCorrectPath)
-	fs.cachePropagation.PropagateDirCreate(irodsCorrectPath)
 	fs.cache.AddDirCache(irodsCorrectPath, []string{})
 	return nil
 }
@@ -868,7 +850,6 @@ func (fs *FileSystem) CopyFileToFile(srcPath string, destPath string, force bool
 	}
 
 	fs.InvalidateCacheForFileCreate(irodsDestPath)
-	fs.cachePropagation.PropagateFileCreate(irodsDestPath)
 	return nil
 }
 
@@ -893,7 +874,6 @@ func (fs *FileSystem) TruncateFile(irodsPath string, size int64) error {
 	}
 
 	fs.InvalidateCacheForFileUpdate(irodsCorrectPath)
-	fs.cachePropagation.PropagateFileUpdate(irodsCorrectPath)
 	return nil
 }
 
@@ -914,7 +894,6 @@ func (fs *FileSystem) ReplicateFile(irodsPath string, resource string, update bo
 	}
 
 	fs.InvalidateCacheForFileUpdate(irodsCorrectPath)
-	fs.cachePropagation.PropagateFileUpdate(irodsCorrectPath)
 	return nil
 }
 
@@ -1026,9 +1005,74 @@ func (fs *FileSystem) CreateFile(irodsPath string, resource string, mode string)
 
 	fs.fileHandleMap.Add(fileHandle)
 	fs.InvalidateCacheForFileCreate(irodsCorrectPath)
-	fs.cachePropagation.PropagateFileCreate(irodsCorrectPath)
 
 	return fileHandle, nil
+}
+
+// LockDataObject locks data object with write lock (exclusive)
+func (fs *FileSystem) LockDataObject(irodsPath string, wait bool) (*types.IRODSFileLockHandle, error) {
+	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
+
+	conn, err := fs.metadataSession.AcquireConnection(true)
+	if err != nil {
+		return nil, err
+	}
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
+
+	lockType := types.DataObjectLockTypeWrite
+	lockCommand := types.DataObjectLockCommandSetLock
+	if wait {
+		lockCommand = types.DataObjectLockCommandSetLockWait
+	}
+
+	fileLockHandle, err := irods_fs.LockDataObject(conn, irodsCorrectPath, lockType, lockCommand)
+	if err != nil {
+		return nil, err
+	}
+
+	return fileLockHandle, nil
+}
+
+// RLockDataObject locks data object with read lock
+func (fs *FileSystem) RLockDataObject(irodsPath string, wait bool) (*types.IRODSFileLockHandle, error) {
+	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
+
+	conn, err := fs.metadataSession.AcquireConnection(true)
+	if err != nil {
+		return nil, err
+	}
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
+
+	lockType := types.DataObjectLockTypeRead
+	lockCommand := types.DataObjectLockCommandSetLock
+	if wait {
+		lockCommand = types.DataObjectLockCommandSetLockWait
+	}
+
+	fileLockHandle, err := irods_fs.LockDataObject(conn, irodsCorrectPath, lockType, lockCommand)
+	if err != nil {
+		return nil, err
+	}
+
+	return fileLockHandle, nil
+}
+
+// UnlockDataObject unlocks data object
+func (fs *FileSystem) UnlockDataObject(lockHandle *types.IRODSFileLockHandle) error {
+	conn, err := fs.metadataSession.AcquireConnection(true)
+	if err != nil {
+		return err
+	}
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
+
+	if lockHandle != nil {
+		err := irods_fs.UnlockDataObject(conn, lockHandle)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // getCollectionNoCache returns collection entry

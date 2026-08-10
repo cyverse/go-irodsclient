@@ -1082,11 +1082,9 @@ func (fs *FileSystem) UploadFile(localPath string, irodsPath string, resource st
 	if entry == nil {
 		// create
 		fs.InvalidateCacheForFileCreate(irodsFilePath)
-		fs.cachePropagation.PropagateFileCreate(irodsFilePath)
 	} else {
 		// ovewrite update
 		fs.InvalidateCacheForFileUpdate(irodsFilePath)
-		fs.cachePropagation.PropagateFileUpdate(irodsFilePath)
 	}
 
 	entry, err = fs.Stat(irodsFilePath)
@@ -1203,11 +1201,9 @@ func (fs *FileSystem) UploadFileWithConnection(conn *connection.IRODSConnection,
 	if entry == nil {
 		// create
 		fs.InvalidateCacheForFileCreate(irodsFilePath)
-		fs.cachePropagation.PropagateFileCreate(irodsFilePath)
 	} else {
 		// ovewrite update
 		fs.InvalidateCacheForFileUpdate(irodsFilePath)
-		fs.cachePropagation.PropagateFileUpdate(irodsFilePath)
 	}
 
 	entry, err = fs.Stat(irodsFilePath)
@@ -1306,11 +1302,9 @@ func (fs *FileSystem) UploadFileFromBuffer(buffer *bytes.Buffer, irodsPath strin
 	if entry == nil {
 		// create
 		fs.InvalidateCacheForFileCreate(irodsFilePath)
-		fs.cachePropagation.PropagateFileCreate(irodsFilePath)
 	} else {
 		// ovewrite update
 		fs.InvalidateCacheForFileUpdate(irodsFilePath)
-		fs.cachePropagation.PropagateFileUpdate(irodsFilePath)
 	}
 
 	entry, err = fs.Stat(irodsFilePath)
@@ -1409,11 +1403,9 @@ func (fs *FileSystem) UploadFileFromBufferWithConnection(conn *connection.IRODSC
 	if entry == nil {
 		// create
 		fs.InvalidateCacheForFileCreate(irodsFilePath)
-		fs.cachePropagation.PropagateFileCreate(irodsFilePath)
 	} else {
 		// overwrite update
 		fs.InvalidateCacheForFileUpdate(irodsFilePath)
-		fs.cachePropagation.PropagateFileUpdate(irodsFilePath)
 	}
 
 	entry, err = fs.Stat(irodsFilePath)
@@ -1530,11 +1522,9 @@ func (fs *FileSystem) UploadFileParallel(localPath string, irodsPath string, res
 	if entry == nil {
 		// create
 		fs.InvalidateCacheForFileCreate(irodsFilePath)
-		fs.cachePropagation.PropagateFileCreate(irodsFilePath)
 	} else {
 		// ovewrite update
 		fs.InvalidateCacheForFileUpdate(irodsFilePath)
-		fs.cachePropagation.PropagateFileUpdate(irodsFilePath)
 	}
 
 	entry, err = fs.Stat(irodsFilePath)
@@ -1651,11 +1641,9 @@ func (fs *FileSystem) UploadFileParallelWithConnections(conns []*connection.IROD
 	if entry == nil {
 		// create
 		fs.InvalidateCacheForFileCreate(irodsFilePath)
-		fs.cachePropagation.PropagateFileCreate(irodsFilePath)
 	} else {
 		// ovewrite update
 		fs.InvalidateCacheForFileUpdate(irodsFilePath)
-		fs.cachePropagation.PropagateFileUpdate(irodsFilePath)
 	}
 
 	entry, err = fs.Stat(irodsFilePath)
@@ -1772,11 +1760,9 @@ func (fs *FileSystem) UploadFileRedirectToResource(localPath string, irodsPath s
 	if entry == nil {
 		// create
 		fs.InvalidateCacheForFileCreate(irodsFilePath)
-		fs.cachePropagation.PropagateFileCreate(irodsFilePath)
 	} else {
 		// ovewrite update
 		fs.InvalidateCacheForFileUpdate(irodsFilePath)
-		fs.cachePropagation.PropagateFileUpdate(irodsFilePath)
 	}
 
 	entry, err = fs.Stat(irodsFilePath)
@@ -1893,11 +1879,9 @@ func (fs *FileSystem) UploadFileRedirectToResourceWithConnection(controlConn *co
 	if entry == nil {
 		// create
 		fs.InvalidateCacheForFileCreate(irodsFilePath)
-		fs.cachePropagation.PropagateFileCreate(irodsFilePath)
 	} else {
 		// ovewrite update
 		fs.InvalidateCacheForFileUpdate(irodsFilePath)
-		fs.cachePropagation.PropagateFileUpdate(irodsFilePath)
 	}
 
 	entry, err = fs.Stat(irodsFilePath)

@@ -104,7 +104,6 @@ func (handle *FileHandle) Close() error {
 
 	if handle.IsWriteMode() {
 		handle.filesystem.InvalidateCacheForFileUpdate(handle.entry.Path)
-		handle.filesystem.cachePropagation.PropagateFileUpdate(handle.entry.Path)
 	}
 
 	return err
@@ -313,7 +312,6 @@ func (handle *FileHandle) preprocessRename() error {
 
 	if handle.IsWriteMode() {
 		handle.filesystem.InvalidateCacheForFileUpdate(handle.entry.Path)
-		handle.filesystem.cachePropagation.PropagateFileUpdate(handle.entry.Path)
 	}
 
 	return err

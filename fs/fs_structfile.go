@@ -28,7 +28,6 @@ func (fs *FileSystem) ExtractStructFile(path string, targetCollection string, re
 	}
 
 	fs.invalidateCacheForDirExtract(targetIrodsPath)
-	fs.cachePropagation.PropagateDirExtract(targetIrodsPath)
 
 	return nil
 }
