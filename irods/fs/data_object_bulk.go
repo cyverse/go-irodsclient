@@ -449,6 +449,10 @@ func UploadDataObjectParallel(sess *session.IRODSSession, localPath string, irod
 
 	for _, conn := range connections {
 		if conn == nil || !conn.IsConnected() {
+			for _, conn := range transferConns {
+				sess.DiscardConnection(conn)
+			}
+
 			return errors.Errorf("connection is nil or disconnected")
 		}
 	}
@@ -464,11 +468,18 @@ func UploadDataObjectParallel(sess *session.IRODSSession, localPath string, irod
 	// open a new file
 	handle, err := OpenDataObjectForPutParallel(controlConn, irodsPath, resource, "w+", common.OPER_TYPE_NONE, numTasks, fileLength, keywords)
 	if err != nil {
+		for _, conn := range transferConns {
+			sess.DiscardConnection(conn)
+		}
 		return err
 	}
 
 	replicaToken, resourceHierarchy, err := GetReplicaAccessInfo(controlConn, handle)
 	if err != nil {
+		for _, conn := range transferConns {
+			sess.DiscardConnection(conn)
+		}
+
 		closeErr := CloseDataObject(controlConn, handle)
 		if closeErr != nil {
 			return closeErr
@@ -1030,6 +1041,9 @@ func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IR
 
 	for _, conn := range transferConns {
 		if conn == nil || !conn.IsConnected() {
+			for _, conn := range transferConns {
+				_ = sess.ReturnConnection(conn)
+			}
 			return errors.Errorf("connection is nil or disconnected")
 		}
 	}
@@ -1045,10 +1059,16 @@ func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IR
 	// create an empty file
 	f, err := os.Create(localPath)
 	if err != nil {
+		for _, conn := range transferConns {
+			_ = sess.ReturnConnection(conn)
+		}
 		return errors.Wrapf(err, "failed to create file %q", localPath)
 	}
 	err = f.Close()
 	if err != nil {
+		for _, conn := range transferConns {
+			_ = sess.ReturnConnection(conn)
+		}
 		return errors.Wrapf(err, "failed to close file %q", localPath)
 	}
 
@@ -1472,6 +1492,512 @@ func DownloadDataObjectParallelWithConnections(conns []*connection.IRODSConnecti
 	}
 
 	taskWaitGroup.Wait()
+
+	if len(errChan) > 0 {
+		return <-errChan
+	}
+
+	return nil
+}
+
+// DownloadDataObjectWithCallback downloads a data object and delivers data blocks via callback.
+// Blocks are read sequentially and dispatched to blockReadyCallback concurrently using a pool of numBlocks buffers.
+func DownloadDataObjectWithCallback(sess *session.IRODSSession, dataObject *types.IRODSDataObject, resource string, blockSize int, numBlocks int, blockReadyCallback common.DataObjectBlockCallback, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
+	return DownloadDataObjectParallelWithCallback(sess, dataObject, resource, blockSize, numBlocks, blockReadyCallback, 1, keywords, transferCallback)
+}
+
+// DownloadDataObjectWithCallbackWithConnection downloads a data object and delivers data blocks via callback using a provided connection.
+func DownloadDataObjectWithCallbackWithConnection(conn *connection.IRODSConnection, dataObject *types.IRODSDataObject, resource string, blockSize int, numBlocks int, blockReadyCallback common.DataObjectBlockCallback, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
+	conns := []*connection.IRODSConnection{conn}
+	return DownloadDataObjectParallelWithCallbackWithConnections(conns, dataObject, resource, blockSize, numBlocks, blockReadyCallback, keywords, transferCallback)
+}
+
+// DownloadDataObjectParallelWithCallback downloads a data object in parallel and delivers data blocks via callback.
+func DownloadDataObjectParallelWithCallback(sess *session.IRODSSession, dataObject *types.IRODSDataObject, resource string, blockSize int, numBlocks int, blockReadyCallback common.DataObjectBlockCallback, taskNum int, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
+	logger := log.WithFields(log.Fields{
+		"irods_path": dataObject.Path,
+		"resource":   resource,
+		"block_size": blockSize,
+		"num_blocks": numBlocks,
+		"task_num":   taskNum,
+	})
+
+	// use default resource when resource param is empty
+	if len(resource) == 0 {
+		account := sess.GetAccount()
+		resource = account.DefaultResource
+	}
+
+	if dataObject.Size == 0 {
+		// empty file
+		return nil
+	}
+
+	numTasks := taskNum
+	if numTasks <= 0 {
+		numTasks = util.GetNumTasksForParallelTransfer(dataObject.Size)
+	}
+
+	// acquire all transferConns
+	// numTasks transfer transferConns
+	// control connection is not needed
+	transferConns, err := sess.AcquireConnectionsMulti(numTasks, false)
+	if err != nil {
+		if len(transferConns) == 0 {
+			return errors.Wrapf(err, "failed to get %d connections, got %d", numTasks, len(transferConns))
+		}
+
+		logger.WithError(err).Debugf("failed to get %d connections, got %d", numTasks, len(transferConns))
+	}
+
+	for _, conn := range transferConns {
+		if conn == nil || !conn.IsConnected() {
+			for _, conn := range transferConns {
+				_ = sess.ReturnConnection(conn)
+			}
+			return errors.Errorf("connection is nil or disconnected")
+		}
+	}
+
+	// adjust number of tasks
+	if numTasks != len(transferConns) {
+		logger.Debugf("adjust number of tasks from %d to %d", numTasks, len(transferConns))
+		numTasks = len(transferConns)
+	}
+
+	logger.Debugf("downloading data object in parallel with callback, size(%d), threads(%d)", dataObject.Size, numTasks)
+
+	// shared buffer pool
+	pool := make(chan []byte, numBlocks)
+	for i := 0; i < numBlocks; i++ {
+		pool <- make([]byte, blockSize)
+	}
+
+	callbackWg := sync.WaitGroup{}
+
+	errChan := make(chan error, numTasks)
+	taskWaitGroup := sync.WaitGroup{}
+
+	currentBytesDownloaded := make([]int64, numTasks)
+	bytesDownloaded := make([]int64, numTasks)
+	totalBytesDownloaded := int64(0)
+	if transferCallback != nil {
+		transferCallback("download", atomic.LoadInt64(&totalBytesDownloaded), dataObject.Size)
+	}
+
+	downloadTask := func(taskID int, transferConn *connection.IRODSConnection, taskOffset int64, taskLength int64) {
+		taskLogger := log.WithFields(log.Fields{
+			"irods_path":  dataObject.Path,
+			"task_id":     taskID,
+			"task_offset": taskOffset,
+			"task_length": taskLength,
+		})
+
+		taskLogger.Debug("downloading data object partition")
+
+		atomic.StoreInt64(&currentBytesDownloaded[taskID], 0)
+		atomic.StoreInt64(&bytesDownloaded[taskID], 0)
+
+		// close transfer connection after use
+		defer func() {
+			_ = sess.ReturnConnection(transferConn)
+			taskWaitGroup.Done()
+		}()
+
+		lastOffset := int64(taskOffset)
+
+		calcProgress := func() {
+			newTotal := int64(0)
+			for i := 0; i < numTasks; i++ {
+				newTotal += atomic.LoadInt64(&currentBytesDownloaded[i])
+				newTotal += atomic.LoadInt64(&bytesDownloaded[i])
+			}
+
+			atomic.StoreInt64(&totalBytesDownloaded, newTotal)
+		}
+
+		blockReadCallback := func(taskName string, processed int64, total int64) {
+			if processed > 0 {
+				atomic.StoreInt64(&currentBytesDownloaded[taskID], processed)
+				calcProgress()
+
+				if transferCallback != nil {
+					transferCallback("download", atomic.LoadInt64(&totalBytesDownloaded), dataObject.Size)
+				}
+			}
+		}
+
+		taskRemain := taskLength
+
+		attempt := func(attemptConn *connection.IRODSConnection) error {
+			attemptHandle, _, openErr := OpenDataObject(attemptConn, dataObject.Path, resource, "r", keywords)
+			if openErr != nil {
+				return openErr
+			}
+
+			defer func() {
+				if !attemptConn.IsSocketFailed() && attemptConn.IsConnected() {
+					_ = CloseDataObject(attemptConn, attemptHandle)
+				}
+			}()
+
+			// seek to last offset
+			if lastOffset > 0 {
+				taskLogger.Debugf("resuming downloading data object partition, last offset %d", lastOffset)
+
+				newOffset, seekErr := SeekDataObject(attemptConn, attemptHandle, lastOffset, types.SeekSet)
+				if seekErr != nil {
+					return errors.Wrapf(seekErr, "failed to seek data object %q to offset %d", dataObject.Path, lastOffset)
+				}
+
+				if newOffset != lastOffset {
+					return errors.Errorf("failed to seek to target offset %d", lastOffset)
+				}
+			}
+
+			// copy
+			for taskRemain > 0 {
+				// check for callback error or other task errors
+				if len(errChan) > 0 {
+					return errors.Errorf("stop running as other tasks failed")
+				}
+
+				// acquire buffer from pool
+				buf := <-pool
+
+				readLen := blockSize
+				if taskRemain < int64(readLen) {
+					readLen = int(taskRemain)
+				}
+
+				bytesRead, attemptReadErr := ReadDataObjectWithTrackerCallBack(attemptConn, attemptHandle, buf[:readLen], blockReadCallback)
+				if bytesRead > 0 {
+					data := buf[:bytesRead]
+					blockOffset := lastOffset
+
+					atomic.StoreInt64(&currentBytesDownloaded[taskID], 0)
+					atomic.AddInt64(&bytesDownloaded[taskID], int64(bytesRead))
+
+					calcProgress()
+
+					taskRemain -= int64(bytesRead)
+					lastOffset += int64(bytesRead)
+
+					callbackWg.Add(1)
+					go func() {
+						defer func() {
+							pool <- buf
+							callbackWg.Done()
+						}()
+
+						if blockReadyCallback != nil {
+							if err := blockReadyCallback(data, blockOffset); err != nil {
+								errChan <- err
+								return
+							}
+						}
+					}()
+				} else {
+					pool <- buf
+				}
+
+				if attemptReadErr != nil {
+					if attemptReadErr == io.EOF {
+						return nil
+					}
+
+					return errors.Wrapf(attemptReadErr, "failed to read from data object %q", dataObject.Path)
+				}
+
+				if len(errChan) > 0 {
+					// other tasks failed
+					return errors.Errorf("stop running as other tasks failed")
+				}
+			}
+
+			return nil
+		}
+
+		for {
+			attemptErr := attempt(transferConn)
+			if attemptErr == nil {
+				// done downloading
+				return
+			}
+
+			if transferConn.IsSocketFailed() {
+				// retry
+				taskLogger.WithError(attemptErr).Errorf("socket failed, retrying...")
+
+				connErr := transferConn.Reconnect()
+				if connErr != nil {
+					errChan <- errors.Wrapf(connErr, "failed to reconnect")
+					return
+				}
+
+				if !transferConn.IsConnected() {
+					errChan <- errors.Errorf("connection is disconnected")
+					return
+				}
+			} else {
+				// other errors
+				errChan <- attemptErr
+				return
+			}
+		}
+	}
+
+	lengthPerThread := dataObject.Size / int64(numTasks)
+	if dataObject.Size%int64(numTasks) > 0 {
+		lengthPerThread++
+	}
+
+	offset := int64(0)
+
+	for i := 0; i < numTasks; i++ {
+		taskWaitGroup.Add(1)
+
+		go downloadTask(i, transferConns[i], offset, lengthPerThread)
+		offset += lengthPerThread
+	}
+
+	taskWaitGroup.Wait()
+	callbackWg.Wait()
+
+	if len(errChan) > 0 {
+		return <-errChan
+	}
+
+	return nil
+}
+
+// DownloadDataObjectParallelWithCallbackWithConnections downloads a data object in parallel and delivers data blocks via callback using provided connections.
+func DownloadDataObjectParallelWithCallbackWithConnections(conns []*connection.IRODSConnection, dataObject *types.IRODSDataObject, resource string, blockSize int, numBlocks int, blockReadyCallback common.DataObjectBlockCallback, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
+	logger := log.WithFields(log.Fields{
+		"irods_path": dataObject.Path,
+		"resource":   resource,
+		"block_size": blockSize,
+		"num_blocks": numBlocks,
+	})
+
+	if len(conns) == 0 {
+		return errors.Errorf("no connections provided")
+	}
+
+	for _, conn := range conns {
+		if conn == nil || !conn.IsConnected() {
+			return errors.Errorf("connection is nil or disconnected")
+		}
+	}
+
+	// use default resource when resource param is empty
+	if len(resource) == 0 {
+		account := conns[0].GetAccount()
+		resource = account.DefaultResource
+	}
+
+	if dataObject.Size == 0 {
+		// empty file
+		return nil
+	}
+
+	transferConns := conns[:]
+	numTasks := len(transferConns)
+
+	logger.Debugf("downloading data object in parallel with callback, size(%d), threads(%d)", dataObject.Size, numTasks)
+
+	// shared buffer pool
+	pool := make(chan []byte, numBlocks)
+	for i := 0; i < numBlocks; i++ {
+		pool <- make([]byte, blockSize)
+	}
+
+	callbackWg := sync.WaitGroup{}
+
+	errChan := make(chan error, numTasks)
+	taskWaitGroup := sync.WaitGroup{}
+
+	currentBytesDownloaded := make([]int64, numTasks)
+	bytesDownloaded := make([]int64, numTasks)
+	totalBytesDownloaded := int64(0)
+	if transferCallback != nil {
+		transferCallback("download", atomic.LoadInt64(&totalBytesDownloaded), dataObject.Size)
+	}
+
+	downloadTask := func(taskID int, transferConn *connection.IRODSConnection, taskOffset int64, taskLength int64) {
+		taskLogger := log.WithFields(log.Fields{
+			"irods_path":  dataObject.Path,
+			"task_id":     taskID,
+			"task_offset": taskOffset,
+			"task_length": taskLength,
+		})
+
+		taskLogger.Debug("downloading data object partition")
+
+		atomic.StoreInt64(&currentBytesDownloaded[taskID], 0)
+		atomic.StoreInt64(&bytesDownloaded[taskID], 0)
+
+		defer taskWaitGroup.Done()
+
+		lastOffset := int64(taskOffset)
+
+		calcProgress := func() {
+			newTotal := int64(0)
+			for i := 0; i < numTasks; i++ {
+				newTotal += atomic.LoadInt64(&currentBytesDownloaded[i])
+				newTotal += atomic.LoadInt64(&bytesDownloaded[i])
+			}
+
+			atomic.StoreInt64(&totalBytesDownloaded, newTotal)
+		}
+
+		blockReadCallback := func(taskName string, processed int64, total int64) {
+			if processed > 0 {
+				atomic.StoreInt64(&currentBytesDownloaded[taskID], processed)
+				calcProgress()
+
+				if transferCallback != nil {
+					transferCallback("download", atomic.LoadInt64(&totalBytesDownloaded), dataObject.Size)
+				}
+			}
+		}
+
+		taskRemain := taskLength
+
+		attempt := func(attemptConn *connection.IRODSConnection) error {
+			attemptHandle, _, openErr := OpenDataObject(attemptConn, dataObject.Path, resource, "r", keywords)
+			if openErr != nil {
+				return openErr
+			}
+
+			defer func() {
+				if !attemptConn.IsSocketFailed() && attemptConn.IsConnected() {
+					_ = CloseDataObject(attemptConn, attemptHandle)
+				}
+			}()
+
+			// seek to last offset
+			if lastOffset > 0 {
+				taskLogger.Debugf("resuming downloading data object partition, last offset %d", lastOffset)
+
+				newOffset, seekErr := SeekDataObject(attemptConn, attemptHandle, lastOffset, types.SeekSet)
+				if seekErr != nil {
+					return errors.Wrapf(seekErr, "failed to seek data object %q to offset %d", dataObject.Path, lastOffset)
+				}
+
+				if newOffset != lastOffset {
+					return errors.Errorf("failed to seek to target offset %d", lastOffset)
+				}
+			}
+
+			// copy
+			for taskRemain > 0 {
+				// check for other task errors
+				if len(errChan) > 0 {
+					return errors.Errorf("stop running as other tasks failed")
+				}
+
+				// acquire buffer from pool
+				buf := <-pool
+
+				readLen := blockSize
+				if taskRemain < int64(readLen) {
+					readLen = int(taskRemain)
+				}
+
+				bytesRead, attemptReadErr := ReadDataObjectWithTrackerCallBack(attemptConn, attemptHandle, buf[:readLen], blockReadCallback)
+				if bytesRead > 0 {
+					data := buf[:bytesRead]
+					blockOffset := lastOffset
+
+					atomic.StoreInt64(&currentBytesDownloaded[taskID], 0)
+					atomic.AddInt64(&bytesDownloaded[taskID], int64(bytesRead))
+
+					calcProgress()
+
+					taskRemain -= int64(bytesRead)
+					lastOffset += int64(bytesRead)
+
+					callbackWg.Add(1)
+					go func() {
+						defer func() {
+							pool <- buf
+							callbackWg.Done()
+						}()
+
+						if blockReadyCallback != nil {
+							if err := blockReadyCallback(data, blockOffset); err != nil {
+								errChan <- err
+								return
+							}
+						}
+					}()
+				} else {
+					pool <- buf
+				}
+
+				if attemptReadErr != nil {
+					if attemptReadErr == io.EOF {
+						return nil
+					}
+
+					return errors.Wrapf(attemptReadErr, "failed to read from data object %q", dataObject.Path)
+				}
+
+				if len(errChan) > 0 {
+					// other tasks failed
+					return errors.Errorf("stop running as other tasks failed")
+				}
+			}
+
+			return nil
+		}
+
+		for {
+			attemptErr := attempt(transferConn)
+			if attemptErr == nil {
+				// done downloading
+				return
+			}
+
+			if transferConn.IsSocketFailed() {
+				// retry
+				taskLogger.WithError(attemptErr).Errorf("socket failed, retrying...")
+
+				connErr := transferConn.Reconnect()
+				if connErr != nil {
+					errChan <- errors.Wrapf(connErr, "failed to reconnect")
+					return
+				}
+
+				if !transferConn.IsConnected() {
+					errChan <- errors.Errorf("connection is disconnected")
+					return
+				}
+			} else {
+				// other errors
+				errChan <- attemptErr
+				return
+			}
+		}
+	}
+
+	lengthPerThread := dataObject.Size / int64(numTasks)
+	if dataObject.Size%int64(numTasks) > 0 {
+		lengthPerThread++
+	}
+
+	offset := int64(0)
+
+	for i := 0; i < numTasks; i++ {
+		taskWaitGroup.Add(1)
+
+		go downloadTask(i, transferConns[i], offset, lengthPerThread)
+		offset += lengthPerThread
+	}
+
+	taskWaitGroup.Wait()
+	callbackWg.Wait()
 
 	if len(errChan) > 0 {
 		return <-errChan

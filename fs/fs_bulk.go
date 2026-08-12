@@ -1985,3 +1985,143 @@ func (fs *FileSystem) prepareOverwriteFile(irodsPath string, size int64) error {
 
 	return nil
 }
+
+// DownloadFileWithCallback downloads a file via callback
+func (fs *FileSystem) DownloadFileWithCallback(irodsPath string, resource string, blockSize int, numBlocks int, blockReadyCallback common.DataObjectBlockCallback, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
+	irodsSrcPath := util.CleanIRODSPath(irodsPath)
+
+	fileTransferResult := &FileTransferResult{}
+	fileTransferResult.IRODSPath = irodsSrcPath
+	fileTransferResult.StartTime = time.Now()
+
+	entry, err := fs.Stat(irodsSrcPath)
+	if err != nil {
+		newErr := errors.Join(err, types.NewFileNotFoundError(irodsSrcPath))
+		return fileTransferResult, errors.Wrapf(newErr, "failed to find a data object for path %q", irodsSrcPath)
+	}
+
+	if entry.Type == DirectoryEntry {
+		newErr := types.NewFileNotFoundError(irodsSrcPath)
+		return fileTransferResult, errors.Wrapf(newErr, "failed to find a data object for path %q, the path is for a collection", irodsSrcPath)
+	}
+
+	fileTransferResult.IRODSCheckSumAlgorithm = entry.CheckSumAlgorithm
+	fileTransferResult.IRODSCheckSum = entry.CheckSum
+	fileTransferResult.IRODSSize = entry.Size
+
+	keywords := map[common.KeyWord]string{}
+
+	err = irods_fs.DownloadDataObjectWithCallback(fs.ioSession, entry.ToDataObject(), resource, blockSize, numBlocks, blockReadyCallback, keywords, transferCallback)
+	if err != nil {
+		return fileTransferResult, errors.Wrapf(err, "failed to download a data object for path %q", irodsSrcPath)
+	}
+
+	fileTransferResult.EndTime = time.Now()
+
+	return fileTransferResult, nil
+}
+
+// DownloadFileWithCallbackWithConnection downloads a file via callback
+func (fs *FileSystem) DownloadFileWithCallbackWithConnection(conn *connection.IRODSConnection, irodsPath string, resource string, blockSize int, numBlocks int, blockReadyCallback common.DataObjectBlockCallback, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
+	irodsSrcPath := util.CleanIRODSPath(irodsPath)
+
+	fileTransferResult := &FileTransferResult{}
+	fileTransferResult.IRODSPath = irodsSrcPath
+	fileTransferResult.StartTime = time.Now()
+
+	entry, err := fs.Stat(irodsSrcPath)
+	if err != nil {
+		newErr := errors.Join(err, types.NewFileNotFoundError(irodsSrcPath))
+		return fileTransferResult, errors.Wrapf(newErr, "failed to find a data object for path %q", irodsSrcPath)
+	}
+
+	if entry.Type == DirectoryEntry {
+		newErr := types.NewFileNotFoundError(irodsSrcPath)
+		return fileTransferResult, errors.Wrapf(newErr, "failed to find a data object for path %q, the path is for a collection", irodsSrcPath)
+	}
+
+	fileTransferResult.IRODSCheckSumAlgorithm = entry.CheckSumAlgorithm
+	fileTransferResult.IRODSCheckSum = entry.CheckSum
+	fileTransferResult.IRODSSize = entry.Size
+
+	keywords := map[common.KeyWord]string{}
+
+	err = irods_fs.DownloadDataObjectWithCallbackWithConnection(conn, entry.ToDataObject(), resource, blockSize, numBlocks, blockReadyCallback, keywords, transferCallback)
+	if err != nil {
+		return fileTransferResult, errors.Wrapf(err, "failed to download a data object for path %q", irodsSrcPath)
+	}
+
+	fileTransferResult.EndTime = time.Now()
+
+	return fileTransferResult, nil
+}
+
+// DownloadFileParallelWithCallback downloads a file in parallel via callback
+func (fs *FileSystem) DownloadFileParallelWithCallback(irodsPath string, resource string, blockSize int, numBlocks int, blockReadyCallback common.DataObjectBlockCallback, taskNum int, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
+	irodsSrcPath := util.CleanIRODSPath(irodsPath)
+
+	fileTransferResult := &FileTransferResult{}
+	fileTransferResult.IRODSPath = irodsSrcPath
+	fileTransferResult.StartTime = time.Now()
+
+	entry, err := fs.Stat(irodsSrcPath)
+	if err != nil {
+		newErr := errors.Join(err, types.NewFileNotFoundError(irodsSrcPath))
+		return fileTransferResult, errors.Wrapf(newErr, "failed to find a data object for path %q", irodsSrcPath)
+	}
+
+	if entry.Type == DirectoryEntry {
+		newErr := types.NewFileNotFoundError(irodsSrcPath)
+		return fileTransferResult, errors.Wrapf(newErr, "failed to find a data object for path %q, the path is for a collection", irodsSrcPath)
+	}
+
+	fileTransferResult.IRODSCheckSumAlgorithm = entry.CheckSumAlgorithm
+	fileTransferResult.IRODSCheckSum = entry.CheckSum
+	fileTransferResult.IRODSSize = entry.Size
+
+	keywords := map[common.KeyWord]string{}
+
+	err = irods_fs.DownloadDataObjectParallelWithCallback(fs.ioSession, entry.ToDataObject(), resource, blockSize, numBlocks, blockReadyCallback, taskNum, keywords, transferCallback)
+	if err != nil {
+		return fileTransferResult, errors.Wrapf(err, "failed to download a data object for path %q", irodsSrcPath)
+	}
+
+	fileTransferResult.EndTime = time.Now()
+
+	return fileTransferResult, nil
+}
+
+// DownloadFileParallelWithCallbackWithConnections downloads a file in parallel via callback
+func (fs *FileSystem) DownloadFileParallelWithCallbackWithConnections(conns []*connection.IRODSConnection, irodsPath string, resource string, blockSize int, numBlocks int, blockReadyCallback common.DataObjectBlockCallback, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
+	irodsSrcPath := util.CleanIRODSPath(irodsPath)
+
+	fileTransferResult := &FileTransferResult{}
+	fileTransferResult.IRODSPath = irodsSrcPath
+	fileTransferResult.StartTime = time.Now()
+
+	entry, err := fs.Stat(irodsSrcPath)
+	if err != nil {
+		newErr := errors.Join(err, types.NewFileNotFoundError(irodsSrcPath))
+		return fileTransferResult, errors.Wrapf(newErr, "failed to find a data object for path %q", irodsSrcPath)
+	}
+
+	if entry.Type == DirectoryEntry {
+		newErr := types.NewFileNotFoundError(irodsSrcPath)
+		return fileTransferResult, errors.Wrapf(newErr, "failed to find a data object for path %q, the path is for a collection", irodsSrcPath)
+	}
+
+	fileTransferResult.IRODSCheckSumAlgorithm = entry.CheckSumAlgorithm
+	fileTransferResult.IRODSCheckSum = entry.CheckSum
+	fileTransferResult.IRODSSize = entry.Size
+
+	keywords := map[common.KeyWord]string{}
+
+	err = irods_fs.DownloadDataObjectParallelWithCallbackWithConnections(conns, entry.ToDataObject(), resource, blockSize, numBlocks, blockReadyCallback, keywords, transferCallback)
+	if err != nil {
+		return fileTransferResult, errors.Wrapf(err, "failed to download a data object for path %q", irodsSrcPath)
+	}
+
+	fileTransferResult.EndTime = time.Now()
+
+	return fileTransferResult, nil
+}
