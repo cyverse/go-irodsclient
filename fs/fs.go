@@ -168,6 +168,11 @@ func (fs *FileSystem) GetConfig() *FileSystemConfig {
 	return fs.config
 }
 
+// GetLogger returns file system logger
+func (fs *FileSystem) GetLogger() *log.Entry {
+	return fs.logger
+}
+
 // GetMetadataSession returns metadata session
 func (fs *FileSystem) GetMetadataSession() *session.IRODSSession {
 	return fs.metadataSession
