@@ -18,14 +18,17 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/metrics"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
+	"github.com/rs/xid"
 
 	log "github.com/sirupsen/logrus"
 )
 
 // IRODSConnection connects to iRODS
 type IRODSConnection struct {
+	id      string
 	account *types.IRODSAccount
 	config  *IRODSConnectionConfig
+	logger  *log.Entry
 
 	connected            bool
 	loggedIn             bool
@@ -66,7 +69,10 @@ func NewIRODSConnection(account *types.IRODSAccount, config *IRODSConnectionConf
 		return nil, err
 	}
 
-	return &IRODSConnection{
+	connID := xid.New().String()
+
+	conn := &IRODSConnection{
+		id:      connID,
 		account: account,
 		config:  config,
 
@@ -74,7 +80,42 @@ func NewIRODSConnection(account *types.IRODSAccount, config *IRODSConnectionConf
 		clientSignature:  "",
 		dirtyTransaction: false,
 		mutex:            sync.Mutex{},
-	}, nil
+	}
+
+	// set logger
+	if config != nil && config.LogEntry != nil {
+		logFields := log.Fields{
+			"conn_id": connID,
+		}
+
+		conn.logger = config.LogEntry.WithFields(logFields)
+	} else {
+		// create new logger object
+		var logger *log.Logger
+		if config != nil && config.Logger != nil {
+			logger = config.Logger
+		} else {
+			logger = log.StandardLogger()
+		}
+
+		logFields := log.Fields{
+			"conn_id":          connID,
+			"conn_host":        account.Host,
+			"conn_client_zone": account.ClientZone,
+			"conn_client_user": account.ClientUser,
+		}
+
+		if account.ClientZone != account.ProxyZone {
+			logFields["conn_proxy_zone"] = account.ProxyZone
+		}
+		if account.ClientUser != account.ProxyUser {
+			logFields["conn_proxy_user"] = account.ProxyUser
+		}
+
+		conn.logger = logger.WithFields(logFields)
+	}
+
+	return conn, nil
 }
 
 // Lock locks connection
@@ -92,6 +133,11 @@ func (conn *IRODSConnection) Unlock() {
 // GetAccount returns iRODSAccount
 func (conn *IRODSConnection) GetAccount() *types.IRODSAccount {
 	return conn.account
+}
+
+// GetLogger returns a logger
+func (conn *IRODSConnection) GetLogger() *log.Entry {
+	return conn.logger
 }
 
 // GetVersion returns iRODS version
@@ -206,7 +252,7 @@ func (conn *IRODSConnection) IsTransactionDirty() bool {
 
 // setSocketOpt sets socket opts
 func (conn *IRODSConnection) setSocketOpt(socket net.Conn, bufferSize int) {
-	logger := log.WithFields(log.Fields{
+	logger := conn.logger.WithFields(log.Fields{
 		"buffer_size": bufferSize,
 	})
 
@@ -252,10 +298,8 @@ func (conn *IRODSConnection) setSocketOpt(socket net.Conn, bufferSize int) {
 }
 
 func (conn *IRODSConnection) connectTCP() error {
-	logger := log.WithFields(log.Fields{})
-
 	server := fmt.Sprintf("%s:%d", conn.account.Host, conn.account.Port)
-	logger.Debugf("Connecting to %s", server)
+	conn.logger.Debugf("Connecting to %s", server)
 
 	// must connect to the server within ConnectTimeout
 	var dialer net.Dialer
@@ -391,8 +435,6 @@ func (conn *IRODSConnection) connectInternal() error {
 }
 
 func (conn *IRODSConnection) startup() (*types.IRODSVersion, error) {
-	logger := log.WithFields(log.Fields{})
-
 	clientPolicy := types.CSNegotiationPolicyRequestTCP
 	if conn.requiresCSNegotiation() {
 		// Get client negotiation policy
@@ -401,7 +443,7 @@ func (conn *IRODSConnection) startup() (*types.IRODSVersion, error) {
 		}
 	}
 
-	logger.Debug("Start up an iRODS connection")
+	conn.logger.Debug("Start up an iRODS connection")
 
 	timeout := conn.GetOperationTimeout()
 
@@ -466,7 +508,7 @@ func (conn *IRODSConnection) startup() (*types.IRODSVersion, error) {
 		return version.GetVersion(), nil
 	case message.RODS_MESSAGE_CS_NEG_TYPE:
 		// Server responds with its own negotiation policy
-		logger.Debug("Start up CS Negotiation")
+		conn.logger.Debug("Start up CS Negotiation")
 
 		negotiation := message.IRODSMessageCSNegotiation{}
 		err = negotiation.FromMessage(negotiationMessage)
@@ -477,7 +519,7 @@ func (conn *IRODSConnection) startup() (*types.IRODSVersion, error) {
 
 		serverPolicy := types.GetCSNegotiationPolicyRequest(negotiation.Result)
 
-		logger.Debugf("Client policy %q, server policy %q", clientPolicy, serverPolicy)
+		conn.logger.Debugf("Client policy %q, server policy %q", clientPolicy, serverPolicy)
 
 		// Perform the negotiation
 		policyResult := types.PerformCSNegotiation(clientPolicy, serverPolicy)
@@ -513,9 +555,7 @@ func (conn *IRODSConnection) startup() (*types.IRODSVersion, error) {
 }
 
 func (conn *IRODSConnection) sslStartup() error {
-	logger := log.WithFields(log.Fields{})
-
-	logger.Debug("Start up SSL")
+	conn.logger.Debug("Start up SSL")
 
 	timeout := conn.GetOperationTimeout()
 
@@ -574,15 +614,13 @@ func (conn *IRODSConnection) sslStartup() error {
 }
 
 func (conn *IRODSConnection) loginNativeLegacy() error {
-	logger := log.WithFields(log.Fields{})
-	logger.Debug("Logging in using legacy native authentication method")
+	conn.logger.Debug("Logging in using legacy native authentication method")
 
 	return AuthenticateNative(conn, conn.account.Password)
 }
 
 func (conn *IRODSConnection) loginNativePlugin() error {
-	logger := log.WithFields(log.Fields{})
-	logger.Debug("Logging in using native authentication method with plugin")
+	conn.logger.Debug("Logging in using native authentication method with plugin")
 
 	plugin := NewNativeAuthPlugin()
 	authContext := NewIRODSAuthContext()
@@ -593,16 +631,13 @@ func (conn *IRODSConnection) loginNativePlugin() error {
 }
 
 func (conn *IRODSConnection) loginPAMWithPasswordLegacy() error {
-	logger := log.WithFields(log.Fields{})
-	logger.Debug("Logging in using legacy pam authentication method")
+	conn.logger.Debug("Logging in using legacy pam authentication method")
 
 	return AuthenticatePAMWithPassword(conn, conn.account.Password)
 }
 
 func (conn *IRODSConnection) loginPAMWithPasswordPlugin() error {
-	logger := log.WithFields(log.Fields{})
-
-	logger.Debug("Logging in using pam authentication method with plugin")
+	conn.logger.Debug("Logging in using pam authentication method with plugin")
 
 	plugin := NewPAMPasswordAuthPlugin(conn.isSSLSocket)
 	authContext := NewIRODSAuthContext()
@@ -613,15 +648,13 @@ func (conn *IRODSConnection) loginPAMWithPasswordPlugin() error {
 }
 
 func (conn *IRODSConnection) loginPAMWithTokenLegacy() error {
-	logger := log.WithFields(log.Fields{})
-	logger.Debug("Logging in using legacy pam authentication method")
+	conn.logger.Debug("Logging in using legacy pam authentication method")
 
 	return AuthenticatePAMWithToken(conn, conn.account.PAMToken)
 }
 
 func (conn *IRODSConnection) loginPAMWithTokenPlugin() error {
-	logger := log.WithFields(log.Fields{})
-	logger.Debug("Logging in using pam authentication method with plugin")
+	conn.logger.Debug("Logging in using pam authentication method with plugin")
 
 	plugin := NewNativeAuthPlugin()
 	authContext := NewIRODSAuthContext()
@@ -669,9 +702,7 @@ func (conn *IRODSConnection) disconnectNow() error {
 
 // Disconnect disconnects
 func (conn *IRODSConnection) Disconnect() error {
-	logger := log.WithFields(log.Fields{})
-
-	logger.Debug("Disconnecting the connection")
+	conn.logger.Debug("Disconnecting the connection")
 
 	// lock the connection
 	conn.Lock()

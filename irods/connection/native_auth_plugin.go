@@ -7,7 +7,6 @@ import (
 
 	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/types"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -49,23 +48,21 @@ func (plugin *NativeAuthPlugin) AuthClientStart(conn *IRODSConnection, requestCo
 }
 
 func (plugin *NativeAuthPlugin) establishContext(conn *IRODSConnection, requestContext *IRODSAuthContext) (*IRODSAuthContext, error) {
-	logger := log.WithFields(log.Fields{})
-
 	responseContext := requestContext.GetCopy()
 
 	requestResult, _ := requestContext.GetString("request_result")
 
-	logger.Debugf("request result string = %q", requestResult)
+	conn.GetLogger().Debugf("request result string = %q", requestResult)
 
 	// Compute the client signature and store it in the connection
 	conn.clientSignature = plugin.generateClientSignature([]byte(requestResult))
-	logger.Debugf("client signature = %q", conn.clientSignature)
+	conn.GetLogger().Debugf("client signature = %q", conn.clientSignature)
 
 	// if the anonymous user is used, no need to append password
 	password, _ := requestContext.GetString("password")
 
 	authResponse := plugin.generateAuthResponse([]byte(requestResult), password)
-	logger.Debugf("auth response = %q", authResponse)
+	conn.GetLogger().Debugf("auth response = %q", authResponse)
 
 	// don't leak user's plaintext password
 	responseContext.Remove("password")

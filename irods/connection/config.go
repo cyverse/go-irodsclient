@@ -6,6 +6,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/metrics"
 	"github.com/cyverse/go-irodsclient/irods/types"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -24,7 +25,9 @@ type IRODSConnectionConfig struct {
 	ApplicationName      string
 	TcpBufferSize        int
 
-	Metrics *metrics.IRODSMetrics // can be null
+	Metrics  *metrics.IRODSMetrics // can be null
+	Logger   *log.Logger           // can be nil
+	LogEntry *log.Entry            // can be nil
 }
 
 type IRODSResourceServerConnectionConfig struct {

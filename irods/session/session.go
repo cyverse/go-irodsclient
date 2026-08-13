@@ -8,6 +8,7 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/metrics"
 	"github.com/cyverse/go-irodsclient/irods/types"
+	"github.com/rs/xid"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -16,9 +17,11 @@ type TransactionFailureHandler func(commitFail bool, poormansRollbackFail bool)
 
 // IRODSSession manages connections to iRODS
 type IRODSSession struct {
+	id             string
 	account        *types.IRODSAccount
 	config         *IRODSSessionConfig
 	connectionPool *ConnectionPool
+	logger         *log.Entry
 
 	sharedConnections         map[*connection.IRODSConnection]int
 	startNewTransaction       bool
@@ -60,7 +63,10 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 		return nil, err
 	}
 
+	sessionID := xid.New().String()
+
 	sess := IRODSSession{
+		id:                sessionID,
 		account:           account,
 		config:            config,
 		sharedConnections: map[*connection.IRODSConnection]int{},
@@ -82,6 +88,39 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 		mutex: sync.Mutex{},
 	}
 
+	// set logger
+	if config != nil && config.LogEntry != nil {
+		logFields := log.Fields{
+			"session_id": sessionID,
+		}
+
+		sess.logger = config.LogEntry.WithFields(logFields)
+	} else {
+		// create new logger object
+		var logger *log.Logger
+		if config != nil && config.Logger != nil {
+			logger = config.Logger
+		} else {
+			logger = log.StandardLogger()
+		}
+
+		logFields := log.Fields{
+			"session_id":          sessionID,
+			"session_host":        account.Host,
+			"session_client_zone": account.ClientZone,
+			"session_client_user": account.ClientUser,
+		}
+
+		if account.ClientZone != account.ProxyZone {
+			logFields["session_proxy_zone"] = account.ProxyZone
+		}
+		if account.ClientUser != account.ProxyUser {
+			logFields["session_proxy_user"] = account.ProxyUser
+		}
+
+		sess.logger = logger.WithFields(logFields)
+	}
+
 	// resolve host address
 	poolAccount := *account
 	if config.AddressResolver != nil {
@@ -90,6 +129,7 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 
 	poolConfig := config.ToConnectionPoolConfig()
 	poolConfig.Metrics = &sess.metrics
+	poolConfig.LogEntry = sess.logger
 
 	pool, err := NewConnectionPool(&poolAccount, poolConfig)
 	if err != nil {
@@ -118,6 +158,11 @@ func (sess *IRODSSession) GetConfig() *IRODSSessionConfig {
 // GetAccount returns an account
 func (sess *IRODSSession) GetAccount() *types.IRODSAccount {
 	return sess.account
+}
+
+// GetLogger returns a logger
+func (sess *IRODSSession) GetLogger() *log.Entry {
+	return sess.logger
 }
 
 // IsConnectionError returns if there is a failure
@@ -188,8 +233,6 @@ func (sess *IRODSSession) SetPoormansRollbackFail(poormansRollbackFail bool) {
 
 // endTransaction ends transaction
 func (sess *IRODSSession) endTransaction(conn *connection.IRODSConnection) error {
-	logger := log.WithFields(log.Fields{})
-
 	// Each irods connection automatically starts a database transaction at initial setup.
 	// All queries against irods using a connection will give results corresponding to the time
 	// the connection was made, or since the last change using the very same connection.
@@ -214,7 +257,7 @@ func (sess *IRODSSession) endTransaction(conn *connection.IRODSConnection) error
 
 		// failed to commit
 		sess.commitFail = true
-		logger.WithError(commitErr).Debug("failed to commit transaction")
+		sess.logger.WithError(commitErr).Debug("failed to commit transaction")
 
 		if sess.transactionFailureHandler != nil {
 			sess.transactionFailureHandler(sess.commitFail, sess.poormansRollbackFail)
@@ -230,7 +273,7 @@ func (sess *IRODSSession) endTransaction(conn *connection.IRODSConnection) error
 
 		// failed to rollback
 		sess.poormansRollbackFail = true
-		logger.WithError(rollbackErr).Debug("failed to rollback (poorman) transaction")
+		sess.logger.WithError(rollbackErr).Debug("failed to rollback (poorman) transaction")
 
 		if sess.transactionFailureHandler != nil {
 			sess.transactionFailureHandler(sess.commitFail, sess.poormansRollbackFail)
@@ -241,7 +284,7 @@ func (sess *IRODSSession) endTransaction(conn *connection.IRODSConnection) error
 }
 
 func (sess *IRODSSession) acquireConnection(new bool, allowShared bool, noConnect bool, wait bool) (*connection.IRODSConnection, error) {
-	logger := log.WithFields(log.Fields{
+	logger := sess.logger.WithFields(log.Fields{
 		"new":          new,
 		"allow_shared": allowShared,
 		"wait":         wait,
@@ -508,8 +551,6 @@ func (sess *IRODSSession) AcquireConnectionsMulti(number int, allowShared bool) 
 }
 
 func (sess *IRODSSession) returnConnection(conn *connection.IRODSConnection) error {
-	logger := log.WithFields(log.Fields{})
-
 	if share, ok := sess.sharedConnections[conn]; ok {
 		share--
 		if share <= 0 {
@@ -529,7 +570,7 @@ func (sess *IRODSSession) returnConnection(conn *connection.IRODSConnection) err
 				if err != nil {
 					conn.Unlock()
 
-					logger.Debug(err)
+					sess.logger.Debug(err)
 
 					// discard, since we cannot reuse the connection
 					sess.connectionPool.Discard(conn)
@@ -621,8 +662,6 @@ func (sess *IRODSSession) Release() {
 
 // SupportParallelUpload returns if parallel upload is supported
 func (sess *IRODSSession) SupportParallelUpload() bool {
-	logger := log.WithFields(log.Fields{})
-
 	sess.mutex.Lock()
 	defer sess.mutex.Unlock()
 
@@ -647,7 +686,7 @@ func (sess *IRODSSession) SupportParallelUpload() bool {
 
 		// check parallel upload
 		sess.supportParallelUpload = conn.SupportParallelUpload()
-		logger.Debugf("support parallel upload: %t", sess.supportParallelUpload)
+		sess.logger.Debugf("support parallel upload: %t", sess.supportParallelUpload)
 
 		conn.Unlock()
 

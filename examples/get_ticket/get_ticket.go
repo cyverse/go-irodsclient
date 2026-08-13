@@ -13,8 +13,7 @@ import (
 )
 
 func main() {
-	logger := log.WithFields(log.Fields{})
-
+	logger := log.StandardLogger()
 	// Parse cli parameters
 	flag.Parse()
 	args := flag.Args()

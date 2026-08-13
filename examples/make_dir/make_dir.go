@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	logger := log.WithFields(log.Fields{})
+	logger := log.StandardLogger()
 
 	recurse := false
 	// Parse cli parameters

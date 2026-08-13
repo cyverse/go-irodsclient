@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	logger := log.WithFields(log.Fields{})
+	logger := log.StandardLogger()
 
 	log.SetLevel(log.DebugLevel)
 
@@ -47,6 +47,7 @@ func main() {
 
 	connConfig := &connection.IRODSConnectionConfig{
 		ApplicationName: appName,
+		Logger:          logger,
 	}
 
 	conn, err := connection.NewIRODSConnection(account, connConfig)

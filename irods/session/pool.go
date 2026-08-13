@@ -18,8 +18,11 @@ type ConnectionUsageCallback func(occupied int, idle int, max int)
 
 // ConnectionPool is a struct for connection pool
 type ConnectionPool struct {
-	account             *types.IRODSAccount
-	config              *ConnectionPoolConfig
+	id      string
+	account *types.IRODSAccount
+	config  *ConnectionPoolConfig
+	logger  *log.Entry
+
 	idleConnections     *list.List // list of *connection.IRODSConnection
 	occupiedConnections map[*connection.IRODSConnection]bool
 	maxConnectionsReal  int                                // max connections can be created in reality
@@ -32,19 +35,6 @@ type ConnectionPool struct {
 
 // NewConnectionPool creates a new ConnectionPool
 func NewConnectionPool(account *types.IRODSAccount, config *ConnectionPoolConfig) (*ConnectionPool, error) {
-	logger := log.WithFields(log.Fields{
-		"application_name":       config.ApplicationName,
-		"initial_cap":            config.InitialCap,
-		"max_idle":               config.MaxIdle,
-		"max_cap":                config.MaxCap,
-		"lifespan":               config.Lifespan,
-		"idle_timeout":           config.IdleTimeout,
-		"connect_timeout":        config.ConnectTimeout,
-		"operation_timeout":      config.OperationTimeout,
-		"long_operation_timeout": config.LongOperationTimeout,
-		"tcp_buffer_size":        config.TcpBufferSize,
-	})
-
 	if account == nil {
 		newErr := types.NewConnectionConfigError(nil)
 		return nil, errors.Wrapf(newErr, "account is not set")
@@ -64,24 +54,13 @@ func NewConnectionPool(account *types.IRODSAccount, config *ConnectionPoolConfig
 	config.fillDefaults()
 	err = config.Validate()
 	if err != nil {
-		logger.Error(err)
 		return nil, err
 	}
 
-	// get default tcp buffer size
-	if config.TcpBufferSize <= 0 {
-		suggestedBufferSize, setBuffer, err := system.GetTCPBufferSize()
-		if err != nil {
-			logger.WithError(err).Infof("failed to get system suggested buffer size. Use default.")
-			// use default buffer size
-		} else {
-			if setBuffer && suggestedBufferSize > 0 {
-				config.TcpBufferSize = suggestedBufferSize
-			}
-		}
-	}
+	poolID := xid.New().String()
 
 	pool := &ConnectionPool{
+		id:                  poolID,
 		account:             account,
 		config:              config,
 		idleConnections:     list.New(),
@@ -91,6 +70,52 @@ func NewConnectionPool(account *types.IRODSAccount, config *ConnectionPoolConfig
 		mutex:               sync.Mutex{},
 		terminateChan:       make(chan bool),
 		terminated:          false,
+	}
+
+	// set logger
+	if config != nil && config.LogEntry != nil {
+		logFields := log.Fields{
+			"pool_id": poolID,
+		}
+
+		pool.logger = config.LogEntry.WithFields(logFields)
+	} else {
+		// create new logger object
+		var logger *log.Logger
+		if config != nil && config.Logger != nil {
+			logger = config.Logger
+		} else {
+			logger = log.StandardLogger()
+		}
+
+		logFields := log.Fields{
+			"pool_id":          poolID,
+			"pool_host":        account.Host,
+			"pool_client_zone": account.ClientZone,
+			"pool_client_user": account.ClientUser,
+		}
+
+		if account.ClientZone != account.ProxyZone {
+			logFields["pool_proxy_zone"] = account.ProxyZone
+		}
+		if account.ClientUser != account.ProxyUser {
+			logFields["pool_proxy_user"] = account.ProxyUser
+		}
+
+		pool.logger = logger.WithFields(logFields)
+	}
+
+	// get default tcp buffer size
+	if config.TcpBufferSize <= 0 {
+		suggestedBufferSize, setBuffer, err := system.GetTCPBufferSize()
+		if err != nil {
+			pool.logger.WithError(err).Infof("failed to get system suggested buffer size. Use default.")
+			// use default buffer size
+		} else {
+			if setBuffer && suggestedBufferSize > 0 {
+				config.TcpBufferSize = suggestedBufferSize
+			}
+		}
 	}
 
 	pool.waitCond = sync.NewCond(&pool.mutex)
@@ -222,8 +247,6 @@ func (pool *ConnectionPool) RemoveUsageCallback(id string) {
 }
 
 func (pool *ConnectionPool) init() error {
-	logger := log.WithFields(log.Fields{})
-
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
 
@@ -231,6 +254,7 @@ func (pool *ConnectionPool) init() error {
 
 	// create connections
 	connConfig := pool.config.ToConnectionConfig()
+	connConfig.LogEntry = pool.logger
 
 	for i := 0; i < pool.config.InitialCap; i++ {
 		newConn, err := connection.NewIRODSConnection(pool.account, connConfig)
@@ -250,7 +274,7 @@ func (pool *ConnectionPool) init() error {
 			if types.IsConnectionError(err) {
 				// rejected?
 				pool.maxConnectionsReal = i
-				logger.Debugf("adjusted max connections: %d", pool.maxConnectionsReal)
+				pool.logger.Debugf("adjusted max connections: %d", pool.maxConnectionsReal)
 			}
 
 			return errors.Wrapf(err, "failed to connect to irods server")
@@ -265,7 +289,7 @@ func (pool *ConnectionPool) init() error {
 }
 
 func (pool *ConnectionPool) get(new bool, noConnect bool) (*connection.IRODSConnection, bool, error) {
-	logger := log.WithFields(log.Fields{
+	logger := pool.logger.WithFields(log.Fields{
 		"new": new,
 	})
 
@@ -327,6 +351,7 @@ func (pool *ConnectionPool) get(new bool, noConnect bool) (*connection.IRODSConn
 
 	// create a new if not exists
 	connConfig := pool.config.ToConnectionConfig()
+	connConfig.LogEntry = pool.logger
 
 	newConn, err := connection.NewIRODSConnection(pool.account, connConfig)
 	if err != nil {
@@ -389,8 +414,6 @@ func (pool *ConnectionPool) Get(new bool, noConnect bool, wait bool) (*connectio
 
 // Return returns the connection after use
 func (pool *ConnectionPool) Return(conn *connection.IRODSConnection) error {
-	logger := log.WithFields(log.Fields{})
-
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
 
@@ -410,7 +433,7 @@ func (pool *ConnectionPool) Return(conn *connection.IRODSConnection) error {
 	}
 
 	if !conn.IsConnected() {
-		logger.Warn("failed to return the connection because it is already closed. discarding...")
+		pool.logger.Warn("failed to return the connection because it is already closed. discarding...")
 		pool.waitCond.Broadcast()
 		return nil
 	}
@@ -420,7 +443,7 @@ func (pool *ConnectionPool) Return(conn *connection.IRODSConnection) error {
 	if conn.GetCreationTime().Add(pool.config.Lifespan).Before(now) {
 		_ = conn.Disconnect()
 		pool.waitCond.Broadcast()
-		logger.Debug("Returning and destroying an old connection")
+		pool.logger.Debug("Returning and destroying an old connection")
 		return nil
 	}
 
@@ -444,7 +467,7 @@ func (pool *ConnectionPool) Return(conn *connection.IRODSConnection) error {
 
 	pool.waitCond.Broadcast()
 
-	logger.Debug("Returning a connection")
+	pool.logger.Debug("Returning a connection")
 
 	return nil
 }

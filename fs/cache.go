@@ -6,6 +6,7 @@ import (
 
 	"github.com/cyverse/go-irodsclient/irods/types"
 	"github.com/cyverse/go-irodsclient/irods/util"
+	"github.com/rs/xid"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -25,6 +26,9 @@ type CacheConfig struct {
 
 	// Backend configuration for caching (memory, ristretto, redis, none)
 	Backend *CacheBackendConfig `yaml:"backend,omitempty" json:"backend,omitempty"`
+
+	Logger   *log.Logger // can be nil
+	LogEntry *log.Entry  // can be nil
 }
 
 // NewDefaultCacheConfig creates a new default CacheConfig
@@ -51,7 +55,9 @@ const (
 
 // FileSystemCache manages filesystem caches
 type FileSystemCache struct {
+	id     string
 	config *CacheConfig
+	logger *log.Entry
 
 	cacheTimeoutPathMap map[string]MetadataCacheTimeoutSetting
 
@@ -70,6 +76,35 @@ func NewFileSystemCache(config *CacheConfig, accountID string) *FileSystemCache 
 		config = &cacheConfig
 	}
 
+	cacheID := xid.New().String()
+
+	var myLogger *log.Entry
+
+	// set logger
+	if config != nil && config.LogEntry != nil {
+		logFields := log.Fields{
+			"cache_id":   cacheID,
+			"account_id": accountID,
+		}
+
+		myLogger = config.LogEntry.WithFields(logFields)
+	} else {
+		// create new logger object
+		var logger *log.Logger
+		if config != nil && config.Logger != nil {
+			logger = config.Logger
+		} else {
+			logger = log.StandardLogger()
+		}
+
+		logFields := log.Fields{
+			"cache_id":   cacheID,
+			"account_id": accountID,
+		}
+
+		myLogger = logger.WithFields(logFields)
+	}
+
 	// build a map for quick search
 	cacheTimeoutSettingMap := map[string]MetadataCacheTimeoutSetting{}
 	for _, timeoutSetting := range config.MetadataTimeoutSettings {
@@ -86,10 +121,7 @@ func NewFileSystemCache(config *CacheConfig, accountID string) *FileSystemCache 
 	factory := NewCacheBackendFactory(backendConfig)
 	backend, err := factory.CreateBackend()
 	if err != nil {
-		logger := log.WithFields(log.Fields{
-			"type": backendConfig.Type,
-		})
-		logger.WithError(err).Warn("failed to create cache backend, falling back to memory backend")
+		myLogger.WithError(err).Warnf("failed to create cache backend %q, falling back to memory backend", backendConfig.Type)
 
 		// Fall back to default memory backend if initialization fails
 		defaultFactory := NewCacheBackendFactory(NewDefaultCacheBackendConfig())
@@ -101,6 +133,7 @@ func NewFileSystemCache(config *CacheConfig, accountID string) *FileSystemCache 
 
 	return &FileSystemCache{
 		config:              config,
+		logger:              myLogger,
 		cacheTimeoutPathMap: cacheTimeoutSettingMap,
 		accountID:           accountID,
 		cacheBackend:        cacheBackend,

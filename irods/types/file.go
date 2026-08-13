@@ -1,9 +1,5 @@
 package types
 
-import (
-	log "github.com/sirupsen/logrus"
-)
-
 // Whence determines where to start counting the offset
 type Whence int
 
@@ -89,8 +85,6 @@ func (mode FileOpenMode) SeekToEnd() bool {
 
 // GetFlagSeekToEnd returns file open flag and returns true if file pointer moves to the file end
 func (mode FileOpenMode) GetFlagSeekToEnd() (int, bool) {
-	logger := log.WithFields(log.Fields{})
-
 	switch mode {
 	case FileOpenModeReadOnly:
 		return int(O_RDONLY), false
@@ -105,7 +99,6 @@ func (mode FileOpenMode) GetFlagSeekToEnd() (int, bool) {
 	case FileOpenModeReadAppend:
 		return int(O_RDWR) | int(O_CREAT), true
 	default:
-		logger.Errorf("Unhandled file open mode %q", mode)
 		return -1, false
 	}
 }

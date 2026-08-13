@@ -3,13 +3,10 @@ package connection
 import (
 	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/types"
-	log "github.com/sirupsen/logrus"
 )
 
 func AuthenticateClient(conn *IRODSConnection, authPlugin IRODSAuthPlugin, requestContext *IRODSAuthContext) error {
-	logger := log.WithFields(log.Fields{})
-
-	logger.Debug("authentication start")
+	conn.logger.Debug("authentication start")
 
 	if authPlugin == nil {
 		return types.NewAuthFlowError("no authentication plugin provided")
@@ -21,14 +18,14 @@ func AuthenticateClient(conn *IRODSConnection, authPlugin IRODSAuthPlugin, reque
 	requestContext.Set(AUTH_NEXT_OPERATION, nextOp)
 
 	for {
-		logger.Debugf("server request context: %v", requestContext.GetRedacted())
+		conn.logger.Debugf("server request context: %v", requestContext.GetRedacted())
 
 		responseContext, err := authPlugin.Execute(conn, nextOp, requestContext)
 		if err != nil {
 			return errors.Join(err, types.NewAuthFlowError("authentication plugin execution failed"))
 		}
 
-		logger.Debugf("server response context: %v", responseContext.GetRedacted())
+		conn.logger.Debugf("server response context: %v", responseContext.GetRedacted())
 
 		if conn.IsLoggedIn() {
 			break
@@ -51,6 +48,6 @@ func AuthenticateClient(conn *IRODSConnection, authPlugin IRODSAuthPlugin, reque
 		requestContext = responseContext
 	}
 
-	logger.Debug("authentication complete")
+	conn.logger.Debug("authentication complete")
 	return nil
 }

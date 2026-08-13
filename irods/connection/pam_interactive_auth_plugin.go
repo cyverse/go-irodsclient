@@ -8,7 +8,6 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/types"
 	jsonpatch "github.com/evanphx/json-patch"
-	log "github.com/sirupsen/logrus"
 	"github.com/xeipuuv/gojsonpointer"
 	"golang.org/x/term"
 )
@@ -98,15 +97,13 @@ func (plugin *PAMInteractiveAuthPlugin) AuthClientStart(conn *IRODSConnection, r
 }
 
 func (plugin *PAMInteractiveAuthPlugin) clientRequest(conn *IRODSConnection, requestContext *IRODSAuthContext) (*IRODSAuthContext, error) {
-	logger := log.WithFields(log.Fields{})
-
 	if plugin.requireSecureConnection {
 		if !conn.isSSLSocket {
 			return nil, errors.Wrapf(types.NewAuthError(conn.account), "PAM password authentication requires secure connection")
 		}
 	} else {
 		if !conn.isSSLSocket {
-			logger.Warn("using insecure channel for authentication. password will be visible on the network.")
+			conn.GetLogger().Warn("using insecure channel for authentication. password will be visible on the network.")
 		}
 	}
 

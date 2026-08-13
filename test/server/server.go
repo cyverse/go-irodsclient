@@ -21,6 +21,7 @@ import (
 type IRODSServer struct {
 	serverInfo    IRODSServerInfo
 	dockerCompose *compose.DockerCompose
+	logger        *log.Entry
 }
 
 func GetTestIRODSServerInfos() []IRODSServerInfo {
@@ -32,14 +33,16 @@ func GetProductionIRODSServerInfos() []IRODSServerInfo {
 }
 
 func NewIRODSServer(serverInfo IRODSServerInfo) *IRODSServer {
+	logger := log.StandardLogger().WithFields(log.Fields{
+		"name": serverInfo.Name,
+	})
 	return &IRODSServer{
 		serverInfo: serverInfo,
+		logger:     logger,
 	}
 }
 
 func (server *IRODSServer) Start() error {
-	logger := log.WithFields(log.Fields{})
-
 	if !server.serverInfo.RequireCompose() {
 		// Production server
 		err := server.waitForPortToOpen(60 * time.Second)
@@ -49,7 +52,7 @@ func (server *IRODSServer) Start() error {
 		return nil
 	}
 
-	logger.Infof("Starting local iRODS server %q", server.serverInfo.Name)
+	server.logger.Infof("Starting local iRODS server %q", server.serverInfo.Name)
 
 	// disable ryuk
 	err := os.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true")
@@ -62,7 +65,7 @@ func (server *IRODSServer) Start() error {
 		return errors.Wrapf(err, "failed to get compose file path")
 	}
 
-	logger.Infof("Using compose file: %s", composeFilePath)
+	server.logger.Infof("Using compose file: %s", composeFilePath)
 
 	comp, err := compose.NewDockerCompose(composeFilePath)
 	if err != nil {
@@ -85,36 +88,34 @@ func (server *IRODSServer) Start() error {
 		return errors.Wrapf(err, "failed while waiting for port to open for iRODS server %q", server.serverInfo.Name)
 	}
 
-	logger.Infof("Started local iRODS server %q", server.serverInfo.Name)
+	server.logger.Infof("Started local iRODS server %q", server.serverInfo.Name)
 
 	return nil
 }
 
 func (server *IRODSServer) Stop() error {
-	logger := log.WithFields(log.Fields{})
-
 	if server.dockerCompose != nil {
-		logger.Infof("Stopping local iRODS server %q", server.serverInfo.Name)
+		server.logger.Infof("Stopping local iRODS server %q", server.serverInfo.Name)
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
 		err := server.dockerCompose.Down(ctx, compose.RemoveOrphans(true), compose.RemoveVolumes(true))
 		if err != nil {
-			logger.Error(errors.Wrapf(err, "failed to stop local iRODS server %q", server.serverInfo.Name))
+			server.logger.Error(errors.Wrapf(err, "failed to stop local iRODS server %q", server.serverInfo.Name))
 		}
 
 		// wait
 		err = server.waitForPortToClose(60 * time.Second)
 		if err != nil {
-			logger.Error(errors.Wrapf(err, "failed while waiting for port to close for iRODS server %q", server.serverInfo.Name))
+			server.logger.Error(errors.Wrapf(err, "failed while waiting for port to close for iRODS server %q", server.serverInfo.Name))
 			return err
 		}
 
 		// give another 10 sec to cleanup
 		time.Sleep(10 * time.Second)
 
-		logger.Infof("Stopped local iRODS server %q", server.serverInfo.Name)
+		server.logger.Infof("Stopped local iRODS server %q", server.serverInfo.Name)
 	}
 	return nil
 }
@@ -149,6 +150,8 @@ func (server *IRODSServer) waitForPortToOpen(timeout time.Duration) error {
 					OperationTimeout:     30 * time.Second,
 					LongOperationTimeout: 60 * time.Second,
 					ApplicationName:      server.GetApplicationName(),
+
+					LogEntry: server.logger,
 				}
 
 				newConn, err := connection.NewIRODSConnection(acc, connConf)
@@ -229,6 +232,7 @@ func (server *IRODSServer) GetApplicationName() string {
 func (server *IRODSServer) GetConnectionConfig() *connection.IRODSConnectionConfig {
 	return &connection.IRODSConnectionConfig{
 		ApplicationName: server.GetApplicationName(),
+		LogEntry:        server.logger,
 	}
 }
 
@@ -246,6 +250,8 @@ func (server *IRODSServer) GetFileSystemConfig() *irods_fs.FileSystemConfig {
 		fsConfig.Cache.Backend.Redis = irods_fs.NewDefaultRedisBackendConfig()
 		fsConfig.Cache.Backend.Redis.Address = server.serverInfo.RedisAddress
 	}
+
+	fsConfig.LogEntry = server.logger
 
 	return fsConfig
 }

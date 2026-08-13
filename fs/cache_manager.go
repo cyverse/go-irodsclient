@@ -16,6 +16,8 @@ type CacheManager struct {
 
 	// map of accountID -> reference count
 	refCounts map[string]int
+
+	logger *log.Logger
 }
 
 var (
@@ -29,6 +31,7 @@ func GetCacheManager() *CacheManager {
 		cacheManager = &CacheManager{
 			caches:    make(map[string]*FileSystemCache),
 			refCounts: make(map[string]int),
+			logger:    log.StandardLogger(),
 		}
 	})
 	return cacheManager
@@ -39,14 +42,16 @@ func (cm *CacheManager) AcquireCache(config *CacheConfig, accountID string) *Fil
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
+	logger := cm.logger.WithFields(log.Fields{
+		"accountID": accountID,
+	})
+
 	// Check if cache already exists
 	if cache, exists := cm.caches[accountID]; exists {
 		cm.refCounts[accountID]++
-		logger := log.WithFields(log.Fields{
-			"accountID": accountID,
-			"refCount":  cm.refCounts[accountID],
-		})
-		logger.Debug("reusing existing cache")
+		logger.WithFields(log.Fields{
+			"refCount": cm.refCounts[accountID],
+		}).Debug("reusing existing cache")
 		return cache
 	}
 
@@ -55,9 +60,6 @@ func (cm *CacheManager) AcquireCache(config *CacheConfig, accountID string) *Fil
 	cm.caches[accountID] = cache
 	cm.refCounts[accountID] = 1
 
-	logger := log.WithFields(log.Fields{
-		"accountID": accountID,
-	})
 	logger.Debug("created new shared cache")
 
 	return cache
@@ -68,11 +70,12 @@ func (cm *CacheManager) ReleaseCache(accountID string) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 
+	logger := cm.logger.WithFields(log.Fields{
+		"accountID": accountID,
+	})
+
 	refCount, exists := cm.refCounts[accountID]
 	if !exists {
-		logger := log.WithFields(log.Fields{
-			"accountID": accountID,
-		})
 		logger.Warn("attempting to release non-existent cache")
 		return
 	}
@@ -86,17 +89,12 @@ func (cm *CacheManager) ReleaseCache(accountID string) {
 		delete(cm.caches, accountID)
 		delete(cm.refCounts, accountID)
 
-		logger := log.WithFields(log.Fields{
-			"accountID": accountID,
-		})
 		logger.Debug("removed and closed cache (ref count reached 0)")
 	} else {
 		cm.refCounts[accountID] = refCount
-		logger := log.WithFields(log.Fields{
-			"accountID": accountID,
-			"refCount":  refCount,
-		})
-		logger.Debug("released cache reference")
+		logger.WithFields(log.Fields{
+			"refCount": refCount,
+		}).Debug("released cache reference")
 	}
 }
 

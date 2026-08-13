@@ -167,7 +167,7 @@ func UploadDataObjectFromBufferWithConnection(conn *connection.IRODSConnection, 
 
 // UploadDataObject put a data object at the local path to the iRODS path
 func UploadDataObject(sess *session.IRODSSession, localPath string, irodsPath string, resource string, replicate bool, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
-	logger := log.WithFields(log.Fields{
+	logger := sess.GetLogger().WithFields(log.Fields{
 		"local_path": localPath,
 		"irods_path": irodsPath,
 		"resource":   resource,
@@ -276,7 +276,7 @@ func UploadDataObject(sess *session.IRODSSession, localPath string, irodsPath st
 
 // UploadDataObjectWithConnection put a data object at the local path to the iRODS path
 func UploadDataObjectWithConnection(conn *connection.IRODSConnection, localPath string, irodsPath string, resource string, replicate bool, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
-	logger := log.WithFields(log.Fields{
+	logger := conn.GetLogger().WithFields(log.Fields{
 		"local_path": localPath,
 		"irods_path": irodsPath,
 		"resource":   resource,
@@ -377,7 +377,7 @@ func UploadDataObjectWithConnection(conn *connection.IRODSConnection, localPath 
 // UploadDataObjectParallel put a data object at the local path to the iRODS path in parallel
 // Partitions a file into n (taskNum) tasks and uploads in parallel
 func UploadDataObjectParallel(sess *session.IRODSSession, localPath string, irodsPath string, resource string, taskNum int, replicate bool, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
-	logger := log.WithFields(log.Fields{
+	logger := sess.GetLogger().WithFields(log.Fields{
 		"local_path": localPath,
 		"irods_path": irodsPath,
 		"resource":   resource,
@@ -498,9 +498,7 @@ func UploadDataObjectParallel(sess *session.IRODSSession, localPath string, irod
 	}
 
 	uploadTask := func(taskID int, transferConn *connection.IRODSConnection, taskOffset int64, taskLength int64) {
-		taskLogger := log.WithFields(log.Fields{
-			"local_path":  localPath,
-			"irods_path":  irodsPath,
+		taskLogger := logger.WithFields(log.Fields{
 			"task_id":     taskID,
 			"task_offset": taskOffset,
 			"task_length": taskLength,
@@ -629,16 +627,16 @@ func UploadDataObjectParallel(sess *session.IRODSSession, localPath string, irod
 // UploadDataObjectParallelWithConnections put a data object at the local path to the iRODS path in parallel
 // Partitions a file into n (taskNum) tasks and uploads in parallel
 func UploadDataObjectParallelWithConnections(conns []*connection.IRODSConnection, localPath string, irodsPath string, resource string, replicate bool, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
-	logger := log.WithFields(log.Fields{
+	if len(conns) == 0 {
+		return errors.Errorf("no connections provided")
+	}
+
+	logger := conns[0].GetLogger().WithFields(log.Fields{
 		"local_path": localPath,
 		"irods_path": irodsPath,
 		"resource":   resource,
 		"replicate":  replicate,
 	})
-
-	if len(conns) == 0 {
-		return errors.Errorf("no connections provided")
-	}
 
 	for _, conn := range conns {
 		if conn == nil || !conn.IsConnected() {
@@ -704,9 +702,7 @@ func UploadDataObjectParallelWithConnections(conns []*connection.IRODSConnection
 	}
 
 	uploadTask := func(taskID int, transferConn *connection.IRODSConnection, taskOffset int64, taskLength int64) {
-		taskLogger := log.WithFields(log.Fields{
-			"local_path":  localPath,
-			"irods_path":  irodsPath,
+		taskLogger := logger.WithFields(log.Fields{
 			"task_id":     taskID,
 			"task_offset": taskOffset,
 			"task_length": taskLength,
@@ -830,7 +826,7 @@ func UploadDataObjectParallelWithConnections(conns []*connection.IRODSConnection
 
 // DownloadDataObjectToBuffer downloads a data object at the iRODS path to buffer
 func DownloadDataObjectToBuffer(sess *session.IRODSSession, dataObject *types.IRODSDataObject, resource string, buffer *bytes.Buffer, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
-	logger := log.WithFields(log.Fields{
+	logger := sess.GetLogger().WithFields(log.Fields{
 		"irods_path": dataObject.Path,
 		"resource":   resource,
 	})
@@ -995,7 +991,7 @@ func DownloadDataObjectResumableWithConnection(conn *connection.IRODSConnection,
 // DownloadDataObjectParallel downloads a data object at the iRODS path to the local path in parallel
 // Partitions a file into n (taskNum) tasks and downloads in parallel
 func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IRODSDataObject, resource string, localPath string, taskNum int, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
-	logger := log.WithFields(log.Fields{
+	logger := sess.GetLogger().WithFields(log.Fields{
 		"irods_path": dataObject.Path,
 		"resource":   resource,
 		"local_path": localPath,
@@ -1083,9 +1079,7 @@ func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IR
 	}
 
 	downloadTask := func(taskID int, transferConn *connection.IRODSConnection, taskOffset int64, taskLength int64) {
-		taskLogger := log.WithFields(log.Fields{
-			"irods_path":  dataObject.Path,
-			"local_path":  localPath,
+		taskLogger := logger.WithFields(log.Fields{
 			"task_id":     taskID,
 			"task_offset": taskOffset,
 			"task_length": taskLength,
@@ -1264,15 +1258,15 @@ func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IR
 // DownloadDataObjectParallelWithConnections downloads a data object at the iRODS path to the local path in parallel
 // Partitions a file into n (taskNum) tasks and downloads in parallel
 func DownloadDataObjectParallelWithConnections(conns []*connection.IRODSConnection, dataObject *types.IRODSDataObject, resource string, localPath string, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
-	logger := log.WithFields(log.Fields{
+	if len(conns) == 0 {
+		return errors.Errorf("no connections provided")
+	}
+
+	logger := conns[0].GetLogger().WithFields(log.Fields{
 		"irods_path": dataObject.Path,
 		"resource":   resource,
 		"local_path": localPath,
 	})
-
-	if len(conns) == 0 {
-		return errors.Errorf("no connections provided")
-	}
 
 	for _, conn := range conns {
 		if conn == nil || !conn.IsConnected() {
@@ -1326,9 +1320,7 @@ func DownloadDataObjectParallelWithConnections(conns []*connection.IRODSConnecti
 	}
 
 	downloadTask := func(taskID int, transferConn *connection.IRODSConnection, taskOffset int64, taskLength int64) {
-		taskLogger := log.WithFields(log.Fields{
-			"irods_path":  dataObject.Path,
-			"local_path":  localPath,
+		taskLogger := logger.WithFields(log.Fields{
 			"task_id":     taskID,
 			"task_offset": taskOffset,
 			"task_length": taskLength,
@@ -1514,7 +1506,7 @@ func DownloadDataObjectWithCallbackWithConnection(conn *connection.IRODSConnecti
 
 // DownloadDataObjectParallelWithCallback downloads a data object in parallel and delivers data blocks via callback.
 func DownloadDataObjectParallelWithCallback(sess *session.IRODSSession, dataObject *types.IRODSDataObject, resource string, blockSize int, numBlocks int, blockReadyCallback common.DataObjectBlockCallback, taskNum int, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
-	logger := log.WithFields(log.Fields{
+	logger := sess.GetLogger().WithFields(log.Fields{
 		"irods_path": dataObject.Path,
 		"resource":   resource,
 		"block_size": blockSize,
@@ -1586,8 +1578,7 @@ func DownloadDataObjectParallelWithCallback(sess *session.IRODSSession, dataObje
 	}
 
 	downloadTask := func(taskID int, transferConn *connection.IRODSConnection, taskOffset int64, taskLength int64) {
-		taskLogger := log.WithFields(log.Fields{
-			"irods_path":  dataObject.Path,
+		taskLogger := logger.WithFields(log.Fields{
 			"task_id":     taskID,
 			"task_offset": taskOffset,
 			"task_length": taskLength,
@@ -1773,16 +1764,16 @@ func DownloadDataObjectParallelWithCallback(sess *session.IRODSSession, dataObje
 
 // DownloadDataObjectParallelWithCallbackWithConnections downloads a data object in parallel and delivers data blocks via callback using provided connections.
 func DownloadDataObjectParallelWithCallbackWithConnections(conns []*connection.IRODSConnection, dataObject *types.IRODSDataObject, resource string, blockSize int, numBlocks int, blockReadyCallback common.DataObjectBlockCallback, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
-	logger := log.WithFields(log.Fields{
+	if len(conns) == 0 {
+		return errors.Errorf("no connections provided")
+	}
+
+	logger := conns[0].GetLogger().WithFields(log.Fields{
 		"irods_path": dataObject.Path,
 		"resource":   resource,
 		"block_size": blockSize,
 		"num_blocks": numBlocks,
 	})
-
-	if len(conns) == 0 {
-		return errors.Errorf("no connections provided")
-	}
 
 	for _, conn := range conns {
 		if conn == nil || !conn.IsConnected() {
@@ -1825,8 +1816,7 @@ func DownloadDataObjectParallelWithCallbackWithConnections(conns []*connection.I
 	}
 
 	downloadTask := func(taskID int, transferConn *connection.IRODSConnection, taskOffset int64, taskLength int64) {
-		taskLogger := log.WithFields(log.Fields{
-			"irods_path":  dataObject.Path,
+		taskLogger := logger.WithFields(log.Fields{
 			"task_id":     taskID,
 			"task_offset": taskOffset,
 			"task_length": taskLength,
@@ -2010,7 +2000,7 @@ func DownloadDataObjectParallelWithCallbackWithConnections(conns []*connection.I
 // Partitions a file into n (taskNum) tasks and downloads in parallel
 // TODO: Need to partition a file in small chunks so that different number of tasks can be used to continue downloading
 func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject *types.IRODSDataObject, resource string, localPath string, taskNum int, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
-	logger := log.WithFields(log.Fields{
+	logger := sess.GetLogger().WithFields(log.Fields{
 		"irods_path": dataObject.Path,
 		"resource":   resource,
 		"local_path": localPath,
@@ -2106,9 +2096,7 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 	}
 
 	downloadTask := func(taskID int, transferConn *connection.IRODSConnection, taskOffset int64, taskLength int64) {
-		taskLogger := log.WithFields(log.Fields{
-			"irods_path":  dataObject.Path,
-			"local_path":  localPath,
+		taskLogger := logger.WithFields(log.Fields{
 			"task_id":     taskID,
 			"task_offset": taskOffset,
 			"task_length": taskLength,
@@ -2319,15 +2307,15 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 // Partitions a file into n (taskNum) tasks and downloads in parallel
 // TODO: Need to partition a file in small chunks so that different number of tasks can be used to continue downloading
 func DownloadDataObjectParallelResumableWithConnections(conns []*connection.IRODSConnection, dataObject *types.IRODSDataObject, resource string, localPath string, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
-	logger := log.WithFields(log.Fields{
+	if len(conns) == 0 {
+		return errors.Errorf("no connections provided")
+	}
+
+	logger := conns[0].GetLogger().WithFields(log.Fields{
 		"irods_path": dataObject.Path,
 		"resource":   resource,
 		"local_path": localPath,
 	})
-
-	if len(conns) == 0 {
-		return errors.Errorf("no connections provided")
-	}
 
 	for _, conn := range conns {
 		if conn == nil || !conn.IsConnected() {
@@ -2398,9 +2386,7 @@ func DownloadDataObjectParallelResumableWithConnections(conns []*connection.IROD
 	}
 
 	downloadTask := func(taskID int, transferConn *connection.IRODSConnection, taskOffset int64, taskLength int64) {
-		taskLogger := log.WithFields(log.Fields{
-			"irods_path":  dataObject.Path,
-			"local_path":  localPath,
+		taskLogger := logger.WithFields(log.Fields{
 			"task_id":     taskID,
 			"task_offset": taskOffset,
 			"task_length": taskLength,

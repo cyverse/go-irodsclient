@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	logger := log.WithFields(log.Fields{})
+	logger := log.StandardLogger()
 
 	// Read account configuration from YAML file
 	cfg := config.GetDefaultConfig()

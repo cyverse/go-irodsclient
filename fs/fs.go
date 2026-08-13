@@ -21,6 +21,7 @@ type FileSystem struct {
 	id                   string
 	account              *types.IRODSAccount
 	config               *FileSystemConfig
+	logger               *log.Entry
 	ioSession            *session.IRODSSession
 	metadataSession      *session.IRODSSession
 	cache                *FileSystemCache
@@ -32,10 +33,45 @@ type FileSystem struct {
 // NewFileSystem creates a new FileSystem
 func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*FileSystem, error) {
 	// config can be nil
+	fsID := xid.New().String()
+
+	// set logger
+	var myLogger *log.Entry
+
+	logFields := log.Fields{
+		"fs_id":          fsID,
+		"fs_host":        account.Host,
+		"fs_client_zone": account.ClientZone,
+		"fs_client_user": account.ClientUser,
+	}
+
+	if account.ClientZone != account.ProxyZone {
+		logFields["fs_proxy_zone"] = account.ProxyZone
+	}
+	if account.ClientUser != account.ProxyUser {
+		logFields["fs_proxy_user"] = account.ProxyUser
+	}
+
+	if config != nil && config.LogEntry != nil {
+		myLogger = config.LogEntry.WithFields(logFields)
+	} else {
+		// create new logger object
+		var logger *log.Logger
+		if config != nil && config.Logger != nil {
+			logger = config.Logger
+		} else {
+			logger = log.StandardLogger()
+		}
+
+		myLogger = logger.WithFields(logFields)
+	}
+
 	var ioSessionConfig *session.IRODSSessionConfig
 	if config != nil {
 		ioSessionConfig = config.ToIOSessionConfig()
 	}
+
+	ioSessionConfig.LogEntry = myLogger
 
 	ioSession, err := session.NewIRODSSession(account, ioSessionConfig)
 	if err != nil {
@@ -47,6 +83,8 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*File
 	if config != nil {
 		metadataSessionConfig = config.ToMetadataSessionConfig()
 	}
+
+	metadataSessionConfig.LogEntry = myLogger
 
 	metaSession, err := session.NewIRODSSession(account, metadataSessionConfig)
 	if err != nil {
@@ -69,13 +107,16 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*File
 	// Generate account ID for cache isolation
 	accountID := GenerateAccountID(account.Host, account.Port, account.ClientUser, account.ClientZone)
 
+	config.Cache.LogEntry = myLogger
+
 	// Acquire cache from manager (shared across instances with same accountID)
 	cache := GetCacheManager().AcquireCache(&config.Cache, accountID)
 
 	fs := &FileSystem{
-		id:                   xid.New().String(), // generate a new ID
+		id:                   fsID,
 		account:              account,
 		config:               config,
+		logger:               myLogger,
 		ioSession:            ioSession,
 		metadataSession:      metaSession,
 		cache:                cache,
@@ -95,13 +136,11 @@ func NewFileSystemWithDefault(account *types.IRODSAccount, applicationName strin
 
 // Release releases all resources
 func (fs *FileSystem) Release() {
-	logger := log.WithFields(log.Fields{})
-
 	handles := fs.fileHandleMap.PopAll()
 	for _, handle := range handles {
 		err := handle.Close()
 		if err != nil {
-			logger.Error(err)
+			fs.logger.Error(err)
 		}
 	}
 

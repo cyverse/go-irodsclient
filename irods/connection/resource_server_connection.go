@@ -23,6 +23,7 @@ type IRODSResourceServerConnection struct {
 	controlConnection *IRODSConnection
 	serverInfo        *types.IRODSRedirectionInfo
 	config            *IRODSResourceServerConnectionConfig
+	logger            *log.Entry
 
 	connected            bool
 	socket               net.Conn
@@ -63,6 +64,7 @@ func NewIRODSResourceServerConnection(controlConnection *IRODSConnection, redire
 		controlConnection: controlConnection,
 		serverInfo:        redirectionInfo,
 		config:            config,
+		logger:            controlConnection.logger,
 
 		creationTime: time.Now(),
 		mutex:        sync.Mutex{},
@@ -84,6 +86,11 @@ func (conn *IRODSResourceServerConnection) Unlock() {
 // GetAccount returns iRODSAccount
 func (conn *IRODSResourceServerConnection) GetServerInfo() *types.IRODSRedirectionInfo {
 	return conn.serverInfo
+}
+
+// GetLogger returns a logger
+func (conn *IRODSResourceServerConnection) GetLogger() *log.Entry {
+	return conn.logger
 }
 
 // SetWriteTimeout sets write timeout
@@ -137,7 +144,7 @@ func (conn *IRODSResourceServerConnection) GetLastSuccessfulAccess() time.Time {
 
 // setSocketOpt sets socket opts
 func (conn *IRODSResourceServerConnection) setSocketOpt(socket net.Conn, bufferSize int) {
-	logger := log.WithFields(log.Fields{
+	logger := conn.logger.WithFields(log.Fields{
 		"buffer_size": bufferSize,
 	})
 
@@ -184,8 +191,6 @@ func (conn *IRODSResourceServerConnection) setSocketOpt(socket net.Conn, bufferS
 
 // Connect connects to iRODS
 func (conn *IRODSResourceServerConnection) Connect() error {
-	logger := log.WithFields(log.Fields{})
-
 	conn.connected = false
 
 	// lock the connection
@@ -193,7 +198,7 @@ func (conn *IRODSResourceServerConnection) Connect() error {
 	defer conn.Unlock()
 
 	server := fmt.Sprintf("%s:%d", conn.serverInfo.Host, conn.serverInfo.Port)
-	logger.Debugf("Connecting to %s", server)
+	conn.logger.Debugf("Connecting to %s", server)
 
 	// must connect to the server within ConnectTimeout
 	var dialer net.Dialer
@@ -271,9 +276,7 @@ func (conn *IRODSResourceServerConnection) disconnectNow() error {
 
 // Disconnect disconnects
 func (conn *IRODSResourceServerConnection) Disconnect() error {
-	logger := log.WithFields(log.Fields{})
-
-	logger.Debug("Disconnecting the connection")
+	conn.logger.Debug("Disconnecting the connection")
 
 	// lock the connection
 	conn.Lock()
@@ -281,11 +284,11 @@ func (conn *IRODSResourceServerConnection) Disconnect() error {
 
 	err := conn.disconnectNow()
 	if err != nil {
-		logger.WithError(err).Debug("failed to disconnect the connection")
+		conn.logger.WithError(err).Debug("failed to disconnect the connection")
 		return err
 	}
 
-	logger.Debug("Disconnected the connection")
+	conn.logger.Debug("Disconnected the connection")
 	return nil
 }
 

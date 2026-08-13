@@ -3,7 +3,6 @@ package connection
 import (
 	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/types"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -52,15 +51,13 @@ func (plugin *PAMPasswordAuthPlugin) AuthClientStart(conn *IRODSConnection, requ
 }
 
 func (plugin *PAMPasswordAuthPlugin) clientRequest(conn *IRODSConnection, requestContext *IRODSAuthContext) (*IRODSAuthContext, error) {
-	logger := log.WithFields(log.Fields{})
-
 	if plugin.requireSecureConnection {
 		if !conn.isSSLSocket {
 			return nil, errors.Wrapf(types.NewAuthError(conn.account), "PAM password authentication requires secure connection")
 		}
 	} else {
 		if !conn.isSSLSocket {
-			logger.Warn("using insecure channel for authentication. password will be visible on the network.")
+			conn.GetLogger().Warn("using insecure channel for authentication. password will be visible on the network.")
 		}
 	}
 

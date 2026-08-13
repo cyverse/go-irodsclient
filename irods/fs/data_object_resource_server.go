@@ -202,7 +202,7 @@ func CompleteDataObjectRedirection(conn *connection.IRODSConnection, handle *typ
 }
 
 func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskID int, controlConn *connection.IRODSConnection, handle *types.IRODSFileOpenRedirectionHandle, localPath string, transferCallback common.TransferTrackerCallback) error {
-	logger := log.WithFields(log.Fields{
+	logger := sess.GetLogger().WithFields(log.Fields{
 		"task_id":    taskID,
 		"irods_path": handle.Path,
 		"local_path": localPath,
@@ -423,7 +423,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 }
 
 func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID int, controlConn *connection.IRODSConnection, handle *types.IRODSFileOpenRedirectionHandle, localPath string, transferCallback common.TransferTrackerCallback) error {
-	logger := log.WithFields(log.Fields{
+	logger := sess.GetLogger().WithFields(log.Fields{
 		"task_id":    taskID,
 		"irods_path": handle.Path,
 		"local_path": localPath,
@@ -650,7 +650,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 
 // DownloadDataObjectFromResourceServer downloads a data object at the iRODS path to the local path
 func DownloadDataObjectFromResourceServer(sess *session.IRODSSession, dataObject *types.IRODSDataObject, resource string, localPath string, taskNum int, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
-	logger := log.WithFields(log.Fields{
+	logger := sess.GetLogger().WithFields(log.Fields{
 		"irods_path": dataObject.Path,
 		"resource":   resource,
 		"local_path": localPath,
@@ -797,7 +797,7 @@ func DownloadDataObjectFromResourceServer(sess *session.IRODSSession, dataObject
 
 // DownloadDataObjectFromResourceServerWithConnection downloads a data object at the iRODS path to the local path
 func DownloadDataObjectFromResourceServerWithConnection(sess *session.IRODSSession, controlConn *connection.IRODSConnection, dataObject *types.IRODSDataObject, resource string, localPath string, taskNum int, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
-	logger := log.WithFields(log.Fields{
+	logger := sess.GetLogger().WithFields(log.Fields{
 		"irods_path": dataObject.Path,
 		"resource":   resource,
 		"local_path": localPath,
@@ -921,7 +921,7 @@ func DownloadDataObjectFromResourceServerWithConnection(sess *session.IRODSSessi
 
 // UploadDataObjectToResourceServer uploads a data object at the local path to the iRODS path
 func UploadDataObjectToResourceServer(sess *session.IRODSSession, localPath string, irodsPath string, resource string, taskNum int, replicate bool, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
-	logger := log.WithFields(log.Fields{
+	logger := sess.GetLogger().WithFields(log.Fields{
 		"local_path": localPath,
 		"irods_path": irodsPath,
 		"resource":   resource,
@@ -1065,7 +1065,7 @@ func UploadDataObjectToResourceServer(sess *session.IRODSSession, localPath stri
 
 // UploadDataObjectToResourceServerWithConnection uploads a data object at the local path to the iRODS path
 func UploadDataObjectToResourceServerWithConnection(sess *session.IRODSSession, controlConn *connection.IRODSConnection, localPath string, irodsPath string, resource string, taskNum int, replicate bool, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
-	logger := log.WithFields(log.Fields{
+	logger := sess.GetLogger().WithFields(log.Fields{
 		"local_path": localPath,
 		"irods_path": irodsPath,
 		"resource":   resource,

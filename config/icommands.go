@@ -175,7 +175,7 @@ func (manager *ICommandsEnvironmentManager) SetEnvironmentDirPath(envDirPath str
 
 // Load loads from environment file
 func (manager *ICommandsEnvironmentManager) Load() error {
-	logger := log.WithFields(log.Fields{})
+	logger := log.StandardLogger()
 
 	if len(manager.EnvironmentFilePath) > 0 {
 		if util.ExistLocalFile(manager.EnvironmentFilePath) {

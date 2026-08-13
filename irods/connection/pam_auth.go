@@ -9,12 +9,9 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/message"
 	"github.com/cyverse/go-irodsclient/irods/types"
-	log "github.com/sirupsen/logrus"
 )
 
 func AuthenticatePAMWithPassword(conn *IRODSConnection, password string) error {
-	logger := log.WithFields(log.Fields{})
-
 	timeout := conn.GetOperationTimeout()
 
 	// Check whether ssl has already started
@@ -45,7 +42,7 @@ func AuthenticatePAMWithPassword(conn *IRODSConnection, password string) error {
 	pamToken := ""
 
 	if useDedicatedPAMApi {
-		logger.Debugf("use dedicated PAM api")
+		conn.GetLogger().Debugf("use dedicated PAM api")
 
 		pamAuthRequest := message.NewIRODSMessagePamAuthRequest(conn.account.ProxyUser, password, ttl)
 		pamAuthResponse := message.IRODSMessagePamAuthResponse{}
@@ -57,7 +54,7 @@ func AuthenticatePAMWithPassword(conn *IRODSConnection, password string) error {
 
 		pamToken = pamAuthResponse.GeneratedPassword
 	} else {
-		logger.Debugf("use auth plugin api: scheme %q", string(types.AuthSchemePAM))
+		conn.GetLogger().Debugf("use auth plugin api: scheme %q", string(types.AuthSchemePAM))
 
 		pamAuthRequest := message.NewIRODSMessageAuthPluginRequest(string(types.AuthSchemePAM), authContext)
 		pamAuthResponse := message.IRODSMessageAuthPluginResponse{}

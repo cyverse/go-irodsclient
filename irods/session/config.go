@@ -7,6 +7,7 @@ import (
 	"github.com/cyverse/go-irodsclient/irods/connection"
 	"github.com/cyverse/go-irodsclient/irods/metrics"
 	"github.com/cyverse/go-irodsclient/irods/types"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -46,7 +47,9 @@ type ConnectionPoolConfig struct {
 	LongOperationTimeout time.Duration // timeout for long iRODS operations
 	TcpBufferSize        int
 
-	Metrics *metrics.IRODSMetrics // can be null
+	Metrics  *metrics.IRODSMetrics // can be null
+	Logger   *log.Logger           // can be nil
+	LogEntry *log.Entry            // can be nil
 }
 
 // IRODSSessionConfig is for session configuration
@@ -66,6 +69,8 @@ type IRODSSessionConfig struct {
 
 	WaitConnection  bool            // if true, wait for a connection to be available when the pool is exhausted
 	AddressResolver AddressResolver // can be nil
+	Logger          *log.Logger     // can be nil
+	LogEntry        *log.Entry      // can be nil
 }
 
 func (poolConfig *ConnectionPoolConfig) fillDefaults() {
@@ -172,6 +177,9 @@ func (poolConfig *ConnectionPoolConfig) ToConnectionConfig() *connection.IRODSCo
 		LongOperationTimeout: poolConfig.LongOperationTimeout,
 		TcpBufferSize:        poolConfig.TcpBufferSize,
 		Metrics:              poolConfig.Metrics,
+
+		Logger:   poolConfig.Logger,
+		LogEntry: poolConfig.LogEntry,
 	}
 }
 
@@ -283,5 +291,8 @@ func (sessionConfig *IRODSSessionConfig) ToConnectionPoolConfig() *ConnectionPoo
 		OperationTimeout:     sessionConfig.OperationTimeout,
 		LongOperationTimeout: sessionConfig.LongOperationTimeout,
 		TcpBufferSize:        sessionConfig.TcpBufferSize,
+
+		Logger:   sessionConfig.Logger,
+		LogEntry: sessionConfig.LogEntry,
 	}
 }

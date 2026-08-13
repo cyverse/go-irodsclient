@@ -7,6 +7,7 @@ import (
 
 	"github.com/cyverse/go-irodsclient/irods/session"
 	"github.com/cyverse/go-irodsclient/irods/types"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -123,7 +124,9 @@ type FileSystemConfig struct {
 
 	Cache CacheConfig `yaml:"cache,omitempty" json:"cache,omitempty"`
 
-	AddressResolver session.AddressResolver
+	AddressResolver session.AddressResolver `yaml:"-" json:"-"`
+	Logger          *log.Logger             `yaml:"-" json:"-"`
+	LogEntry        *log.Entry              `yaml:"-" json:"-"`
 }
 
 // NewFileSystemConfig create a FileSystemConfig with a default settings
@@ -156,6 +159,9 @@ func (config *FileSystemConfig) ToMetadataSessionConfig() *session.IRODSSessionC
 		StartNewTransaction:       config.Cache.StartNewTransaction,
 		WaitConnection:            config.MetadataConnection.WaitConnection,
 		AddressResolver:           config.AddressResolver,
+
+		Logger:   config.Logger,
+		LogEntry: config.LogEntry,
 	}
 }
 
@@ -176,6 +182,9 @@ func (config *FileSystemConfig) ToIOSessionConfig() *session.IRODSSessionConfig 
 		StartNewTransaction:       config.Cache.StartNewTransaction,
 		WaitConnection:            config.IOConnection.WaitConnection,
 		AddressResolver:           config.AddressResolver,
+
+		Logger:   config.Logger,
+		LogEntry: config.LogEntry,
 	}
 }
 

@@ -102,24 +102,25 @@ func (info *IRODSServerInfo) RequireCompose() bool {
 
 var (
 	TestIRODSServerInfos []IRODSServerInfo = []IRODSServerInfo{
-		{
-			Name:                "iRODS 4.2.8",
-			Version:             "4.2.8",
-			AuthScheme:          types.AuthSchemeNative,
-			CSNegotiation:       false,
-			CSNegotiationPolicy: types.CSNegotiationPolicyRequestTCP,
-			ComposeFile:         "irods_4.2.8/docker-compose.yml",
+		// 4.2.8 is not supported anymore
+		// {
+		// 	Name:                "iRODS 4.2.8",
+		// 	Version:             "4.2.8",
+		// 	AuthScheme:          types.AuthSchemeNative,
+		// 	CSNegotiation:       false,
+		// 	CSNegotiationPolicy: types.CSNegotiationPolicyRequestTCP,
+		// 	ComposeFile:         "irods_4.2.8/docker-compose.yml",
 
-			Host:               testServerHost,
-			Port:               testServerPort,
-			User:               testServerAdminUser,
-			Password:           testServerAdminPassword,
-			Zone:               testServerZone,
-			Resource:           testServerResource,
-			UseAddressResolver: true,
+		// 	Host:               testServerHost,
+		// 	Port:               testServerPort,
+		// 	User:               testServerAdminUser,
+		// 	Password:           testServerAdminPassword,
+		// 	Zone:               testServerZone,
+		// 	Resource:           testServerResource,
+		// 	UseAddressResolver: true,
 
-			CacheBackendType: fs.CacheBackendTypeMemory,
-		},
+		// 	CacheBackendType: fs.CacheBackendTypeMemory,
+		// },
 		{
 			Name:                "iRODS 4.2.11",
 			Version:             "4.2.11",
