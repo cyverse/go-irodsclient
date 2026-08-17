@@ -23,11 +23,10 @@ func NewCacheBackendFactory(config *CacheBackendConfig) *CacheBackendFactory {
 // Note: Backend-specific defaults are defined in their respective files
 func NewDefaultCacheBackendConfig() *CacheBackendConfig {
 	return &CacheBackendConfig{
-		Type:       CacheBackendTypeMemory,
-		DefaultTTL: FileSystemCacheTimeout,
-		Memory:     NewDefaultMemoryBackendConfig(),
-		Ristretto:  NewDefaultRistrettoBackendConfig(),
-		Redis:      NewDefaultRedisBackendConfig(),
+		Type:      CacheBackendTypeMemory,
+		Memory:    NewDefaultMemoryBackendConfig(),
+		Ristretto: NewDefaultRistrettoBackendConfig(),
+		Redis:     NewDefaultRedisBackendConfig(),
 	}
 }
 

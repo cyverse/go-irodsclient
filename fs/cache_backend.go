@@ -86,9 +86,6 @@ type CacheBackendConfig struct {
 	// Backend type (memory, ristretto, redis)
 	Type CacheBackendType `yaml:"type,omitempty" json:"type,omitempty"`
 
-	// Default TTL for all cache entries
-	DefaultTTL time.Duration `yaml:"default_ttl,omitempty" json:"default_ttl,omitempty"`
-
 	// Memory backend configuration
 	Memory *MemoryBackendConfig `yaml:"memory,omitempty" json:"memory,omitempty"`
 
