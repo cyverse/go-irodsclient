@@ -20,9 +20,6 @@ type RistrettoBackendConfig struct {
 	// Number of buffers for concurrent access
 	BufferItems int64 `yaml:"buffer_items,omitempty" json:"buffer_items,omitempty"`
 
-	// Cost per entry in KB (default estimation)
-	CostPerEntryKB int64 `yaml:"cost_per_entry_kb,omitempty" json:"cost_per_entry_kb,omitempty"`
-
 	// Default TTL for cache entries
 	DefaultTTL time.Duration `yaml:"default_ttl,omitempty" json:"default_ttl,omitempty"`
 }
@@ -30,11 +27,10 @@ type RistrettoBackendConfig struct {
 // NewDefaultRistrettoBackendConfig creates a default ristretto backend configuration
 func NewDefaultRistrettoBackendConfig() *RistrettoBackendConfig {
 	return &RistrettoBackendConfig{
-		MaxEntries:     FileSystemCacheMaxEntries,
-		MaxCost:        FileSystemCacheMaxCost,
-		BufferItems:    FileSystemCacheBufferItems,
-		CostPerEntryKB: FileSystemCacheCostPerEntryKB,
-		DefaultTTL:     FileSystemCacheTimeout,
+		MaxEntries:  FileSystemCacheMaxEntries,
+		MaxCost:     FileSystemCacheMaxCost,
+		BufferItems: FileSystemCacheBufferItems,
+		DefaultTTL:  FileSystemCacheTimeout,
 	}
 }
 
@@ -64,9 +60,6 @@ func fillRistrettoBackendDefaults(cfg *RistrettoBackendConfig) *RistrettoBackend
 	}
 	if cfg.BufferItems <= 0 {
 		cfg.BufferItems = FileSystemCacheBufferItems
-	}
-	if cfg.CostPerEntryKB <= 0 {
-		cfg.CostPerEntryKB = FileSystemCacheCostPerEntryKB
 	}
 	if cfg.DefaultTTL <= 0 {
 		cfg.DefaultTTL = FileSystemCacheTimeout
@@ -112,7 +105,7 @@ func (r *RistrettoCacheBackend) GetNamespace(namespace string) CacheNamespace {
 
 	// Create a new cache for this namespace
 	ristrettoConfig := &ristretto.Config{
-		NumCounters: r.config.MaxEntries * 10,
+		NumCounters: r.config.MaxEntries,
 		MaxCost:     r.config.MaxCost,
 		BufferItems: r.config.BufferItems,
 	}
