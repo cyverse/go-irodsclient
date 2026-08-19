@@ -597,8 +597,13 @@ func UploadDataObjectParallel(sess *session.IRODSSession, localPath string, irod
 	for i := 0; i < numTasks; i++ {
 		taskWaitGroup.Add(1)
 
-		go uploadTask(i, transferConns[i], offset, lengthPerThread)
-		offset += lengthPerThread
+		taskLength := lengthPerThread
+		if i == numTasks-1 {
+			taskLength = fileLength - offset
+		}
+
+		go uploadTask(i, transferConns[i], offset, taskLength)
+		offset += taskLength
 	}
 
 	taskWaitGroup.Wait()
@@ -797,8 +802,13 @@ func UploadDataObjectParallelWithConnections(conns []*connection.IRODSConnection
 	for i := 0; i < numTasks; i++ {
 		taskWaitGroup.Add(1)
 
-		go uploadTask(i, transferConns[i], offset, lengthPerThread)
-		offset += lengthPerThread
+		taskLength := lengthPerThread
+		if i == numTasks-1 {
+			taskLength = fileLength - offset
+		}
+
+		go uploadTask(i, transferConns[i], offset, taskLength)
+		offset += taskLength
 	}
 
 	taskWaitGroup.Wait()
@@ -1242,8 +1252,13 @@ func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IR
 	for i := 0; i < numTasks; i++ {
 		taskWaitGroup.Add(1)
 
-		go downloadTask(i, transferConns[i], offset, lengthPerThread)
-		offset += lengthPerThread
+		taskLength := lengthPerThread
+		if i == numTasks-1 {
+			taskLength = dataObject.Size - offset
+		}
+
+		go downloadTask(i, transferConns[i], offset, taskLength)
+		offset += taskLength
 	}
 
 	taskWaitGroup.Wait()
@@ -1479,8 +1494,13 @@ func DownloadDataObjectParallelWithConnections(conns []*connection.IRODSConnecti
 	for i := 0; i < numTasks; i++ {
 		taskWaitGroup.Add(1)
 
-		go downloadTask(i, transferConns[i], offset, lengthPerThread)
-		offset += lengthPerThread
+		taskLength := lengthPerThread
+		if i == numTasks-1 {
+			taskLength = dataObject.Size - offset
+		}
+
+		go downloadTask(i, transferConns[i], offset, taskLength)
+		offset += taskLength
 	}
 
 	taskWaitGroup.Wait()
@@ -1738,18 +1758,25 @@ func DownloadDataObjectParallelWithCallback(sess *session.IRODSSession, dataObje
 		}
 	}
 
-	lengthPerThread := dataObject.Size / int64(numTasks)
-	if dataObject.Size%int64(numTasks) > 0 {
-		lengthPerThread++
+	totalBlocks := dataObject.Size / int64(blockSize)
+	if dataObject.Size%int64(blockSize) > 0 {
+		totalBlocks++
 	}
+	blocksPerThread := totalBlocks / int64(numTasks)
 
 	offset := int64(0)
 
 	for i := 0; i < numTasks; i++ {
 		taskWaitGroup.Add(1)
 
-		go downloadTask(i, transferConns[i], offset, lengthPerThread)
-		offset += lengthPerThread
+		taskLength := blocksPerThread * int64(blockSize)
+		if i == numTasks-1 {
+			// last thread gets the remainder
+			taskLength = dataObject.Size - offset
+		}
+
+		go downloadTask(i, transferConns[i], offset, taskLength)
+		offset += taskLength
 	}
 
 	taskWaitGroup.Wait()
@@ -1972,18 +1999,25 @@ func DownloadDataObjectParallelWithCallbackWithConnections(conns []*connection.I
 		}
 	}
 
-	lengthPerThread := dataObject.Size / int64(numTasks)
-	if dataObject.Size%int64(numTasks) > 0 {
-		lengthPerThread++
+	totalBlocks := dataObject.Size / int64(blockSize)
+	if dataObject.Size%int64(blockSize) > 0 {
+		totalBlocks++
 	}
+	blocksPerThread := totalBlocks / int64(numTasks)
 
 	offset := int64(0)
 
 	for i := 0; i < numTasks; i++ {
 		taskWaitGroup.Add(1)
 
-		go downloadTask(i, transferConns[i], offset, lengthPerThread)
-		offset += lengthPerThread
+		taskLength := blocksPerThread * int64(blockSize)
+		if i == numTasks-1 {
+			// last thread gets the remainder
+			taskLength = dataObject.Size - offset
+		}
+
+		go downloadTask(i, transferConns[i], offset, taskLength)
+		offset += taskLength
 	}
 
 	taskWaitGroup.Wait()
@@ -2279,8 +2313,13 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 	for i := 0; i < numTasks; i++ {
 		taskWaitGroup.Add(1)
 
-		go downloadTask(i, transferConns[i], offset, lengthPerThread)
-		offset += lengthPerThread
+		taskLength := lengthPerThread
+		if i == numTasks-1 {
+			taskLength = dataObject.Size - offset
+		}
+
+		go downloadTask(i, transferConns[i], offset, taskLength)
+		offset += taskLength
 	}
 
 	taskWaitGroup.Wait()
@@ -2565,8 +2604,13 @@ func DownloadDataObjectParallelResumableWithConnections(conns []*connection.IROD
 	for i := 0; i < numTasks; i++ {
 		taskWaitGroup.Add(1)
 
-		go downloadTask(i, transferConns[i], offset, lengthPerThread)
-		offset += lengthPerThread
+		taskLength := lengthPerThread
+		if i == numTasks-1 {
+			taskLength = dataObject.Size - offset
+		}
+
+		go downloadTask(i, transferConns[i], offset, taskLength)
+		offset += taskLength
 	}
 
 	taskWaitGroup.Wait()
