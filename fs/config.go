@@ -38,7 +38,7 @@ const (
 	// FileSystemCacheMaxEntries is a default value of max cache entries
 	FileSystemCacheMaxEntries int64 = 1000000
 	// FileSystemCacheMaxCost is a default value of max cache cost
-	FileSystemCacheMaxCost int64 = 300000
+	FileSystemCacheMaxCost int64 = 10 * 1024 * 1024
 	// FileSystemCacheBufferItems is a default value of cache buffer items
 	FileSystemCacheBufferItems int64 = 128
 	// FileSystemCacheCostPerEntryKB is a default value of cost per KB of entry
