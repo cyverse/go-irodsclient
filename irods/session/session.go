@@ -366,6 +366,7 @@ func (sess *IRODSSession) AcquireConnection(allowShared bool) (*connection.IRODS
 	// return last error
 	pendingErr := sess.getPendingError()
 	if pendingErr != nil {
+		sess.mutex.Unlock()
 		return nil, errors.Wrapf(pendingErr, "failed to get a connection from the pool because pending error is found")
 	}
 
