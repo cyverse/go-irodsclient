@@ -202,8 +202,8 @@ func (handle *FileHandle) Write(data []byte) (int, error) {
 	handle.offset += int64(len(data))
 
 	// update
-	if handle.entry.Size < handle.offset+int64(len(data)) {
-		handle.entry.Size = handle.offset + int64(len(data))
+	if handle.entry.Size < handle.offset {
+		handle.entry.Size = handle.offset
 	}
 
 	return len(data), nil
@@ -239,8 +239,8 @@ func (handle *FileHandle) WriteAt(data []byte, offset int64) (int, error) {
 	handle.offset += int64(len(data))
 
 	// update
-	if handle.entry.Size < handle.offset+int64(len(data)) {
-		handle.entry.Size = handle.offset + int64(len(data))
+	if handle.entry.Size < handle.offset {
+		handle.entry.Size = handle.offset
 	}
 
 	return len(data), nil
