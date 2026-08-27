@@ -606,7 +606,7 @@ func DeleteCollection(conn *connection.IRODSConnection, path string, recurse boo
 			return errors.Wrapf(newErr, "failed to find the collection for path %q", path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_COLLECTION_NOT_EMPTY {
 			newErr := errors.Join(err, types.NewCollectionNotEmptyError(path))
-			return errors.Wrapf(newErr, "the collection for path %q is empty", path)
+			return errors.Wrapf(newErr, "the collection for path %q is not empty", path)
 		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
 			newErr := errors.Join(err, types.NewFileNotFoundError(path))
 			return errors.Wrapf(newErr, "failed to find the collection for path %q", path)
