@@ -2,6 +2,7 @@ package fs
 
 import (
 	"path"
+	"sync"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -73,11 +74,6 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*File
 
 	ioSessionConfig.LogEntry = myLogger
 
-	ioSession, err := session.NewIRODSSession(account, ioSessionConfig)
-	if err != nil {
-		return nil, err
-	}
-
 	// config can be nil
 	var metadataSessionConfig *session.IRODSSessionConfig
 	if config != nil {
@@ -86,10 +82,41 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*File
 
 	metadataSessionConfig.LogEntry = myLogger
 
-	metaSession, err := session.NewIRODSSession(account, metadataSessionConfig)
-	if err != nil {
-		return nil, err
+	type sessionResult struct {
+		s   *session.IRODSSession
+		err error
 	}
+
+	ioResultCh := make(chan sessionResult, 1)
+	metaResultCh := make(chan sessionResult, 1)
+
+	go func() {
+		s, err := session.NewIRODSSession(account, ioSessionConfig)
+		ioResultCh <- sessionResult{s, err}
+	}()
+
+	go func() {
+		s, err := session.NewIRODSSession(account, metadataSessionConfig)
+		metaResultCh <- sessionResult{s, err}
+	}()
+
+	ioResult := <-ioResultCh
+	metaResult := <-metaResultCh
+
+	if ioResult.err != nil {
+		if metaResult.s != nil {
+			metaResult.s.Release()
+		}
+		return nil, ioResult.err
+	}
+
+	if metaResult.err != nil {
+		ioResult.s.Release()
+		return nil, metaResult.err
+	}
+
+	ioSession := ioResult.s
+	metaSession := metaResult.s
 
 	ioTransactionFailureHandler := func(commitFail bool, poormansRollbackFail bool) {
 		metaSession.SetCommitFail(commitFail)
@@ -146,8 +173,17 @@ func (fs *FileSystem) Release() {
 
 	fs.cacheEventHandlerMap.Release()
 
-	fs.ioSession.Release()
-	fs.metadataSession.Release()
+	var releaseWg sync.WaitGroup
+	releaseWg.Add(2)
+	go func() {
+		defer releaseWg.Done()
+		fs.ioSession.Release()
+	}()
+	go func() {
+		defer releaseWg.Done()
+		fs.metadataSession.Release()
+	}()
+	releaseWg.Wait()
 
 	// Release cache reference
 	GetCacheManager().ReleaseCache(fs.accountID)

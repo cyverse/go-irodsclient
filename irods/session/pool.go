@@ -137,6 +137,7 @@ func NewConnectionPool(account *types.IRODSAccount, config *ConnectionPoolConfig
 				pool.mutex.Lock()
 
 				now := time.Now()
+				var toDisconnect []*connection.IRODSConnection
 				for {
 					elem := pool.idleConnections.Front()
 					if elem == nil {
@@ -149,14 +150,12 @@ func NewConnectionPool(account *types.IRODSAccount, config *ConnectionPoolConfig
 						if idleConn.GetLastSuccessfulAccess().Add(pool.config.IdleTimeout).Before(now) {
 							// timeout
 							pool.idleConnections.Remove(elem)
-							idleConn.Disconnect() //nolint
-
+							toDisconnect = append(toDisconnect, idleConn)
 							pool.callCallbacks()
 						} else if idleConn.GetCreationTime().Add(pool.config.Lifespan).Before(now) {
 							// too old
 							pool.idleConnections.Remove(elem)
-							idleConn.Disconnect() //nolint
-
+							toDisconnect = append(toDisconnect, idleConn)
 							pool.callCallbacks()
 						} else {
 							break
@@ -164,12 +163,15 @@ func NewConnectionPool(account *types.IRODSAccount, config *ConnectionPoolConfig
 					} else {
 						// unknown object, remove it
 						pool.idleConnections.Remove(elem)
-
 						pool.callCallbacks()
 					}
 				}
 
 				pool.mutex.Unlock()
+
+				for _, conn := range toDisconnect {
+					conn.Disconnect() //nolint
+				}
 			}
 		}
 	}()
@@ -180,51 +182,80 @@ func NewConnectionPool(account *types.IRODSAccount, config *ConnectionPoolConfig
 // Release releases all resources
 func (pool *ConnectionPool) Release() {
 	pool.mutex.Lock()
-	defer pool.mutex.Unlock()
 
 	if pool.terminated {
+		pool.mutex.Unlock()
 		return
 	}
 
 	pool.terminated = true
-	pool.terminateChan <- true
+
+	// Collect all connections under lock, then disconnect concurrently outside lock
+	connsToDisconnect := make([]*connection.IRODSConnection, 0, pool.idleConnections.Len()+len(pool.occupiedConnections))
 
 	for pool.idleConnections.Len() > 0 {
 		elem := pool.idleConnections.Front()
 		if elem == nil {
 			break
 		}
-
 		idleConnObj := pool.idleConnections.Remove(elem)
 		if idleConn, ok := idleConnObj.(*connection.IRODSConnection); ok {
-			_ = idleConn.Disconnect()
+			connsToDisconnect = append(connsToDisconnect, idleConn)
 		}
-
-		pool.callCallbacks()
 	}
 
 	for occupiedConn := range pool.occupiedConnections {
-		_ = occupiedConn.Disconnect()
+		connsToDisconnect = append(connsToDisconnect, occupiedConn)
 	}
-
-	// clear
 	pool.occupiedConnections = map[*connection.IRODSConnection]bool{}
 
 	pool.callCallbacks()
-
 	pool.waitCond.Broadcast()
-
 	pool.callbacks = map[string]ConnectionUsageCallback{}
 
 	if pool.config.Metrics != nil {
 		pool.config.Metrics.ClearConnections()
 	}
+
+	pool.mutex.Unlock()
+
+	// Signal termination outside mutex to prevent deadlock with ticker goroutine
+	pool.terminateChan <- true
+
+	// Disconnect all connections concurrently
+	var wg sync.WaitGroup
+	for _, conn := range connsToDisconnect {
+		wg.Add(1)
+		go func(c *connection.IRODSConnection) {
+			defer wg.Done()
+			_ = c.Disconnect()
+		}(conn)
+	}
+	wg.Wait()
 }
 
 func (pool *ConnectionPool) callCallbacks() {
-	for _, callback := range pool.callbacks {
-		callback(len(pool.occupiedConnections), pool.idleConnections.Len(), pool.getMaxConnectionsReal())
+	if len(pool.callbacks) == 0 {
+		return
 	}
+
+	occupied := len(pool.occupiedConnections)
+	idle := pool.idleConnections.Len()
+	max := pool.getMaxConnectionsReal()
+
+	// Snapshot callbacks and dispatch asynchronously to prevent reentrancy deadlock:
+	// callers hold pool.mutex when invoking callCallbacks, and pool methods also
+	// acquire pool.mutex, so a synchronous callback that calls any pool method deadlocks.
+	cbs := make([]ConnectionUsageCallback, 0, len(pool.callbacks))
+	for _, cb := range pool.callbacks {
+		cbs = append(cbs, cb)
+	}
+
+	go func() {
+		for _, cb := range cbs {
+			cb(occupied, idle, max)
+		}
+	}()
 }
 
 func (pool *ConnectionPool) AddUsageCallback(callback ConnectionUsageCallback) string {
@@ -289,6 +320,10 @@ func (pool *ConnectionPool) init() error {
 }
 
 func (pool *ConnectionPool) get(new bool, noConnect bool) (*connection.IRODSConnection, bool, error) {
+	if pool.terminated {
+		return nil, false, errors.New("connection pool is closed")
+	}
+
 	logger := pool.logger.WithFields(log.Fields{
 		"new": new,
 	})
@@ -415,7 +450,6 @@ func (pool *ConnectionPool) Get(new bool, noConnect bool, wait bool) (*connectio
 // Return returns the connection after use
 func (pool *ConnectionPool) Return(conn *connection.IRODSConnection) error {
 	pool.mutex.Lock()
-	defer pool.mutex.Unlock()
 
 	// find it from occupied map
 	if _, ok := pool.occupiedConnections[conn]; ok {
@@ -428,46 +462,50 @@ func (pool *ConnectionPool) Return(conn *connection.IRODSConnection) error {
 			pool.config.Metrics.DecreaseConnectionsOccupied(1)
 		}
 	} else {
-		// cannot find it from occupied map
+		pool.mutex.Unlock()
 		return errors.Errorf("failed to find the connection from occupied connection list")
 	}
 
 	if !conn.IsConnected() {
 		pool.logger.Warn("failed to return the connection because it is already closed. discarding...")
 		pool.waitCond.Broadcast()
+		pool.mutex.Unlock()
 		return nil
 	}
 
 	// do not return if the connection is too old
 	now := time.Now()
 	if conn.GetCreationTime().Add(pool.config.Lifespan).Before(now) {
-		_ = conn.Disconnect()
 		pool.waitCond.Broadcast()
+		pool.mutex.Unlock()
+		_ = conn.Disconnect()
 		pool.logger.Debug("Returning and destroying an old connection")
 		return nil
 	}
 
 	pool.idleConnections.PushBack(conn)
-
 	pool.callCallbacks()
 
-	// check maxidle
+	// collect excess idle connections to disconnect outside the lock
+	var toDisconnect []*connection.IRODSConnection
 	for pool.idleConnections.Len() > pool.config.MaxIdle {
-		// check front since it's old
 		elem := pool.idleConnections.Front()
 		if elem != nil {
 			idleConnObj := pool.idleConnections.Remove(elem)
 			pool.callCallbacks()
-
 			if idleConn, ok := idleConnObj.(*connection.IRODSConnection); ok {
-				_ = idleConn.Disconnect()
+				toDisconnect = append(toDisconnect, idleConn)
 			}
 		}
 	}
 
 	pool.waitCond.Broadcast()
-
 	pool.logger.Debug("Returning a connection")
+	pool.mutex.Unlock()
+
+	for _, c := range toDisconnect {
+		_ = c.Disconnect()
+	}
 
 	return nil
 }
@@ -475,7 +513,6 @@ func (pool *ConnectionPool) Return(conn *connection.IRODSConnection) error {
 // Discard discards the connection
 func (pool *ConnectionPool) Discard(conn *connection.IRODSConnection) {
 	pool.mutex.Lock()
-	defer pool.mutex.Unlock()
 
 	// find it from occupied map
 	delete(pool.occupiedConnections, conn)
@@ -485,11 +522,13 @@ func (pool *ConnectionPool) Discard(conn *connection.IRODSConnection) {
 		pool.config.Metrics.DecreaseConnectionsOccupied(1)
 	}
 
-	if conn.IsConnected() {
+	shouldDisconnect := conn.IsConnected()
+	pool.waitCond.Broadcast()
+	pool.mutex.Unlock()
+
+	if shouldDisconnect {
 		_ = conn.Disconnect()
 	}
-
-	pool.waitCond.Broadcast()
 }
 
 // GetOpenConnections returns total number of connections
