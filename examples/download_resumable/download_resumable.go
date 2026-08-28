@@ -100,7 +100,7 @@ func main() {
 		if !fsinfo2.IsDir() {
 			fmt.Printf("Successfully downloaded a file %q to %q, size = %d\n", srcPath, destPath, fsinfo2.Size())
 		} else {
-			logger.Errorf("Unknown file type %q", fsinfo2.Mode())
+			logger.Errorf("Unknown file type %v", fsinfo2.Mode())
 		}
 	} else {
 		fmt.Printf("Successfully downloaded a file %q to %q, size = %d\n", srcPath, destPath, fsinfo.Size())
