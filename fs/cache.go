@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"slices"
 	"strings"
 	"time"
 
@@ -267,7 +268,7 @@ func (cache *FileSystemCache) ClearNegativeEntryCache() {
 func (cache *FileSystemCache) AddDirCache(path string, entries []string) {
 	ttl := cache.getCacheTTLForPath(path)
 	ns := cache.getNamespace(cacheNamespaceDir)
-	_ = ns.Set(path, entries, ttl)
+	_ = ns.Set(path, slices.Clone(entries), ttl)
 }
 
 // RemoveDirCache removes a dir cache
@@ -281,7 +282,7 @@ func (cache *FileSystemCache) GetDirCache(path string) []string {
 	ns := cache.getNamespace(cacheNamespaceDir)
 	if data, exist, _ := ns.Get(path); exist {
 		if entries, ok := data.([]string); ok {
-			return entries
+			return slices.Clone(entries)
 		}
 	}
 	return nil
