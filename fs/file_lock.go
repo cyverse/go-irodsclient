@@ -2,6 +2,7 @@ package fs
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 
@@ -12,9 +13,10 @@ import (
 
 // FileLock is a lock for a file
 type FileLock struct {
-	path       string
-	references int64
-	mutex      sync.RWMutex // used to lock the file
+	path            string
+	readReferences  int64
+	writeReferences int64
+	mutex           sync.RWMutex // used to lock the file
 }
 
 // FileLocks manages file locks
@@ -41,11 +43,14 @@ func (mgr *FileLocks) LockFilesForPrefix(pathPrefix string) []string {
 	for _, lock := range mgr.locks {
 		if strings.HasPrefix(lock.path, prefix) {
 			fileLocks = append(fileLocks, lock)
-			lock.references++
+			lock.writeReferences++
 		}
 	}
 
 	mgr.mutex.Unlock()
+	sort.Slice(fileLocks, func(i int, j int) bool {
+		return fileLocks[i].path < fileLocks[j].path
+	})
 
 	lockedFilePaths := []string{}
 	for _, fileLock := range fileLocks {
@@ -67,14 +72,14 @@ func (mgr *FileLocks) UnlockFiles(paths []string) error {
 			// fileLock already exists
 			fileLocks = append(fileLocks, lock)
 
-			if lock.references <= 0 {
+			if lock.writeReferences <= 0 {
 				mgr.mutex.Unlock()
-				return errors.Errorf("file lock for path %q has invalid references %d", path, lock.references)
+				return errors.Errorf("file lock for path %q has no write-lock references", path)
 			}
 
-			lock.references--
+			lock.writeReferences--
 
-			if lock.references == 0 {
+			if lock.readReferences+lock.writeReferences == 0 {
 				delete(mgr.locks, path)
 			}
 		} else {
@@ -103,13 +108,13 @@ func (mgr *FileLocks) Lock(path string) {
 	if lock, ok := mgr.locks[path]; ok {
 		// fileLock already exists
 		fileLock = lock
-		fileLock.references++
+		fileLock.writeReferences++
 	} else {
 		// create a new
 		fileLock = &FileLock{
-			path:       path,
-			references: 1,
-			mutex:      sync.RWMutex{},
+			path:            path,
+			writeReferences: 1,
+			mutex:           sync.RWMutex{},
 		}
 		mgr.locks[path] = fileLock
 	}
@@ -128,13 +133,13 @@ func (mgr *FileLocks) RLock(path string) {
 	if lock, ok := mgr.locks[path]; ok {
 		// fileLock already exists
 		fileLock = lock
-		fileLock.references++
+		fileLock.readReferences++
 	} else {
 		// create a new
 		fileLock = &FileLock{
-			path:       path,
-			references: 1,
-			mutex:      sync.RWMutex{},
+			path:           path,
+			readReferences: 1,
+			mutex:          sync.RWMutex{},
 		}
 		mgr.locks[path] = fileLock
 	}
@@ -158,14 +163,14 @@ func (mgr *FileLocks) Unlock(path string) error {
 		return errors.Errorf("file lock for path %q does not exist", path)
 	}
 
-	if fileLock.references <= 0 {
+	if fileLock.writeReferences <= 0 {
 		mgr.mutex.Unlock()
-		return errors.Errorf("file lock for path %q has invalid references %d", path, fileLock.references)
+		return errors.Errorf("file lock for path %q has no write-lock references", path)
 	}
 
-	fileLock.references--
+	fileLock.writeReferences--
 
-	if fileLock.references == 0 {
+	if fileLock.readReferences+fileLock.writeReferences == 0 {
 		delete(mgr.locks, path)
 	}
 
@@ -189,14 +194,14 @@ func (mgr *FileLocks) RUnlock(path string) error {
 		return errors.Errorf("file lock for path %q does not exist", path)
 	}
 
-	if fileLock.references <= 0 {
+	if fileLock.readReferences <= 0 {
 		mgr.mutex.Unlock()
-		return errors.Errorf("file lock for path %q has invalid references %d", path, fileLock.references)
+		return errors.Errorf("file lock for path %q has no read-lock references", path)
 	}
 
-	fileLock.references--
+	fileLock.readReferences--
 
-	if fileLock.references == 0 {
+	if fileLock.readReferences+fileLock.writeReferences == 0 {
 		delete(mgr.locks, path)
 	}
 
