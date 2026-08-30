@@ -1,12 +1,108 @@
 package fs
 
 import (
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/cyverse/go-irodsclient/irods/types"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
+
+type blockingCloseCacheBackend struct {
+	closeStarted chan struct{}
+	allowClose   chan struct{}
+	startOnce    sync.Once
+}
+
+func (backend *blockingCloseCacheBackend) GetNamespace(string) CacheNamespace { return nil }
+func (backend *blockingCloseCacheBackend) DeleteNamespace(string) error       { return nil }
+func (backend *blockingCloseCacheBackend) Clear() error                       { return nil }
+func (backend *blockingCloseCacheBackend) Close() error {
+	backend.startOnce.Do(func() { close(backend.closeStarted) })
+	<-backend.allowClose
+	return nil
+}
+
+func newTestCacheManager() *CacheManager {
+	return &CacheManager{
+		caches:       make(map[string]*FileSystemCache),
+		refCounts:    make(map[string]int),
+		logger:       log.StandardLogger(),
+		cacheFactory: NewFileSystemCache,
+	}
+}
+
+func waitForCacheManagerOperation(t *testing.T, operation func()) {
+	t.Helper()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		operation()
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("cache manager operation blocked behind unrelated cache I/O")
+	}
+}
+
+func TestCacheManagerDoesNotHoldLockDuringCacheCreation(t *testing.T) {
+	manager := newTestCacheManager()
+	creationStarted := make(chan struct{})
+	allowCreation := make(chan struct{})
+	manager.cacheFactory = func(config *CacheConfig, accountID string) *FileSystemCache {
+		if accountID == "slow" {
+			close(creationStarted)
+			<-allowCreation
+		}
+		return NewFileSystemCache(config, accountID)
+	}
+
+	slowDone := make(chan struct{})
+	go func() {
+		defer close(slowDone)
+		manager.AcquireCache(nil, "slow")
+	}()
+	<-creationStarted
+
+	waitForCacheManagerOperation(t, func() {
+		manager.AcquireCache(nil, "fast")
+	})
+
+	close(allowCreation)
+	<-slowDone
+	manager.Clear()
+}
+
+func TestCacheManagerDoesNotHoldLockDuringCacheClose(t *testing.T) {
+	manager := newTestCacheManager()
+	backend := &blockingCloseCacheBackend{
+		closeStarted: make(chan struct{}),
+		allowClose:   make(chan struct{}),
+	}
+	manager.caches["slow"] = &FileSystemCache{cacheBackend: backend}
+	manager.refCounts["slow"] = 1
+
+	releaseDone := make(chan struct{})
+	go func() {
+		defer close(releaseDone)
+		manager.ReleaseCache("slow")
+	}()
+	<-backend.closeStarted
+
+	waitForCacheManagerOperation(t, func() {
+		_ = manager.GetStats()
+		manager.AcquireCache(nil, "fast")
+	})
+
+	close(backend.allowClose)
+	<-releaseDone
+	manager.Clear()
+}
 
 func TestCacheManagerAcquireAndRelease(t *testing.T) {
 	manager := GetCacheManager()
