@@ -3,6 +3,7 @@ package fs
 import (
 	"context"
 	"encoding/json"
+	"sort"
 	"sync"
 	"time"
 
@@ -216,15 +217,54 @@ func (r *RedisCacheBackend) DeleteNamespace(namespace string) error {
 	return nil
 }
 
-// Clear removes all entries from the cache (or with prefix if KeyPrefix is set)
+// Clear removes only entries owned by this cache backend.
 func (r *RedisCacheBackend) Clear() error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.mu.RLock()
+	prefixes := r.clearPrefixes()
+	r.mu.RUnlock()
 
 	ctx, cancel := context.WithTimeout(r.ctx, r.config.CommandTimeout)
 	defer cancel()
 
-	return r.client.FlushDB(ctx).Err()
+	for _, prefix := range prefixes {
+		if err := r.deleteKeysWithPrefix(ctx, prefix); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// clearPrefixes returns Redis key prefixes owned by this backend. The caller must hold r.mu.
+func (r *RedisCacheBackend) clearPrefixes() []string {
+	if r.config.KeyPrefix != "" {
+		return []string{r.makeKey("")}
+	}
+
+	prefixes := make([]string, 0, len(r.namespaces))
+	for namespace := range r.namespaces {
+		prefixes = append(prefixes, namespace+":")
+	}
+	sort.Strings(prefixes)
+	return prefixes
+}
+
+func (r *RedisCacheBackend) deleteKeysWithPrefix(ctx context.Context, prefix string) error {
+	pattern := prefix + "*"
+	iter := r.client.Scan(ctx, 0, pattern, 100).Iterator()
+	keys := make([]string, 0)
+	for iter.Next(ctx) {
+		keys = append(keys, iter.Val())
+	}
+	if err := iter.Err(); err != nil {
+		return errors.Wrap(err, "failed to scan redis keys")
+	}
+	if len(keys) == 0 {
+		return nil
+	}
+	if err := r.client.Del(ctx, keys...).Err(); err != nil {
+		return errors.Wrap(err, "failed to delete redis keys")
+	}
+	return nil
 }
 
 // Close closes the Redis connection
