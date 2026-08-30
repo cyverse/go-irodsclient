@@ -39,6 +39,26 @@ type Entry struct {
 	CacheID           string                  `json:"cache_id,omitempty"`
 }
 
+func (entry *Entry) clone() *Entry {
+	if entry == nil {
+		return nil
+	}
+
+	cloned := *entry
+	cloned.CheckSum = append([]byte(nil), entry.CheckSum...)
+	cloned.IRODSReplicas = append([]types.IRODSReplica(nil), entry.IRODSReplicas...)
+	for i := range cloned.IRODSReplicas {
+		checksum := entry.IRODSReplicas[i].Checksum
+		if checksum != nil {
+			clonedChecksum := *checksum
+			clonedChecksum.Checksum = append([]byte(nil), checksum.Checksum...)
+			cloned.IRODSReplicas[i].Checksum = &clonedChecksum
+		}
+	}
+
+	return &cloned
+}
+
 func NewEntryFromCollection(collection *types.IRODSCollection) *Entry {
 	return &Entry{
 		ID:                collection.ID,

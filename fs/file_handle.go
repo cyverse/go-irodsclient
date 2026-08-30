@@ -79,7 +79,10 @@ func (handle *FileHandle) GetIRODSFileHandle() *types.IRODSFileHandle {
 
 // GetEntry returns Entry info
 func (handle *FileHandle) GetEntry() *Entry {
-	return handle.entry
+	handle.mutex.Lock()
+	defer handle.mutex.Unlock()
+
+	return handle.entry.clone()
 }
 
 // Close closes the file

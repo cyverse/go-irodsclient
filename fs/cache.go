@@ -184,7 +184,7 @@ func (cache *FileSystemCache) getCacheTTLForPath(path string) time.Duration {
 func (cache *FileSystemCache) AddEntryCache(entry *Entry) {
 	ttl := cache.getCacheTTLForPath(entry.Path)
 	ns := cache.getNamespace(cacheNamespaceEntry)
-	_ = ns.Set(entry.Path, entry, ttl)
+	_ = ns.Set(entry.Path, entry.clone(), ttl)
 }
 
 // RemoveEntryCache removes an entry cache
@@ -215,7 +215,7 @@ func (cache *FileSystemCache) GetEntryCache(path string) *Entry {
 	ns := cache.getNamespace(cacheNamespaceEntry)
 	if entry, exist, _ := ns.Get(path); exist {
 		if fsentry, ok := entry.(*Entry); ok {
-			return fsentry
+			return fsentry.clone()
 		}
 	}
 	return nil
