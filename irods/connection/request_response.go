@@ -120,13 +120,48 @@ func (conn *IRODSConnection) RequestWithTrackerCallBack(request Request, respons
 
 // RequestAsyncWithTrackerCallBack sends multiple requests and expects responses.
 func (conn *IRODSConnection) RequestAsyncWithTrackerCallBack(rrChan chan RequestResponsePair) chan RequestResponsePair {
-	waitResponseChan := make(chan RequestResponsePair, 100)
-	outputPair := make(chan RequestResponsePair, 100)
+	type pendingResponse struct {
+		pair RequestResponsePair
+		sent bool
+	}
 
-	var lastErr error
+	waitResponseChan := make(chan pendingResponse, 100)
+	resultChan := make(chan RequestResponsePair, 100)
+	outputPair := make(chan RequestResponsePair)
+	receiverErrChan := make(chan error, 1)
+
+	// Decouple socket processing from the caller. A caller may submit more than the fixed channel
+	// capacity before it starts reading results, so blocking the receiver on output can otherwise
+	// stop both the receiver and sender.
+	go func() {
+		defer close(outputPair)
+
+		queue := []RequestResponsePair{}
+		for resultChan != nil || len(queue) > 0 {
+			var outputChan chan RequestResponsePair
+			var next RequestResponsePair
+			if len(queue) > 0 {
+				outputChan = outputPair
+				next = queue[0]
+			}
+
+			select {
+			case pair, ok := <-resultChan:
+				if !ok {
+					resultChan = nil
+					continue
+				}
+				queue = append(queue, pair)
+			case outputChan <- next:
+				queue = queue[1:]
+			}
+		}
+	}()
 
 	// sender
 	go func() {
+		var sendErr error
+
 		for {
 			pair, ok := <-rrChan
 			if !ok {
@@ -135,10 +170,18 @@ func (conn *IRODSConnection) RequestAsyncWithTrackerCallBack(rrChan chan Request
 				break
 			}
 
-			// if errored before? skip
-			if lastErr != nil {
-				pair.Error = lastErr
-				waitResponseChan <- pair
+			if sendErr == nil {
+				select {
+				case sendErr = <-receiverErrChan:
+				default:
+				}
+			}
+
+			// If the pipeline has already failed, this request was never sent and must not
+			// consume a response.
+			if sendErr != nil {
+				pair.Error = sendErr
+				waitResponseChan <- pendingResponse{pair: pair, sent: false}
 				continue
 			}
 
@@ -148,9 +191,9 @@ func (conn *IRODSConnection) RequestAsyncWithTrackerCallBack(rrChan chan Request
 					conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 				}
 
-				lastErr = err
-				pair.Error = lastErr
-				waitResponseChan <- pair
+				sendErr = err
+				pair.Error = sendErr
+				waitResponseChan <- pendingResponse{pair: pair, sent: false}
 				continue
 			}
 
@@ -165,32 +208,35 @@ func (conn *IRODSConnection) RequestAsyncWithTrackerCallBack(rrChan chan Request
 					conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 				}
 
-				lastErr = errors.Wrapf(err, "failed to send a request message")
-				pair.Error = lastErr
-				waitResponseChan <- pair
+				sendErr = errors.Wrapf(err, "failed to send a request message")
+				pair.Error = sendErr
+				waitResponseChan <- pendingResponse{pair: pair, sent: false}
 				continue
 			}
 
-			waitResponseChan <- pair
+			waitResponseChan <- pendingResponse{pair: pair, sent: true}
 		}
 	}()
 
 	// receiver
 	go func() {
-		for {
-			pair, ok := <-waitResponseChan
-			if !ok {
-				// input closed
-				close(outputPair)
-				break
-			}
+		defer close(resultChan)
 
-			// if errored before? skip
-			if lastErr != nil {
+		var receiveErr error
+		for {
+			pending, ok := <-waitResponseChan
+			if !ok {
+				return
+			}
+			pair := pending.pair
+
+			// Unsent requests never have a corresponding response. After a receive failure,
+			// the socket is no longer usable, so all remaining requests fail without reads.
+			if !pending.sent || receiveErr != nil {
 				if pair.Error == nil {
-					pair.Error = lastErr
+					pair.Error = receiveErr
 				}
-				outputPair <- pair
+				resultChan <- pair
 				continue
 			}
 
@@ -208,13 +254,17 @@ func (conn *IRODSConnection) RequestAsyncWithTrackerCallBack(rrChan chan Request
 				}
 
 				if err == io.EOF {
-					lastErr = err
+					receiveErr = err
 				} else {
-					lastErr = errors.Wrapf(err, "failed to receive a response message")
+					receiveErr = errors.Wrapf(err, "failed to receive a response message")
+				}
+				select {
+				case receiverErrChan <- receiveErr:
+				default:
 				}
 
-				pair.Error = lastErr
-				outputPair <- pair
+				pair.Error = receiveErr
+				resultChan <- pair
 
 				continue
 			}
@@ -225,13 +275,17 @@ func (conn *IRODSConnection) RequestAsyncWithTrackerCallBack(rrChan chan Request
 					conn.config.Metrics.IncreaseCounterForRequestResponseFailures(1)
 				}
 
-				lastErr = errors.Wrapf(err, "failed to parse response message")
-				pair.Error = lastErr
-				outputPair <- pair
+				receiveErr = errors.Wrapf(err, "failed to parse response message")
+				select {
+				case receiverErrChan <- receiveErr:
+				default:
+				}
+				pair.Error = receiveErr
+				resultChan <- pair
 				continue
 			}
 
-			outputPair <- pair
+			resultChan <- pair
 		}
 	}()
 
