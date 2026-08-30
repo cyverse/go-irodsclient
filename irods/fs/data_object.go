@@ -2285,49 +2285,10 @@ func WriteDataObjectAsyncWithTrackerCallBack(conn *connection.IRODSConnection, h
 
 	curProcessed := int64(0)
 
-	var returnErr error
-
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-
-	// check response
+	pipelineFailed := make(chan struct{})
+	responseErrChan := make(chan error, 1)
 	go func() {
-		defer wg.Done()
-
-		for {
-			rrPair, ok := <-responseRRChan
-			if !ok {
-				// output closed
-				// done
-				return
-			}
-
-			if rrPair.Error != nil {
-				// errored
-				returnErr = rrPair.Error
-				return
-			}
-
-			if res, ok := rrPair.Response.(connection.CheckErrorResponse); ok {
-				resErr := res.CheckError()
-				if resErr != nil {
-					if types.GetIRODSErrorCode(resErr) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(resErr) == common.CAT_UNKNOWN_FILE {
-						newErr := errors.Join(resErr, types.NewFileNotFoundError(handle.Path))
-						returnErr = errors.Wrapf(newErr, "failed to find the data object for path %q", handle.Path)
-						return
-					} else if types.GetIRODSErrorCode(resErr) == common.CAT_UNKNOWN_COLLECTION {
-						newErr := errors.Join(resErr, types.NewFileNotFoundError(handle.Path))
-						returnErr = errors.Wrapf(newErr, "failed to find the collection for path %q", handle.Path)
-						return
-					}
-
-					returnErr = errors.Wrapf(resErr, "failed to write to data object")
-					return
-				}
-			}
-
-			// if no error, drain
-		}
+		responseErrChan <- drainWriteDataObjectAsyncResponses(responseRRChan, handle.Path, pipelineFailed)
 	}()
 
 	bufPool := sync.Pool{
@@ -2337,8 +2298,16 @@ func WriteDataObjectAsyncWithTrackerCallBack(conn *connection.IRODSConnection, h
 		},
 	}
 
-	returnErr = nil
-	for returnErr == nil {
+	var readerErr error
+
+writeLoop:
+	for {
+		select {
+		case <-pipelineFailed:
+			break writeLoop
+		default:
+		}
+
 		//buffer := make([]byte, common.ReadWriteBufferSize)
 		bufferPtr := bufPool.Get().(*[]byte)
 		buffer := *bufferPtr
@@ -2367,8 +2336,14 @@ func WriteDataObjectAsyncWithTrackerCallBack(conn *connection.IRODSConnection, h
 				},
 			}
 
-			// input
-			requestRRChan <- rrPair
+			// Stop producing after the first response error, while the response goroutine keeps
+			// draining already submitted requests.
+			select {
+			case requestRRChan <- rrPair:
+			case <-pipelineFailed:
+				bufPool.Put(bufferPtr)
+				break writeLoop
+			}
 		}
 		// return buffer
 		bufPool.Put(bufferPtr)
@@ -2377,7 +2352,7 @@ func WriteDataObjectAsyncWithTrackerCallBack(conn *connection.IRODSConnection, h
 			if readErr == io.EOF {
 				break
 			} else {
-				returnErr = errors.Wrapf(readErr, "failed to read from Reader")
+				readerErr = errors.Wrapf(readErr, "failed to read from Reader")
 				break
 			}
 		}
@@ -2385,10 +2360,47 @@ func WriteDataObjectAsyncWithTrackerCallBack(conn *connection.IRODSConnection, h
 
 	close(requestRRChan)
 
-	// wait until write responses are drained
-	wg.Wait()
+	// Wait until every result for submitted requests has been drained.
+	responseErr := <-responseErrChan
+	if readerErr != nil {
+		return readerErr
+	}
+	return responseErr
+}
 
-	return returnErr
+func drainWriteDataObjectAsyncResponses(responseRRChan <-chan connection.RequestResponsePair, path string, pipelineFailed chan<- struct{}) error {
+	var firstErr error
+	failureSignaled := false
+
+	for rrPair := range responseRRChan {
+		responseErr := rrPair.Error
+		if responseErr == nil {
+			if res, ok := rrPair.Response.(connection.CheckErrorResponse); ok {
+				resErr := res.CheckError()
+				if resErr != nil {
+					if types.GetIRODSErrorCode(resErr) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(resErr) == common.CAT_UNKNOWN_FILE {
+						newErr := errors.Join(resErr, types.NewFileNotFoundError(path))
+						responseErr = errors.Wrapf(newErr, "failed to find the data object for path %q", path)
+					} else if types.GetIRODSErrorCode(resErr) == common.CAT_UNKNOWN_COLLECTION {
+						newErr := errors.Join(resErr, types.NewFileNotFoundError(path))
+						responseErr = errors.Wrapf(newErr, "failed to find the collection for path %q", path)
+					} else {
+						responseErr = errors.Wrapf(resErr, "failed to write to data object")
+					}
+				}
+			}
+		}
+
+		if responseErr != nil && firstErr == nil {
+			firstErr = responseErr
+			if !failureSignaled {
+				close(pipelineFailed)
+				failureSignaled = true
+			}
+		}
+	}
+
+	return firstErr
 }
 
 // TruncateDataObjectHandle truncates a data object to the given size
