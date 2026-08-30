@@ -209,7 +209,11 @@ func (rn *RistrettoNamespace) Set(key string, value interface{}, ttl time.Durati
 		ttl = rn.defaultTTL
 	}
 
-	rn.cache.Set(key, value, 1)
+	if accepted := rn.cache.Set(key, value, 1); !accepted {
+		return errors.Errorf("failed to enqueue cache value for key %q", key)
+	}
+	rn.cache.Wait()
+
 	rn.ttlMap[key] = time.Now().Add(ttl)
 
 	// Register all prefixes for this key in prefixIndex
