@@ -41,7 +41,6 @@ func NewFileHandleMap() *FileHandleMap {
 // AddCloseEventHandler registers an event handler for file close
 func (fileHandleMap *FileHandleMap) AddCloseEventHandler(path string, handler FileHandleMapEventHandler) string {
 	fileHandleMap.mutex.Lock()
-	defer fileHandleMap.mutex.Unlock()
 
 	handlerID := xid.New().String()
 
@@ -59,9 +58,11 @@ func (fileHandleMap *FileHandleMap) AddCloseEventHandler(path string, handler Fi
 
 	fileHandleMap.eventHandlerIDPath[handlerID] = path
 
-	// if there's no files?
-	// raise event with empty id string
-	if _, ok := fileHandleMap.filePathID[path]; !ok {
+	_, hasHandles := fileHandleMap.filePathID[path]
+	fileHandleMap.mutex.Unlock()
+
+	// Invoke user code without holding the map lock so the handler can safely re-enter the map.
+	if !hasHandles {
 		handler(path, "", true)
 	}
 
@@ -109,13 +110,16 @@ func (fileHandleMap *FileHandleMap) Add(handle *FileHandle) {
 // Remove deletes a file handle registered using ID
 func (fileHandleMap *FileHandleMap) Remove(id string) {
 	fileHandleMap.mutex.Lock()
-	defer fileHandleMap.mutex.Unlock()
+
+	var eventPath string
+	var emptyHandles bool
+	var eventHandlers []FileHandleMapEventHandler
 
 	handle := fileHandleMap.fileHandles[id]
 	if handle != nil {
 		delete(fileHandleMap.fileHandles, id)
 
-		emptyHandles := true
+		emptyHandles = true
 		if ids, ok := fileHandleMap.filePathID[handle.entry.Path]; ok {
 			emptyHandles = false
 			newIDs := []string{}
@@ -133,11 +137,20 @@ func (fileHandleMap *FileHandleMap) Remove(id string) {
 			}
 		}
 
-		if handlers, ok := fileHandleMap.closeEventHandlers[handle.entry.Path]; ok {
+		eventPath = handle.entry.Path
+		if handlers, ok := fileHandleMap.closeEventHandlers[eventPath]; ok {
+			eventHandlers = make([]FileHandleMapEventHandler, 0, len(handlers))
 			for _, handler := range handlers {
-				handler.handler(handle.entry.Path, id, emptyHandles)
+				eventHandlers = append(eventHandlers, handler.handler)
 			}
 		}
+	}
+
+	fileHandleMap.mutex.Unlock()
+
+	// Handlers may call back into FileHandleMap, so invoke the snapshot after unlocking.
+	for _, handler := range eventHandlers {
+		handler(eventPath, id, emptyHandles)
 	}
 }
 
