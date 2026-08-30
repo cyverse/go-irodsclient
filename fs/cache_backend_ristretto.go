@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"slices"
 	"sync"
 	"time"
 
@@ -237,7 +238,7 @@ func (rn *RistrettoNamespace) DeletePrefix(prefix string) error {
 	rn.mu.Lock()
 	defer rn.mu.Unlock()
 
-	keys := rn.prefixIndex[prefix]
+	keys := slices.Clone(rn.prefixIndex[prefix])
 	for _, k := range keys {
 		rn.cache.Del(k)
 		delete(rn.ttlMap, k)

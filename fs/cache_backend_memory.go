@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"slices"
 	"sync"
 	"time"
 
@@ -231,7 +232,7 @@ func (mn *MemoryNamespace) DeletePrefix(prefix string) error {
 	mn.mu.Lock()
 	defer mn.mu.Unlock()
 
-	keys := mn.prefixIndex[prefix]
+	keys := slices.Clone(mn.prefixIndex[prefix])
 	for _, k := range keys {
 		mn.cache.Delete(k)
 		mn.removeKeyFromPrefixes(k)
