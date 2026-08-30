@@ -76,13 +76,13 @@ func NewMemoryCacheBackend(config *MemoryBackendConfig) *MemoryCacheBackend {
 
 // GetNamespace returns a namespace interface for isolated storage
 // WARNING: Use GetNamespaceForAccount() for multi-account safety!
-func (m *MemoryCacheBackend) GetNamespace(namespace string) CacheNamespace {
+func (m *MemoryCacheBackend) GetNamespace(namespace string) (CacheNamespace, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	// Return existing namespace
 	if ns, ok := m.namespaces[namespace]; ok {
-		return ns
+		return ns, nil
 	}
 
 	// Create a new cache for this namespace
@@ -95,7 +95,7 @@ func (m *MemoryCacheBackend) GetNamespace(namespace string) CacheNamespace {
 	}
 	m.namespaces[namespace] = ns
 
-	return ns
+	return ns, nil
 }
 
 // DeleteNamespace removes all entries in a namespace

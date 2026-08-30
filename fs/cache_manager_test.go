@@ -16,9 +16,11 @@ type blockingCloseCacheBackend struct {
 	startOnce    sync.Once
 }
 
-func (backend *blockingCloseCacheBackend) GetNamespace(string) CacheNamespace { return nil }
-func (backend *blockingCloseCacheBackend) DeleteNamespace(string) error       { return nil }
-func (backend *blockingCloseCacheBackend) Clear() error                       { return nil }
+func (backend *blockingCloseCacheBackend) GetNamespace(string) (CacheNamespace, error) {
+	return nil, nil
+}
+func (backend *blockingCloseCacheBackend) DeleteNamespace(string) error { return nil }
+func (backend *blockingCloseCacheBackend) Clear() error                 { return nil }
 func (backend *blockingCloseCacheBackend) Close() error {
 	backend.startOnce.Do(func() { close(backend.closeStarted) })
 	<-backend.allowClose

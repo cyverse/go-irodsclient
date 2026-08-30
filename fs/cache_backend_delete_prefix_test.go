@@ -39,7 +39,11 @@ func TestMemoryNamespaceDeletePrefixRemovesEveryKey(t *testing.T) {
 	backend := NewMemoryCacheBackend(NewDefaultMemoryBackendConfig())
 	defer backend.Close()
 
-	testDeletePrefixRemovesEveryKey(t, backend.GetNamespace("test"), func() {})
+	namespace, err := backend.GetNamespace("test")
+	if err != nil {
+		t.Fatalf("GetNamespace() error = %v", err)
+	}
+	testDeletePrefixRemovesEveryKey(t, namespace, func() {})
 }
 
 func TestRistrettoNamespaceDeletePrefixRemovesEveryKey(t *testing.T) {
@@ -49,7 +53,10 @@ func TestRistrettoNamespaceDeletePrefixRemovesEveryKey(t *testing.T) {
 	}
 	defer backend.Close()
 
-	namespace := backend.GetNamespace("test")
+	namespace, err := backend.GetNamespace("test")
+	if err != nil {
+		t.Fatalf("GetNamespace() error = %v", err)
+	}
 	ristrettoNamespace, ok := namespace.(*RistrettoNamespace)
 	if !ok {
 		t.Fatalf("namespace type = %T, want *RistrettoNamespace", namespace)

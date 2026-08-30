@@ -12,8 +12,8 @@ func NewNoCacheBackend() *NoCacheBackend {
 }
 
 // GetNamespace returns a no-op namespace
-func (n *NoCacheBackend) GetNamespace(namespace string) CacheNamespace {
-	return &NoCacheNamespace{}
+func (n *NoCacheBackend) GetNamespace(namespace string) (CacheNamespace, error) {
+	return &NoCacheNamespace{}, nil
 }
 
 // DeleteNamespace is a no-op

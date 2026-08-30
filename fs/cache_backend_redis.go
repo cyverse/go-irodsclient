@@ -166,12 +166,12 @@ func (r *RedisCacheBackend) makeKey(key string) string {
 
 // GetNamespace returns a namespace interface for isolated storage
 // WARNING: Use GetNamespaceForAccount() for multi-account safety!
-func (r *RedisCacheBackend) GetNamespace(namespace string) CacheNamespace {
+func (r *RedisCacheBackend) GetNamespace(namespace string) (CacheNamespace, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	if ns, ok := r.namespaces[namespace]; ok {
-		return ns
+		return ns, nil
 	}
 
 	ns := &RedisNamespace{
@@ -181,7 +181,7 @@ func (r *RedisCacheBackend) GetNamespace(namespace string) CacheNamespace {
 	}
 
 	r.namespaces[namespace] = ns
-	return ns
+	return ns, nil
 }
 
 // DeleteNamespace removes all entries in a namespace

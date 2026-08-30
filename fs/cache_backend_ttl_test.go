@@ -43,7 +43,11 @@ func TestMemoryNamespaceDefaultTTL(t *testing.T) {
 	backend := NewMemoryCacheBackend(config)
 	defer backend.Close()
 
-	testCacheNamespaceDefaultTTL(t, backend.GetNamespace("ttl-test"), func() {})
+	namespace, err := backend.GetNamespace("ttl-test")
+	if err != nil {
+		t.Fatalf("GetNamespace() error = %v", err)
+	}
+	testCacheNamespaceDefaultTTL(t, namespace, func() {})
 }
 
 func TestRistrettoNamespaceDefaultTTL(t *testing.T) {
@@ -55,7 +59,10 @@ func TestRistrettoNamespaceDefaultTTL(t *testing.T) {
 	}
 	defer backend.Close()
 
-	namespace := backend.GetNamespace("ttl-test")
+	namespace, err := backend.GetNamespace("ttl-test")
+	if err != nil {
+		t.Fatalf("GetNamespace() error = %v", err)
+	}
 	ristrettoNamespace, ok := namespace.(*RistrettoNamespace)
 	if !ok {
 		t.Fatalf("namespace type = %T, want *RistrettoNamespace", namespace)

@@ -69,7 +69,7 @@ type CacheBackend interface {
 	// Examples:
 	//   - "hash(host|account|zone):entries"
 	//   - "hash(host|account|zone):metadata"
-	GetNamespace(namespace string) CacheNamespace
+	GetNamespace(namespace string) (CacheNamespace, error)
 
 	// DeleteNamespace removes all entries in a namespace
 	DeleteNamespace(namespace string) error

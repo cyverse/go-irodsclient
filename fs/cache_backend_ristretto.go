@@ -96,13 +96,13 @@ func NewRistrettoCacheBackend(config *RistrettoBackendConfig) (*RistrettoCacheBa
 
 // GetNamespace returns a namespace interface for isolated storage
 // WARNING: Use GetNamespaceForAccount() for multi-account safety!
-func (r *RistrettoCacheBackend) GetNamespace(namespace string) CacheNamespace {
+func (r *RistrettoCacheBackend) GetNamespace(namespace string) (CacheNamespace, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	// Return existing namespace
 	if ns, ok := r.namespaces[namespace]; ok {
-		return ns
+		return ns, nil
 	}
 
 	// Create a new cache for this namespace
@@ -114,7 +114,7 @@ func (r *RistrettoCacheBackend) GetNamespace(namespace string) CacheNamespace {
 
 	cache, err := ristretto.NewCache(ristrettoConfig)
 	if err != nil {
-		return nil
+		return nil, errors.Wrap(err, "failed to create ristretto namespace")
 	}
 
 	ttlMap := make(map[string]time.Time)
@@ -129,7 +129,7 @@ func (r *RistrettoCacheBackend) GetNamespace(namespace string) CacheNamespace {
 	}
 	r.namespaces[namespace] = ns
 
-	return ns
+	return ns, nil
 }
 
 // DeleteNamespace removes all entries in a namespace

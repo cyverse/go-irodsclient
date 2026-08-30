@@ -12,7 +12,10 @@ func TestRistrettoSetIsVisibleBeforeReturn(t *testing.T) {
 	}
 	defer backend.Close()
 
-	namespace := backend.GetNamespace("set-visible-test")
+	namespace, err := backend.GetNamespace("set-visible-test")
+	if err != nil {
+		t.Fatalf("GetNamespace() error = %v", err)
+	}
 	for i := 0; i < 1000; i++ {
 		key := strconv.Itoa(i)
 		if err := namespace.Set(key, i, 0); err != nil {

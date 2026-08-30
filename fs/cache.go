@@ -143,7 +143,12 @@ func NewFileSystemCache(config *CacheConfig, accountID string) *FileSystemCache 
 
 // getNamespace returns a namespace for the given logical namespace name
 func (cache *FileSystemCache) getNamespace(logicalNamespace string) CacheNamespace {
-	return cache.cacheBackend.GetNamespace(cache.accountID + ":" + logicalNamespace)
+	namespace, err := cache.cacheBackend.GetNamespace(cache.accountID + ":" + logicalNamespace)
+	if err != nil {
+		cache.logger.WithError(err).Warnf("failed to get cache namespace %q", logicalNamespace)
+		return &NoCacheNamespace{}
+	}
+	return namespace
 }
 
 // deleteNamespace deletes a namespace
