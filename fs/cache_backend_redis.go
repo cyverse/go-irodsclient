@@ -281,7 +281,6 @@ func (rn *RedisNamespace) Set(key string, value interface{}, ttl time.Duration) 
 
 	prefixedKey := rn.backend.makeKey(rn.namespacePrefix + key)
 
-	// If ttl is 0, use default TTL
 	if ttl == 0 {
 		ttl = rn.defaultTTL
 	}

@@ -84,6 +84,7 @@ func NewRistrettoCacheBackend(config *RistrettoBackendConfig) (*RistrettoCacheBa
 	if config == nil {
 		config = NewDefaultRistrettoBackendConfig()
 	}
+	config = fillRistrettoBackendDefaults(config)
 
 	return &RistrettoCacheBackend{
 		config:     config,
@@ -124,6 +125,7 @@ func (r *RistrettoCacheBackend) GetNamespace(namespace string) CacheNamespace {
 		cache:       cache,
 		ttlMap:      ttlMap,
 		prefixIndex: make(map[string][]string),
+		defaultTTL:  r.config.DefaultTTL,
 	}
 	r.namespaces[namespace] = ns
 
@@ -170,6 +172,7 @@ type RistrettoNamespace struct {
 	cache       *ristretto.Cache
 	ttlMap      map[string]time.Time
 	prefixIndex map[string][]string // prefix → [keys]
+	defaultTTL  time.Duration
 	mu          sync.RWMutex
 }
 
@@ -202,13 +205,12 @@ func (rn *RistrettoNamespace) Set(key string, value interface{}, ttl time.Durati
 	rn.mu.Lock()
 	defer rn.mu.Unlock()
 
-	rn.cache.Set(key, value, 1)
-
 	if ttl == 0 {
-		delete(rn.ttlMap, key)
-	} else {
-		rn.ttlMap[key] = time.Now().Add(ttl)
+		ttl = rn.defaultTTL
 	}
+
+	rn.cache.Set(key, value, 1)
+	rn.ttlMap[key] = time.Now().Add(ttl)
 
 	// Register all prefixes for this key in prefixIndex
 	rn.addKeyToPrefixes(key)

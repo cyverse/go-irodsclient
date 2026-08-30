@@ -152,7 +152,7 @@ func (mn *MemoryNamespace) Set(key string, value interface{}, ttl time.Duration)
 	mn.mu.Lock()
 	defer mn.mu.Unlock()
 
-	// if ttl is 0, use default
+	// go-cache interprets ttl == 0 as its configured default expiration.
 	mn.cache.Set(key, value, ttl)
 
 	// Register all prefixes for this key in prefixIndex

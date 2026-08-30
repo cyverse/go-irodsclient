@@ -35,7 +35,7 @@ type CacheNamespace interface {
 	Get(key string) (interface{}, bool, error)
 
 	// Set stores a namespaced value with optional TTL
-	// ttl == 0 means no expiration
+	// ttl == 0 means use the backend's default TTL
 	// ttl < 0 means no caching
 	Set(key string, value interface{}, ttl time.Duration) error
 
