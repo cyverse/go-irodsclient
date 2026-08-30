@@ -736,7 +736,7 @@ func DownloadDataObjectFromResourceServer(sess *session.IRODSSession, dataObject
 		return errors.Wrapf(err, "failed to close file %q", localPath)
 	}
 
-	errChan := make(chan error, numTasks)
+	errChan := make(chan error, 1)
 	taskWaitGroup := sync.WaitGroup{}
 
 	currentBytesDownloaded := make([]int64, numTasks)
@@ -776,7 +776,7 @@ func DownloadDataObjectFromResourceServer(sess *session.IRODSSession, dataObject
 		err = downloadDataObjectChunkFromResourceServer(sess, taskID, controlConn, handle, localPath, blockReadCallback)
 		if err != nil {
 			dnErr := errors.Wrapf(err, "failed to download data object chunk %q from resource server", dataObject.Path)
-			errChan <- dnErr
+			reportParallelTransferError(errChan, dnErr)
 		}
 	}
 
@@ -860,7 +860,7 @@ func DownloadDataObjectFromResourceServerWithConnection(sess *session.IRODSSessi
 		return errors.Wrapf(err, "failed to close file %q", localPath)
 	}
 
-	errChan := make(chan error, numTasks)
+	errChan := make(chan error, 1)
 	taskWaitGroup := sync.WaitGroup{}
 
 	currentBytesDownloaded := make([]int64, numTasks)
@@ -900,7 +900,7 @@ func DownloadDataObjectFromResourceServerWithConnection(sess *session.IRODSSessi
 		err = downloadDataObjectChunkFromResourceServer(sess, taskID, controlConn, handle, localPath, blockReadCallback)
 		if err != nil {
 			dnErr := errors.Wrapf(err, "failed to download data object chunk %q from resource server", dataObject.Path)
-			errChan <- dnErr
+			reportParallelTransferError(errChan, dnErr)
 		}
 	}
 
@@ -1004,7 +1004,7 @@ func UploadDataObjectToResourceServer(sess *session.IRODSSession, localPath stri
 	numTasks = handle.Threads
 	// put to portal
 
-	errChan := make(chan error, numTasks)
+	errChan := make(chan error, 1)
 	taskWaitGroup := sync.WaitGroup{}
 
 	currentBytesUploaded := make([]int64, numTasks)
@@ -1044,7 +1044,7 @@ func UploadDataObjectToResourceServer(sess *session.IRODSSession, localPath stri
 		err = uploadDataObjectChunkToResourceServer(sess, taskID, controlConn, handle, localPath, blockWriteCallback)
 		if err != nil {
 			dnErr := errors.Wrapf(err, "failed to upload data object chunk %q to resource server", localPath)
-			errChan <- dnErr
+			reportParallelTransferError(errChan, dnErr)
 		}
 	}
 
@@ -1125,7 +1125,7 @@ func UploadDataObjectToResourceServerWithConnection(sess *session.IRODSSession, 
 	logger.Debugf("Redirect to resource: threads %d, addr %q, port %d, window size %d, cookie %d", handle.Threads, handle.RedirectionInfo.Host, handle.RedirectionInfo.Port, handle.RedirectionInfo.WindowSize, handle.RedirectionInfo.Cookie)
 	// put to portal
 
-	errChan := make(chan error, numTasks)
+	errChan := make(chan error, 1)
 	taskWaitGroup := sync.WaitGroup{}
 
 	currentBytesUploaded := make([]int64, numTasks)
@@ -1165,7 +1165,7 @@ func UploadDataObjectToResourceServerWithConnection(sess *session.IRODSSession, 
 		err = uploadDataObjectChunkToResourceServer(sess, taskID, controlConn, handle, localPath, blockWriteCallback)
 		if err != nil {
 			dnErr := errors.Wrapf(err, "failed to upload data object chunk %q to resource server", localPath)
-			errChan <- dnErr
+			reportParallelTransferError(errChan, dnErr)
 		}
 	}
 

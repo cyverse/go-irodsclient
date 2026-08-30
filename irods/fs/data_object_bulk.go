@@ -489,7 +489,7 @@ func UploadDataObjectParallel(sess *session.IRODSSession, localPath string, irod
 
 	logger.Debugf("replicaToken %s, resourceHierarchy %s", replicaToken, resourceHierarchy)
 
-	errChan := make(chan error, numTasks)
+	errChan := make(chan error, 1)
 	taskWaitGroup := sync.WaitGroup{}
 
 	totalBytesUploaded := int64(0)
@@ -516,19 +516,19 @@ func UploadDataObjectParallel(sess *session.IRODSSession, localPath string, irod
 		// to not seek to end
 		taskHandle, _, taskErr := OpenDataObjectWithReplicaToken(transferConn, irodsPath, resource, "w", replicaToken, resourceHierarchy, numTasks, fileLength, keywords)
 		if taskErr != nil {
-			errChan <- taskErr
+			reportParallelTransferError(errChan, taskErr)
 			return
 		}
 		defer func() {
 			errClose := CloseDataObjectReplica(transferConn, taskHandle)
 			if errClose != nil {
-				errChan <- errClose
+				reportParallelTransferError(errChan, errClose)
 			}
 		}()
 
 		f, taskErr := os.OpenFile(localPath, os.O_RDONLY, 0)
 		if taskErr != nil {
-			errChan <- errors.Wrapf(taskErr, "failed to open file %q", localPath)
+			reportParallelTransferError(errChan, errors.Wrapf(taskErr, "failed to open file %q", localPath))
 			return
 		}
 		defer func() {
@@ -537,12 +537,12 @@ func UploadDataObjectParallel(sess *session.IRODSSession, localPath string, irod
 
 		taskNewOffset, taskErr := SeekDataObject(transferConn, taskHandle, taskOffset, types.SeekSet)
 		if taskErr != nil {
-			errChan <- taskErr
+			reportParallelTransferError(errChan, taskErr)
 			return
 		}
 
 		if taskNewOffset != taskOffset {
-			errChan <- errors.Errorf("failed to seek to target offset %d", taskOffset)
+			reportParallelTransferError(errChan, errors.Errorf("failed to seek to target offset %d", taskOffset))
 			return
 		}
 
@@ -583,7 +583,7 @@ func UploadDataObjectParallel(sess *session.IRODSSession, localPath string, irod
 		}
 
 		if taskWriteErr != nil {
-			errChan <- taskWriteErr
+			reportParallelTransferError(errChan, taskWriteErr)
 		}
 	}
 
@@ -698,7 +698,7 @@ func UploadDataObjectParallelWithConnections(conns []*connection.IRODSConnection
 
 	logger.Debugf("replicaToken %s, resourceHierarchy %s", replicaToken, resourceHierarchy)
 
-	errChan := make(chan error, numTasks)
+	errChan := make(chan error, 1)
 	taskWaitGroup := sync.WaitGroup{}
 
 	totalBytesUploaded := int64(0)
@@ -721,19 +721,19 @@ func UploadDataObjectParallelWithConnections(conns []*connection.IRODSConnection
 		// to not seek to end
 		taskHandle, _, taskErr := OpenDataObjectWithReplicaToken(transferConn, irodsPath, resource, "w", replicaToken, resourceHierarchy, numTasks, fileLength, keywords)
 		if taskErr != nil {
-			errChan <- taskErr
+			reportParallelTransferError(errChan, taskErr)
 			return
 		}
 		defer func() {
 			errClose := CloseDataObjectReplica(transferConn, taskHandle)
 			if errClose != nil {
-				errChan <- errClose
+				reportParallelTransferError(errChan, errClose)
 			}
 		}()
 
 		f, taskErr := os.OpenFile(localPath, os.O_RDONLY, 0)
 		if taskErr != nil {
-			errChan <- errors.Wrapf(taskErr, "failed to open file %q", localPath)
+			reportParallelTransferError(errChan, errors.Wrapf(taskErr, "failed to open file %q", localPath))
 			return
 		}
 		defer func() {
@@ -742,12 +742,12 @@ func UploadDataObjectParallelWithConnections(conns []*connection.IRODSConnection
 
 		taskNewOffset, taskErr := SeekDataObject(transferConn, taskHandle, taskOffset, types.SeekSet)
 		if taskErr != nil {
-			errChan <- taskErr
+			reportParallelTransferError(errChan, taskErr)
 			return
 		}
 
 		if taskNewOffset != taskOffset {
-			errChan <- errors.Errorf("failed to seek to target offset %d", taskOffset)
+			reportParallelTransferError(errChan, errors.Errorf("failed to seek to target offset %d", taskOffset))
 			return
 		}
 
@@ -788,7 +788,7 @@ func UploadDataObjectParallelWithConnections(conns []*connection.IRODSConnection
 		}
 
 		if taskWriteErr != nil {
-			errChan <- taskWriteErr
+			reportParallelTransferError(errChan, taskWriteErr)
 		}
 	}
 
@@ -1078,7 +1078,7 @@ func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IR
 		return errors.Wrapf(err, "failed to close file %q", localPath)
 	}
 
-	errChan := make(chan error, numTasks)
+	errChan := make(chan error, 1)
 	taskWaitGroup := sync.WaitGroup{}
 
 	currentBytesDownloaded := make([]int64, numTasks)
@@ -1108,7 +1108,7 @@ func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IR
 
 		f, openErr := os.OpenFile(localPath, os.O_WRONLY, 0)
 		if openErr != nil {
-			errChan <- errors.Wrapf(openErr, "failed to open file %q", localPath)
+			reportParallelTransferError(errChan, errors.Wrapf(openErr, "failed to open file %q", localPath))
 			return
 		}
 		defer func() {
@@ -1226,17 +1226,17 @@ func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IR
 
 				connErr := transferConn.Reconnect()
 				if connErr != nil {
-					errChan <- errors.Wrapf(connErr, "failed to reconnect")
+					reportParallelTransferError(errChan, errors.Wrapf(connErr, "failed to reconnect"))
 					return
 				}
 
 				if !transferConn.IsConnected() {
-					errChan <- errors.Errorf("connection is disconnected")
+					reportParallelTransferError(errChan, errors.Errorf("connection is disconnected"))
 					return
 				}
 			} else {
 				// other errors
-				errChan <- attemptErr
+				reportParallelTransferError(errChan, attemptErr)
 				return
 			}
 		}
@@ -1324,7 +1324,7 @@ func DownloadDataObjectParallelWithConnections(conns []*connection.IRODSConnecti
 		return errors.Wrapf(err, "failed to close file %q", localPath)
 	}
 
-	errChan := make(chan error, numTasks)
+	errChan := make(chan error, 1)
 	taskWaitGroup := sync.WaitGroup{}
 
 	currentBytesDownloaded := make([]int64, numTasks)
@@ -1350,7 +1350,7 @@ func DownloadDataObjectParallelWithConnections(conns []*connection.IRODSConnecti
 
 		f, openErr := os.OpenFile(localPath, os.O_WRONLY, 0)
 		if openErr != nil {
-			errChan <- errors.Wrapf(openErr, "failed to open file %q", localPath)
+			reportParallelTransferError(errChan, errors.Wrapf(openErr, "failed to open file %q", localPath))
 			return
 		}
 		defer func() {
@@ -1468,17 +1468,17 @@ func DownloadDataObjectParallelWithConnections(conns []*connection.IRODSConnecti
 
 				connErr := transferConn.Reconnect()
 				if connErr != nil {
-					errChan <- errors.Wrapf(connErr, "failed to reconnect")
+					reportParallelTransferError(errChan, errors.Wrapf(connErr, "failed to reconnect"))
 					return
 				}
 
 				if !transferConn.IsConnected() {
-					errChan <- errors.Errorf("connection is disconnected")
+					reportParallelTransferError(errChan, errors.Errorf("connection is disconnected"))
 					return
 				}
 			} else {
 				// other errors
-				errChan <- attemptErr
+				reportParallelTransferError(errChan, attemptErr)
 				return
 			}
 		}
@@ -1587,7 +1587,7 @@ func DownloadDataObjectParallelWithCallback(sess *session.IRODSSession, dataObje
 
 	callbackWg := sync.WaitGroup{}
 
-	errChan := make(chan error, numTasks)
+	errChan := make(chan error, 1)
 	taskWaitGroup := sync.WaitGroup{}
 
 	currentBytesDownloaded := make([]int64, numTasks)
@@ -1703,7 +1703,7 @@ func DownloadDataObjectParallelWithCallback(sess *session.IRODSSession, dataObje
 
 						if blockReadyCallback != nil {
 							if err := blockReadyCallback(data, blockOffset); err != nil {
-								errChan <- err
+								reportParallelTransferError(errChan, err)
 								return
 							}
 						}
@@ -1742,17 +1742,17 @@ func DownloadDataObjectParallelWithCallback(sess *session.IRODSSession, dataObje
 
 				connErr := transferConn.Reconnect()
 				if connErr != nil {
-					errChan <- errors.Wrapf(connErr, "failed to reconnect")
+					reportParallelTransferError(errChan, errors.Wrapf(connErr, "failed to reconnect"))
 					return
 				}
 
 				if !transferConn.IsConnected() {
-					errChan <- errors.Errorf("connection is disconnected")
+					reportParallelTransferError(errChan, errors.Errorf("connection is disconnected"))
 					return
 				}
 			} else {
 				// other errors
-				errChan <- attemptErr
+				reportParallelTransferError(errChan, attemptErr)
 				return
 			}
 		}
@@ -1832,7 +1832,7 @@ func DownloadDataObjectParallelWithCallbackWithConnections(conns []*connection.I
 
 	callbackWg := sync.WaitGroup{}
 
-	errChan := make(chan error, numTasks)
+	errChan := make(chan error, 1)
 	taskWaitGroup := sync.WaitGroup{}
 
 	currentBytesDownloaded := make([]int64, numTasks)
@@ -1944,7 +1944,7 @@ func DownloadDataObjectParallelWithCallbackWithConnections(conns []*connection.I
 
 						if blockReadyCallback != nil {
 							if err := blockReadyCallback(data, blockOffset); err != nil {
-								errChan <- err
+								reportParallelTransferError(errChan, err)
 								return
 							}
 						}
@@ -1983,17 +1983,17 @@ func DownloadDataObjectParallelWithCallbackWithConnections(conns []*connection.I
 
 				connErr := transferConn.Reconnect()
 				if connErr != nil {
-					errChan <- errors.Wrapf(connErr, "failed to reconnect")
+					reportParallelTransferError(errChan, errors.Wrapf(connErr, "failed to reconnect"))
 					return
 				}
 
 				if !transferConn.IsConnected() {
-					errChan <- errors.Errorf("connection is disconnected")
+					reportParallelTransferError(errChan, errors.Errorf("connection is disconnected"))
 					return
 				}
 			} else {
 				// other errors
-				errChan <- attemptErr
+				reportParallelTransferError(errChan, attemptErr)
 				return
 			}
 		}
@@ -2119,7 +2119,7 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 		return errors.Wrapf(err, "failed to close file %q", localPath)
 	}
 
-	errChan := make(chan error, numTasks)
+	errChan := make(chan error, 1)
 	taskWaitGroup := sync.WaitGroup{}
 
 	currentBytesDownloaded := make([]int64, numTasks)
@@ -2149,7 +2149,7 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 
 		f, openErr := os.OpenFile(localPath, os.O_WRONLY, 0)
 		if openErr != nil {
-			errChan <- errors.Wrapf(openErr, "failed to open file %q", localPath)
+			reportParallelTransferError(errChan, errors.Wrapf(openErr, "failed to open file %q", localPath))
 			return
 		}
 		defer func() {
@@ -2287,17 +2287,17 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 
 				connErr := transferConn.Reconnect()
 				if connErr != nil {
-					errChan <- errors.Wrapf(connErr, "failed to reconnect")
+					reportParallelTransferError(errChan, errors.Wrapf(connErr, "failed to reconnect"))
 					return
 				}
 
 				if !transferConn.IsConnected() {
-					errChan <- errors.Errorf("connection is disconnected")
+					reportParallelTransferError(errChan, errors.Errorf("connection is disconnected"))
 					return
 				}
 			} else {
 				// other errors
-				errChan <- attemptErr
+				reportParallelTransferError(errChan, attemptErr)
 				return
 			}
 		}
@@ -2414,7 +2414,7 @@ func DownloadDataObjectParallelResumableWithConnections(conns []*connection.IROD
 		return errors.Wrapf(err, "failed to close file %q", localPath)
 	}
 
-	errChan := make(chan error, numTasks)
+	errChan := make(chan error, 1)
 	taskWaitGroup := sync.WaitGroup{}
 
 	currentBytesDownloaded := make([]int64, numTasks)
@@ -2440,7 +2440,7 @@ func DownloadDataObjectParallelResumableWithConnections(conns []*connection.IROD
 
 		f, openErr := os.OpenFile(localPath, os.O_WRONLY, 0)
 		if openErr != nil {
-			errChan <- errors.Wrapf(openErr, "failed to open file %q", localPath)
+			reportParallelTransferError(errChan, errors.Wrapf(openErr, "failed to open file %q", localPath))
 			return
 		}
 		defer func() {
@@ -2578,17 +2578,17 @@ func DownloadDataObjectParallelResumableWithConnections(conns []*connection.IROD
 
 				connErr := transferConn.Reconnect()
 				if connErr != nil {
-					errChan <- errors.Wrapf(connErr, "failed to reconnect")
+					reportParallelTransferError(errChan, errors.Wrapf(connErr, "failed to reconnect"))
 					return
 				}
 
 				if !transferConn.IsConnected() {
-					errChan <- errors.Errorf("connection is disconnected")
+					reportParallelTransferError(errChan, errors.Errorf("connection is disconnected"))
 					return
 				}
 			} else {
 				// other errors
-				errChan <- attemptErr
+				reportParallelTransferError(errChan, attemptErr)
 				return
 			}
 		}
