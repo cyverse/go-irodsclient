@@ -664,22 +664,27 @@ func (sess *IRODSSession) Release() {
 // SupportParallelUpload returns if parallel upload is supported
 func (sess *IRODSSession) SupportParallelUpload() bool {
 	sess.mutex.Lock()
-	defer sess.mutex.Unlock()
 
 	// return last error
 	pendingErr := sess.getPendingError()
 	if pendingErr != nil {
+		sess.mutex.Unlock()
 		return false
 	}
 
 	if !sess.supportParallelUploadSet {
+		// Do not hold the session mutex while waiting for the pool. Returning a
+		// connection needs the same mutex and is what wakes this wait.
+		sess.mutex.Unlock()
 		conn, _, err := sess.connectionPool.Get(false, false, true)
+		sess.mutex.Lock()
 		if err != nil {
 			if !types.IsConnectionPoolFullError(err) {
 				sess.lastConnectionError = err
 				sess.lastConnectionErrorTime = time.Now()
 			}
 
+			sess.mutex.Unlock()
 			return false
 		}
 
@@ -695,7 +700,9 @@ func (sess *IRODSSession) SupportParallelUpload() bool {
 		sess.supportParallelUploadSet = true
 	}
 
-	return sess.supportParallelUpload
+	supportParallelUpload := sess.supportParallelUpload
+	sess.mutex.Unlock()
+	return supportParallelUpload
 }
 
 // GetOpenConnections returns the number of connections open in the pool
