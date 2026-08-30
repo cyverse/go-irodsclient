@@ -89,20 +89,22 @@ func (handle *FileHandle) GetEntry() *Entry {
 func (handle *FileHandle) Close() error {
 	handle.mutex.Lock()
 	defer handle.mutex.Unlock()
-
-	if handle.irodsFileLockHandle != nil {
-		// unlock if locked
-		err := irods_fs.UnlockDataObject(handle.connection, handle.irodsFileLockHandle)
-		if err != nil {
-			return err
-		}
-
-		handle.irodsFileLockHandle = nil
-	}
-
 	defer handle.filesystem.ioSession.ReturnConnection(handle.connection) //nolint
 
-	err := irods_fs.CloseDataObject(handle.connection, handle.irodsFileHandle)
+	var unlockOperation func() error
+	if handle.irodsFileLockHandle != nil {
+		unlockOperation = func() error {
+			err := irods_fs.UnlockDataObject(handle.connection, handle.irodsFileLockHandle)
+			if err == nil {
+				handle.irodsFileLockHandle = nil
+			}
+			return err
+		}
+	}
+
+	err := executeFileHandleCloseOperations(unlockOperation, func() error {
+		return irods_fs.CloseDataObject(handle.connection, handle.irodsFileHandle)
+	})
 	handle.filesystem.fileHandleMap.Remove(handle.id)
 
 	if handle.IsWriteMode() {
@@ -110,6 +112,16 @@ func (handle *FileHandle) Close() error {
 	}
 
 	return err
+}
+
+func executeFileHandleCloseOperations(unlockOperation func() error, closeOperation func() error) error {
+	var unlockErr error
+	if unlockOperation != nil {
+		unlockErr = unlockOperation()
+	}
+
+	closeErr := closeOperation()
+	return errors.Join(unlockErr, closeErr)
 }
 
 // Seek moves file pointer
