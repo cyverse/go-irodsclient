@@ -278,9 +278,6 @@ func (pool *ConnectionPool) RemoveUsageCallback(id string) {
 }
 
 func (pool *ConnectionPool) init() error {
-	pool.mutex.Lock()
-	defer pool.mutex.Unlock()
-
 	pool.callCallbacks()
 
 	// create connections
