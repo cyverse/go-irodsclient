@@ -646,6 +646,9 @@ func (sess *IRODSSession) ReturnConnection(conn *connection.IRODSConnection) err
 
 // ReturnConnectionsMulti returns multiple idle connections with transaction close
 func (sess *IRODSSession) ReturnConnectionsMulti(conns []*connection.IRODSConnection) error {
+	sess.mutex.Lock()
+	defer sess.mutex.Unlock()
+
 	var firstErr error
 	for _, conn := range conns {
 		err := sess.returnConnection(conn)

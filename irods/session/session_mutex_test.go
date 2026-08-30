@@ -153,3 +153,30 @@ func TestAcquireConnectionsMultiReleasesMutexWhileConnecting(t *testing.T) {
 		t.Fatalf("failed connections remain registered in session: %d", len(sess.sharedConnections))
 	}
 }
+
+func TestReturnConnectionsMultiUsesSessionMutex(t *testing.T) {
+	sess := &IRODSSession{
+		sharedConnections: map[*connection.IRODSConnection]int{},
+	}
+
+	sess.mutex.Lock()
+	returnDone := make(chan struct{})
+	go func() {
+		defer close(returnDone)
+		_ = sess.ReturnConnectionsMulti(nil)
+	}()
+
+	select {
+	case <-returnDone:
+		sess.mutex.Unlock()
+		t.Fatal("ReturnConnectionsMulti modified session state without acquiring the session mutex")
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	sess.mutex.Unlock()
+	select {
+	case <-returnDone:
+	case <-time.After(5 * time.Second):
+		t.Fatal("ReturnConnectionsMulti did not finish after the session mutex was released")
+	}
+}
