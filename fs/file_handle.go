@@ -21,6 +21,8 @@ type FileHandle struct {
 	entry               *Entry
 	offset              int64
 	openMode            types.FileOpenMode
+	closed              bool
+	closeErr            error
 	mutex               sync.Mutex
 }
 
@@ -89,29 +91,43 @@ func (handle *FileHandle) GetEntry() *Entry {
 func (handle *FileHandle) Close() error {
 	handle.mutex.Lock()
 	defer handle.mutex.Unlock()
-	defer handle.filesystem.ioSession.ReturnConnection(handle.connection) //nolint
 
-	var unlockOperation func() error
-	if handle.irodsFileLockHandle != nil {
-		unlockOperation = func() error {
-			err := irods_fs.UnlockDataObject(handle.connection, handle.irodsFileLockHandle)
-			if err == nil {
-				handle.irodsFileLockHandle = nil
+	return handle.closeOnce(func() error {
+		defer handle.filesystem.ioSession.ReturnConnection(handle.connection) //nolint
+
+		var unlockOperation func() error
+		if handle.irodsFileLockHandle != nil {
+			unlockOperation = func() error {
+				err := irods_fs.UnlockDataObject(handle.connection, handle.irodsFileLockHandle)
+				if err == nil {
+					handle.irodsFileLockHandle = nil
+				}
+				return err
 			}
-			return err
 		}
-	}
 
-	err := executeFileHandleCloseOperations(unlockOperation, func() error {
-		return irods_fs.CloseDataObject(handle.connection, handle.irodsFileHandle)
+		err := executeFileHandleCloseOperations(unlockOperation, func() error {
+			return irods_fs.CloseDataObject(handle.connection, handle.irodsFileHandle)
+		})
+		handle.filesystem.fileHandleMap.Remove(handle.id)
+
+		if handle.IsWriteMode() {
+			handle.filesystem.InvalidateCacheForFileUpdate(handle.entry.Path)
+		}
+
+		return err
 	})
-	handle.filesystem.fileHandleMap.Remove(handle.id)
+}
 
-	if handle.IsWriteMode() {
-		handle.filesystem.InvalidateCacheForFileUpdate(handle.entry.Path)
+// closeOnce runs operation at most once. The caller must hold handle.mutex.
+func (handle *FileHandle) closeOnce(operation func() error) error {
+	if handle.closed {
+		return handle.closeErr
 	}
 
-	return err
+	handle.closeErr = operation()
+	handle.closed = true
+	return handle.closeErr
 }
 
 func executeFileHandleCloseOperations(unlockOperation func() error, closeOperation func() error) error {
@@ -357,6 +373,12 @@ func (handle *FileHandle) postprocessRename(newPath string, newEntry *Entry) err
 	if err != nil {
 		return err
 	}
+	ownershipTransferred := false
+	defer func() {
+		closeFileHandleOnRenameFailure(ownershipTransferred, func() {
+			_ = irods_fs.CloseDataObject(handle.connection, newHandle)
+		})
+	}()
 
 	// seek
 	if offset != handle.offset {
@@ -373,7 +395,14 @@ func (handle *FileHandle) postprocessRename(newPath string, newEntry *Entry) err
 	handle.irodsFileHandle = newHandle
 	handle.entry = newEntry
 	handle.openMode = newOpenMode
+	ownershipTransferred = true
 	return nil
+}
+
+func closeFileHandleOnRenameFailure(ownershipTransferred bool, closeOperation func()) {
+	if !ownershipTransferred {
+		closeOperation()
+	}
 }
 
 // ToString stringifies the object

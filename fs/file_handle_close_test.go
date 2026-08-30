@@ -2,6 +2,8 @@ package fs
 
 import (
 	"errors"
+	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -41,5 +43,42 @@ func TestExecuteFileHandleCloseOperationsWithoutLock(t *testing.T) {
 	}
 	if !closeCalled {
 		t.Fatal("close operation was not called")
+	}
+}
+
+func TestFileHandleCloseOnceIsIdempotent(t *testing.T) {
+	handle := &FileHandle{}
+	wantErr := errors.New("close failed")
+	var calls atomic.Int32
+
+	closeHandle := func() error {
+		handle.mutex.Lock()
+		defer handle.mutex.Unlock()
+		return handle.closeOnce(func() error {
+			calls.Add(1)
+			return wantErr
+		})
+	}
+
+	const callers = 100
+	var wait sync.WaitGroup
+	results := make(chan error, callers)
+	for i := 0; i < callers; i++ {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			results <- closeHandle()
+		}()
+	}
+	wait.Wait()
+	close(results)
+
+	if calls.Load() != 1 {
+		t.Fatalf("close operation ran %d times, want 1", calls.Load())
+	}
+	for err := range results {
+		if !errors.Is(err, wantErr) {
+			t.Fatalf("duplicate close returned %v, want %v", err, wantErr)
+		}
 	}
 }
