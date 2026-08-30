@@ -106,9 +106,14 @@ func (handlerMap *FilesystemCacheEventHandlerMap) GetEventHandlerIDs() []string 
 // SendEvent sends event
 func (handlerMap *FilesystemCacheEventHandlerMap) SendEvent(path string, eventType FilesystemCacheEventType) {
 	handlerMap.mutex.RLock()
-	defer handlerMap.mutex.RUnlock()
-
+	handlers := make([]FilesystemCacheEventHandler, 0, len(handlerMap.handlers))
 	for _, handler := range handlerMap.handlers {
+		handlers = append(handlers, handler)
+	}
+	handlerMap.mutex.RUnlock()
+
+	// Handlers may add, remove, or release handlers, all of which need the write lock.
+	for _, handler := range handlers {
 		handler(path, eventType)
 	}
 }
