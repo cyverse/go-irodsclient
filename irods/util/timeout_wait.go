@@ -16,9 +16,9 @@ type TimeoutWaitGroup struct {
 }
 
 func NewTimeoutWaitGroup() *TimeoutWaitGroup {
-	return &TimeoutWaitGroup{
-		done: make(chan struct{}),
-	}
+	done := make(chan struct{})
+	close(done)
+	return &TimeoutWaitGroup{done: done, signaled: true}
 }
 
 // Add adds delta, which may be negative, to the WaitGroup counter.
@@ -29,6 +29,10 @@ func (twg *TimeoutWaitGroup) Add(delta int) {
 
 	if twg.counter+delta < 0 {
 		panic("sync: negative WaitGroup counter")
+	}
+	if twg.counter == 0 && delta > 0 && twg.signaled {
+		twg.done = make(chan struct{})
+		twg.signaled = false
 	}
 
 	twg.counter += delta
@@ -60,10 +64,17 @@ func (twg *TimeoutWaitGroup) Wait() {
 // WaitFor waits for the group to complete, or for the timeout duration to elapse.
 // Returns true if all tasks completed, false if timeout occurred.
 func (twg *TimeoutWaitGroup) WaitFor(timeout time.Duration) bool {
+	twg.mu.Lock()
+	done := twg.done
+	twg.mu.Unlock()
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
 	select {
-	case <-twg.done:
+	case <-done:
 		return true
-	case <-time.After(timeout):
+	case <-timer.C:
 		return false
 	}
 }
