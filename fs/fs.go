@@ -33,7 +33,10 @@ type FileSystem struct {
 
 // NewFileSystem creates a new FileSystem
 func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*FileSystem, error) {
-	// config can be nil
+	if config == nil {
+		config = NewFileSystemConfig(FileSystemApplicationNameDefault)
+	}
+
 	fsID := xid.New().String()
 
 	// set logger
@@ -53,12 +56,12 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*File
 		logFields["fs_proxy_user"] = account.ProxyUser
 	}
 
-	if config != nil && config.LogEntry != nil {
+	if config.LogEntry != nil {
 		myLogger = config.LogEntry.WithFields(logFields)
 	} else {
 		// create new logger object
 		var logger *log.Logger
-		if config != nil && config.Logger != nil {
+		if config.Logger != nil {
 			logger = config.Logger
 		} else {
 			logger = log.StandardLogger()
@@ -67,19 +70,10 @@ func NewFileSystem(account *types.IRODSAccount, config *FileSystemConfig) (*File
 		myLogger = logger.WithFields(logFields)
 	}
 
-	var ioSessionConfig *session.IRODSSessionConfig
-	if config != nil {
-		ioSessionConfig = config.ToIOSessionConfig()
-	}
-
+	ioSessionConfig := config.ToIOSessionConfig()
 	ioSessionConfig.LogEntry = myLogger
 
-	// config can be nil
-	var metadataSessionConfig *session.IRODSSessionConfig
-	if config != nil {
-		metadataSessionConfig = config.ToMetadataSessionConfig()
-	}
-
+	metadataSessionConfig := config.ToMetadataSessionConfig()
 	metadataSessionConfig.LogEntry = myLogger
 
 	type sessionResult struct {
