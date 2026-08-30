@@ -570,7 +570,7 @@ func (fs *FileSystem) DownloadFileParallel(irodsPath string, resource string, lo
 			return fileTransferResult, errors.Wrapf(err, "failed to get hash of %q", localFilePath)
 		}
 
-		fileTransferResult.IRODSCheckSumAlgorithm = entry.CheckSumAlgorithm
+		fileTransferResult.LocalCheckSumAlgorithm = entry.CheckSumAlgorithm
 		fileTransferResult.LocalCheckSum = hash
 
 		if !bytes.Equal(entry.CheckSum, hash) {
@@ -656,7 +656,7 @@ func (fs *FileSystem) DownloadFileParallelWithConnections(conns []*connection.IR
 			return fileTransferResult, errors.Wrapf(err, "failed to get hash of %q", localFilePath)
 		}
 
-		fileTransferResult.IRODSCheckSumAlgorithm = entry.CheckSumAlgorithm
+		fileTransferResult.LocalCheckSumAlgorithm = entry.CheckSumAlgorithm
 		fileTransferResult.LocalCheckSum = hash
 
 		if !bytes.Equal(entry.CheckSum, hash) {
