@@ -2,6 +2,7 @@ package session
 
 import (
 	"container/list"
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -98,5 +99,57 @@ func TestSupportParallelUploadReleasesMutexWhileWaitingForConnection(t *testing.
 	case <-done:
 	case <-time.After(5 * time.Second):
 		t.Fatal("SupportParallelUpload did not stop after the pool was terminated")
+	}
+}
+
+func TestAcquireConnectionsMultiReleasesMutexWhileConnecting(t *testing.T) {
+	account, err := types.CreateIRODSAccount("localhost", 1247, "user", "zone", types.AuthSchemeNative, "password", "")
+	if err != nil {
+		t.Fatalf("failed to create test account: %v", err)
+	}
+	pool, err := NewConnectionPool(account, &ConnectionPoolConfig{InitialCap: 0, MaxCap: 2})
+	if err != nil {
+		t.Fatalf("failed to create test pool: %v", err)
+	}
+	defer pool.Release()
+
+	connectStarted := make(chan struct{}, 2)
+	allowConnect := make(chan struct{})
+	sess := &IRODSSession{
+		config:            &IRODSSessionConfig{},
+		connectionPool:    pool,
+		sharedConnections: map[*connection.IRODSConnection]int{},
+		logger:            log.New().WithField("test", t.Name()),
+		connectionConnector: func(*connection.IRODSConnection) error {
+			connectStarted <- struct{}{}
+			<-allowConnect
+			return errors.New("synthetic connection failure")
+		},
+	}
+
+	acquireDone := make(chan struct{})
+	go func() {
+		defer close(acquireDone)
+		_, _ = sess.AcquireConnectionsMulti(2, false)
+	}()
+	<-connectStarted
+	<-connectStarted
+
+	if !acquireOrTimeout(t, func() {
+		sess.mutex.Lock()
+		sess.mutex.Unlock()
+	}) {
+		t.Fatal("AcquireConnectionsMulti held the session mutex during Connect")
+	}
+
+	close(allowConnect)
+	select {
+	case <-acquireDone:
+	case <-time.After(5 * time.Second):
+		t.Fatal("AcquireConnectionsMulti did not finish after connection attempts completed")
+	}
+
+	if len(sess.sharedConnections) != 0 {
+		t.Fatalf("failed connections remain registered in session: %d", len(sess.sharedConnections))
 	}
 }

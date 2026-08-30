@@ -37,6 +37,8 @@ type IRODSSession struct {
 
 	metrics metrics.IRODSMetrics
 	mutex   sync.Mutex
+
+	connectionConnector func(*connection.IRODSConnection) error
 }
 
 // NewIRODSSession create a IRODSSession
@@ -85,7 +87,8 @@ func NewIRODSSession(account *types.IRODSAccount, config *IRODSSessionConfig) (*
 
 		metrics: metrics.IRODSMetrics{},
 
-		mutex: sync.Mutex{},
+		mutex:               sync.Mutex{},
+		connectionConnector: func(conn *connection.IRODSConnection) error { return conn.Connect() },
 	}
 
 	// set logger
@@ -476,11 +479,11 @@ func (sess *IRODSSession) AcquireNewConnection(allowShared bool) (*connection.IR
 // AcquireConnectionsMulti acquires multiple idle connections
 func (sess *IRODSSession) AcquireConnectionsMulti(number int, allowShared bool) ([]*connection.IRODSConnection, error) {
 	sess.mutex.Lock()
-	defer sess.mutex.Unlock()
 
 	// return last error
 	pendingErr := sess.getPendingError()
 	if pendingErr != nil {
+		sess.mutex.Unlock()
 		return nil, errors.Wrapf(pendingErr, "failed to get a connection from the pool because pending error is found")
 	}
 
@@ -504,51 +507,84 @@ func (sess *IRODSSession) AcquireConnectionsMulti(number int, allowShared bool) 
 				break
 			}
 
+			sess.mutex.Unlock()
 			return connections, err
 		}
 
 		connections = append(connections, conn)
 	}
 
-	newConnections := []*connection.IRODSConnection{}
-	var connError error
+	connector := sess.connectionConnector
+	if connector == nil {
+		connector = func(conn *connection.IRODSConnection) error { return conn.Connect() }
+	}
+	sess.mutex.Unlock()
+
+	// Connect outside the session lock. Each goroutine writes only its own result slot, and the
+	// caller merges results after Wait, avoiding concurrent append/error writes.
+	connectErrors := make([]error, len(connections))
 	wait := sync.WaitGroup{}
-	for _, conn := range connections {
+	for i, conn := range connections {
 		if !conn.IsConnected() {
-			// new connection that needs to connect
 			wait.Add(1)
 
-			go func() {
+			go func(index int, connectionToConnect *connection.IRODSConnection) {
 				defer wait.Done()
 
-				err := conn.Connect()
+				err := connector(connectionToConnect)
 				if err != nil {
-					connError = errors.Wrapf(err, "failed to connect to iRODS server")
-
-					// discard
-					sess.connectionPool.Discard(conn)
-					return
+					connectErrors[index] = errors.Wrapf(err, "failed to connect to iRODS server")
 				}
+			}(i, conn)
+		}
+	}
 
-				newConnections = append(newConnections, conn)
-			}()
+	wait.Wait()
+
+	newConnections := make([]*connection.IRODSConnection, 0, len(connections))
+	failedConnections := make([]*connection.IRODSConnection, 0)
+	connectionErrors := make([]error, 0)
+	for i, conn := range connections {
+		if connectErrors[i] != nil {
+			failedConnections = append(failedConnections, conn)
+			connectionErrors = append(connectionErrors, connectErrors[i])
 		} else {
 			newConnections = append(newConnections, conn)
 		}
 	}
 
-	wait.Wait()
+	// Failed reservations must be removed from the session registry before being discarded.
+	if len(failedConnections) > 0 {
+		sess.mutex.Lock()
+		for _, conn := range failedConnections {
+			if shares, ok := sess.sharedConnections[conn]; ok {
+				if shares <= 1 {
+					delete(sess.sharedConnections, conn)
+				} else {
+					sess.sharedConnections[conn] = shares - 1
+				}
+			}
+		}
+		sess.mutex.Unlock()
+
+		for _, conn := range failedConnections {
+			sess.connectionPool.Discard(conn)
+		}
+	}
 
 	var fullErr error
 	if poolFull {
 		fullErr = types.NewConnectionPoolFullError(number, maxConns)
 	}
 
-	if connError != nil {
-		return newConnections, errors.Join(connError, fullErr)
+	if fullErr != nil {
+		connectionErrors = append(connectionErrors, fullErr)
+	}
+	if len(connectionErrors) > 0 {
+		return newConnections, errors.Join(connectionErrors...)
 	}
 
-	return newConnections, fullErr
+	return newConnections, nil
 }
 
 func (sess *IRODSSession) returnConnection(conn *connection.IRODSConnection) error {
