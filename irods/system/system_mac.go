@@ -11,8 +11,11 @@ func getNetworkConfig() (*NetConfig, error) {
 		return nil, err
 	}
 
+	// macOS caps every socket buffer with this one value, and tunes the buffers below it
 	return &NetConfig{
 		CoreWmemMax: int(val),
-		TcpWmemMax:  int(val), // macOS treats this value as the TCP max limit
+		CoreRmemMax: int(val),
+		TcpWmemMax:  int(val),
+		TcpRmemMax:  int(val),
 	}, nil
 }

@@ -23,7 +23,13 @@ type IRODSConnectionConfig struct {
 	OperationTimeout     time.Duration
 	LongOperationTimeout time.Duration
 	ApplicationName      string
-	TcpBufferSize        int
+	// TcpBufferSize asks for this socket buffer size in both directions. Leave it at zero to
+	// let the kernel size the buffers, which it does better than a fixed value in most cases.
+	TcpBufferSize int
+	// TcpSendBufferSize and TcpRecvBufferSize override TcpBufferSize for one direction.
+	// A zero size falls back to TcpBufferSize.
+	TcpSendBufferSize int
+	TcpRecvBufferSize int
 
 	Metrics  *metrics.IRODSMetrics // can be null
 	Logger   *log.Logger           // can be nil
@@ -32,7 +38,13 @@ type IRODSConnectionConfig struct {
 
 type IRODSResourceServerConnectionConfig struct {
 	ConnectTimeout time.Duration
-	TcpBufferSize  int
+	// TcpBufferSize asks for this socket buffer size in both directions. Leave it at zero to
+	// let the kernel size the buffers.
+	TcpBufferSize int
+	// TcpSendBufferSize and TcpRecvBufferSize override TcpBufferSize for one direction.
+	// A zero size falls back to TcpBufferSize.
+	TcpSendBufferSize int
+	TcpRecvBufferSize int
 
 	Metrics *metrics.IRODSMetrics // can be null
 }
@@ -56,6 +68,14 @@ func (connConfig *IRODSConnectionConfig) fillDefaults() {
 
 	if connConfig.TcpBufferSize < 0 {
 		connConfig.TcpBufferSize = 0
+	}
+
+	if connConfig.TcpSendBufferSize <= 0 {
+		connConfig.TcpSendBufferSize = connConfig.TcpBufferSize
+	}
+
+	if connConfig.TcpRecvBufferSize <= 0 {
+		connConfig.TcpRecvBufferSize = connConfig.TcpBufferSize
 	}
 }
 
@@ -95,6 +115,14 @@ func (connConfig *IRODSResourceServerConnectionConfig) fillDefaults() {
 
 	if connConfig.TcpBufferSize <= 0 {
 		connConfig.TcpBufferSize = TcpBufferSizeDefault
+	}
+
+	if connConfig.TcpSendBufferSize <= 0 {
+		connConfig.TcpSendBufferSize = connConfig.TcpBufferSize
+	}
+
+	if connConfig.TcpRecvBufferSize <= 0 {
+		connConfig.TcpRecvBufferSize = connConfig.TcpBufferSize
 	}
 }
 

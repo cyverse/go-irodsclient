@@ -3,8 +3,6 @@
 package system
 
 func getNetworkConfig() (*NetConfig, error) {
-	return &NetConfig{
-		CoreWmemMax: 0, // default values
-		TcpWmemMax:  0, // default values
-	}, nil
+	// unknown platform, leave every socket buffer to the operating system
+	return &NetConfig{}, nil
 }

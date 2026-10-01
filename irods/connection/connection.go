@@ -251,9 +251,10 @@ func (conn *IRODSConnection) IsTransactionDirty() bool {
 }
 
 // setSocketOpt sets socket opts
-func (conn *IRODSConnection) setSocketOpt(socket net.Conn, bufferSize int) {
+func (conn *IRODSConnection) setSocketOpt(socket net.Conn, sendBufferSize int, recvBufferSize int) {
 	logger := conn.logger.WithFields(log.Fields{
-		"buffer_size": bufferSize,
+		"send_buffer_size": sendBufferSize,
+		"recv_buffer_size": recvBufferSize,
 	})
 
 	if tcpSocket, ok := socket.(*net.TCPConn); ok {
@@ -278,19 +279,25 @@ func (conn *IRODSConnection) setSocketOpt(socket net.Conn, bufferSize int) {
 			logger.Errorf("failed to set linger: %+v", err)
 		}
 
-		// TCP buffer size
-		if bufferSize > 0 {
-			logger.Infof("setting tcp buffer size to %d", bufferSize)
+		// TCP buffer size.
+		// setting one of these turns off the kernel's buffer tuning for that direction, so a
+		// zero size means the direction is deliberately left alone
+		if recvBufferSize > 0 {
+			logger.Infof("setting tcp receive buffer size to %d", recvBufferSize)
 
-			sockErr := tcpSocket.SetReadBuffer(bufferSize)
+			sockErr := tcpSocket.SetReadBuffer(recvBufferSize)
 			if sockErr != nil {
-				sockBuffErr := errors.Wrapf(sockErr, "failed to set tcp read buffer size %d", bufferSize)
+				sockBuffErr := errors.Wrapf(sockErr, "failed to set tcp read buffer size %d", recvBufferSize)
 				logger.Errorf("%+v", sockBuffErr)
 			}
+		}
 
-			sockErr = tcpSocket.SetWriteBuffer(bufferSize)
+		if sendBufferSize > 0 {
+			logger.Infof("setting tcp send buffer size to %d", sendBufferSize)
+
+			sockErr := tcpSocket.SetWriteBuffer(sendBufferSize)
 			if sockErr != nil {
-				sockBuffErr := errors.Wrapf(sockErr, "failed to set tcp write buffer size %d", bufferSize)
+				sockBuffErr := errors.Wrapf(sockErr, "failed to set tcp write buffer size %d", sendBufferSize)
 				logger.Errorf("%+v", sockBuffErr)
 			}
 		}
@@ -317,7 +324,7 @@ func (conn *IRODSConnection) connectTCP() error {
 		return connErr
 	}
 
-	conn.setSocketOpt(socket, conn.config.TcpBufferSize)
+	conn.setSocketOpt(socket, conn.config.TcpSendBufferSize, conn.config.TcpRecvBufferSize)
 
 	if conn.config.Metrics != nil {
 		conn.config.Metrics.IncreaseConnectionsOpened(1)

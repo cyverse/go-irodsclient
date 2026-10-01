@@ -46,6 +46,10 @@ type ConnectionPoolConfig struct {
 	OperationTimeout     time.Duration // timeout for iRODS operations
 	LongOperationTimeout time.Duration // timeout for long iRODS operations
 	TcpBufferSize        int
+	// TcpSendBufferSize and TcpRecvBufferSize override TcpBufferSize for one direction.
+	// The pool fills them from the system's limits when TcpBufferSize is not set.
+	TcpSendBufferSize int
+	TcpRecvBufferSize int
 
 	Metrics  *metrics.IRODSMetrics // can be null
 	Logger   *log.Logger           // can be nil
@@ -176,6 +180,8 @@ func (poolConfig *ConnectionPoolConfig) ToConnectionConfig() *connection.IRODSCo
 		OperationTimeout:     poolConfig.OperationTimeout,
 		LongOperationTimeout: poolConfig.LongOperationTimeout,
 		TcpBufferSize:        poolConfig.TcpBufferSize,
+		TcpSendBufferSize:    poolConfig.TcpSendBufferSize,
+		TcpRecvBufferSize:    poolConfig.TcpRecvBufferSize,
 		Metrics:              poolConfig.Metrics,
 
 		Logger:   poolConfig.Logger,

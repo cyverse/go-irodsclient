@@ -797,10 +797,16 @@ func (sess *IRODSSession) GetRedirectionConnection(controlConnection *connection
 		resourceServerInfo.Host = sess.config.AddressResolver(resourceServerInfo.Host)
 	}
 
+	// the pool resolved these against the system's limits, and these sockets carry the bulk
+	// of the data, so they get the same sizes as the pool's connections
+	sendBufferSize, recvBufferSize := sess.connectionPool.GetTcpBufferSizes()
+
 	connConfig := &connection.IRODSResourceServerConnectionConfig{
-		ConnectTimeout: sess.config.ConnectionCreationTimeout,
-		TcpBufferSize:  sess.config.TcpBufferSize,
-		Metrics:        &sess.metrics,
+		ConnectTimeout:    sess.config.ConnectionCreationTimeout,
+		TcpBufferSize:     sess.config.TcpBufferSize,
+		TcpSendBufferSize: sendBufferSize,
+		TcpRecvBufferSize: recvBufferSize,
+		Metrics:           &sess.metrics,
 	}
 
 	return connection.NewIRODSResourceServerConnection(controlConnection, &resourceServerInfo, connConfig)

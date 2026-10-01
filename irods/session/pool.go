@@ -105,16 +105,16 @@ func NewConnectionPool(account *types.IRODSAccount, config *ConnectionPoolConfig
 		pool.logger = logger.WithFields(logFields)
 	}
 
-	// get default tcp buffer size
+	// the kernel sizes socket buffers on its own, so only ask for a size in the directions
+	// where it cannot reach the size a transfer wants. a zero size leaves the socket alone.
 	if config.TcpBufferSize <= 0 {
-		suggestedBufferSize, setBuffer, err := system.GetTCPBufferSize()
+		sendBufferSize, recvBufferSize, err := system.GetTCPBufferSizes()
 		if err != nil {
-			pool.logger.WithError(err).Infof("failed to get system suggested buffer size. Use default.")
-			// use default buffer size
+			pool.logger.WithError(err).Infof("failed to get system suggested buffer sizes. Use default.")
+			// leave the socket buffers to the kernel
 		} else {
-			if setBuffer && suggestedBufferSize > 0 {
-				config.TcpBufferSize = suggestedBufferSize
-			}
+			config.TcpSendBufferSize = sendBufferSize
+			config.TcpRecvBufferSize = recvBufferSize
 		}
 	}
 
@@ -526,6 +526,12 @@ func (pool *ConnectionPool) Discard(conn *connection.IRODSConnection) {
 	if shouldDisconnect {
 		_ = conn.Disconnect()
 	}
+}
+
+// GetTcpBufferSizes returns the socket buffer sizes the pool resolved for new connections.
+// A zero size means that direction is left to the kernel.
+func (pool *ConnectionPool) GetTcpBufferSizes() (int, int) {
+	return pool.config.TcpSendBufferSize, pool.config.TcpRecvBufferSize
 }
 
 // GetOpenConnections returns total number of connections
