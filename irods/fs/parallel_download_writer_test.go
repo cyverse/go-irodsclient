@@ -2,7 +2,6 @@ package fs
 
 import (
 	"bytes"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"sync"
@@ -23,7 +22,9 @@ func TestParallelDownloadWriterOrderAndContent(t *testing.T) {
 	const numBlocks = 256
 
 	expected := make([]byte, blockSize*numBlocks)
-	rand.Read(expected)
+	for i := range expected {
+		expected[i] = byte(i * 7)
+	}
 
 	var mutex sync.Mutex
 	written := []int64{}

@@ -230,27 +230,33 @@ func UploadDataObject(sess *session.IRODSSession, localPath string, irodsPath st
 	}
 
 	// copy
-	buffer := make([]byte, common.ReadWriteBufferSize)
+	// read blocks from the local file in background, so that reading the next block from disk
+	// overlaps with sending the current one to the server
+	blockReader := newParallelUploadReader(f, localPath, 0, -1, parallelUploadReadBufferDepth, common.ReadWriteBufferSize)
+	defer func() {
+		_ = blockReader.Close()
+	}()
+
 	var writeErr error
 	for {
-		bytesRead, readErr := f.Read(buffer)
-		if bytesRead > 0 {
-			writeErr = WriteDataObjectWithTrackerCallBack(conn, handle, buffer[:bytesRead], blockWriteCallback)
-			if writeErr != nil {
-				break
-			}
-
-			totalBytesUploaded += int64(bytesRead)
-		}
-
+		block, readErr := blockReader.Next()
 		if readErr != nil {
-			if readErr == io.EOF {
-				break
-			} else {
-				writeErr = errors.Wrapf(readErr, "failed to read file %q", localPath)
-				break
-			}
+			writeErr = readErr
+			break
 		}
+
+		if block == nil {
+			// read the whole file
+			break
+		}
+
+		writeErr = WriteDataObjectWithTrackerCallBack(conn, handle, block.buffer[:block.length], blockWriteCallback)
+		blockReader.Release(block)
+		if writeErr != nil {
+			break
+		}
+
+		totalBytesUploaded += int64(block.length)
 	}
 
 	closeErr := CloseDataObject(conn, handle)
@@ -330,27 +336,33 @@ func UploadDataObjectWithConnection(conn *connection.IRODSConnection, localPath 
 	}
 
 	// copy
-	buffer := make([]byte, common.ReadWriteBufferSize)
+	// read blocks from the local file in background, so that reading the next block from disk
+	// overlaps with sending the current one to the server
+	blockReader := newParallelUploadReader(f, localPath, 0, -1, parallelUploadReadBufferDepth, common.ReadWriteBufferSize)
+	defer func() {
+		_ = blockReader.Close()
+	}()
+
 	var writeErr error
 	for {
-		bytesRead, readErr := f.Read(buffer)
-		if bytesRead > 0 {
-			writeErr = WriteDataObjectWithTrackerCallBack(conn, handle, buffer[:bytesRead], blockWriteCallback)
-			if writeErr != nil {
-				break
-			}
-
-			totalBytesUploaded += int64(bytesRead)
-		}
-
+		block, readErr := blockReader.Next()
 		if readErr != nil {
-			if readErr == io.EOF {
-				break
-			} else {
-				writeErr = errors.Wrapf(readErr, "failed to read file %q", localPath)
-				break
-			}
+			writeErr = readErr
+			break
 		}
+
+		if block == nil {
+			// read the whole file
+			break
+		}
+
+		writeErr = WriteDataObjectWithTrackerCallBack(conn, handle, block.buffer[:block.length], blockWriteCallback)
+		blockReader.Release(block)
+		if writeErr != nil {
+			break
+		}
+
+		totalBytesUploaded += int64(block.length)
 	}
 
 	closeErr := CloseDataObject(conn, handle)
@@ -546,39 +558,36 @@ func UploadDataObjectParallel(sess *session.IRODSSession, localPath string, irod
 			return
 		}
 
-		taskRemain := taskLength
-
 		// copy
-		buffer := make([]byte, common.ReadWriteBufferSize)
+		// read blocks from the local file in background, so that reading the next block from disk
+		// overlaps with sending the current one to the server
+		blockReader := newParallelUploadReader(f, localPath, taskOffset, taskLength, parallelUploadReadBufferDepth, common.ReadWriteBufferSize)
+		defer func() {
+			_ = blockReader.Close()
+		}()
+
 		var taskWriteErr error
-		for taskRemain > 0 {
-			bufferLen := common.ReadWriteBufferSize
-			if taskRemain < int64(bufferLen) {
-				bufferLen = int(taskRemain)
-			}
-
-			bytesRead, taskReadErr := f.ReadAt(buffer[:bufferLen], taskOffset+(taskLength-taskRemain))
-			if bytesRead > 0 {
-				taskWriteErr = WriteDataObjectWithTrackerCallBack(transferConn, taskHandle, buffer[:bytesRead], nil)
-				if taskWriteErr != nil {
-					break
-				}
-
-				atomic.AddInt64(&totalBytesUploaded, int64(bytesRead))
-				if transferCallback != nil {
-					transferCallback("upload", atomic.LoadInt64(&totalBytesUploaded), fileLength)
-				}
-
-				taskRemain -= int64(bytesRead)
-			}
-
+		for {
+			block, taskReadErr := blockReader.Next()
 			if taskReadErr != nil {
-				if taskReadErr == io.EOF {
-					break
-				} else {
-					taskWriteErr = errors.Wrapf(taskReadErr, "failed to read file %q", localPath)
-					break
-				}
+				taskWriteErr = taskReadErr
+				break
+			}
+
+			if block == nil {
+				// read the whole partition
+				break
+			}
+
+			taskWriteErr = WriteDataObjectWithTrackerCallBack(transferConn, taskHandle, block.buffer[:block.length], nil)
+			blockReader.Release(block)
+			if taskWriteErr != nil {
+				break
+			}
+
+			atomic.AddInt64(&totalBytesUploaded, int64(block.length))
+			if transferCallback != nil {
+				transferCallback("upload", atomic.LoadInt64(&totalBytesUploaded), fileLength)
 			}
 		}
 
@@ -751,39 +760,36 @@ func UploadDataObjectParallelWithConnections(conns []*connection.IRODSConnection
 			return
 		}
 
-		taskRemain := taskLength
-
 		// copy
-		buffer := make([]byte, common.ReadWriteBufferSize)
+		// read blocks from the local file in background, so that reading the next block from disk
+		// overlaps with sending the current one to the server
+		blockReader := newParallelUploadReader(f, localPath, taskOffset, taskLength, parallelUploadReadBufferDepth, common.ReadWriteBufferSize)
+		defer func() {
+			_ = blockReader.Close()
+		}()
+
 		var taskWriteErr error
-		for taskRemain > 0 {
-			bufferLen := common.ReadWriteBufferSize
-			if taskRemain < int64(bufferLen) {
-				bufferLen = int(taskRemain)
-			}
-
-			bytesRead, taskReadErr := f.ReadAt(buffer[:bufferLen], taskOffset+(taskLength-taskRemain))
-			if bytesRead > 0 {
-				taskWriteErr = WriteDataObjectWithTrackerCallBack(transferConn, taskHandle, buffer[:bytesRead], nil)
-				if taskWriteErr != nil {
-					break
-				}
-
-				atomic.AddInt64(&totalBytesUploaded, int64(bytesRead))
-				if transferCallback != nil {
-					transferCallback("upload", atomic.LoadInt64(&totalBytesUploaded), fileLength)
-				}
-
-				taskRemain -= int64(bytesRead)
-			}
-
+		for {
+			block, taskReadErr := blockReader.Next()
 			if taskReadErr != nil {
-				if taskReadErr == io.EOF {
-					break
-				} else {
-					taskWriteErr = errors.Wrapf(taskReadErr, "failed to read file %q", localPath)
-					break
-				}
+				taskWriteErr = taskReadErr
+				break
+			}
+
+			if block == nil {
+				// read the whole partition
+				break
+			}
+
+			taskWriteErr = WriteDataObjectWithTrackerCallBack(transferConn, taskHandle, block.buffer[:block.length], nil)
+			blockReader.Release(block)
+			if taskWriteErr != nil {
+				break
+			}
+
+			atomic.AddInt64(&totalBytesUploaded, int64(block.length))
+			if transferCallback != nil {
+				transferCallback("upload", atomic.LoadInt64(&totalBytesUploaded), fileLength)
 			}
 		}
 
