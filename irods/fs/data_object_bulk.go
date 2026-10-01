@@ -1140,7 +1140,12 @@ func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IR
 
 		taskRemain := taskLength
 
-		buffer := make([]byte, common.ReadWriteBufferSize)
+		// write blocks to the local file in background, so that reading the next block from
+		// the network overlaps with writing the current one to disk
+		blockWriter := newParallelDownloadWriter(f, localPath, parallelDownloadWriteBufferDepth, common.ReadWriteBufferSize, nil)
+		defer func() {
+			_ = blockWriter.Close()
+		}()
 
 		attempt := func(attemptConn *connection.IRODSConnection) error {
 			attemptHandle, _, openErr := OpenDataObject(attemptConn, dataObject.Path, resource, "r", keywords)
@@ -1180,11 +1185,16 @@ func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IR
 					bufferLen = int(taskRemain)
 				}
 
+				buffer, bufferErr := blockWriter.GetBuffer()
+				if bufferErr != nil {
+					return bufferErr
+				}
+
 				bytesRead, attemptReadErr := ReadDataObjectWithTrackerCallBack(attemptConn, attemptHandle, buffer[:bufferLen], blockReadCallback)
 				if bytesRead > 0 {
-					_, attemptWriteErr := f.WriteAt(buffer[:bytesRead], taskOffset+(taskLength-taskRemain))
+					attemptWriteErr := blockWriter.Write(buffer, taskOffset+(taskLength-taskRemain), bytesRead)
 					if attemptWriteErr != nil {
-						return errors.Wrapf(attemptWriteErr, "failed to write to file %q from task %d", localPath, taskID)
+						return attemptWriteErr
 					}
 
 					atomic.StoreInt64(&currentBytesDownloaded[taskID], 0)
@@ -1194,6 +1204,8 @@ func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IR
 
 					taskRemain -= int64(bytesRead)
 					lastOffset += int64(bytesRead)
+				} else {
+					blockWriter.ReleaseBuffer(buffer)
 				}
 
 				if attemptReadErr != nil {
@@ -1215,6 +1227,15 @@ func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IR
 
 		for {
 			attemptErr := attempt(transferConn)
+
+			// make sure every block handed to the writer is on disk before deciding whether to
+			// retry, so that lastOffset matches what the local file actually holds
+			flushErr := blockWriter.Flush()
+			if flushErr != nil {
+				reportParallelTransferError(errChan, flushErr)
+				return
+			}
+
 			if attemptErr == nil {
 				// done downloading
 				return
@@ -1382,7 +1403,12 @@ func DownloadDataObjectParallelWithConnections(conns []*connection.IRODSConnecti
 
 		taskRemain := taskLength
 
-		buffer := make([]byte, common.ReadWriteBufferSize)
+		// write blocks to the local file in background, so that reading the next block from
+		// the network overlaps with writing the current one to disk
+		blockWriter := newParallelDownloadWriter(f, localPath, parallelDownloadWriteBufferDepth, common.ReadWriteBufferSize, nil)
+		defer func() {
+			_ = blockWriter.Close()
+		}()
 
 		attempt := func(attemptConn *connection.IRODSConnection) error {
 			attemptHandle, _, openErr := OpenDataObject(attemptConn, dataObject.Path, resource, "r", keywords)
@@ -1422,11 +1448,16 @@ func DownloadDataObjectParallelWithConnections(conns []*connection.IRODSConnecti
 					bufferLen = int(taskRemain)
 				}
 
+				buffer, bufferErr := blockWriter.GetBuffer()
+				if bufferErr != nil {
+					return bufferErr
+				}
+
 				bytesRead, attemptReadErr := ReadDataObjectWithTrackerCallBack(attemptConn, attemptHandle, buffer[:bufferLen], blockReadCallback)
 				if bytesRead > 0 {
-					_, attemptWriteErr := f.WriteAt(buffer[:bytesRead], taskOffset+(taskLength-taskRemain))
+					attemptWriteErr := blockWriter.Write(buffer, taskOffset+(taskLength-taskRemain), bytesRead)
 					if attemptWriteErr != nil {
-						return errors.Wrapf(attemptWriteErr, "failed to write to file %q from task %d", localPath, taskID)
+						return attemptWriteErr
 					}
 
 					atomic.StoreInt64(&currentBytesDownloaded[taskID], 0)
@@ -1436,6 +1467,8 @@ func DownloadDataObjectParallelWithConnections(conns []*connection.IRODSConnecti
 
 					taskRemain -= int64(bytesRead)
 					lastOffset += int64(bytesRead)
+				} else {
+					blockWriter.ReleaseBuffer(buffer)
 				}
 
 				if attemptReadErr != nil {
@@ -1457,6 +1490,15 @@ func DownloadDataObjectParallelWithConnections(conns []*connection.IRODSConnecti
 
 		for {
 			attemptErr := attempt(transferConn)
+
+			// make sure every block handed to the writer is on disk before deciding whether to
+			// retry, so that lastOffset matches what the local file actually holds
+			flushErr := blockWriter.Flush()
+			if flushErr != nil {
+				reportParallelTransferError(errChan, flushErr)
+				return
+			}
+
 			if attemptErr == nil {
 				// done downloading
 				return
@@ -2193,7 +2235,22 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 
 		taskRemain := taskLength - (lastOffset - taskOffset)
 
-		buffer := make([]byte, common.ReadWriteBufferSize)
+		// write blocks to the local file in background, so that reading the next block from
+		// the network overlaps with writing the current one to disk.
+		// the transfer status is updated from the writer, after the block lands on disk, so that
+		// a checkpoint never points past the data that was actually written
+		blockWriter := newParallelDownloadWriter(f, localPath, parallelDownloadWriteBufferDepth, common.ReadWriteBufferSize, func(offset int64, length int) {
+			// write status
+			transferStatusEntry := &DataObjectTransferStatusEntry{
+				StartOffset:     taskOffset,
+				Length:          taskLength,
+				CompletedLength: (offset - taskOffset) + int64(length),
+			}
+			transferStatusLocal.WriteStatus(transferStatusEntry) //nolint
+		})
+		defer func() {
+			_ = blockWriter.Close()
+		}()
 
 		attempt := func(attemptConn *connection.IRODSConnection) error {
 			attemptHandle, _, openErr := OpenDataObject(attemptConn, dataObject.Path, resource, "r", keywords)
@@ -2233,11 +2290,16 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 					bufferLen = int(taskRemain)
 				}
 
+				buffer, bufferErr := blockWriter.GetBuffer()
+				if bufferErr != nil {
+					return bufferErr
+				}
+
 				bytesRead, attemptReadErr := ReadDataObjectWithTrackerCallBack(attemptConn, attemptHandle, buffer[:bufferLen], blockReadCallback)
 				if bytesRead > 0 {
-					_, attemptWriteErr := f.WriteAt(buffer[:bytesRead], taskOffset+(taskLength-taskRemain))
+					attemptWriteErr := blockWriter.Write(buffer, taskOffset+(taskLength-taskRemain), bytesRead)
 					if attemptWriteErr != nil {
-						return errors.Wrapf(attemptWriteErr, "failed to write to file %q from task %d", localPath, taskID)
+						return attemptWriteErr
 					}
 
 					atomic.StoreInt64(&currentBytesDownloaded[taskID], 0)
@@ -2245,16 +2307,10 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 
 					calcProgress()
 
-					// write status
-					transferStatusEntry := &DataObjectTransferStatusEntry{
-						StartOffset:     taskOffset,
-						Length:          taskLength,
-						CompletedLength: (taskLength - taskRemain) + int64(bytesRead),
-					}
-					transferStatusLocal.WriteStatus(transferStatusEntry) //nolint
-
 					taskRemain -= int64(bytesRead)
 					lastOffset += int64(bytesRead)
+				} else {
+					blockWriter.ReleaseBuffer(buffer)
 				}
 
 				if attemptReadErr != nil {
@@ -2276,6 +2332,15 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 
 		for {
 			attemptErr := attempt(transferConn)
+
+			// make sure every block handed to the writer is on disk before deciding whether to
+			// retry, so that lastOffset matches what the local file actually holds
+			flushErr := blockWriter.Flush()
+			if flushErr != nil {
+				reportParallelTransferError(errChan, flushErr)
+				return
+			}
+
 			if attemptErr == nil {
 				// done downloading
 				return
@@ -2484,7 +2549,22 @@ func DownloadDataObjectParallelResumableWithConnections(conns []*connection.IROD
 
 		taskRemain := taskLength - (lastOffset - taskOffset)
 
-		buffer := make([]byte, common.ReadWriteBufferSize)
+		// write blocks to the local file in background, so that reading the next block from
+		// the network overlaps with writing the current one to disk.
+		// the transfer status is updated from the writer, after the block lands on disk, so that
+		// a checkpoint never points past the data that was actually written
+		blockWriter := newParallelDownloadWriter(f, localPath, parallelDownloadWriteBufferDepth, common.ReadWriteBufferSize, func(offset int64, length int) {
+			// write status
+			transferStatusEntry := &DataObjectTransferStatusEntry{
+				StartOffset:     taskOffset,
+				Length:          taskLength,
+				CompletedLength: (offset - taskOffset) + int64(length),
+			}
+			transferStatusLocal.WriteStatus(transferStatusEntry) //nolint
+		})
+		defer func() {
+			_ = blockWriter.Close()
+		}()
 
 		attempt := func(attemptConn *connection.IRODSConnection) error {
 			attemptHandle, _, openErr := OpenDataObject(attemptConn, dataObject.Path, resource, "r", keywords)
@@ -2524,11 +2604,16 @@ func DownloadDataObjectParallelResumableWithConnections(conns []*connection.IROD
 					bufferLen = int(taskRemain)
 				}
 
+				buffer, bufferErr := blockWriter.GetBuffer()
+				if bufferErr != nil {
+					return bufferErr
+				}
+
 				bytesRead, attemptReadErr := ReadDataObjectWithTrackerCallBack(attemptConn, attemptHandle, buffer[:bufferLen], blockReadCallback)
 				if bytesRead > 0 {
-					_, attemptWriteErr := f.WriteAt(buffer[:bytesRead], taskOffset+(taskLength-taskRemain))
+					attemptWriteErr := blockWriter.Write(buffer, taskOffset+(taskLength-taskRemain), bytesRead)
 					if attemptWriteErr != nil {
-						return errors.Wrapf(attemptWriteErr, "failed to write to file %q from task %d", localPath, taskID)
+						return attemptWriteErr
 					}
 
 					atomic.StoreInt64(&currentBytesDownloaded[taskID], 0)
@@ -2536,16 +2621,10 @@ func DownloadDataObjectParallelResumableWithConnections(conns []*connection.IROD
 
 					calcProgress()
 
-					// write status
-					transferStatusEntry := &DataObjectTransferStatusEntry{
-						StartOffset:     taskOffset,
-						Length:          taskLength,
-						CompletedLength: (taskLength - taskRemain) + int64(bytesRead),
-					}
-					transferStatusLocal.WriteStatus(transferStatusEntry) //nolint
-
 					taskRemain -= int64(bytesRead)
 					lastOffset += int64(bytesRead)
+				} else {
+					blockWriter.ReleaseBuffer(buffer)
 				}
 
 				if attemptReadErr != nil {
@@ -2567,6 +2646,15 @@ func DownloadDataObjectParallelResumableWithConnections(conns []*connection.IROD
 
 		for {
 			attemptErr := attempt(transferConn)
+
+			// make sure every block handed to the writer is on disk before deciding whether to
+			// retry, so that lastOffset matches what the local file actually holds
+			flushErr := blockWriter.Flush()
+			if flushErr != nil {
+				reportParallelTransferError(errChan, flushErr)
+				return
+			}
+
 			if attemptErr == nil {
 				// done downloading
 				return
