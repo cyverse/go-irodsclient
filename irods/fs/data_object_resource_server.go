@@ -773,9 +773,10 @@ func DownloadDataObjectFromResourceServer(sess *session.IRODSSession, dataObject
 			}
 		}
 
-		err = downloadDataObjectChunkFromResourceServer(sess, taskID, controlConn, handle, localPath, blockReadCallback)
-		if err != nil {
-			dnErr := errors.Wrapf(err, "failed to download data object chunk %q from resource server", dataObject.Path)
+		// must not assign to the outer err, as every task runs this concurrently
+		taskErr := downloadDataObjectChunkFromResourceServer(sess, taskID, controlConn, handle, localPath, blockReadCallback)
+		if taskErr != nil {
+			dnErr := errors.Wrapf(taskErr, "failed to download data object chunk %q from resource server", dataObject.Path)
 			reportParallelTransferError(errChan, dnErr)
 		}
 	}
@@ -897,9 +898,10 @@ func DownloadDataObjectFromResourceServerWithConnection(sess *session.IRODSSessi
 			}
 		}
 
-		err = downloadDataObjectChunkFromResourceServer(sess, taskID, controlConn, handle, localPath, blockReadCallback)
-		if err != nil {
-			dnErr := errors.Wrapf(err, "failed to download data object chunk %q from resource server", dataObject.Path)
+		// must not assign to the outer err, as every task runs this concurrently
+		taskErr := downloadDataObjectChunkFromResourceServer(sess, taskID, controlConn, handle, localPath, blockReadCallback)
+		if taskErr != nil {
+			dnErr := errors.Wrapf(taskErr, "failed to download data object chunk %q from resource server", dataObject.Path)
 			reportParallelTransferError(errChan, dnErr)
 		}
 	}
@@ -1041,9 +1043,10 @@ func UploadDataObjectToResourceServer(sess *session.IRODSSession, localPath stri
 			}
 		}
 
-		err = uploadDataObjectChunkToResourceServer(sess, taskID, controlConn, handle, localPath, blockWriteCallback)
-		if err != nil {
-			dnErr := errors.Wrapf(err, "failed to upload data object chunk %q to resource server", localPath)
+		// must not assign to the outer err, as every task runs this concurrently
+		taskErr := uploadDataObjectChunkToResourceServer(sess, taskID, controlConn, handle, localPath, blockWriteCallback)
+		if taskErr != nil {
+			dnErr := errors.Wrapf(taskErr, "failed to upload data object chunk %q to resource server", localPath)
 			reportParallelTransferError(errChan, dnErr)
 		}
 	}
@@ -1162,9 +1165,10 @@ func UploadDataObjectToResourceServerWithConnection(sess *session.IRODSSession, 
 			}
 		}
 
-		err = uploadDataObjectChunkToResourceServer(sess, taskID, controlConn, handle, localPath, blockWriteCallback)
-		if err != nil {
-			dnErr := errors.Wrapf(err, "failed to upload data object chunk %q to resource server", localPath)
+		// must not assign to the outer err, as every task runs this concurrently
+		taskErr := uploadDataObjectChunkToResourceServer(sess, taskID, controlConn, handle, localPath, blockWriteCallback)
+		if taskErr != nil {
+			dnErr := errors.Wrapf(taskErr, "failed to upload data object chunk %q to resource server", localPath)
 			reportParallelTransferError(errChan, dnErr)
 		}
 	}
