@@ -1,7 +1,6 @@
 package util
 
 import (
-	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/des"
@@ -37,28 +36,40 @@ func GetEncryptionIV(algorithm types.EncryptionAlgorithm) ([]byte, error) {
 	return iv, nil
 }
 
-// Encrypt encrypts data
+// Encrypt encrypts source into dest and returns the encrypted length.
+// dest must hold the source plus up to one block of pkcs7 padding, and must not overlap source.
 func Encrypt(algorithm types.EncryptionAlgorithm, key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	blockSize := GetEncryptionBlockSize(algorithm)
-	paddedSource := padPkcs7(source, blockSize)
+	if blockSize == 0 {
+		return 0, errors.Errorf("unknown encryption algorithm")
+	}
+
+	// pad into dest and encrypt it in place, to avoid allocating and copying a padded
+	// copy of the source for every block
+	paddedLen, err := padPkcs7(dest, source, blockSize)
+	if err != nil {
+		return 0, errors.Wrapf(err, "failed to add pkcs7 padding")
+	}
+
+	padded := dest[:paddedLen]
 
 	switch algorithm {
 	case types.EncryptionAlgorithmAES256CBC:
-		return encryptAES256CBC(key, iv[:blockSize], paddedSource, dest)
+		return encryptAES256CBC(key, iv[:blockSize], padded, padded)
 	case types.EncryptionAlgorithmAES256CTR:
-		return encryptAES256CTR(key, iv[:blockSize], paddedSource, dest)
+		return encryptAES256CTR(key, iv[:blockSize], padded, padded)
 	case types.EncryptionAlgorithmAES256CFB:
-		return encryptAES256CFB(key, iv[:blockSize], paddedSource, dest)
+		return encryptAES256CFB(key, iv[:blockSize], padded, padded)
 	case types.EncryptionAlgorithmAES256OFB:
-		return encryptAES256OFB(key, iv[:blockSize], paddedSource, dest)
+		return encryptAES256OFB(key, iv[:blockSize], padded, padded)
 	case types.EncryptionAlgorithmDES256CBC:
-		return encryptDES256CBC(key, iv[:8], paddedSource, dest)
+		return encryptDES256CBC(key, iv[:8], padded, padded)
 	case types.EncryptionAlgorithmDES256CTR:
-		return encryptDES256CTR(key, iv[:8], paddedSource, dest)
+		return encryptDES256CTR(key, iv[:8], padded, padded)
 	case types.EncryptionAlgorithmDES256CFB:
-		return encryptDES256CFB(key, iv[:8], paddedSource, dest)
+		return encryptDES256CFB(key, iv[:8], padded, padded)
 	case types.EncryptionAlgorithmDES256OFB:
-		return encryptDES256OFB(key, iv[:8], paddedSource, dest)
+		return encryptDES256OFB(key, iv[:8], padded, padded)
 	case types.EncryptionAlgorithmUnknown:
 		fallthrough
 	default:
@@ -66,30 +77,41 @@ func Encrypt(algorithm types.EncryptionAlgorithm, key []byte, iv []byte, source 
 	}
 }
 
-// Decrypt decrypts data
+// Decrypt decrypts source into dest and returns the decrypted length.
+// dest must be at least as large as source, as the padding is only dropped after decryption.
 func Decrypt(algorithm types.EncryptionAlgorithm, key []byte, iv []byte, source []byte, dest []byte) (int, error) {
 	blockSize := GetEncryptionBlockSize(algorithm)
+	if blockSize == 0 {
+		return 0, errors.Errorf("unknown encryption algorithm")
+	}
+
+	if len(dest) < len(source) {
+		return 0, errors.Errorf("destination buffer is too small, %d < %d", len(dest), len(source))
+	}
+
+	// decrypt straight into dest and drop the padding by shortening the result, to avoid
+	// allocating a padded buffer and copying out of it for every block
+	padded := dest[:len(source)]
 
 	var err error
-	paddedDest := make([]byte, len(source))
 
 	switch algorithm {
 	case types.EncryptionAlgorithmAES256CBC:
-		_, err = decryptAES256CBC(key, iv[:blockSize], source, paddedDest)
+		_, err = decryptAES256CBC(key, iv[:blockSize], source, padded)
 	case types.EncryptionAlgorithmAES256CTR:
-		_, err = decryptAES256CTR(key, iv[:blockSize], source, paddedDest)
+		_, err = decryptAES256CTR(key, iv[:blockSize], source, padded)
 	case types.EncryptionAlgorithmAES256CFB:
-		_, err = decryptAES256CFB(key, iv[:blockSize], source, paddedDest)
+		_, err = decryptAES256CFB(key, iv[:blockSize], source, padded)
 	case types.EncryptionAlgorithmAES256OFB:
-		_, err = decryptAES256OFB(key, iv[:blockSize], source, paddedDest)
+		_, err = decryptAES256OFB(key, iv[:blockSize], source, padded)
 	case types.EncryptionAlgorithmDES256CBC:
-		_, err = decryptDES256CBC(key, iv[:8], source, paddedDest)
+		_, err = decryptDES256CBC(key, iv[:8], source, padded)
 	case types.EncryptionAlgorithmDES256CTR:
-		_, err = decryptDES256CTR(key, iv[:8], source, paddedDest)
+		_, err = decryptDES256CTR(key, iv[:8], source, padded)
 	case types.EncryptionAlgorithmDES256CFB:
-		_, err = decryptDES256CFB(key, iv[:8], source, paddedDest)
+		_, err = decryptDES256CFB(key, iv[:8], source, padded)
 	case types.EncryptionAlgorithmDES256OFB:
-		_, err = decryptDES256OFB(key, iv[:8], source, paddedDest)
+		_, err = decryptDES256OFB(key, iv[:8], source, padded)
 	case types.EncryptionAlgorithmUnknown:
 		fallthrough
 	default:
@@ -100,48 +122,58 @@ func Decrypt(algorithm types.EncryptionAlgorithm, key []byte, iv []byte, source 
 		return 0, err
 	}
 
-	unpaddedDest, err := stripPkcs7(paddedDest, blockSize)
+	destLen, err := stripPkcs7(padded, blockSize)
 	if err != nil {
 		return 0, errors.Wrapf(err, "failed to strip pkcs7 padding")
 	}
 
-	destLen := copy(dest, unpaddedDest)
 	return destLen, nil
 }
 
-func padPkcs7(data []byte, blocksize int) []byte {
-	padLen := blocksize - (len(data) % blocksize)
-	ref := bytes.Repeat([]byte{byte(padLen)}, padLen)
-	pb := make([]byte, len(data)+padLen)
+// padPkcs7 copies data into dest, appends pkcs7 padding and returns the padded length
+func padPkcs7(dest []byte, data []byte, blockSize int) (int, error) {
+	padLen := blockSize - (len(data) % blockSize)
+	paddedLen := len(data) + padLen
 
-	copy(pb, data)
-	copy(pb[len(data):], ref)
-	return pb
+	if len(dest) < paddedLen {
+		return 0, errors.Errorf("destination buffer is too small, %d < %d", len(dest), paddedLen)
+	}
+
+	copy(dest, data)
+
+	for i := len(data); i < paddedLen; i++ {
+		dest[i] = byte(padLen)
+	}
+
+	return paddedLen, nil
 }
 
-func stripPkcs7(data []byte, blockSize int) ([]byte, error) {
+// stripPkcs7 validates the pkcs7 padding of data and returns the unpadded length
+func stripPkcs7(data []byte, blockSize int) (int, error) {
 	if len(data) == 0 {
-		return data, nil
+		return 0, nil
 	}
 
 	if (len(data) % blockSize) != 0 {
-		return nil, errors.Errorf("unaligned data")
+		return 0, errors.Errorf("unaligned data")
 	}
 
 	padLen := int(data[len(data)-1])
-	ref := bytes.Repeat([]byte{byte(padLen)}, padLen)
 	if padLen > blockSize {
-		return nil, errors.Errorf("invalid pkcs7 padding, padding length %d is larger than block size %d", padLen, blockSize)
+		return 0, errors.Errorf("invalid pkcs7 padding, padding length %d is larger than block size %d", padLen, blockSize)
 	}
 
 	if padLen == 0 {
-		return nil, errors.Errorf("invalid pkcs7 padding, padding length must be non-zero")
+		return 0, errors.Errorf("invalid pkcs7 padding, padding length must be non-zero")
 	}
 
-	if !bytes.HasSuffix(data, ref) {
-		return nil, errors.Errorf("invalid pkcs7 padding")
+	for _, b := range data[len(data)-padLen:] {
+		if b != byte(padLen) {
+			return 0, errors.Errorf("invalid pkcs7 padding")
+		}
 	}
-	return data[:len(data)-padLen], nil
+
+	return len(data) - padLen, nil
 }
 
 //nolint:all
