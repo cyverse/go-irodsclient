@@ -261,6 +261,10 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 	var dataBuffer []byte
 	var encryptedDataBuffer []byte
 
+	// RecvToWriter writes at the file position and advances it, so track the position and
+	// seek only when the server sends a chunk that does not continue the previous one
+	filePos := int64(-1)
+
 	timeout := controlConn.GetOperationTimeout()
 
 	for cont {
@@ -379,13 +383,17 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 			} else {
 				// normal
 				// read data
-				newOffset, err := f.Seek(curOffset, io.SeekStart)
-				if err != nil {
-					return errors.Wrapf(err, "failed to seek to offset %d for file %q, task %d", curOffset, localPath, taskID)
-				}
+				if filePos != curOffset {
+					newOffset, seekErr := f.Seek(curOffset, io.SeekStart)
+					if seekErr != nil {
+						return errors.Wrapf(seekErr, "failed to seek to offset %d for file %q, task %d", curOffset, localPath, taskID)
+					}
 
-				if newOffset != curOffset {
-					return errors.Wrapf(err, "failed to seek to offset %d for file %q, task %d, new offset %d", curOffset, localPath, taskID, newOffset)
+					if newOffset != curOffset {
+						return errors.Errorf("failed to seek to offset %d for file %q, task %d, new offset %d", curOffset, localPath, taskID, newOffset)
+					}
+
+					filePos = curOffset
 				}
 
 				eof := false
@@ -399,6 +407,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 
 					toGet -= int64(readLen)
 					curOffset += int64(readLen)
+					filePos += int64(readLen)
 				}
 
 				if err != nil {
@@ -486,6 +495,10 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 	var dataBuffer []byte
 	var encryptedDataBuffer []byte
 	dataBufferSize := common.ReadWriteBufferSize
+
+	// SendFromReader reads at the file position and advances it, so track the position and
+	// seek only when the server asks for a chunk that does not continue the previous one
+	filePos := int64(-1)
 
 	timeout := controlConn.GetOperationTimeout()
 
@@ -609,13 +622,17 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 			} else {
 				// normal
 				// write data
-				newOffset, err := f.Seek(curOffset, io.SeekStart)
-				if err != nil {
-					return errors.Wrapf(err, "failed to seek to offset %d for file %q, task %d", curOffset, localPath, taskID)
-				}
+				if filePos != curOffset {
+					newOffset, seekErr := f.Seek(curOffset, io.SeekStart)
+					if seekErr != nil {
+						return errors.Wrapf(seekErr, "failed to seek to offset %d for file %q, task %d", curOffset, localPath, taskID)
+					}
 
-				if newOffset != curOffset {
-					return errors.Wrapf(err, "failed to seek to offset %d for file %q, task %d, new offset %d", curOffset, localPath, taskID, newOffset)
+					if newOffset != curOffset {
+						return errors.Errorf("failed to seek to offset %d for file %q, task %d, new offset %d", curOffset, localPath, taskID, newOffset)
+					}
+
+					filePos = curOffset
 				}
 
 				eof := false
@@ -629,6 +646,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 
 					toPut -= putLen
 					curOffset += putLen
+					filePos += putLen
 				}
 
 				if err != nil {
