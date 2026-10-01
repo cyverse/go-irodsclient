@@ -7,6 +7,7 @@ import (
 	"crypto/des"
 	"testing"
 
+	"github.com/cyverse/go-irodsclient/irods/common"
 	"github.com/cyverse/go-irodsclient/irods/types"
 )
 
@@ -306,6 +307,34 @@ func BenchmarkDecrypt4MB(b *testing.B) {
 	for b.Loop() {
 		if _, err := Decrypt(algorithm, key, iv, encrypted[:encryptedLen], dest); err != nil {
 			b.Fatal(err)
+		}
+	}
+}
+
+// TestEncryptFitsTransferBuffer pins the buffer size the resource server upload relies on:
+// a full transfer buffer encrypts into one of the same size plus a single padding block
+func TestEncryptFitsTransferBuffer(t *testing.T) {
+	iv := encryptionTestIV()
+
+	for _, algorithm := range encryptionTestAlgorithms {
+		blockSize := GetEncryptionBlockSize(algorithm)
+		key := encryptionTestKey(algorithm)
+
+		source := make([]byte, common.ReadWriteBufferSize)
+		dest := make([]byte, common.ReadWriteBufferSize+blockSize)
+
+		encryptedLen, err := Encrypt(algorithm, key, iv, source, dest)
+		if err != nil {
+			t.Fatalf("%v: %v", algorithm, err)
+		}
+
+		if encryptedLen > len(dest) {
+			t.Fatalf("%v: encrypted length %d exceeds the destination buffer %d", algorithm, encryptedLen, len(dest))
+		}
+
+		// a full buffer is block aligned, so the padding takes a whole extra block
+		if encryptedLen != len(dest) {
+			t.Fatalf("%v: encrypted length %d, want %d", algorithm, encryptedLen, len(dest))
 		}
 	}
 }

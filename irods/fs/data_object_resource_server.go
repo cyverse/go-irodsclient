@@ -350,7 +350,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 
 					//logger.Debugf("decrypted data len %d", decryptedDataLen)
 
-					atomic.AddInt64(&totalBytesDownloaded, int64(decryptedDataLen))
+					totalBytesDownloaded += int64(decryptedDataLen)
 					if transferCallback != nil {
 						transferCallback("download", totalBytesDownloaded, -1)
 					}
@@ -392,7 +392,7 @@ func downloadDataObjectChunkFromResourceServer(sess *session.IRODSSession, taskI
 				chunkSize := min(toGet, int64(common.ReadWriteBufferSize))
 				readLen, err := conn.RecvToWriter(f, chunkSize, nil)
 				if readLen > 0 {
-					atomic.AddInt64(&totalBytesDownloaded, readLen)
+					totalBytesDownloaded += readLen
 					if transferCallback != nil {
 						transferCallback("download", totalBytesDownloaded, -1)
 					}
@@ -463,9 +463,13 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 	// encConfig may be nil
 	encConfig := controlConn.GetAccount().SSLConfiguration
 	encKeysize := 0
+	encAlg := types.EncryptionAlgorithmUnknown
+	encBlocksize := 0
 
 	if controlConn.IsSSL() {
 		encKeysize = encConfig.EncryptionKeySize
+		encAlg = types.GetEncryptionAlgorithm(encConfig.EncryptionAlgorithm)
+		encBlocksize = util.GetEncryptionBlockSize(encAlg)
 	}
 
 	totalBytesUploaded := int64(0)
@@ -523,7 +527,6 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 			// read encryption header
 			if controlConn.IsSSL() {
 				// init iv
-				encAlg := types.GetEncryptionAlgorithm(encConfig.EncryptionAlgorithm)
 				encIV, err := util.GetEncryptionIV(encAlg)
 				if err != nil {
 					return errors.Wrapf(err, "failed to get encryption iv")
@@ -540,9 +543,10 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 					dataBuffer = make([]byte, dataBufferSize)
 				}
 
-				// size is different as data is encrypted
-				if len(encryptedDataBuffer) < dataBufferSize*2 {
-					encryptedDataBuffer = make([]byte, dataBufferSize*2)
+				// size is different as data is encrypted, pkcs7 padding adds up to one block
+				encryptedDataBufferSize := dataBufferSize + encBlocksize
+				if len(encryptedDataBuffer) < encryptedDataBufferSize {
+					encryptedDataBuffer = make([]byte, encryptedDataBufferSize)
 				}
 
 				// read data
@@ -591,7 +595,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 
 				//logger.Debugf("sent encrypted data")
 
-				atomic.AddInt64(&totalBytesUploaded, int64(readLen))
+				totalBytesUploaded += int64(readLen)
 				if transferCallback != nil {
 					transferCallback("upload", totalBytesUploaded, -1)
 				}
@@ -618,7 +622,7 @@ func uploadDataObjectChunkToResourceServer(sess *session.IRODSSession, taskID in
 				chunkSize := min(toPut, int64(common.ReadWriteBufferSize))
 				putLen, err := conn.SendFromReader(f, chunkSize, nil)
 				if putLen > 0 {
-					atomic.AddInt64(&totalBytesUploaded, putLen)
+					totalBytesUploaded += putLen
 					if transferCallback != nil {
 						transferCallback("upload", totalBytesUploaded, -1)
 					}
