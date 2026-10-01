@@ -2,6 +2,7 @@ package message
 
 import (
 	"encoding/xml"
+	"fmt"
 
 	"github.com/cockroachdb/errors"
 	"github.com/cyverse/go-irodsclient/irods/common"
@@ -28,6 +29,10 @@ func NewIRODSMessagePutDataObjectRequest(path string, resource string, fileLengt
 	if len(resource) > 0 {
 		request.KeyVals.Add(string(common.DEST_RESC_NAME_KW), resource)
 	}
+
+	// the reference client sends the size as a keyword as well as in the request field,
+	// as resource plugins read it from the condInput before the transfer starts
+	request.AddKeyVal(common.DATA_SIZE_KW, fmt.Sprintf("%d", fileLength))
 
 	return request
 }
