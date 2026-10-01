@@ -1174,13 +1174,9 @@ func DownloadDataObjectParallel(sess *session.IRODSSession, dataObject *types.IR
 					return errors.Wrapf(seekErr, "failed to seek data object %q to offset %d", dataObject.Path, lastOffset)
 				}
 
-				attemptNewOffset, localSeekErr := f.Seek(lastOffset, io.SeekStart)
-				if localSeekErr != nil {
-					return errors.Wrapf(localSeekErr, "failed to seek file %q to offset %d", localPath, lastOffset)
-				}
-
-				if newOffset != attemptNewOffset {
-					return errors.Errorf("failed to seek file and data object to target offset %d", lastOffset)
+				// the local file needs no seek, every block is written with WriteAt
+				if newOffset != lastOffset {
+					return errors.Errorf("failed to seek data object %q to target offset %d, new offset %d", dataObject.Path, lastOffset, newOffset)
 				}
 			}
 
@@ -1437,13 +1433,9 @@ func DownloadDataObjectParallelWithConnections(conns []*connection.IRODSConnecti
 					return errors.Wrapf(seekErr, "failed to seek data object %q to offset %d", dataObject.Path, lastOffset)
 				}
 
-				attemptNewOffset, localSeekErr := f.Seek(lastOffset, io.SeekStart)
-				if localSeekErr != nil {
-					return errors.Wrapf(localSeekErr, "failed to seek file %q to offset %d", localPath, lastOffset)
-				}
-
-				if newOffset != attemptNewOffset {
-					return errors.Errorf("failed to seek file and data object to target offset %d", lastOffset)
+				// the local file needs no seek, every block is written with WriteAt
+				if newOffset != lastOffset {
+					return errors.Errorf("failed to seek data object %q to target offset %d, new offset %d", dataObject.Path, lastOffset, newOffset)
 				}
 			}
 
@@ -2279,13 +2271,9 @@ func DownloadDataObjectParallelResumable(sess *session.IRODSSession, dataObject 
 					return errors.Wrapf(seekErr, "failed to seek data object %q to offset %d", dataObject.Path, lastOffset)
 				}
 
-				attemptNewOffset, localSeekErr := f.Seek(lastOffset, io.SeekStart)
-				if localSeekErr != nil {
-					return errors.Wrapf(localSeekErr, "failed to seek file %q to offset %d", localPath, lastOffset)
-				}
-
-				if newOffset != attemptNewOffset {
-					return errors.Errorf("failed to seek file and data object to target offset %d", lastOffset)
+				// the local file needs no seek, every block is written with WriteAt
+				if newOffset != lastOffset {
+					return errors.Errorf("failed to seek data object %q to target offset %d, new offset %d", dataObject.Path, lastOffset, newOffset)
 				}
 			}
 
@@ -2593,13 +2581,9 @@ func DownloadDataObjectParallelResumableWithConnections(conns []*connection.IROD
 					return errors.Wrapf(seekErr, "failed to seek data object %q to offset %d", dataObject.Path, lastOffset)
 				}
 
-				attemptNewOffset, localSeekErr := f.Seek(lastOffset, io.SeekStart)
-				if localSeekErr != nil {
-					return errors.Wrapf(localSeekErr, "failed to seek file %q to offset %d", localPath, lastOffset)
-				}
-
-				if newOffset != attemptNewOffset {
-					return errors.Errorf("failed to seek file and data object to target offset %d", lastOffset)
+				// the local file needs no seek, every block is written with WriteAt
+				if newOffset != lastOffset {
+					return errors.Errorf("failed to seek data object %q to target offset %d, new offset %d", dataObject.Path, lastOffset, newOffset)
 				}
 			}
 
