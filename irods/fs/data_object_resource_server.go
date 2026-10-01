@@ -989,6 +989,13 @@ func UploadDataObjectToResourceServer(sess *session.IRODSSession, localPath stri
 		return UploadDataObject(sess, localPath, irodsPath, resource, replicate, keywords, transferCallback)
 	}
 
+	// a data object small enough to hold in memory goes with the put request itself, which is
+	// what the reference client does rather than setting up a transfer to a resource server.
+	// the server decides on it from the keyword alone, so the task count does not matter
+	if fileLength <= common.MaxSizeForSingleBufferTransfer {
+		return UploadDataObjectSingleBuffer(sess, localPath, irodsPath, resource, replicate, keywords, transferCallback)
+	}
+
 	numTasks := taskNum
 	if numTasks <= 0 {
 		numTasks = util.GetNumTasksForParallelTransfer(fileLength)
@@ -1138,6 +1145,13 @@ func UploadDataObjectToResourceServerWithConnection(sess *session.IRODSSession, 
 		return UploadDataObjectWithConnection(controlConn, localPath, irodsPath, resource, replicate, keywords, transferCallback)
 	}
 
+	// a data object small enough to hold in memory goes with the put request itself, which is
+	// what the reference client does rather than setting up a transfer to a resource server.
+	// the server decides on it from the keyword alone, so the task count does not matter
+	if fileLength <= common.MaxSizeForSingleBufferTransfer {
+		return UploadDataObjectSingleBufferWithConnection(controlConn, localPath, irodsPath, resource, replicate, keywords, transferCallback)
+	}
+
 	numTasks := taskNum
 	if numTasks <= 0 {
 		numTasks = util.GetNumTasksForParallelTransfer(fileLength)
@@ -1243,6 +1257,101 @@ func writeDataObjectDataToFile(data []byte, localPath string, totalSize int64, t
 
 	if transferCallback != nil {
 		transferCallback("download", int64(len(data)), totalSize)
+	}
+
+	return nil
+}
+
+// UploadDataObjectSingleBuffer uploads a data object at the local path to the iRODS path,
+// sending the whole content with the put request. The server stores it in one round trip,
+// without handing back a file descriptor to write to and close, and without a resource server
+// transfer. Only use it for a data object that fits in memory, see
+// common.MaxSizeForSingleBufferTransfer.
+func UploadDataObjectSingleBuffer(sess *session.IRODSSession, localPath string, irodsPath string, resource string, replicate bool, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
+	conn, err := sess.AcquireConnection(false)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get connection")
+	}
+
+	defer func() {
+		_ = sess.ReturnConnection(conn)
+	}()
+
+	return UploadDataObjectSingleBufferWithConnection(conn, localPath, irodsPath, resource, replicate, keywords, transferCallback)
+}
+
+// UploadDataObjectSingleBufferWithConnection uploads a data object at the local path to the iRODS
+// path, sending the whole content with the put request
+func UploadDataObjectSingleBufferWithConnection(conn *connection.IRODSConnection, localPath string, irodsPath string, resource string, replicate bool, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
+	if conn == nil || !conn.IsConnected() {
+		return errors.Errorf("connection is nil or disconnected")
+	}
+
+	logger := conn.GetLogger().WithFields(log.Fields{
+		"local_path": localPath,
+		"irods_path": irodsPath,
+		"resource":   resource,
+		"replicate":  replicate,
+	})
+
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		metrics.IncreaseCounterForDataObjectCreate(1)
+	}
+
+	// use default resource when resource param is empty
+	if len(resource) == 0 {
+		account := conn.GetAccount()
+		resource = account.DefaultResource
+	}
+
+	data, err := os.ReadFile(localPath)
+	if err != nil {
+		return errors.Wrapf(err, "failed to read file %q", localPath)
+	}
+
+	fileLength := int64(len(data))
+
+	logger.Debugf("upload data object with the request, size(%d)", fileLength)
+
+	if transferCallback != nil {
+		transferCallback("upload", 0, fileLength)
+	}
+
+	// the streaming upload creates the data object with the force flag as well
+	request := message.NewIRODSMessagePutDataObjectRequestWithData(irodsPath, resource, true, data)
+	response := message.IRODSMessagePutDataObjectResponse{}
+
+	for k, v := range keywords {
+		request.AddKeyVal(k, v)
+	}
+
+	err = func() error {
+		// lock the connection
+		conn.Lock()
+		defer conn.Unlock()
+
+		return conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
+	}()
+	if err != nil {
+		if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			newErr := errors.Join(err, types.NewFileNotFoundError(irodsPath))
+			return errors.Wrapf(newErr, "failed to find the collection for path %q", irodsPath)
+		}
+
+		return errors.Wrapf(err, "failed to upload data object %q", irodsPath)
+	}
+
+	if transferCallback != nil {
+		transferCallback("upload", fileLength, fileLength)
+	}
+
+	// replicate
+	if replicate {
+		replErr := ReplicateDataObject(conn, irodsPath, "", true, false)
+		if replErr != nil {
+			return replErr
+		}
 	}
 
 	return nil
