@@ -44,6 +44,7 @@ func (msg *IRODSMessageGetDataObjectResponse) FromMessage(msgIn *IRODSMessage) e
 	}
 
 	msg.Result = int(msgIn.Body.IntInfo)
+	msg.Data = msgIn.Body.Bs
 
 	if msgIn.Body.Message != nil {
 		err := msg.FromBytes(msgIn.Body.Message)

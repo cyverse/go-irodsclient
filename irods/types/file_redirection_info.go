@@ -15,6 +15,9 @@ type IRODSFileOpenRedirectionHandle struct {
 	Threads         int
 	CheckSum        string
 	RedirectionInfo *IRODSRedirectionInfo
+	// Data holds the whole data object when the server returned its content with the response
+	// instead of setting up a redirection. RedirectionInfo is then nil and no transfer is needed.
+	Data []byte
 }
 
 // IRODSRedirectionInfo contains redirection info

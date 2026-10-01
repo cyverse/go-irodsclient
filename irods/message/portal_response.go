@@ -17,6 +17,10 @@ type IRODSMessagePortalResponse struct {
 	// data is included if result == 0
 	// any value >= 0 is fine
 	Result int `xml:"-"`
+
+	// Data holds the data object's content when the server returns it with the response
+	// instead of setting up a portal transfer. It is never marshalled to xml.
+	Data []byte `xml:"-"`
 }
 
 type IRODSMessagePortList struct {

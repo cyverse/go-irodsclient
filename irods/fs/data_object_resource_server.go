@@ -73,6 +73,9 @@ func GetDataObjectRedirectionInfoForGet(conn *connection.IRODSConnection, dataOb
 		Threads:         response.Threads,
 		CheckSum:        response.CheckSum,
 		RedirectionInfo: nil,
+		// the server returns a small enough data object with the response, and has already
+		// closed the replica, so no redirection follows
+		Data: response.Data,
 	}
 
 	if response.PortList != nil {
@@ -727,6 +730,16 @@ func DownloadDataObjectFromResourceServer(sess *session.IRODSSession, dataObject
 		return DownloadDataObjectParallel(sess, dataObject, resource, localPath, numTasks, keywords, transferCallback)
 	}
 
+	// the server returns a small enough data object with the response and has already closed
+	// the replica, so there is nothing left to transfer and no redirection to complete
+	if len(handle.Data) > 0 {
+		// close control connection
+		_ = sess.ReturnConnection(controlConn)
+		controlConnReleased = true
+
+		return writeDataObjectDataToFile(handle.Data, localPath, dataObject.Size, transferCallback)
+	}
+
 	logger.Debugf("download data object in parallel (redirect-to-resource), size(%d), threads(%d)", dataObject.Size, numTasks)
 
 	defer func() {
@@ -855,6 +868,12 @@ func DownloadDataObjectFromResourceServerWithConnection(sess *session.IRODSSessi
 	if err != nil {
 		logger.WithError(err).Debug("failed to get redirection info for data object, switch to DownloadDataObject")
 		return DownloadDataObjectWithConnection(controlConn, dataObject, resource, localPath, keywords, transferCallback)
+	}
+
+	// the server returns a small enough data object with the response and has already closed
+	// the replica, so there is nothing left to transfer and no redirection to complete
+	if len(handle.Data) > 0 {
+		return writeDataObjectDataToFile(handle.Data, localPath, dataObject.Size, transferCallback)
 	}
 
 	logger.Debugf("download data object in parallel (redirect-to-resource), size(%d), threads(%d)", dataObject.Size, numTasks)
@@ -1205,6 +1224,25 @@ func UploadDataObjectToResourceServerWithConnection(sess *session.IRODSSession, 
 
 	if len(errChan) > 0 {
 		return <-errChan
+	}
+
+	return nil
+}
+
+// writeDataObjectDataToFile writes a data object that the server returned with its response
+// to the local path
+func writeDataObjectDataToFile(data []byte, localPath string, totalSize int64, transferCallback common.TransferTrackerCallback) error {
+	if transferCallback != nil {
+		transferCallback("download", 0, totalSize)
+	}
+
+	err := os.WriteFile(localPath, data, 0666)
+	if err != nil {
+		return errors.Wrapf(err, "failed to write file %q", localPath)
+	}
+
+	if transferCallback != nil {
+		transferCallback("download", int64(len(data)), totalSize)
 	}
 
 	return nil
