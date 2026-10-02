@@ -107,14 +107,19 @@ func NewConnectionPool(account *types.IRODSAccount, config *ConnectionPoolConfig
 
 	// the kernel sizes socket buffers on its own, so only ask for a size in the directions
 	// where it cannot reach the size a transfer wants. a zero size leaves the socket alone.
-	if config.TcpBufferSize <= 0 {
+	if config.TcpSendBufferSize <= 0 || config.TcpRecvBufferSize <= 0 {
 		sendBufferSize, recvBufferSize, err := system.GetTCPBufferSizes()
 		if err != nil {
 			pool.logger.WithError(err).Infof("failed to get system suggested buffer sizes. Use default.")
 			// leave the socket buffers to the kernel
 		} else {
-			config.TcpSendBufferSize = sendBufferSize
-			config.TcpRecvBufferSize = recvBufferSize
+			if config.TcpSendBufferSize <= 0 {
+				config.TcpSendBufferSize = sendBufferSize
+			}
+
+			if config.TcpRecvBufferSize <= 0 {
+				config.TcpRecvBufferSize = recvBufferSize
+			}
 		}
 	}
 

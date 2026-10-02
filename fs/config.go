@@ -17,8 +17,10 @@ const (
 	// Connection Config
 	// FileSystemConnectionCreationTimeoutDefault is a default timeout value of connection error
 	FileSystemConnectionCreationTimeoutDefault time.Duration = session.IRODSSessionConnectionCreationTimeoutDefault
-	// FileSystemTcpBufferSizeDefault is a default value of tcp buffer size
-	FileSystemTcpBufferSizeDefault int = session.IRODSSessionTcpBufferSizeDefault
+	// FileSystemTcpSendBufferSizeDefault is a default value of tcp send buffer size
+	FileSystemTcpSendBufferSizeDefault int = session.IRODSSessionTcpSendBufferSizeDefault
+	// FileSystemTcpRecvBufferSizeDefault is a default value of tcp receive buffer size
+	FileSystemTcpRecvBufferSizeDefault int = session.IRODSSessionTcpRecvBufferSizeDefault
 	// FileSystemConnectionLifespanDefault is a default lifespan of a connection
 	FileSystemConnectionLifespanDefault time.Duration = session.IRODSSessionConnectionLifespanDefault
 	// FileSystemConnectionIdleTimeoutDefault is a default value of connection idle timeout
@@ -79,7 +81,8 @@ type ConnectionConfig struct {
 	IdleTimeout          types.Duration `yaml:"idle_timeout,omitempty" json:"idle_timeout,omitempty"`                     // time out for being idle, after this point the connection will be disposed
 	OperationTimeout     types.Duration `yaml:"operation_timeout,omitempty" json:"operation_timeout,omitempty"`           // timeout for iRODS operations
 	LongOperationTimeout types.Duration `yaml:"long_operation_timeout,omitempty" json:"long_operation_timeout,omitempty"` // timeout for long iRODS operations
-	TcpBufferSize        int            `yaml:"tcp_buffer_size,omitempty" json:"tcp_buffer_size,omitempty"`               // buffer size
+	TcpSendBufferSize    int            `yaml:"tcp_send_buffer_size,omitempty" json:"tcp_send_buffer_size,omitempty"`     // tcp send buffer size, zero to size it from the system's limits
+	TcpRecvBufferSize    int            `yaml:"tcp_recv_buffer_size,omitempty" json:"tcp_recv_buffer_size,omitempty"`     // tcp receive buffer size, zero to size it from the system's limits
 	WaitConnection       bool           `yaml:"wait_connection,omitempty" json:"wait_connection,omitempty"`               // whether to wait for a connection to be available
 }
 
@@ -94,7 +97,8 @@ func NewDefaultMetadataConnectionConfig() ConnectionConfig {
 		IdleTimeout:          types.Duration(FileSystemConnectionIdleTimeoutDefault),
 		OperationTimeout:     types.Duration(FileSystemOperationTimeout),
 		LongOperationTimeout: types.Duration(FileSystemLongOperationTimeout),
-		TcpBufferSize:        FileSystemTcpBufferSizeDefault,
+		TcpSendBufferSize:    FileSystemTcpSendBufferSizeDefault,
+		TcpRecvBufferSize:    FileSystemTcpRecvBufferSizeDefault,
 		WaitConnection:       true,
 	}
 }
@@ -110,7 +114,8 @@ func NewDefaultIOConnectionConfig() ConnectionConfig {
 		IdleTimeout:          types.Duration(FileSystemConnectionIdleTimeoutDefault),
 		OperationTimeout:     types.Duration(FileSystemOperationTimeout),
 		LongOperationTimeout: types.Duration(FileSystemLongOperationTimeout),
-		TcpBufferSize:        FileSystemTcpBufferSizeDefault,
+		TcpSendBufferSize:    FileSystemTcpSendBufferSizeDefault,
+		TcpRecvBufferSize:    FileSystemTcpRecvBufferSizeDefault,
 		WaitConnection:       true,
 	}
 }
@@ -155,7 +160,8 @@ func (config *FileSystemConfig) ToMetadataSessionConfig() *session.IRODSSessionC
 		ConnectionMaxIdleNumber:   config.MetadataConnection.MaxIdleNumber,
 		OperationTimeout:          time.Duration(config.MetadataConnection.OperationTimeout),
 		LongOperationTimeout:      time.Duration(config.MetadataConnection.LongOperationTimeout),
-		TcpBufferSize:             config.MetadataConnection.TcpBufferSize,
+		TcpSendBufferSize:         config.MetadataConnection.TcpSendBufferSize,
+		TcpRecvBufferSize:         config.MetadataConnection.TcpRecvBufferSize,
 		StartNewTransaction:       config.Cache.StartNewTransaction,
 		WaitConnection:            config.MetadataConnection.WaitConnection,
 		AddressResolver:           config.AddressResolver,
@@ -178,7 +184,8 @@ func (config *FileSystemConfig) ToIOSessionConfig() *session.IRODSSessionConfig 
 		ConnectionMaxIdleNumber:   config.IOConnection.MaxIdleNumber,
 		OperationTimeout:          time.Duration(config.IOConnection.OperationTimeout),
 		LongOperationTimeout:      time.Duration(config.IOConnection.LongOperationTimeout),
-		TcpBufferSize:             config.IOConnection.TcpBufferSize,
+		TcpSendBufferSize:         config.IOConnection.TcpSendBufferSize,
+		TcpRecvBufferSize:         config.IOConnection.TcpRecvBufferSize,
 		StartNewTransaction:       config.Cache.StartNewTransaction,
 		WaitConnection:            config.IOConnection.WaitConnection,
 		AddressResolver:           config.AddressResolver,

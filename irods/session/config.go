@@ -15,8 +15,10 @@ const (
 	IRODSSessionApplicationNameDefault string = connection.ApplicationNameDefault
 	// IRODSSessionConnectionCreationTimeoutDefault is a default value of connection error timeout
 	IRODSSessionConnectionCreationTimeoutDefault time.Duration = connection.ConnectTimeoutDefault
-	// IRODSSessionTcpBufferSizeDefault is a default value of tcp buffer size
-	IRODSSessionTcpBufferSizeDefault int = connection.TcpBufferSizeDefault
+	// IRODSSessionTcpSendBufferSizeDefault is a default value of tcp send buffer size
+	IRODSSessionTcpSendBufferSizeDefault int = connection.TcpSendBufferSizeDefault
+	// IRODSSessionTcpRecvBufferSizeDefault is a default value of tcp receive buffer size
+	IRODSSessionTcpRecvBufferSizeDefault int = connection.TcpRecvBufferSizeDefault
 	// IRODSSessionConnectionInitNumberDefault is a default value of connection init
 	IRODSSessionConnectionInitNumberDefault int = 0
 	// IRODSSessionConnectionMaxNumberDefault is a default value of connection max
@@ -45,9 +47,8 @@ type ConnectionPoolConfig struct {
 	ConnectTimeout       time.Duration // if there's no response for the timeout time, the connection will fail
 	OperationTimeout     time.Duration // timeout for iRODS operations
 	LongOperationTimeout time.Duration // timeout for long iRODS operations
-	TcpBufferSize        int
-	// TcpSendBufferSize and TcpRecvBufferSize override TcpBufferSize for one direction.
-	// The pool fills them from the system's limits when TcpBufferSize is not set.
+	// TcpSendBufferSize and TcpRecvBufferSize ask for these socket buffer sizes. The pool
+	// fills a zero size from the system's limits.
 	TcpSendBufferSize int
 	TcpRecvBufferSize int
 
@@ -68,7 +69,8 @@ type IRODSSessionConfig struct {
 	ConnectionMaxIdleNumber   int
 	OperationTimeout          time.Duration // timeout for iRODS operations
 	LongOperationTimeout      time.Duration // timeout for long iRODS operations
-	TcpBufferSize             int
+	TcpSendBufferSize         int           // zero lets the pool size it from the system's limits
+	TcpRecvBufferSize         int           // zero lets the pool size it from the system's limits
 	StartNewTransaction       bool
 
 	WaitConnection  bool            // if true, wait for a connection to be available when the pool is exhausted
@@ -114,8 +116,12 @@ func (poolConfig *ConnectionPoolConfig) fillDefaults() {
 		poolConfig.LongOperationTimeout = IRODSSessionLongOperationTimeoutDefault
 	}
 
-	if poolConfig.TcpBufferSize < 0 {
-		poolConfig.TcpBufferSize = IRODSSessionTcpBufferSizeDefault
+	if poolConfig.TcpSendBufferSize < 0 {
+		poolConfig.TcpSendBufferSize = IRODSSessionTcpSendBufferSizeDefault
+	}
+
+	if poolConfig.TcpRecvBufferSize < 0 {
+		poolConfig.TcpRecvBufferSize = IRODSSessionTcpRecvBufferSizeDefault
 	}
 }
 
@@ -165,9 +171,14 @@ func (poolConfig *ConnectionPoolConfig) Validate() error {
 		return errors.Wrapf(newErr, "long operation timeout is invalid")
 	}
 
-	if poolConfig.TcpBufferSize < 0 {
+	if poolConfig.TcpSendBufferSize < 0 {
 		newErr := types.NewConnectionConfigError(nil)
-		return errors.Wrapf(newErr, "tcp buffer size is invalid")
+		return errors.Wrapf(newErr, "tcp send buffer size is invalid")
+	}
+
+	if poolConfig.TcpRecvBufferSize < 0 {
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "tcp receive buffer size is invalid")
 	}
 
 	return nil
@@ -179,7 +190,6 @@ func (poolConfig *ConnectionPoolConfig) ToConnectionConfig() *connection.IRODSCo
 		ConnectTimeout:       poolConfig.ConnectTimeout,
 		OperationTimeout:     poolConfig.OperationTimeout,
 		LongOperationTimeout: poolConfig.LongOperationTimeout,
-		TcpBufferSize:        poolConfig.TcpBufferSize,
 		TcpSendBufferSize:    poolConfig.TcpSendBufferSize,
 		TcpRecvBufferSize:    poolConfig.TcpRecvBufferSize,
 		Metrics:              poolConfig.Metrics,
@@ -226,8 +236,12 @@ func (sessionConfig *IRODSSessionConfig) fillDefaults() {
 		sessionConfig.LongOperationTimeout = IRODSSessionLongOperationTimeoutDefault
 	}
 
-	if sessionConfig.TcpBufferSize < 0 {
-		sessionConfig.TcpBufferSize = IRODSSessionTcpBufferSizeDefault
+	if sessionConfig.TcpSendBufferSize < 0 {
+		sessionConfig.TcpSendBufferSize = IRODSSessionTcpSendBufferSizeDefault
+	}
+
+	if sessionConfig.TcpRecvBufferSize < 0 {
+		sessionConfig.TcpRecvBufferSize = IRODSSessionTcpRecvBufferSizeDefault
 	}
 }
 
@@ -277,9 +291,14 @@ func (sessionConfig *IRODSSessionConfig) Validate() error {
 		return errors.Wrapf(newErr, "long operation timeout is invalid")
 	}
 
-	if sessionConfig.TcpBufferSize < 0 {
+	if sessionConfig.TcpSendBufferSize < 0 {
 		newErr := types.NewConnectionConfigError(nil)
-		return errors.Wrapf(newErr, "tcp buffer size is invalid")
+		return errors.Wrapf(newErr, "tcp send buffer size is invalid")
+	}
+
+	if sessionConfig.TcpRecvBufferSize < 0 {
+		newErr := types.NewConnectionConfigError(nil)
+		return errors.Wrapf(newErr, "tcp receive buffer size is invalid")
 	}
 
 	return nil
@@ -296,7 +315,8 @@ func (sessionConfig *IRODSSessionConfig) ToConnectionPoolConfig() *ConnectionPoo
 		ConnectTimeout:       sessionConfig.ConnectionCreationTimeout,
 		OperationTimeout:     sessionConfig.OperationTimeout,
 		LongOperationTimeout: sessionConfig.LongOperationTimeout,
-		TcpBufferSize:        sessionConfig.TcpBufferSize,
+		TcpSendBufferSize:    sessionConfig.TcpSendBufferSize,
+		TcpRecvBufferSize:    sessionConfig.TcpRecvBufferSize,
 
 		Logger:   sessionConfig.Logger,
 		LogEntry: sessionConfig.LogEntry,

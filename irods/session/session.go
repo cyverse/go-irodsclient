@@ -799,34 +799,32 @@ func (sess *IRODSSession) GetRedirectionConnection(controlConnection *connection
 
 	// these sockets carry the bulk of the data, so they are worth sizing deliberately
 	poolSendBufferSize, poolRecvBufferSize := sess.connectionPool.GetTcpBufferSizes()
-	sendBufferSize, recvBufferSize := resolveRedirectionBufferSizes(sess.config.TcpBufferSize, resourceServerInfo.WindowSize, poolSendBufferSize, poolRecvBufferSize)
 
 	connConfig := &connection.IRODSResourceServerConnectionConfig{
 		ConnectTimeout:    sess.config.ConnectionCreationTimeout,
-		TcpBufferSize:     sess.config.TcpBufferSize,
-		TcpSendBufferSize: sendBufferSize,
-		TcpRecvBufferSize: recvBufferSize,
+		TcpSendBufferSize: resolveRedirectionBufferSize(sess.config.TcpSendBufferSize, resourceServerInfo.WindowSize, poolSendBufferSize),
+		TcpRecvBufferSize: resolveRedirectionBufferSize(sess.config.TcpRecvBufferSize, resourceServerInfo.WindowSize, poolRecvBufferSize),
 		Metrics:           &sess.metrics,
 	}
 
 	return connection.NewIRODSResourceServerConnection(controlConnection, &resourceServerInfo, connConfig)
 }
 
-// resolveRedirectionBufferSizes returns the send and receive socket buffer sizes for a data
+// resolveRedirectionBufferSize returns the socket buffer size for one direction of a data
 // connection to a resource server. A zero size leaves that direction to the kernel.
 //
 // The caller's own setting wins. Failing that the server's window size is used, which the
 // reference client sets on both directions of a portal socket. It is zero unless an
 // administrator asked for one with msiSetNumThreads, so a zero falls through to what the pool
 // resolved against the system's limits.
-func resolveRedirectionBufferSizes(configuredSize int, serverWindowSize int, poolSendSize int, poolRecvSize int) (int, int) {
+func resolveRedirectionBufferSize(configuredSize int, serverWindowSize int, poolSize int) int {
 	if configuredSize > 0 {
-		return configuredSize, configuredSize
+		return configuredSize
 	}
 
 	if serverWindowSize > 0 {
-		return serverWindowSize, serverWindowSize
+		return serverWindowSize
 	}
 
-	return poolSendSize, poolRecvSize
+	return poolSize
 }
