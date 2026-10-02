@@ -17,6 +17,27 @@ func getHighlevelFileTransferTest() Test {
 	}
 }
 
+// file sizes up to common.MaxSizeForSingleBufferTransfer (32MB) are uploaded in a single buffer,
+// larger ones are uploaded through the regular transfer
+var highlevelFileTransferTestFileSizes = []int64{
+	0,
+	16 * 1024 * 1024,  // 16MB
+	32 * 1024 * 1024,  // 32MB
+	100 * 1024 * 1024, // 100MB
+	200 * 1024 * 1024, // 200MB
+	300 * 1024 * 1024, // 300MB
+}
+
+// same as highlevelFileTransferTestFileSizes, but in multiples of 1000
+var highlevelFileTransferTest1000sFileSizes = []int64{
+	0,
+	16 * 1000 * 1000,  // 16MB
+	32 * 1000 * 1000,  // 32MB
+	100 * 1000 * 1000, // 100MB
+	200 * 1000 * 1000, // 200MB
+	300 * 1000 * 1000, // 300MB
+}
+
 func highlevelFileTransferTest(t *testing.T, test *Test) {
 	t.Run("UploadAndDownload", testUploadAndDownload)
 	t.Run("UploadAndDownloadOverwrite", testUploadAndDownloadOverwrite)
@@ -41,11 +62,10 @@ func testUploadAndDownload(t *testing.T) {
 	homeDir, err := test.GetTestHomeDir()
 	FailError(t, err)
 
-	for i := 0; i < 3; i++ {
+	for i, fileSize := range highlevelFileTransferTestFileSizes {
 		// gen large file
 		filename := fmt.Sprintf("test_large_file_%d.bin", i)
-		fileSize := i * 100 * 1024 * 1024 // 0, 100, 200, 300... MB
-		localPath, err := CreateLocalTestFile(t, filename, int64(fileSize))
+		localPath, err := CreateLocalTestFile(t, filename, fileSize)
 		FailError(t, err)
 
 		irodsPath := homeDir + "/" + filename
@@ -56,7 +76,7 @@ func testUploadAndDownload(t *testing.T) {
 		entry, err := filesystem.Stat(irodsPath)
 		FailError(t, err)
 		assert.Equal(t, filename, entry.Name, "stat name should match uploaded filename")
-		assert.Equal(t, int64(fileSize), entry.Size, "stat size should match source file size")
+		assert.Equal(t, fileSize, entry.Size, "stat size should match source file size")
 		assert.Equal(t, fs.FileEntry, entry.Type, "stat type should indicate file entry")
 
 		// remove local file
@@ -74,7 +94,7 @@ func testUploadAndDownload(t *testing.T) {
 
 		st, err := os.Stat(newLocalPath)
 		FailError(t, err)
-		assert.Equal(t, int64(fileSize), st.Size(), "downloaded file size should match original file size")
+		assert.Equal(t, fileSize, st.Size(), "downloaded file size should match original file size")
 
 		// remove new local file
 		err = os.Remove(newLocalPath)
@@ -102,15 +122,14 @@ func testUploadAndDownloadOverwrite(t *testing.T) {
 	newLocalPath := t.TempDir() + "/new_test_large_file.bin"
 	irodsPath := homeDir + "/" + filename
 
-	for i := 0; i <= 3; i++ {
+	for _, fileSize := range highlevelFileTransferTestFileSizes {
 		// gen large file
-		fileSize := i * 100 * 1024 * 1024 // 0, 100, 200, 300... MB
-		localPath, err := CreateLocalTestFile(t, filename, int64(fileSize))
+		localPath, err := CreateLocalTestFile(t, filename, fileSize)
 		FailError(t, err)
 
 		st, err := os.Stat(localPath)
 		FailError(t, err)
-		assert.Equal(t, int64(fileSize), st.Size(), "created local test file size should match the expected file size")
+		assert.Equal(t, fileSize, st.Size(), "created local test file size should match the expected file size")
 
 		_, err = filesystem.UploadFile(localPath, irodsPath, "", false, true, nil)
 		FailError(t, err)
@@ -118,7 +137,7 @@ func testUploadAndDownloadOverwrite(t *testing.T) {
 		entry, err := filesystem.Stat(irodsPath)
 		FailError(t, err)
 		assert.Equal(t, filename, entry.Name, "stat name should match uploaded filename")
-		assert.Equal(t, int64(fileSize), entry.Size, "stat size should match source file size")
+		assert.Equal(t, fileSize, entry.Size, "stat size should match source file size")
 		assert.Equal(t, fs.FileEntry, entry.Type, "stat type should indicate file entry")
 
 		// remove local file
@@ -135,18 +154,18 @@ func testUploadAndDownloadOverwrite(t *testing.T) {
 
 		st, err = os.Stat(newLocalPath)
 		FailError(t, err)
-		assert.Equal(t, int64(fileSize), st.Size())
+		assert.Equal(t, fileSize, st.Size())
 	}
 
-	for i := 2; i >= 0; i-- {
+	for i := len(highlevelFileTransferTestFileSizes) - 2; i >= 0; i-- {
 		// gen large file
-		fileSize := i * 100 * 1024 * 1024 // 200, 100, 0 MB
-		localPath, err := CreateLocalTestFile(t, filename, int64(fileSize))
+		fileSize := highlevelFileTransferTestFileSizes[i] // 200, 100, 32, 16, 0 MB (300MB was uploaded last above)
+		localPath, err := CreateLocalTestFile(t, filename, fileSize)
 		FailError(t, err)
 
 		st, err := os.Stat(localPath)
 		FailError(t, err)
-		assert.Equal(t, int64(fileSize), st.Size(), "created local test file size should match the expected file size")
+		assert.Equal(t, fileSize, st.Size(), "created local test file size should match the expected file size")
 
 		_, err = filesystem.UploadFile(localPath, irodsPath, "", false, true, nil)
 		FailError(t, err)
@@ -154,7 +173,7 @@ func testUploadAndDownloadOverwrite(t *testing.T) {
 		entry, err := filesystem.Stat(irodsPath)
 		FailError(t, err)
 		assert.Equal(t, filename, entry.Name, "stat name should match uploaded filename")
-		assert.Equal(t, int64(fileSize), entry.Size, "stat size should match source file size")
+		assert.Equal(t, fileSize, entry.Size, "stat size should match source file size")
 		assert.Equal(t, fs.FileEntry, entry.Type, "stat type should indicate file entry")
 
 		// remove local file
@@ -171,7 +190,7 @@ func testUploadAndDownloadOverwrite(t *testing.T) {
 
 		st, err = os.Stat(newLocalPath)
 		FailError(t, err)
-		assert.Equal(t, int64(fileSize), st.Size())
+		assert.Equal(t, fileSize, st.Size())
 	}
 
 	// remove new local file
@@ -195,18 +214,17 @@ func testUploadAndDownloadParallel(t *testing.T) {
 	homeDir, err := test.GetTestHomeDir()
 	FailError(t, err)
 
-	for i := 0; i < 3; i++ {
+	for i, fileSize := range highlevelFileTransferTestFileSizes {
 		// gen large file
 		filename := fmt.Sprintf("test_large_file_%d.bin", i)
-		fileSize := i * 100 * 1024 * 1024 // 0, 100, 200, 300... MB
-		localPath, err := CreateLocalTestFile(t, filename, int64(fileSize))
+		localPath, err := CreateLocalTestFile(t, filename, fileSize)
 		FailError(t, err)
 
 		irodsPath := homeDir + "/" + filename
 
 		st, err := os.Stat(localPath)
 		FailError(t, err)
-		assert.Equal(t, int64(fileSize), st.Size(), "created local test file size should match the expected file size")
+		assert.Equal(t, fileSize, st.Size(), "created local test file size should match the expected file size")
 
 		_, err = filesystem.UploadFileParallel(localPath, irodsPath, "", 0, false, true, nil)
 		FailError(t, err)
@@ -214,7 +232,7 @@ func testUploadAndDownloadParallel(t *testing.T) {
 		entry, err := filesystem.Stat(irodsPath)
 		FailError(t, err)
 		assert.Equal(t, filename, entry.Name, "stat name should match uploaded filename")
-		assert.Equal(t, int64(fileSize), entry.Size, "stat size should match source file size")
+		assert.Equal(t, fileSize, entry.Size, "stat size should match source file size")
 		assert.Equal(t, fs.FileEntry, entry.Type, "stat type should indicate file entry")
 
 		// remove local file
@@ -232,7 +250,7 @@ func testUploadAndDownloadParallel(t *testing.T) {
 
 		st, err = os.Stat(newLocalPath)
 		FailError(t, err)
-		assert.Equal(t, int64(fileSize), st.Size())
+		assert.Equal(t, fileSize, st.Size())
 
 		// remove new local file
 		err = os.Remove(newLocalPath)
@@ -260,15 +278,14 @@ func testUploadAndDownloadParallelOverwrite(t *testing.T) {
 	newLocalPath := t.TempDir() + "/new_test_large_file.bin"
 	irodsPath := homeDir + "/" + filename
 
-	for i := 0; i < 3; i++ {
+	for _, fileSize := range highlevelFileTransferTestFileSizes {
 		// gen large file
-		fileSize := i * 100 * 1024 * 1024 // 0, 100, 200, 300... MB
-		localPath, err := CreateLocalTestFile(t, filename, int64(fileSize))
+		localPath, err := CreateLocalTestFile(t, filename, fileSize)
 		FailError(t, err)
 
 		st, err := os.Stat(localPath)
 		FailError(t, err)
-		assert.Equal(t, int64(fileSize), st.Size(), "created local test file size should match the expected file size")
+		assert.Equal(t, fileSize, st.Size(), "created local test file size should match the expected file size")
 
 		_, err = filesystem.UploadFileParallel(localPath, irodsPath, "", 0, false, true, nil)
 		FailError(t, err)
@@ -276,7 +293,7 @@ func testUploadAndDownloadParallelOverwrite(t *testing.T) {
 		entry, err := filesystem.Stat(irodsPath)
 		FailError(t, err)
 		assert.Equal(t, filename, entry.Name, "stat name should match uploaded filename")
-		assert.Equal(t, int64(fileSize), entry.Size, "stat size should match source file size")
+		assert.Equal(t, fileSize, entry.Size, "stat size should match source file size")
 		assert.Equal(t, fs.FileEntry, entry.Type, "stat type should indicate file entry")
 
 		// remove local file
@@ -293,18 +310,18 @@ func testUploadAndDownloadParallelOverwrite(t *testing.T) {
 
 		st, err = os.Stat(newLocalPath)
 		FailError(t, err)
-		assert.Equal(t, int64(fileSize), st.Size())
+		assert.Equal(t, fileSize, st.Size())
 	}
 
-	for i := 2; i >= 0; i-- {
+	for i := len(highlevelFileTransferTestFileSizes) - 2; i >= 0; i-- {
 		// gen large file
-		fileSize := i * 100 * 1024 * 1024 // 200, 100, 0 MB
-		localPath, err := CreateLocalTestFile(t, filename, int64(fileSize))
+		fileSize := highlevelFileTransferTestFileSizes[i] // 200, 100, 32, 16, 0 MB (300MB was uploaded last above)
+		localPath, err := CreateLocalTestFile(t, filename, fileSize)
 		FailError(t, err)
 
 		st, err := os.Stat(localPath)
 		FailError(t, err)
-		assert.Equal(t, int64(fileSize), st.Size(), "created local test file size should match the expected file size")
+		assert.Equal(t, fileSize, st.Size(), "created local test file size should match the expected file size")
 
 		_, err = filesystem.UploadFileParallel(localPath, irodsPath, "", 0, false, true, nil)
 		FailError(t, err)
@@ -312,7 +329,7 @@ func testUploadAndDownloadParallelOverwrite(t *testing.T) {
 		entry, err := filesystem.Stat(irodsPath)
 		FailError(t, err)
 		assert.Equal(t, filename, entry.Name, "stat name should match uploaded filename")
-		assert.Equal(t, int64(fileSize), entry.Size, "stat size should match source file size")
+		assert.Equal(t, fileSize, entry.Size, "stat size should match source file size")
 		assert.Equal(t, fs.FileEntry, entry.Type, "stat type should indicate file entry")
 
 		// remove local file
@@ -329,7 +346,7 @@ func testUploadAndDownloadParallelOverwrite(t *testing.T) {
 
 		st, err = os.Stat(newLocalPath)
 		FailError(t, err)
-		assert.Equal(t, int64(fileSize), st.Size())
+		assert.Equal(t, fileSize, st.Size())
 	}
 
 	// remove new local file
@@ -353,11 +370,10 @@ func testUploadAndDownloadRedirectToResource(t *testing.T) {
 	homeDir, err := test.GetTestHomeDir()
 	FailError(t, err)
 
-	for i := 0; i < 3; i++ {
+	for i, fileSize := range highlevelFileTransferTestFileSizes {
 		// gen large file
 		filename := fmt.Sprintf("test_large_file_%d.bin", i)
-		fileSize := i * 100 * 1024 * 1024 // 0, 100, 200, 300... MB
-		localPath, err := CreateLocalTestFile(t, filename, int64(fileSize))
+		localPath, err := CreateLocalTestFile(t, filename, fileSize)
 		FailError(t, err)
 
 		irodsPath := homeDir + "/" + filename
@@ -368,7 +384,7 @@ func testUploadAndDownloadRedirectToResource(t *testing.T) {
 		entry, err := filesystem.Stat(irodsPath)
 		FailError(t, err)
 		assert.Equal(t, filename, entry.Name, "stat name should match uploaded filename")
-		assert.Equal(t, int64(fileSize), entry.Size, "stat size should match source file size")
+		assert.Equal(t, fileSize, entry.Size, "stat size should match source file size")
 		assert.Equal(t, fs.FileEntry, entry.Type, "stat type should indicate file entry")
 
 		// remove local file
@@ -386,7 +402,7 @@ func testUploadAndDownloadRedirectToResource(t *testing.T) {
 
 		st, err := os.Stat(newLocalPath)
 		FailError(t, err)
-		assert.Equal(t, int64(fileSize), st.Size(), "downloaded file size should match original file size")
+		assert.Equal(t, fileSize, st.Size(), "downloaded file size should match original file size")
 
 		// remove new local file
 		err = os.Remove(newLocalPath)
@@ -414,15 +430,14 @@ func testUploadAndDownloadRedirectToResourceOverwrite(t *testing.T) {
 	newLocalPath := t.TempDir() + "/new_test_large_file.bin"
 	irodsPath := homeDir + "/" + filename
 
-	for i := 0; i < 3; i++ {
+	for _, fileSize := range highlevelFileTransferTestFileSizes {
 		// gen large file
-		fileSize := i * 100 * 1024 * 1024 // 0, 100, 200, 300... MB
-		localPath, err := CreateLocalTestFile(t, filename, int64(fileSize))
+		localPath, err := CreateLocalTestFile(t, filename, fileSize)
 		FailError(t, err)
 
 		st, err := os.Stat(localPath)
 		FailError(t, err)
-		assert.Equal(t, int64(fileSize), st.Size(), "created local test file size should match the expected file size")
+		assert.Equal(t, fileSize, st.Size(), "created local test file size should match the expected file size")
 
 		_, err = filesystem.UploadFileRedirectToResource(localPath, irodsPath, "", 0, false, true, nil)
 		FailError(t, err)
@@ -430,7 +445,7 @@ func testUploadAndDownloadRedirectToResourceOverwrite(t *testing.T) {
 		entry, err := filesystem.Stat(irodsPath)
 		FailError(t, err)
 		assert.Equal(t, filename, entry.Name, "stat name should match uploaded filename")
-		assert.Equal(t, int64(fileSize), entry.Size, "stat size should match source file size")
+		assert.Equal(t, fileSize, entry.Size, "stat size should match source file size")
 		assert.Equal(t, fs.FileEntry, entry.Type, "stat type should indicate file entry")
 
 		// remove local file
@@ -447,18 +462,18 @@ func testUploadAndDownloadRedirectToResourceOverwrite(t *testing.T) {
 
 		st, err = os.Stat(newLocalPath)
 		FailError(t, err)
-		assert.Equal(t, int64(fileSize), st.Size())
+		assert.Equal(t, fileSize, st.Size())
 	}
 
-	for i := 2; i >= 0; i-- {
+	for i := len(highlevelFileTransferTestFileSizes) - 2; i >= 0; i-- {
 		// gen large file
-		fileSize := i * 100 * 1024 * 1024 // 200, 100, 0 MB
-		localPath, err := CreateLocalTestFile(t, filename, int64(fileSize))
+		fileSize := highlevelFileTransferTestFileSizes[i] // 200, 100, 32, 16, 0 MB (300MB was uploaded last above)
+		localPath, err := CreateLocalTestFile(t, filename, fileSize)
 		FailError(t, err)
 
 		st, err := os.Stat(localPath)
 		FailError(t, err)
-		assert.Equal(t, int64(fileSize), st.Size(), "created local test file size should match the expected file size")
+		assert.Equal(t, fileSize, st.Size(), "created local test file size should match the expected file size")
 
 		_, err = filesystem.UploadFileRedirectToResource(localPath, irodsPath, "", 0, false, true, nil)
 		FailError(t, err)
@@ -466,7 +481,7 @@ func testUploadAndDownloadRedirectToResourceOverwrite(t *testing.T) {
 		entry, err := filesystem.Stat(irodsPath)
 		FailError(t, err)
 		assert.Equal(t, filename, entry.Name, "stat name should match uploaded filename")
-		assert.Equal(t, int64(fileSize), entry.Size, "stat size should match source file size")
+		assert.Equal(t, fileSize, entry.Size, "stat size should match source file size")
 		assert.Equal(t, fs.FileEntry, entry.Type, "stat type should indicate file entry")
 
 		// remove local file
@@ -483,7 +498,7 @@ func testUploadAndDownloadRedirectToResourceOverwrite(t *testing.T) {
 
 		st, err = os.Stat(newLocalPath)
 		FailError(t, err)
-		assert.Equal(t, int64(fileSize), st.Size())
+		assert.Equal(t, fileSize, st.Size())
 	}
 
 	// remove new local file
@@ -507,11 +522,10 @@ func testUploadAndDownload1000sRedirectToResource(t *testing.T) {
 	homeDir, err := test.GetTestHomeDir()
 	FailError(t, err)
 
-	for i := 0; i < 3; i++ {
+	for i, fileSize := range highlevelFileTransferTest1000sFileSizes {
 		// gen large file
 		filename := fmt.Sprintf("test_large_file_%d.bin", i)
-		fileSize := i * 100 * 1000 * 1000 // 0, 100, 200, 300... MB
-		localPath, err := CreateLocalTestFile(t, filename, int64(fileSize))
+		localPath, err := CreateLocalTestFile(t, filename, fileSize)
 		FailError(t, err)
 
 		irodsPath := homeDir + "/" + filename
@@ -522,7 +536,7 @@ func testUploadAndDownload1000sRedirectToResource(t *testing.T) {
 		entry, err := filesystem.Stat(irodsPath)
 		FailError(t, err)
 		assert.Equal(t, filename, entry.Name, "stat name should match uploaded filename")
-		assert.Equal(t, int64(fileSize), entry.Size, "stat size should match source file size")
+		assert.Equal(t, fileSize, entry.Size, "stat size should match source file size")
 		assert.Equal(t, fs.FileEntry, entry.Type, "stat type should indicate file entry")
 
 		// remove local file
@@ -540,7 +554,7 @@ func testUploadAndDownload1000sRedirectToResource(t *testing.T) {
 
 		st, err := os.Stat(newLocalPath)
 		FailError(t, err)
-		assert.Equal(t, int64(fileSize), st.Size(), "downloaded file size should match original file size")
+		assert.Equal(t, fileSize, st.Size(), "downloaded file size should match original file size")
 
 		// remove new local file
 		err = os.Remove(newLocalPath)
@@ -563,11 +577,10 @@ func testDownloadWithCallback(t *testing.T) {
 	homeDir, err := test.GetTestHomeDir()
 	FailError(t, err)
 
-	for i := 1; i <= 3; i++ {
+	for i, fileSize := range highlevelFileTransferTestFileSizes {
 		// gen file
 		filename := fmt.Sprintf("test_callback_file_%d.bin", i)
-		fileSize := i * 10 * 1024 * 1024 // 10, 20, 30 MB
-		localPath, err := CreateLocalTestFile(t, filename, int64(fileSize))
+		localPath, err := CreateLocalTestFile(t, filename, fileSize)
 		FailError(t, err)
 
 		irodsPath := homeDir + "/" + filename
@@ -578,7 +591,7 @@ func testDownloadWithCallback(t *testing.T) {
 		entry, err := filesystem.Stat(irodsPath)
 		FailError(t, err)
 		assert.Equal(t, filename, entry.Name, "stat name should match uploaded filename")
-		assert.Equal(t, int64(fileSize), entry.Size, "stat size should match source file size")
+		assert.Equal(t, fileSize, entry.Size, "stat size should match source file size")
 		assert.Equal(t, fs.FileEntry, entry.Type, "stat type should indicate file entry")
 
 		// remove local file
@@ -611,7 +624,7 @@ func testDownloadWithCallback(t *testing.T) {
 
 		st, err := os.Stat(newLocalPath)
 		FailError(t, err)
-		assert.Equal(t, int64(fileSize), st.Size(), "downloaded file size should match original file size")
+		assert.Equal(t, fileSize, st.Size(), "downloaded file size should match original file size")
 
 		// remove new local file
 		err = os.Remove(newLocalPath)
@@ -634,11 +647,10 @@ func testDownloadWithCallbackParallel(t *testing.T) {
 	homeDir, err := test.GetTestHomeDir()
 	FailError(t, err)
 
-	for i := 1; i <= 3; i++ {
+	for i, fileSize := range highlevelFileTransferTestFileSizes {
 		// gen file
 		filename := fmt.Sprintf("test_callback_parallel_file_%d.bin", i)
-		fileSize := i * 10 * 1024 * 1024 // 10, 20, 30 MB
-		localPath, err := CreateLocalTestFile(t, filename, int64(fileSize))
+		localPath, err := CreateLocalTestFile(t, filename, fileSize)
 		FailError(t, err)
 
 		irodsPath := homeDir + "/" + filename
@@ -649,7 +661,7 @@ func testDownloadWithCallbackParallel(t *testing.T) {
 		entry, err := filesystem.Stat(irodsPath)
 		FailError(t, err)
 		assert.Equal(t, filename, entry.Name, "stat name should match uploaded filename")
-		assert.Equal(t, int64(fileSize), entry.Size, "stat size should match source file size")
+		assert.Equal(t, fileSize, entry.Size, "stat size should match source file size")
 		assert.Equal(t, fs.FileEntry, entry.Type, "stat type should indicate file entry")
 
 		// remove local file
@@ -682,7 +694,7 @@ func testDownloadWithCallbackParallel(t *testing.T) {
 
 		st, err := os.Stat(newLocalPath)
 		FailError(t, err)
-		assert.Equal(t, int64(fileSize), st.Size(), "downloaded file size should match original file size")
+		assert.Equal(t, fileSize, st.Size(), "downloaded file size should match original file size")
 
 		// remove new local file
 		err = os.Remove(newLocalPath)

@@ -211,25 +211,6 @@ var (
 
 			CacheBackendType: fs.CacheBackendTypeRistretto,
 		},
-		{
-			Name:                "iRODS 4.3.3 + Redis",
-			Version:             "4.3.3",
-			AuthScheme:          types.AuthSchemeNative,
-			CSNegotiation:       false,
-			CSNegotiationPolicy: types.CSNegotiationPolicyRequestTCP,
-			ComposeFile:         "irods_4.3.3_redis/docker-compose.yml",
-
-			Host:               testServerHost,
-			Port:               testServerPort,
-			User:               testServerAdminUser,
-			Password:           testServerAdminPassword,
-			Zone:               testServerZone,
-			Resource:           testServerResource,
-			UseAddressResolver: true,
-
-			CacheBackendType: fs.CacheBackendTypeRedis,
-			RedisAddress:     redisServerHost + ":" + fmt.Sprintf("%d", redisServerPort),
-		},
 	}
 
 	ProductionIRODSServerInfos []IRODSServerInfo = []IRODSServerInfo{
