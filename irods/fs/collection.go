@@ -620,7 +620,10 @@ func DeleteCollection(conn *connection.IRODSConnection, path string, recurse boo
 		replyBuffer := make([]byte, 4)
 		binary.BigEndian.PutUint32(replyBuffer, uint32(common.SYS_CLI_TO_SVR_COLL_STAT_REPLY))
 
-		err = conn.Send(replyBuffer, 4, nil)
+		// Refresh the write deadline for each reply. Without a timeout, Send leaves the one
+		// set when the request was sent, so a deletion that runs longer than the request
+		// timeout fails to reply and is abandoned part way through.
+		err = conn.Send(replyBuffer, 4, &timeout.RequestTimeout)
 		if err != nil {
 			return errors.Wrapf(err, "failed to reply to a collection deletion response message")
 		}
