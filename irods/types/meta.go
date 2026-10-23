@@ -51,3 +51,41 @@ type IRODSMeta struct {
 func (meta *IRODSMeta) ToString() string {
 	return fmt.Sprintf("<IRODSMeta %d %s %s %s %s %s>", meta.AVUID, meta.Name, meta.Value, meta.Units, meta.CreateTime, meta.ModifyTime)
 }
+
+// IRODSMetaOperationType describes a type of atomic metadata operation
+type IRODSMetaOperationType string
+
+const (
+	// IRODSMetaOperationAdd adds an AVU
+	IRODSMetaOperationAdd IRODSMetaOperationType = "add"
+	// IRODSMetaOperationRemove removes an AVU
+	IRODSMetaOperationRemove IRODSMetaOperationType = "remove"
+)
+
+// IRODSMetaOperation contains an operation for atomic metadata operations
+type IRODSMetaOperation struct {
+	Operation IRODSMetaOperationType `json:"operation"` // add, remove
+	Attribute string                 `json:"attribute"`
+	Value     string                 `json:"value"`
+	Units     string                 `json:"units,omitempty"`
+}
+
+// NewIRODSMetaAddOperation creates a new IRODSMetaOperation for adding an AVU
+func NewIRODSMetaAddOperation(attribute string, value string, units string) *IRODSMetaOperation {
+	return &IRODSMetaOperation{
+		Operation: IRODSMetaOperationAdd,
+		Attribute: attribute,
+		Value:     value,
+		Units:     units,
+	}
+}
+
+// NewIRODSMetaRemoveOperation creates a new IRODSMetaOperation for removing an AVU
+func NewIRODSMetaRemoveOperation(attribute string, value string, units string) *IRODSMetaOperation {
+	return &IRODSMetaOperation{
+		Operation: IRODSMetaOperationRemove,
+		Attribute: attribute,
+		Value:     value,
+		Units:     units,
+	}
+}

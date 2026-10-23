@@ -2737,6 +2737,54 @@ func DeleteDataObjectMeta(conn *connection.IRODSConnection, path string, metadat
 	return nil
 }
 
+// ApplyDataObjectMetaOperations applies multiple metadata operations (add/remove) to a data object for the path atomically.
+// Either all operations are applied or none of them are applied. Requires iRODS 4.2.8 or higher.
+func ApplyDataObjectMetaOperations(conn *connection.IRODSConnection, path string, operations []*types.IRODSMetaOperation) error {
+	if conn == nil || !conn.IsConnected() {
+		return errors.Errorf("connection is nil or disconnected")
+	}
+
+	request, err := message.NewIRODSMessageAtomicApplyMetadataOperationsRequest(types.IRODSDataObjectMetaItemType, path, operations, false)
+	if err != nil {
+		return errors.Wrapf(err, "failed to make atomic apply metadata operations request")
+	}
+
+	metrics := conn.GetMetrics()
+	if metrics != nil {
+		for _, operation := range operations {
+			switch operation.Operation {
+			case types.IRODSMetaOperationAdd:
+				metrics.IncreaseCounterForMetadataCreate(1)
+			case types.IRODSMetaOperationRemove:
+				metrics.IncreaseCounterForMetadataDelete(1)
+			}
+		}
+	}
+
+	// lock the connection
+	conn.Lock()
+	defer conn.Unlock()
+
+	response := message.IRODSMessageAtomicApplyMetadataOperationsResponse{}
+	err = conn.RequestAndCheck(request, &response, nil, conn.GetOperationTimeout())
+	if err != nil {
+		if types.GetIRODSErrorCode(err) == common.SYS_UNMATCHED_API_NUM {
+			// not supported
+			newErr := errors.Join(err, types.NewAPINotSupportedError(common.ATOMIC_APPLY_METADATA_OPERATIONS_APN))
+			return errors.Wrapf(newErr, "failed to apply data object meta operations for path %q", path)
+		} else if types.GetIRODSErrorCode(err) == common.CAT_NO_ROWS_FOUND || types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_FILE {
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return errors.Wrapf(newErr, "failed to find the data object for path %q", path)
+		} else if types.GetIRODSErrorCode(err) == common.CAT_UNKNOWN_COLLECTION {
+			newErr := errors.Join(err, types.NewFileNotFoundError(path))
+			return errors.Wrapf(newErr, "failed to find the collection for path %q", path)
+		}
+
+		return errors.Wrapf(err, "failed to apply data object meta operations")
+	}
+	return nil
+}
+
 // SearchDataObjectsByMeta searches data objects by metadata
 func SearchDataObjectsByMeta(conn *connection.IRODSConnection, metaName string, metaValue string) ([]*types.IRODSDataObject, error) {
 	if conn == nil || !conn.IsConnected() {

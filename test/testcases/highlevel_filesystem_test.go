@@ -27,6 +27,7 @@ func highlevelFilesystemTest(t *testing.T, test *Test) {
 	t.Run("UploadAndDeleteDir", testUploadAndDeleteDir)
 	t.Run("ListDirectory", testListDirectory)
 	t.Run("SearchByMeta", testSearchByMeta)
+	t.Run("ApplyMetadataOperations", testApplyMetadataOperations)
 	t.Run("ListACLs", testListACLs)
 	t.Run("CreateStat", testCreateStat)
 	t.Run("SpecialCharInFilename", testSpecialCharInFilename)
@@ -665,4 +666,63 @@ func testRemoveClose(t *testing.T) {
 	FailError(t, err)
 
 	assert.False(t, filesystem.Exists(irodsPath), "file should not exist after concurrent close and remove")
+}
+
+func testApplyMetadataOperations(t *testing.T) {
+	test := GetCurrentTest()
+	server := test.GetCurrentServer()
+
+	filesystem, err := server.GetFileSystem()
+	FailError(t, err)
+	defer filesystem.Release()
+
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
+
+	files, dirs, err := CreateSampleFilesAndDirs(t, server, homeDir, 1, 1)
+	FailError(t, err)
+	defer func() {
+		for _, file := range files {
+			err = filesystem.RemoveFile(file, true)
+			FailError(t, err)
+		}
+
+		for _, dir := range dirs {
+			err = filesystem.RemoveDir(dir, true, true)
+			FailError(t, err)
+		}
+	}()
+
+	for _, entryPath := range append(files, dirs...) {
+		err = filesystem.AddMetadata(entryPath, "a1", "v1", "these_units")
+		FailError(t, err)
+
+		// remove one, add two in a single request
+		err = filesystem.ApplyMetadataOperations(entryPath, []*types.IRODSMetaOperation{
+			types.NewIRODSMetaRemoveOperation("a1", "v1", "these_units"),
+			types.NewIRODSMetaAddOperation("a2", "v2", "those_units"),
+			types.NewIRODSMetaAddOperation("a3", "v3", ""),
+		})
+		FailError(t, err)
+
+		metas, err := filesystem.ListMetadata(entryPath)
+		FailError(t, err)
+
+		avus := map[string]string{}
+		for _, meta := range metas {
+			avus[meta.Name] = meta.Value + "/" + meta.Units
+		}
+		assert.Equal(t, map[string]string{"a2": "v2/those_units", "a3": "v3/"}, avus)
+
+		// failing request must not apply any operation
+		err = filesystem.ApplyMetadataOperations(entryPath, []*types.IRODSMetaOperation{
+			types.NewIRODSMetaAddOperation("a4", "v4", ""),
+			{Operation: types.IRODSMetaOperationAdd, Attribute: "", Value: "v5"},
+		})
+		assert.Error(t, err)
+
+		metas, err = filesystem.ListMetadata(entryPath)
+		FailError(t, err)
+		assert.Len(t, metas, 2)
+	}
 }

@@ -174,6 +174,33 @@ func (fs *FileSystem) DeleteMetadataByAVU(irodsPath string, attName string, attV
 	return nil
 }
 
+// ApplyMetadataOperations applies multiple metadata operations (add/remove) for the path atomically.
+// Either all operations are applied or none of them are applied.
+func (fs *FileSystem) ApplyMetadataOperations(irodsPath string, operations []*types.IRODSMetaOperation) error {
+	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
+
+	conn, err := fs.metadataSession.AcquireConnection(true)
+	if err != nil {
+		return err
+	}
+	defer fs.metadataSession.ReturnConnection(conn) //nolint
+
+	if fs.ExistsDir(irodsCorrectPath) {
+		err = irods_fs.ApplyCollectionMetaOperations(conn, irodsCorrectPath, operations)
+		if err != nil {
+			return err
+		}
+	} else {
+		err = irods_fs.ApplyDataObjectMetaOperations(conn, irodsCorrectPath, operations)
+		if err != nil {
+			return err
+		}
+	}
+
+	fs.cache.RemoveMetadataCache(irodsCorrectPath)
+	return nil
+}
+
 // AddUserMetadata adds a user metadata
 func (fs *FileSystem) AddUserMetadata(username string, zoneName string, attName string, attValue string, attUnits string) error {
 	metadata := &types.IRODSMeta{
