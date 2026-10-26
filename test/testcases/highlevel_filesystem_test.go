@@ -698,10 +698,10 @@ func testApplyMetadataOperations(t *testing.T) {
 		FailError(t, err)
 
 		// remove one, add two in a single request
-		err = filesystem.ApplyMetadataOperations(entryPath, []*types.IRODSMetaOperation{
-			types.NewIRODSMetaRemoveOperation("a1", "v1", "these_units"),
-			types.NewIRODSMetaAddOperation("a2", "v2", "those_units"),
-			types.NewIRODSMetaAddOperation("a3", "v3", ""),
+		err = filesystem.ApplyMetadataOperations(entryPath, []types.IRODSMetaOperation{
+			*types.NewIRODSMetaRemoveOperation("a1", "v1", "these_units"),
+			*types.NewIRODSMetaAddOperation("a2", "v2", "those_units"),
+			*types.NewIRODSMetaAddOperation("a3", "v3", ""),
 		})
 		FailError(t, err)
 
@@ -715,8 +715,8 @@ func testApplyMetadataOperations(t *testing.T) {
 		assert.Equal(t, map[string]string{"a2": "v2/those_units", "a3": "v3/"}, avus)
 
 		// failing request must not apply any operation
-		err = filesystem.ApplyMetadataOperations(entryPath, []*types.IRODSMetaOperation{
-			types.NewIRODSMetaAddOperation("a4", "v4", ""),
+		err = filesystem.ApplyMetadataOperations(entryPath, []types.IRODSMetaOperation{
+			*types.NewIRODSMetaAddOperation("a4", "v4", ""),
 			{Operation: types.IRODSMetaOperationAdd, Attribute: "", Value: "v5"},
 		})
 		assert.Error(t, err)

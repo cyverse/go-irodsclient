@@ -12,10 +12,10 @@ import (
 
 // IRODSMessageAtomicApplyMetadataOperationsRequest stores atomic apply metadata operations request
 type IRODSMessageAtomicApplyMetadataOperationsRequest struct {
-	AdminMode  bool                        `json:"admin_mode"`
-	EntityName string                      `json:"entity_name"`
-	EntityType string                      `json:"entity_type"` // data_object, collection, resource, user
-	Operations []*types.IRODSMetaOperation `json:"operations"`
+	AdminMode  bool                       `json:"admin_mode"`
+	EntityName string                     `json:"entity_name"`
+	EntityType string                     `json:"entity_type"` // data_object, collection, resource, user
+	Operations []types.IRODSMetaOperation `json:"operations"`
 }
 
 // getAtomicMetadataEntityType returns entity type string for the given meta item type
@@ -35,7 +35,7 @@ func getAtomicMetadataEntityType(itemType types.IRODSMetaItemType) (string, erro
 }
 
 // NewIRODSMessageAtomicApplyMetadataOperationsRequest creates a IRODSMessageAtomicApplyMetadataOperationsRequest message
-func NewIRODSMessageAtomicApplyMetadataOperationsRequest(itemType types.IRODSMetaItemType, itemName string, operations []*types.IRODSMetaOperation, adminMode bool) (*IRODSMessageAtomicApplyMetadataOperationsRequest, error) {
+func NewIRODSMessageAtomicApplyMetadataOperationsRequest(itemType types.IRODSMetaItemType, itemName string, operations []types.IRODSMetaOperation, adminMode bool) (*IRODSMessageAtomicApplyMetadataOperationsRequest, error) {
 	entityType, err := getAtomicMetadataEntityType(itemType)
 	if err != nil {
 		return nil, err
@@ -46,10 +46,6 @@ func NewIRODSMessageAtomicApplyMetadataOperationsRequest(itemType types.IRODSMet
 	}
 
 	for _, operation := range operations {
-		if operation == nil {
-			return nil, errors.Errorf("metadata operation must not be nil")
-		}
-
 		if operation.Operation != types.IRODSMetaOperationAdd && operation.Operation != types.IRODSMetaOperationRemove {
 			return nil, errors.Errorf("unknown metadata operation %q, must be add or remove", operation.Operation)
 		}

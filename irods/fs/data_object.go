@@ -2739,7 +2739,7 @@ func DeleteDataObjectMeta(conn *connection.IRODSConnection, path string, metadat
 
 // ApplyDataObjectMetaOperations applies multiple metadata operations (add/remove) to a data object for the path atomically.
 // Either all operations are applied or none of them are applied. Requires iRODS 4.2.8 or higher.
-func ApplyDataObjectMetaOperations(conn *connection.IRODSConnection, path string, operations []*types.IRODSMetaOperation) error {
+func ApplyDataObjectMetaOperations(conn *connection.IRODSConnection, path string, operations []types.IRODSMetaOperation) error {
 	if conn == nil || !conn.IsConnected() {
 		return errors.Errorf("connection is nil or disconnected")
 	}

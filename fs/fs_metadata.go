@@ -176,7 +176,7 @@ func (fs *FileSystem) DeleteMetadataByAVU(irodsPath string, attName string, attV
 
 // ApplyMetadataOperations applies multiple metadata operations (add/remove) for the path atomically.
 // Either all operations are applied or none of them are applied.
-func (fs *FileSystem) ApplyMetadataOperations(irodsPath string, operations []*types.IRODSMetaOperation) error {
+func (fs *FileSystem) ApplyMetadataOperations(irodsPath string, operations []types.IRODSMetaOperation) error {
 	irodsCorrectPath := util.CleanIRODSPath(irodsPath)
 
 	conn, err := fs.metadataSession.AcquireConnection(true)
