@@ -48,6 +48,7 @@ func highlevelFileTransferTest(t *testing.T, test *Test) {
 	t.Run("UploadAndDownload1000sRedirectToResource", testUploadAndDownload1000sRedirectToResource)
 	t.Run("DownloadWithCallback", testDownloadWithCallback)
 	t.Run("DownloadWithCallbackParallel", testDownloadWithCallbackParallel)
+	t.Run("DownloadBlocksWithCallbackParallel", testDownloadBlocksWithCallbackParallel)
 }
 
 func testUploadAndDownload(t *testing.T) {
@@ -704,4 +705,95 @@ func testDownloadWithCallbackParallel(t *testing.T) {
 		err = filesystem.RemoveFile(irodsPath, true)
 		FailError(t, err)
 	}
+}
+
+func testDownloadBlocksWithCallbackParallel(t *testing.T) {
+	test := GetCurrentTest()
+	server := test.GetCurrentServer()
+
+	filesystem, err := server.GetFileSystem()
+	FailError(t, err)
+	defer filesystem.Release()
+
+	homeDir, err := test.GetTestHomeDir()
+	FailError(t, err)
+
+	blockSize := 1 * 1024 * 1024 // 1MB
+	numBlocks := 4
+	totalBlocks := int64(11)
+
+	// every block is filled with its own block id, and the last one is partial
+	fileSize := (totalBlocks-1)*int64(blockSize) + int64(blockSize)/2
+	data := make([]byte, fileSize)
+	for i := range data {
+		data[i] = byte(int64(i) / int64(blockSize))
+	}
+
+	filename := "test_callback_blocks_parallel_file.bin"
+	localPath := t.TempDir() + "/" + filename
+	err = os.WriteFile(localPath, data, 0o644)
+	FailError(t, err)
+
+	irodsPath := homeDir + "/" + filename
+
+	_, err = filesystem.UploadFile(localPath, irodsPath, "", false, true, nil)
+	FailError(t, err)
+
+	startBlock := int64(2)
+
+	// skip every block whose id is a multiple of 3
+	skipBlockCallback := func(blockID int64) bool {
+		return blockID%3 == 0
+	}
+
+	var mu sync.Mutex
+	received := map[int64][]byte{}
+
+	blockReadyCallback := func(blockData []byte, offset int64) error {
+		mu.Lock()
+		defer mu.Unlock()
+
+		received[offset/int64(blockSize)] = append([]byte{}, blockData...)
+		return nil
+	}
+
+	var lastProgress int64
+	transferCallback := func(taskName string, processed int64, total int64) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		if processed > lastProgress {
+			lastProgress = processed
+		}
+	}
+
+	_, err = filesystem.DownloadFileBlocksParallelWithCallback(irodsPath, "", blockSize, numBlocks, startBlock, skipBlockCallback, blockReadyCallback, 3, transferCallback)
+	FailError(t, err)
+
+	expectedBlocks := []int64{}
+	for blockID := startBlock; blockID < totalBlocks; blockID++ {
+		if !skipBlockCallback(blockID) {
+			expectedBlocks = append(expectedBlocks, blockID)
+		}
+	}
+
+	assert.Equal(t, len(expectedBlocks), len(received), "only blocks from the start block that are not skipped should be delivered")
+	for _, blockID := range expectedBlocks {
+		blockStart := blockID * int64(blockSize)
+		blockEnd := min(blockStart+int64(blockSize), fileSize)
+		assert.Equal(t, data[blockStart:blockEnd], received[blockID], "block %d should match its offset in the source file", blockID)
+	}
+
+	// skipped blocks count as transferred, so the progress reaches the rest of the file
+	assert.Equal(t, fileSize-startBlock*int64(blockSize), lastProgress, "progress should cover every block from the start block")
+
+	// a start block past the last block downloads nothing
+	received = map[int64][]byte{}
+	_, err = filesystem.DownloadFileBlocksParallelWithCallback(irodsPath, "", blockSize, numBlocks, totalBlocks, nil, blockReadyCallback, 3, nil)
+	FailError(t, err)
+	assert.Empty(t, received, "no block should be delivered past the last block")
+
+	// remove irods file
+	err = filesystem.RemoveFile(irodsPath, true)
+	FailError(t, err)
 }

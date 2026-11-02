@@ -1566,13 +1566,30 @@ func DownloadDataObjectWithCallbackWithConnection(conn *connection.IRODSConnecti
 
 // DownloadDataObjectParallelWithCallback downloads a data object in parallel and delivers data blocks via callback.
 func DownloadDataObjectParallelWithCallback(sess *session.IRODSSession, dataObject *types.IRODSDataObject, resource string, blockSize int, numBlocks int, blockReadyCallback common.DataObjectBlockCallback, taskNum int, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
+	return DownloadDataObjectBlocksParallelWithCallback(sess, dataObject, resource, blockSize, numBlocks, 0, nil, blockReadyCallback, taskNum, keywords, transferCallback)
+}
+
+// DownloadDataObjectBlocksParallelWithCallback downloads the blocks of a data object from startBlock to the last one in parallel
+// and delivers them via callback. The blocks are partitioned among taskNum tasks, and each task reads its blocks in order.
+// skipBlockCallback, if given, is asked right before each block is read; a block it skips is not transferred, and the task
+// seeks past it. Skipped blocks count as transferred for transferCallback, so the progress still reaches the data object size.
+func DownloadDataObjectBlocksParallelWithCallback(sess *session.IRODSSession, dataObject *types.IRODSDataObject, resource string, blockSize int, numBlocks int, startBlock int64, skipBlockCallback common.DataObjectBlockSkipCallback, blockReadyCallback common.DataObjectBlockCallback, taskNum int, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
 	logger := sess.GetLogger().WithFields(log.Fields{
-		"irods_path": dataObject.Path,
-		"resource":   resource,
-		"block_size": blockSize,
-		"num_blocks": numBlocks,
-		"task_num":   taskNum,
+		"irods_path":  dataObject.Path,
+		"resource":    resource,
+		"block_size":  blockSize,
+		"num_blocks":  numBlocks,
+		"start_block": startBlock,
+		"task_num":    taskNum,
 	})
+
+	if blockSize <= 0 {
+		return errors.Errorf("invalid block size %d", blockSize)
+	}
+
+	if startBlock < 0 {
+		return errors.Errorf("invalid start block %d", startBlock)
+	}
 
 	// use default resource when resource param is empty
 	if len(resource) == 0 {
@@ -1585,9 +1602,26 @@ func DownloadDataObjectParallelWithCallback(sess *session.IRODSSession, dataObje
 		return nil
 	}
 
+	totalBlocks := dataObject.Size / int64(blockSize)
+	if dataObject.Size%int64(blockSize) > 0 {
+		totalBlocks++
+	}
+
+	if startBlock >= totalBlocks {
+		// nothing to download
+		return nil
+	}
+
+	blocksToDownload := totalBlocks - startBlock
+
 	numTasks := taskNum
 	if numTasks <= 0 {
 		numTasks = util.GetNumTasksForParallelTransfer(dataObject.Size)
+	}
+
+	// a task gets at least one block
+	if int64(numTasks) > blocksToDownload {
+		numTasks = int(blocksToDownload)
 	}
 
 	// acquire all transferConns
@@ -1617,7 +1651,7 @@ func DownloadDataObjectParallelWithCallback(sess *session.IRODSSession, dataObje
 		numTasks = len(transferConns)
 	}
 
-	logger.Debugf("downloading data object in parallel with callback, size(%d), threads(%d)", dataObject.Size, numTasks)
+	logger.Debugf("downloading data object blocks in parallel with callback, size(%d), blocks(%d-%d), threads(%d)", dataObject.Size, startBlock, totalBlocks-1, numTasks)
 
 	// shared buffer pool
 	pool := make(chan []byte, numBlocks)
@@ -1637,11 +1671,11 @@ func DownloadDataObjectParallelWithCallback(sess *session.IRODSSession, dataObje
 		transferCallback("download", atomic.LoadInt64(&totalBytesDownloaded), dataObject.Size)
 	}
 
-	downloadTask := func(taskID int, transferConn *connection.IRODSConnection, taskOffset int64, taskLength int64) {
+	downloadTask := func(taskID int, transferConn *connection.IRODSConnection, taskStartBlock int64, taskEndBlock int64) {
 		taskLogger := logger.WithFields(log.Fields{
-			"task_id":     taskID,
-			"task_offset": taskOffset,
-			"task_length": taskLength,
+			"task_id":          taskID,
+			"task_start_block": taskStartBlock,
+			"task_end_block":   taskEndBlock,
 		})
 
 		taskLogger.Debug("downloading data object partition")
@@ -1655,7 +1689,7 @@ func DownloadDataObjectParallelWithCallback(sess *session.IRODSSession, dataObje
 			taskWaitGroup.Done()
 		}()
 
-		lastOffset := int64(taskOffset)
+		nextBlock := taskStartBlock
 
 		calcProgress := func() {
 			newTotal := int64(0)
@@ -1667,18 +1701,20 @@ func DownloadDataObjectParallelWithCallback(sess *session.IRODSSession, dataObje
 			atomic.StoreInt64(&totalBytesDownloaded, newTotal)
 		}
 
-		blockReadCallback := func(taskName string, processed int64, total int64) {
-			if processed > 0 {
-				atomic.StoreInt64(&currentBytesDownloaded[taskID], processed)
-				calcProgress()
+		reportProgress := func() {
+			calcProgress()
 
-				if transferCallback != nil {
-					transferCallback("download", atomic.LoadInt64(&totalBytesDownloaded), dataObject.Size)
-				}
+			if transferCallback != nil {
+				transferCallback("download", atomic.LoadInt64(&totalBytesDownloaded), dataObject.Size)
 			}
 		}
 
-		taskRemain := taskLength
+		blockReadCallback := func(taskName string, processed int64, total int64) {
+			if processed > 0 {
+				atomic.StoreInt64(&currentBytesDownloaded[taskID], processed)
+				reportProgress()
+			}
+		}
 
 		attempt := func(attemptConn *connection.IRODSConnection) error {
 			attemptHandle, _, openErr := OpenDataObject(attemptConn, dataObject.Path, resource, "r", keywords)
@@ -1692,47 +1728,57 @@ func DownloadDataObjectParallelWithCallback(sess *session.IRODSSession, dataObje
 				}
 			}()
 
-			// seek to last offset
-			if lastOffset > 0 {
-				taskLogger.Debugf("resuming downloading data object partition, last offset %d", lastOffset)
-
-				newOffset, seekErr := SeekDataObject(attemptConn, attemptHandle, lastOffset, types.SeekSet)
-				if seekErr != nil {
-					return errors.Wrapf(seekErr, "failed to seek data object %q to offset %d", dataObject.Path, lastOffset)
-				}
-
-				if newOffset != lastOffset {
-					return errors.Errorf("failed to seek to target offset %d", lastOffset)
-				}
-			}
+			// a new handle starts at the beginning of the data object
+			handleOffset := int64(0)
 
 			// copy
-			for taskRemain > 0 {
+			for nextBlock < taskEndBlock {
 				// check for callback error or other task errors
 				if len(errChan) > 0 {
 					return errors.Errorf("stop running as other tasks failed")
 				}
 
+				blockOffset := nextBlock * int64(blockSize)
+				readLen := int64(blockSize)
+				if dataObject.Size-blockOffset < readLen {
+					readLen = dataObject.Size - blockOffset
+				}
+
+				if skipBlockCallback != nil && skipBlockCallback(nextBlock) {
+					atomic.AddInt64(&bytesDownloaded[taskID], readLen)
+					reportProgress()
+
+					nextBlock++
+					continue
+				}
+
+				// seek when the block does not follow the last one read
+				if handleOffset != blockOffset {
+					newOffset, seekErr := SeekDataObject(attemptConn, attemptHandle, blockOffset, types.SeekSet)
+					if seekErr != nil {
+						return errors.Wrapf(seekErr, "failed to seek data object %q to offset %d", dataObject.Path, blockOffset)
+					}
+
+					if newOffset != blockOffset {
+						return errors.Errorf("failed to seek to target offset %d", blockOffset)
+					}
+
+					handleOffset = blockOffset
+				}
+
 				// acquire buffer from pool
 				buf := <-pool
-
-				readLen := blockSize
-				if taskRemain < int64(readLen) {
-					readLen = int(taskRemain)
-				}
 
 				bytesRead, attemptReadErr := ReadDataObjectWithTrackerCallBack(attemptConn, attemptHandle, buf[:readLen], blockReadCallback)
 				if bytesRead > 0 {
 					data := buf[:bytesRead]
-					blockOffset := lastOffset
 
 					atomic.StoreInt64(&currentBytesDownloaded[taskID], 0)
 					atomic.AddInt64(&bytesDownloaded[taskID], int64(bytesRead))
 
 					calcProgress()
 
-					taskRemain -= int64(bytesRead)
-					lastOffset += int64(bytesRead)
+					handleOffset += int64(bytesRead)
 
 					callbackWg.Add(1)
 					go func() {
@@ -1759,6 +1805,8 @@ func DownloadDataObjectParallelWithCallback(sess *session.IRODSSession, dataObje
 
 					return errors.Wrapf(attemptReadErr, "failed to read from data object %q", dataObject.Path)
 				}
+
+				nextBlock++
 
 				if len(errChan) > 0 {
 					// other tasks failed
@@ -1798,25 +1846,21 @@ func DownloadDataObjectParallelWithCallback(sess *session.IRODSSession, dataObje
 		}
 	}
 
-	totalBlocks := dataObject.Size / int64(blockSize)
-	if dataObject.Size%int64(blockSize) > 0 {
-		totalBlocks++
-	}
-	blocksPerThread := totalBlocks / int64(numTasks)
+	blocksPerThread := blocksToDownload / int64(numTasks)
 
-	offset := int64(0)
+	taskStartBlock := startBlock
 
 	for i := 0; i < numTasks; i++ {
 		taskWaitGroup.Add(1)
 
-		taskLength := blocksPerThread * int64(blockSize)
+		taskEndBlock := taskStartBlock + blocksPerThread
 		if i == numTasks-1 {
 			// last thread gets the remainder
-			taskLength = dataObject.Size - offset
+			taskEndBlock = totalBlocks
 		}
 
-		go downloadTask(i, transferConns[i], offset, taskLength)
-		offset += taskLength
+		go downloadTask(i, transferConns[i], taskStartBlock, taskEndBlock)
+		taskStartBlock = taskEndBlock
 	}
 
 	taskWaitGroup.Wait()

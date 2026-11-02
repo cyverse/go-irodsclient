@@ -6,3 +6,7 @@ type TransferTrackerCallback func(taskName string, processed int64, total int64)
 // The data slice is backed by a pooled buffer and is only valid during the callback invocation.
 // Copy the data if you need to retain it beyond the callback return.
 type DataObjectBlockCallback func(data []byte, offset int64) error
+
+// DataObjectBlockSkipCallback is called right before a block is read during download.
+// Returning true skips the block: it is not transferred and blockReadyCallback is not called for it.
+type DataObjectBlockSkipCallback func(blockID int64) bool

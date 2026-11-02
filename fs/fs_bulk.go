@@ -2058,6 +2058,12 @@ func (fs *FileSystem) DownloadFileWithCallbackWithConnection(conn *connection.IR
 
 // DownloadFileParallelWithCallback downloads a file in parallel via callback
 func (fs *FileSystem) DownloadFileParallelWithCallback(irodsPath string, resource string, blockSize int, numBlocks int, blockReadyCallback common.DataObjectBlockCallback, taskNum int, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
+	return fs.DownloadFileBlocksParallelWithCallback(irodsPath, resource, blockSize, numBlocks, 0, nil, blockReadyCallback, taskNum, transferCallback)
+}
+
+// DownloadFileBlocksParallelWithCallback downloads the blocks of a file from startBlock to the last one in parallel via callback.
+// skipBlockCallback, if given, is asked right before each block is read, and a block it skips is not transferred.
+func (fs *FileSystem) DownloadFileBlocksParallelWithCallback(irodsPath string, resource string, blockSize int, numBlocks int, startBlock int64, skipBlockCallback common.DataObjectBlockSkipCallback, blockReadyCallback common.DataObjectBlockCallback, taskNum int, transferCallback common.TransferTrackerCallback) (*FileTransferResult, error) {
 	irodsSrcPath := util.CleanIRODSPath(irodsPath)
 
 	fileTransferResult := &FileTransferResult{}
@@ -2081,7 +2087,7 @@ func (fs *FileSystem) DownloadFileParallelWithCallback(irodsPath string, resourc
 
 	keywords := map[common.KeyWord]string{}
 
-	err = irods_fs.DownloadDataObjectParallelWithCallback(fs.ioSession, entry.ToDataObject(), resource, blockSize, numBlocks, blockReadyCallback, taskNum, keywords, transferCallback)
+	err = irods_fs.DownloadDataObjectBlocksParallelWithCallback(fs.ioSession, entry.ToDataObject(), resource, blockSize, numBlocks, startBlock, skipBlockCallback, blockReadyCallback, taskNum, keywords, transferCallback)
 	if err != nil {
 		return fileTransferResult, errors.Wrapf(err, "failed to download a data object for path %q", irodsSrcPath)
 	}
