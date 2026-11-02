@@ -607,7 +607,7 @@ func testDownloadWithCallback(t *testing.T) {
 		var mu sync.Mutex
 
 		blockSize := 1 * 1024 * 1024 // 1MB
-		numBlocks := 4
+		numBuffers := 4
 
 		blockReadyCallback := func(data []byte, offset int64) error {
 			mu.Lock()
@@ -617,7 +617,7 @@ func testDownloadWithCallback(t *testing.T) {
 			return writeErr
 		}
 
-		_, err = filesystem.DownloadFileWithCallback(irodsPath, "", blockSize, numBlocks, blockReadyCallback, nil)
+		_, err = filesystem.DownloadFileWithCallback(irodsPath, "", blockSize, numBuffers, blockReadyCallback, nil)
 		FailError(t, err)
 
 		err = f.Close()
@@ -677,7 +677,7 @@ func testDownloadWithCallbackParallel(t *testing.T) {
 		var mu sync.Mutex
 
 		blockSize := 1 * 1024 * 1024 // 1MB
-		numBlocks := 8
+		numBuffers := 8
 
 		blockReadyCallback := func(data []byte, offset int64) error {
 			mu.Lock()
@@ -687,7 +687,7 @@ func testDownloadWithCallbackParallel(t *testing.T) {
 			return writeErr
 		}
 
-		_, err = filesystem.DownloadFileParallelWithCallback(irodsPath, "", blockSize, numBlocks, blockReadyCallback, 0, nil)
+		_, err = filesystem.DownloadFileParallelWithCallback(irodsPath, "", blockSize, numBuffers, blockReadyCallback, 0, nil)
 		FailError(t, err)
 
 		err = f.Close()
@@ -719,7 +719,7 @@ func testDownloadBlocksWithCallbackParallel(t *testing.T) {
 	FailError(t, err)
 
 	blockSize := 1 * 1024 * 1024 // 1MB
-	numBlocks := 4
+	numBuffers := 0              // two per task
 	totalBlocks := int64(11)
 
 	// every block is filled with its own block id, and the last one is partial
@@ -767,7 +767,7 @@ func testDownloadBlocksWithCallbackParallel(t *testing.T) {
 		}
 	}
 
-	_, err = filesystem.DownloadFileBlocksParallelWithCallback(irodsPath, "", blockSize, numBlocks, startBlock, skipBlockCallback, blockReadyCallback, 3, transferCallback)
+	_, err = filesystem.DownloadFileBlocksParallelWithCallback(irodsPath, "", blockSize, numBuffers, startBlock, skipBlockCallback, blockReadyCallback, 3, transferCallback)
 	FailError(t, err)
 
 	expectedBlocks := []int64{}
@@ -789,7 +789,7 @@ func testDownloadBlocksWithCallbackParallel(t *testing.T) {
 
 	// a start block past the last block downloads nothing
 	received = map[int64][]byte{}
-	_, err = filesystem.DownloadFileBlocksParallelWithCallback(irodsPath, "", blockSize, numBlocks, totalBlocks, nil, blockReadyCallback, 3, nil)
+	_, err = filesystem.DownloadFileBlocksParallelWithCallback(irodsPath, "", blockSize, numBuffers, totalBlocks, nil, blockReadyCallback, 3, nil)
 	FailError(t, err)
 	assert.Empty(t, received, "no block should be delivered past the last block")
 

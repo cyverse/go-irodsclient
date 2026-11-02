@@ -1552,33 +1552,53 @@ func DownloadDataObjectParallelWithConnections(conns []*connection.IRODSConnecti
 	return nil
 }
 
+// parallelDownloadBuffersPerTask is the default number of block buffers for each download task. With two, a task
+// reads its next block while blockReadyCallback handles the last one, instead of waiting for the buffer to come back.
+const parallelDownloadBuffersPerTask = 2
+
+// adjustNumBuffersForParallelDownload gives parallelDownloadBuffersPerTask buffers per task when numBuffers is not
+// set, and raises numBuffers to one per task otherwise. The buffers are shared by all tasks, so with fewer than
+// one each some tasks sit idle waiting for one.
+func adjustNumBuffersForParallelDownload(numBuffers int, numTasks int) int {
+	if numBuffers <= 0 {
+		return numTasks * parallelDownloadBuffersPerTask
+	}
+	if numBuffers < numTasks {
+		return numTasks
+	}
+	return numBuffers
+}
+
 // DownloadDataObjectWithCallback downloads a data object and delivers data blocks via callback.
-// Blocks are read sequentially and dispatched to blockReadyCallback concurrently using a pool of numBlocks buffers.
-func DownloadDataObjectWithCallback(sess *session.IRODSSession, dataObject *types.IRODSDataObject, resource string, blockSize int, numBlocks int, blockReadyCallback common.DataObjectBlockCallback, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
-	return DownloadDataObjectParallelWithCallback(sess, dataObject, resource, blockSize, numBlocks, blockReadyCallback, 1, keywords, transferCallback)
+// Blocks are read sequentially and dispatched to blockReadyCallback concurrently using a pool of numBuffers buffers.
+func DownloadDataObjectWithCallback(sess *session.IRODSSession, dataObject *types.IRODSDataObject, resource string, blockSize int, numBuffers int, blockReadyCallback common.DataObjectBlockCallback, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
+	return DownloadDataObjectParallelWithCallback(sess, dataObject, resource, blockSize, numBuffers, blockReadyCallback, 1, keywords, transferCallback)
 }
 
 // DownloadDataObjectWithCallbackWithConnection downloads a data object and delivers data blocks via callback using a provided connection.
-func DownloadDataObjectWithCallbackWithConnection(conn *connection.IRODSConnection, dataObject *types.IRODSDataObject, resource string, blockSize int, numBlocks int, blockReadyCallback common.DataObjectBlockCallback, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
+func DownloadDataObjectWithCallbackWithConnection(conn *connection.IRODSConnection, dataObject *types.IRODSDataObject, resource string, blockSize int, numBuffers int, blockReadyCallback common.DataObjectBlockCallback, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
 	conns := []*connection.IRODSConnection{conn}
-	return DownloadDataObjectParallelWithCallbackWithConnections(conns, dataObject, resource, blockSize, numBlocks, blockReadyCallback, keywords, transferCallback)
+	return DownloadDataObjectParallelWithCallbackWithConnections(conns, dataObject, resource, blockSize, numBuffers, blockReadyCallback, keywords, transferCallback)
 }
 
 // DownloadDataObjectParallelWithCallback downloads a data object in parallel and delivers data blocks via callback.
-func DownloadDataObjectParallelWithCallback(sess *session.IRODSSession, dataObject *types.IRODSDataObject, resource string, blockSize int, numBlocks int, blockReadyCallback common.DataObjectBlockCallback, taskNum int, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
-	return DownloadDataObjectBlocksParallelWithCallback(sess, dataObject, resource, blockSize, numBlocks, 0, nil, blockReadyCallback, taskNum, keywords, transferCallback)
+func DownloadDataObjectParallelWithCallback(sess *session.IRODSSession, dataObject *types.IRODSDataObject, resource string, blockSize int, numBuffers int, blockReadyCallback common.DataObjectBlockCallback, taskNum int, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
+	return DownloadDataObjectBlocksParallelWithCallback(sess, dataObject, resource, blockSize, numBuffers, 0, nil, blockReadyCallback, taskNum, keywords, transferCallback)
 }
 
 // DownloadDataObjectBlocksParallelWithCallback downloads the blocks of a data object from startBlock to the last one in parallel
 // and delivers them via callback. The blocks are partitioned among taskNum tasks, and each task reads its blocks in order.
 // skipBlockCallback, if given, is asked right before each block is read; a block it skips is not transferred, and the task
 // seeks past it. Skipped blocks count as transferred for transferCallback, so the progress still reaches the data object size.
-func DownloadDataObjectBlocksParallelWithCallback(sess *session.IRODSSession, dataObject *types.IRODSDataObject, resource string, blockSize int, numBlocks int, startBlock int64, skipBlockCallback common.DataObjectBlockSkipCallback, blockReadyCallback common.DataObjectBlockCallback, taskNum int, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
+// numBuffers is the number of block buffers shared by the tasks, which bounds the blocks held in memory awaiting
+// blockReadyCallback. Zero or less gives two per task, and it is raised to one per task, so the memory used is at
+// least blockSize for each task.
+func DownloadDataObjectBlocksParallelWithCallback(sess *session.IRODSSession, dataObject *types.IRODSDataObject, resource string, blockSize int, numBuffers int, startBlock int64, skipBlockCallback common.DataObjectBlockSkipCallback, blockReadyCallback common.DataObjectBlockCallback, taskNum int, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
 	logger := sess.GetLogger().WithFields(log.Fields{
 		"irods_path":  dataObject.Path,
 		"resource":    resource,
 		"block_size":  blockSize,
-		"num_blocks":  numBlocks,
+		"num_buffers": numBuffers,
 		"start_block": startBlock,
 		"task_num":    taskNum,
 	})
@@ -1654,8 +1674,9 @@ func DownloadDataObjectBlocksParallelWithCallback(sess *session.IRODSSession, da
 	logger.Debugf("downloading data object blocks in parallel with callback, size(%d), blocks(%d-%d), threads(%d)", dataObject.Size, startBlock, totalBlocks-1, numTasks)
 
 	// shared buffer pool
-	pool := make(chan []byte, numBlocks)
-	for i := 0; i < numBlocks; i++ {
+	numBuffers = adjustNumBuffersForParallelDownload(numBuffers, numTasks)
+	pool := make(chan []byte, numBuffers)
+	for i := 0; i < numBuffers; i++ {
 		pool <- make([]byte, blockSize)
 	}
 
@@ -1874,16 +1895,16 @@ func DownloadDataObjectBlocksParallelWithCallback(sess *session.IRODSSession, da
 }
 
 // DownloadDataObjectParallelWithCallbackWithConnections downloads a data object in parallel and delivers data blocks via callback using provided connections.
-func DownloadDataObjectParallelWithCallbackWithConnections(conns []*connection.IRODSConnection, dataObject *types.IRODSDataObject, resource string, blockSize int, numBlocks int, blockReadyCallback common.DataObjectBlockCallback, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
+func DownloadDataObjectParallelWithCallbackWithConnections(conns []*connection.IRODSConnection, dataObject *types.IRODSDataObject, resource string, blockSize int, numBuffers int, blockReadyCallback common.DataObjectBlockCallback, keywords map[common.KeyWord]string, transferCallback common.TransferTrackerCallback) error {
 	if len(conns) == 0 {
 		return errors.Errorf("no connections provided")
 	}
 
 	logger := conns[0].GetLogger().WithFields(log.Fields{
-		"irods_path": dataObject.Path,
-		"resource":   resource,
-		"block_size": blockSize,
-		"num_blocks": numBlocks,
+		"irods_path":  dataObject.Path,
+		"resource":    resource,
+		"block_size":  blockSize,
+		"num_buffers": numBuffers,
 	})
 
 	for _, conn := range conns {
@@ -1909,8 +1930,9 @@ func DownloadDataObjectParallelWithCallbackWithConnections(conns []*connection.I
 	logger.Debugf("downloading data object in parallel with callback, size(%d), threads(%d)", dataObject.Size, numTasks)
 
 	// shared buffer pool
-	pool := make(chan []byte, numBlocks)
-	for i := 0; i < numBlocks; i++ {
+	numBuffers = adjustNumBuffersForParallelDownload(numBuffers, numTasks)
+	pool := make(chan []byte, numBuffers)
+	for i := 0; i < numBuffers; i++ {
 		pool <- make([]byte, blockSize)
 	}
 
